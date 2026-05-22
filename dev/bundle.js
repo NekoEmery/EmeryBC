@@ -21865,15 +21865,16 @@
             var _a, _b, _c, _d, _e;
             const STEP_TYPE_LABELS = {
                 pose: "Pose",
-                equip: "Equip", // legacy — kept for backward compat
-                "equip-restraint": "Equip Restraint",
-                "equip-clothes": "Equip Item (clothes, props…)",
+                equip: "Equip Item", // primary equip type — searches all groups
+                "equip-restraint": "Equip Restraint", // legacy label (backward compat display only)
+                "equip-clothes": "Equip Item (clothes, props…)", // legacy label
                 unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
                 expression: "Expression",
             };
-            // New steps use the split types; "equip" is injected into the dropdown only when
-            // an existing step was saved with the old type (see typeSelect construction below).
-            const ALL_STEP_TYPES = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait", "expression"];
+            // "equip" is the primary equip type (searches all groups via the search box).
+            // "equip-restraint" and "equip-clothes" are legacy — injected into the dropdown
+            // only when an existing step was saved with one of those types.
+            const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "chat", "wait", "expression"];
             const bodyPoses = (_b = (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses) !== null && _b !== void 0 ? _b : [];
             const armPoses = (_d = (_c = KNOWN_POSES.find(g => g.group === "Arms")) === null || _c === void 0 ? void 0 : _c.poses) !== null && _d !== void 0 ? _d : [];
             const getAllGroups = (filter) => {
@@ -22014,10 +22015,12 @@
                 header.className = "ebc-scene-step-header";
                 const typeSelect = document.createElement("select");
                 typeSelect.className = "ebc-scene-type-sel";
-                // Build the type list; if this step was saved with the old "equip" type inject it
-                // so the dropdown shows the correct selection rather than defaulting to another type.
-                const stepTypes = initStep.type === "equip"
-                    ? ["equip", ...ALL_STEP_TYPES]
+                // Build the type list. Legacy split types ("equip-restraint", "equip-clothes") are
+                // injected only when an existing step was saved with one of those types so the
+                // dropdown shows the correct label. New steps always use the unified "equip" type.
+                const isLegacyEquip = initStep.type === "equip-restraint" || initStep.type === "equip-clothes";
+                const stepTypes = isLegacyEquip
+                    ? [initStep.type, ...ALL_STEP_TYPES]
                     : ALL_STEP_TYPES;
                 for (const t of stepTypes) {
                     const opt = document.createElement("option");
@@ -32211,7 +32214,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.2";
+    const MOD_VERSION = "4.2.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32222,6 +32225,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.3",
+            changes: [
+                "Scenes — Equip steps: unified into a single 'Equip Item' type that searches ALL item groups at once. No more split between 'Equip Restraint' and 'Equip Item (clothes, props…)' — one search box finds anything. Legacy steps saved with the old types still load and display correctly.",
+            ],
+        },
         {
             version: "4.2.2",
             changes: [
