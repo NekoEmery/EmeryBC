@@ -3698,9 +3698,9 @@
      * border, and mouse-hover highlight all work exactly as before — then
      * overlays our own canvas text centred both horizontally and vertically.
      */
-    function drawActionButton(x, y, size, label, bgColor) {
+    function drawActionButton(x, y, size, label, bgColor, hoverText = "") {
         // BC handles background + hover effect; empty label so it draws no text
-        DrawButton(x, y, size, size, "", bgColor, "", "");
+        DrawButton(x, y, size, size, "", bgColor, "", hoverText);
         const canvas = document.getElementById("MainCanvas");
         const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
         if (!ctx)
@@ -3842,7 +3842,7 @@
                 drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
             }
             else {
-                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90));
+                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), btn.emote);
             }
         }
     }
@@ -33157,7 +33157,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.9";
+    const MOD_VERSION = "4.5.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33168,6 +33168,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.0",
+            changes: [
+                "Action buttons: fixed hover effect — BC's hover highlight was missing because HoverText was being passed as empty string. Now passes btn.emote as the tooltip/hover trigger to DrawButton, restoring the highlight on mouseover.",
+            ],
+        },
         {
             version: "4.4.9",
             changes: [
