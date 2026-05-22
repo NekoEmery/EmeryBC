@@ -23540,7 +23540,7 @@
             const chatSettingsLbl = document.createElement("div");
             chatSettingsLbl.className = "ebc-section-label";
             chatSettingsLbl.style.margin = "0";
-            chatSettingsLbl.textContent = "Chat & Notifications";
+            chatSettingsLbl.textContent = "Chat and notifications";
             const chatSettingsChevron = document.createElement("span");
             chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
             chatSettingsHeader.appendChild(chatSettingsLbl);
@@ -32078,7 +32078,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.4";
+    const MOD_VERSION = "3.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
