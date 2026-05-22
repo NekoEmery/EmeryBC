@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.4.6
+// @version      4.4.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2669,6 +2669,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function setBadgeDragMode(v) { _badgeDragMode = v; }
     function getBadgeDragStyleTarget() { return _badgeDragStyleTarget; }
     function setBadgeDragStyleTarget(v) { _badgeDragStyleTarget = v; }
+    // -- Per-person beep mute (in-memory, session-only) ----------------------------
+    // Members whose beep sounds and notifications are silenced for this session.
+    // Does NOT affect BC's native beep handling — only suppresses EBC's IM sound.
+    const _mutedBeepMembers = new Set();
+    function isBeepMemberMuted(num) { return _mutedBeepMembers.has(num); }
+    function toggleMutedBeepMember(num) {
+        if (_mutedBeepMembers.has(num)) {
+            _mutedBeepMembers.delete(num);
+            return false;
+        }
+        _mutedBeepMembers.add(num);
+        return true;
+    }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -23988,37 +24001,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
-            // Suppress-in-BC-chat toggle — SVG chat bubble, slash through it when suppressed (default)
-            const suppressBtn = document.createElement("button");
-            suppressBtn.className = "ebc-beep-win-hbtn";
-            suppressBtn.style.cssText = "background:#2a0e1e;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-            const refreshSuppressBtn = () => {
-                const suppressed = getSuppressNativeBeep();
-                const bubbleColor = suppressed ? "#6a3a4a" : "#cf6f98";
-                const slashLine = suppressed
-                    ? `<line x1="1" y1="15" x2="15" y2="1" stroke="#ff4455" stroke-width="2.2" stroke-linecap="round"/>`
-                    : "";
-                suppressBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
-                <rect x="1" y="1" width="12" height="10" rx="3" fill="${bubbleColor}"/>
-                <polygon points="2,11 1,15 5,12.5" fill="${bubbleColor}"/>
-                ${slashLine}
-            </svg>`;
-                suppressBtn.title = suppressed
-                    ? "Beeps hidden from BC chat — click to show them there too"
-                    : "Beeps visible in BC chat — click to hide them";
-                suppressBtn.style.border = suppressed ? "1px solid #5a2030" : "1px solid #cf6f98";
+            // Per-person mute toggle — silences beep sounds from this specific person
+            const muteBtn = document.createElement("button");
+            muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
+            const refreshMuteBtn = () => {
+                const muted = isBeepMemberMuted(memberNumber);
+                muteBtn.textContent = muted ? "🔇" : "🔔";
+                muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
+                muteBtn.classList.toggle("muted", muted);
             };
-            refreshSuppressBtn();
-            win._refreshSuppressBtn = refreshSuppressBtn;
-            suppressBtn.addEventListener("click", () => {
-                setSuppressNativeBeep(!getSuppressNativeBeep());
-                for (const { el } of this.beepWins.values()) {
-                    const fn = el._refreshSuppressBtn;
-                    try {
-                        fn === null || fn === void 0 ? void 0 : fn();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
+            refreshMuteBtn();
+            win._refreshMuteBtn = refreshMuteBtn;
+            muteBtn.addEventListener("click", () => {
+                toggleMutedBeepMember(memberNumber);
+                refreshMuteBtn();
             });
             const minimizeBtn = document.createElement("button");
             minimizeBtn.className = "ebc-beep-win-hbtn";
@@ -24064,7 +24060,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             header.appendChild(dot);
             header.appendChild(titleArea);
             header.appendChild(unreadDot);
-            header.appendChild(suppressBtn);
+            header.appendChild(muteBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
@@ -33147,7 +33143,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.6";
+    const MOD_VERSION = "4.4.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33158,6 +33154,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.7",
+            changes: [
+                "Beep windows: replaced the global 'suppress BC chat' button in the header with a per-person 🔔/🔇 mute toggle. Clicking it silences beep sounds from that specific person for the session without affecting anyone else.",
+            ],
+        },
         {
             version: "4.4.6",
             changes: [
@@ -38710,7 +38712,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
                     if (msg) {
                         addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
-                        if (!getBeepMuted()) {
+                        if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
