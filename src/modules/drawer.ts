@@ -9193,6 +9193,10 @@ export class EBCDrawer {
         // ── SCENES (collapsible) ─────────────────────────────────────────────
         const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
         this.renderScenes(scenesCnt);
+
+        // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
+        const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
+        this.renderExpressions(exprCnt);
     }
 
     private renderScenes(body: HTMLElement): void {
