@@ -31428,10 +31428,12 @@
                     delBtn.textContent = "×";
                     delBtn.title = "Delete preset";
                     delBtn.addEventListener("click", () => {
-                        if (preset.id === getDefaultExprPresetId())
-                            setDefaultExprPresetId(null);
-                        saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
-                        this.rerender();
+                        showQuickConfirm(`Delete preset "${preset.name}"?`, () => {
+                            if (preset.id === getDefaultExprPresetId())
+                                setDefaultExprPresetId(null);
+                            saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
+                            this.rerender();
+                        });
                     });
                     pRow.appendChild(applyBtn);
                     pRow.appendChild(updateExprBtn);
@@ -31493,8 +31495,10 @@
                 trigDelBtn.textContent = "×";
                 trigDelBtn.title = "Delete trigger";
                 trigDelBtn.addEventListener("click", () => {
-                    saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
-                    this.rerender();
+                    showQuickConfirm(`Delete trigger for "${trig.matchText}"?`, () => {
+                        saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
+                        this.rerender();
+                    });
                 });
                 tRow.appendChild(matchChip);
                 tRow.appendChild(arrow);
@@ -33157,7 +33161,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.0";
+    const MOD_VERSION = "4.5.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33168,6 +33172,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.1",
+            changes: [
+                "UX: expression presets and chat triggers now show a confirm dialog before deleting.",
+            ],
+        },
         {
             version: "4.5.0",
             changes: [
