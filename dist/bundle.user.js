@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.7
+// @version      3.9.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -3486,13 +3486,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+    // Returns true if the DOGS mod (Devious Obligate Great Stuff) is loaded.
+    // DOGS intercepts InventoryUnlock and restores padlocked items via server hooks,
+    // so any item it controls must be treated as untouchable.
+    function isDogsActive() {
+        var _a, _b;
+        try {
+            const sdk = window.bcModSdk;
+            return (_b = (_a = sdk === null || sdk === void 0 ? void 0 : sdk.getModsInfo) === null || _a === void 0 ? void 0 : _a.call(sdk).some(m => m.name === "DOGS")) !== null && _b !== void 0 ? _b : false;
+        }
+        catch (_c) {
+            return false;
+        }
+    }
     // Locks that must never be touched regardless of the operation.
+    // ExclusivePadlock is included: it is the base lock used by DOGS (Devious Obligate
+    // Great Stuff) and also semantically should not be bulk-removed — the person who
+    // applied it intended it to be exclusive to them.
     function isProtectedLock(item) {
         var _a, _b;
         const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
         if (!lock)
             return false;
-        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
+            || lock.includes("exclusive");
     }
     // Returns true if this item's slot is in the user's outfit whitelist.
     function isWhitelisted(item) {
@@ -3530,16 +3547,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
         const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
         if (toRemove.length === 0) {
+            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
             localNotice(skipped.length > 0
-                ? "All restraints are locked or protected — none removed."
+                ? `All restraints are locked or protected — none removed.${dogsNote}`
                 : "No restraints found to remove.", UI.textMuted);
             return;
         }
         for (const item of toRemove) {
-            InventoryRemove(Player, item.Asset.Group.Name, false);
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore — mod hook may throw */_a) { /* ignore — mod hook may throw */ }
         }
         if (skipped.length > 0) {
-            localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+            localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -3624,13 +3646,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             unlocked++;
         }
         if (unlocked === 0) {
+            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
             localNotice(skipped > 0
-                ? "All locks are owner/lover/family protected - none removed."
+                ? `All locks are protected — none removed.${dogsNote}`
                 : "No locks found to remove.", UI.textMuted);
             return;
         }
         if (skipped > 0) {
-            localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+            localNotice(`Skipped ${skipped} protected lock(s).${dogsNote}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -12303,11 +12327,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
 
     // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
     // Friendly labels shown in the picker row headers
     const EXPR_GROUP_LABELS = {
         Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+        Eyes: "Eyes L", Eyes2: "Eyes R", Fluids: "Fluids", Mouth: "Mouth", Tears: "Tears",
     };
     function uid() {
         return Math.random().toString(36).slice(2, 9);
@@ -13110,6 +13134,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "😡 Brow — angry", cmd: "Eyebrows:Angry" },
         { label: "😊 Brow — soft", cmd: "Eyebrows:Soft" },
         { label: "× Brow — clear", cmd: "Eyebrows:" },
+        // ── Fluids ───────────────────────────────────────────────────
+        { label: "💧 Drool — low", cmd: "Fluids:DroolLow" },
+        { label: "💧 Drool — medium", cmd: "Fluids:DroolMedium" },
+        { label: "💦 Drool — high", cmd: "Fluids:DroolHigh" },
+        { label: "💦 Drool — sides", cmd: "Fluids:DroolSides" },
+        { label: "💦 Drool — messy", cmd: "Fluids:DroolMessy" },
+        { label: "😢 Tears — low", cmd: "Fluids:TearsLow" },
+        { label: "😢 Tears — medium", cmd: "Fluids:TearsMedium" },
+        { label: "😭 Tears — high", cmd: "Fluids:TearsHigh" },
+        { label: "× Fluids — clear", cmd: "Fluids:" },
     ];
     const KITTY_REACTION_POSES = [
         { label: "— None —", poses: [] },
@@ -21910,7 +21944,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -21984,7 +22018,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 let equipHeightModifier = initStep.heightModifier;
                 let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
                 let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
-                let chatFormat = initStep.chatFormat === "(" ? "(" : "";
+                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 // Prevent BC's document-level keyboard handlers from stealing focus
@@ -22345,6 +22379,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         textInp.style.flex = "1";
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
                         stopKeys(textInp);
+                        row.appendChild(makeToggle("* *", "*"));
                         row.appendChild(makeToggle("( )", "("));
                         row.appendChild(textInp);
                         fieldsEl.appendChild(row);
@@ -22986,13 +23021,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
             closeBtn.addEventListener("click", () => {
-                const cleanup = win._closeEmoji;
-                if (cleanup) {
-                    try {
-                        document.removeEventListener("click", cleanup, true);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
                 win.remove();
                 this.beepWins.delete(memberNumber);
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
@@ -23073,14 +23101,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
-            // Restore saved position from localStorage, or fall back to default offset
+            // Restore saved position from localStorage, or fall back to default offset.
+            // Clamp the restored values so the window is always fully on-screen even if
+            // it was saved with an out-of-bounds position (e.g. after window resize).
             const savedPosKey = `EBC_beepPos_${memberNumber}`;
+            const clampBeepPos = (left, bottom) => {
+                const winW = win.offsetWidth || 300;
+                const winH = win.offsetHeight || 380;
+                return {
+                    left: Math.max(0, Math.min(left, window.innerWidth - winW)),
+                    bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
+                };
+            };
             try {
                 const saved = localStorage.getItem(savedPosKey);
                 if (saved) {
                     const { left, bottom } = JSON.parse(saved);
-                    win.style.left = `${left}px`;
-                    win.style.bottom = `${bottom}px`;
+                    const clamped = clampBeepPos(left, bottom);
+                    win.style.left = `${clamped.left}px`;
+                    win.style.bottom = `${clamped.bottom}px`;
                     win.style.right = "";
                 }
             }
@@ -23097,12 +23136,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const vh = window.innerHeight;
                 const oyFromBottom = rect.bottom - start.clientY;
                 addPointerTracking((pos) => {
-                    const winW = win.offsetWidth || 280;
-                    const hdrH = header.offsetHeight || 38;
                     const rawL = pos.clientX - ox;
                     const rawB = vh - pos.clientY - oyFromBottom;
+                    // Clamp so the full window stays within the viewport (use winH, not hdrH —
+                    // using hdrH let the window be dragged almost entirely off the top edge).
+                    const winW = win.offsetWidth || 300;
+                    const winH = win.offsetHeight || 380;
                     win.style.left = `${Math.max(0, Math.min(rawL, window.innerWidth - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, window.innerHeight - hdrH))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right = "";
                     win.style.top = "";
                 }, () => {
@@ -23256,55 +23297,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
-            // Emoji picker
-            const EMOJIS = [
-                // Faces — happy & expressive
-                "😊", "😄", "😂", "🥰", "😍", "😘", "😜", "😏", "🤔", "😳",
-                // Faces — sad, shy & silly
-                "😭", "😢", "🥹", "😇", "😋", "🤭", "🫠", "🤣", "😅", "🫣",
-                // Gestures & reactions
-                "👉", "👈", "👀", "🙌", "🫶", "🤗", "🙈", "🥺", "👋", "😬",
-                // Hearts
-                "💕", "💖", "❤️", "💗", "💜", "💙", "💚", "🧡", "💛", "💝",
-                // Sparkle & celebration
-                "✨", "🎉", "🎊", "💫", "🌟", "⭐", "🎀", "🎵", "👑", "🌈",
-                // Cute animals & nature
-                "🌸", "🍑", "🐾", "🐱", "🐰", "🦊", "🦋", "🌙", "💤", "🍭",
-            ];
-            const emojiPicker = document.createElement("div");
-            emojiPicker.className = "ebc-emoji-picker";
-            emojiPicker.style.display = "none";
-            for (const emoji of EMOJIS) {
-                const eb = document.createElement("button");
-                eb.textContent = emoji;
-                eb.addEventListener("click", (e) => {
-                    var _a, _b;
-                    e.stopPropagation();
-                    const start = (_a = input.selectionStart) !== null && _a !== void 0 ? _a : input.value.length;
-                    const end = (_b = input.selectionEnd) !== null && _b !== void 0 ? _b : input.value.length;
-                    input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-                    input.selectionStart = input.selectionEnd = start + [...emoji].length;
-                    input.focus();
-                    emojiPicker.style.display = "none";
-                });
-                emojiPicker.appendChild(eb);
-            }
-            const emojiBtn = document.createElement("button");
-            emojiBtn.className = "ebc-emoji-btn";
-            emojiBtn.textContent = "😊";
-            emojiBtn.title = "Insert emoji";
-            emojiBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const showing = emojiPicker.style.display !== "none";
-                emojiPicker.style.display = showing ? "none" : "flex";
-            });
-            const closeEmojiOnOutside = (e) => {
-                if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
-                    emojiPicker.style.display = "none";
-                }
-            };
-            document.addEventListener("click", closeEmojiOnOutside, true);
-            win._closeEmoji = closeEmojiOnOutside;
             const doSend = () => {
                 const msg = input.value.trim();
                 if (!msg)
@@ -23318,9 +23310,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             sendBtn.addEventListener("click", doSend);
             input.addEventListener("keydown", (e) => { if (e.key === "Enter")
                 doSend(); });
-            footer.appendChild(emojiPicker);
             footer.appendChild(input);
-            footer.appendChild(emojiBtn);
             footer.appendChild(sendBtn);
             win.appendChild(footer);
             document.body.appendChild(win);
@@ -24138,7 +24128,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
                 const searchInput = document.createElement("input");
                 searchInput.type = "text";
-                searchInput.placeholder = "🔍 Search friends…";
+                searchInput.placeholder = "Search friends…";
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
                 searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
@@ -30026,7 +30016,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                     return b;
                 };
-                const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Emoticon"];
+                const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Fluids", "Emoticon"];
                 presets.forEach((ep, pIdx) => {
                     const card = document.createElement("div");
                     card.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(30,10,30,0.5);border:1px solid #3a1538;border-radius:5px;padding:5px 7px;";
@@ -30088,12 +30078,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const stateSel = document.createElement("select");
                     stateSel.style.cssText = "flex:1;min-width:0;" + INP;
                     const EP_STATES = {
-                        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", ""],
-                        Eyes: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
-                        Eyes2: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
-                        Mouth: ["Happy", "Sad", "Pout", "Angry", "Moan", "Devious", "Grin", "Smirk", ""],
-                        Eyebrows: ["Raised", "Harsh", "Angry", "Soft", ""],
-                        Emoticon: ["Afk", "Hearing_Loss", "Whisper", "Sleep", ""],
+                        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath", ""],
+                        Eyes: ["Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd", "Heart", "HeartPink", "LewdHeart", "LewdHeartPink", "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared", ""],
+                        Eyes2: ["Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd", "Heart", "HeartPink", "LewdHeart", "LewdHeartPink", "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared", ""],
+                        Mouth: ["Frown", "Sad", "Pained", "Angry", "HalfOpen", "Open", "Ahegao", "Moan", "TonguePinch", "LipBite", "Happy", "Devious", "Laughing", "Grin", "Smirk", "Pout", ""],
+                        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft", ""],
+                        Fluids: ["DroolLow", "DroolMedium", "DroolHigh", "DroolSides", "DroolMessy", "DroolTearsLow", "DroolTearsMedium", "DroolTearsHigh", "DroolTearsMessy", "DroolTearsSides", "TearsHigh", "TearsMedium", "TearsLow", ""],
+                        Emoticon: ["Afk", "Whisper", "Sleep", "Hearts", "Tear", "Hearing", "Confusion", "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator", "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock", "Wardrobe", "Gaming", ""],
                     };
                     const refreshStateSel = () => {
                         var _a;
@@ -32051,7 +32042,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.7";
+    const MOD_VERSION = "3.9.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32062,6 +32053,32 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.9.1",
+            changes: [
+                "Fix: Release Restraints and Remove Locks no longer fight with the DOGS mod (Devious Obligate Great Stuff). DOGS uses ExclusivePadlock as its base lock type — EBC was trying to remove those items, DOGS would instantly restore them via server hooks, leaving the UI in a broken/oscillating state. ExclusivePadlock is now treated as a protected lock (same as owner/lover/family), so EBC skips DOGS-padlocked items entirely. A chat notice explains what was skipped and why when DOGS is active.",
+                "Fix: InventoryRemove calls in Release Restraints are now individually try-caught so a throwing mod hook can no longer crash the whole operation.",
+            ],
+        },
+        {
+            version: "3.9.0",
+            changes: [
+                "Friends list: removed the 🔍 emoji from the search input placeholder — plain text only.",
+            ],
+        },
+        {
+            version: "3.8.9",
+            changes: [
+                "Beep/chat windows: removed the 😊 emoji picker button from the message input bar.",
+                "Scene editor chat step: restored the '* *' emote format toggle (was incorrectly removed in v3.8.7). Both '* *' and '( )' toggles are now proper toggles — clicking the active one deactivates it back to plain text.",
+            ],
+        },
+        {
+            version: "3.8.8",
+            changes: [
+                "Fix: beep/chat windows could get stuck off the top of the screen after being dragged. The drag clamp was using the header height (~38 px) as the upper bound instead of the full window height (~380 px), allowing the window to be dragged until only its bottom edge was visible. Both the drag clamp and the saved-position restore now clamp to keep the entire window within the viewport.",
+            ],
+        },
         {
             version: "3.8.7",
             changes: [

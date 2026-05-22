@@ -2,13 +2,13 @@
 
 import { callBC, syncSettings, syncAppearance } from "./bcUtils";
 
-export const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"] as const;
+export const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"] as const;
 export type ExprGroup = typeof EXPR_GROUPS[number];
 
 // Friendly labels shown in the picker row headers
 export const EXPR_GROUP_LABELS: Record<string, string> = {
     Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-    Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+    Eyes: "Eyes L", Eyes2: "Eyes R", Fluids: "Fluids", Mouth: "Mouth", Tears: "Tears",
 };
 
 export interface ExpressionPreset {
@@ -47,18 +47,35 @@ function getStore(): Record<string, unknown> | null {
 // Falls back to a hardcoded list if the global isn't available.
 
 const EXPR_FALLBACK: Record<string, string[]> = {
-    Blush:    ["1", "2", "3", "4", "5"],
+    Blush:    ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath"],
     Emoticon: [
-        "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
-        "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
-        "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
-        "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
-        "Snow", "Star", "Study", "Whisper", "XP", "Yell",
+        "Afk", "Whisper", "Sleep", "Hearts", "Tear", "Hearing", "Confusion",
+        "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator",
+        "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock",
+        "Wardrobe", "Gaming",
     ],
-    Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
-    Eyes:     ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-    Eyes2:    ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-    Mouth:    ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
+    Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft"],
+    Eyes:     [
+        "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
+        "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
+        "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
+    ],
+    Eyes2:    [
+        "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
+        "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
+        "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
+    ],
+    Fluids:   [
+        "DroolLow", "DroolMedium", "DroolHigh", "DroolSides", "DroolMessy",
+        "DroolTearsLow", "DroolTearsMedium", "DroolTearsHigh",
+        "DroolTearsMessy", "DroolTearsSides",
+        "TearsHigh", "TearsMedium", "TearsLow",
+    ],
+    Mouth:    [
+        "Frown", "Sad", "Pained", "Angry", "HalfOpen", "Open",
+        "Ahegao", "Moan", "TonguePinch", "LipBite",
+        "Happy", "Devious", "Laughing", "Grin", "Smirk", "Pout",
+    ],
     Tears:    ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
 };
 
