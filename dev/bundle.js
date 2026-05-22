@@ -23056,14 +23056,25 @@
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
-            // Restore saved position from localStorage, or fall back to default offset
+            // Restore saved position from localStorage, or fall back to default offset.
+            // Clamp the restored values so the window is always fully on-screen even if
+            // it was saved with an out-of-bounds position (e.g. after window resize).
             const savedPosKey = `EBC_beepPos_${memberNumber}`;
+            const clampBeepPos = (left, bottom) => {
+                const winW = win.offsetWidth || 300;
+                const winH = win.offsetHeight || 380;
+                return {
+                    left: Math.max(0, Math.min(left, window.innerWidth - winW)),
+                    bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
+                };
+            };
             try {
                 const saved = localStorage.getItem(savedPosKey);
                 if (saved) {
                     const { left, bottom } = JSON.parse(saved);
-                    win.style.left = `${left}px`;
-                    win.style.bottom = `${bottom}px`;
+                    const clamped = clampBeepPos(left, bottom);
+                    win.style.left = `${clamped.left}px`;
+                    win.style.bottom = `${clamped.bottom}px`;
                     win.style.right = "";
                 }
             }
@@ -23080,12 +23091,14 @@
                 const vh = window.innerHeight;
                 const oyFromBottom = rect.bottom - start.clientY;
                 addPointerTracking((pos) => {
-                    const winW = win.offsetWidth || 280;
-                    const hdrH = header.offsetHeight || 38;
                     const rawL = pos.clientX - ox;
                     const rawB = vh - pos.clientY - oyFromBottom;
+                    // Clamp so the full window stays within the viewport (use winH, not hdrH —
+                    // using hdrH let the window be dragged almost entirely off the top edge).
+                    const winW = win.offsetWidth || 300;
+                    const winH = win.offsetHeight || 380;
                     win.style.left = `${Math.max(0, Math.min(rawL, window.innerWidth - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, window.innerHeight - hdrH))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right = "";
                     win.style.top = "";
                 }, () => {
@@ -32034,7 +32047,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.7";
+    const MOD_VERSION = "3.8.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32045,6 +32058,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.8",
+            changes: [
+                "Fix: beep/chat windows could get stuck off the top of the screen after being dragged. The drag clamp was using the header height (~38 px) as the upper bound instead of the full window height (~380 px), allowing the window to be dragged until only its bottom edge was visible. Both the drag clamp and the saved-position restore now clamp to keep the entire window within the viewport.",
+            ],
+        },
         {
             version: "3.8.7",
             changes: [
