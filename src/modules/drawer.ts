@@ -9457,58 +9457,53 @@ export class EBCDrawer {
                 while (fieldsEl.firstChild) fieldsEl.removeChild(fieldsEl.firstChild);
 
                 if (type === "pose") {
-                    const row = document.createElement("div");
-                    row.className = "ebc-scene-fields-row";
+                    const poseGridWrap = document.createElement("div");
+                    poseGridWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
 
-                    const makeAxisDropdown = (
-                        label: string,
-                        poses: { key: string; label: string }[],
-                        currentKey: string,
-                        dataAttr: string,
-                    ): HTMLSelectElement => {
-                        const wrap = document.createElement("div");
-                        wrap.style.cssText = "display:flex;align-items:center;gap:4px;";
-                        const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-size:10px;color:#9a6878;";
-                        lbl.textContent = label + ":";
-                        const sel = document.createElement("select");
-                        sel.className = "ebc-scene-type-sel";
-                        sel.style.width = "90px";
-                        sel.dataset.axis = dataAttr;
-                        // "Relaxed" option for arms axis (value="" = no arm pose)
-                        if (dataAttr === "arms") {
-                            const none = document.createElement("option");
-                            none.value = "";
-                            none.textContent = "Relaxed";
-                            none.selected = currentKey === "";
-                            sel.appendChild(none);
-                        }
-                        for (const p of poses) {
-                            if (dataAttr === "body" || p.key !== "") {
-                                const opt = document.createElement("option");
-                                opt.value = p.key;
-                                opt.textContent = p.label;
-                                opt.selected = p.key === currentKey;
-                                sel.appendChild(opt);
-                            }
-                        }
-                        sel.addEventListener("change", () => {
-                            const bKey = (fieldsEl.querySelector("[data-axis='body']") as HTMLSelectElement | null)?.value ?? "";
-                            const aKey = (fieldsEl.querySelector("[data-axis='arms']") as HTMLSelectElement | null)?.value ?? "";
-                            // Keep "" for arms (Relaxed) — applyPoses strips arm poses when it sees ""
-                            posePoses = [bKey, aKey];
-                        });
-                        wrap.appendChild(lbl);
-                        wrap.appendChild(sel);
-                        row.appendChild(wrap);
-                        return sel;
+                    let curBody = posePoses.find(k => bodyPoses.some(p => p.key === k)) ?? "";
+                    let curArms = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== "")) ?? "";
+
+                    const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                    const POSE_ON  = "background:#4a1f30;border:1px solid #cf6f98;color:#f7e6ee;";
+                    const POSE_OFF = "background:#1b0d17;border:1px solid #3a1928;color:#9a6878;";
+
+                    const poseBodyBtns = new Map<string, HTMLButtonElement>();
+                    const poseArmBtns  = new Map<string, HTMLButtonElement>();
+
+                    const syncPoseHighlight = (): void => {
+                        for (const [k, b] of poseBodyBtns) b.style.cssText = POSE_BTN + (k === curBody ? POSE_ON : POSE_OFF);
+                        for (const [k, b] of poseArmBtns)  b.style.cssText = POSE_BTN + (k === curArms ? POSE_ON : POSE_OFF);
+                        // Build posePoses without stray "" so Stand+arm works correctly in applyPoses
+                        const parts: string[] = [];
+                        if (curBody !== "") parts.push(curBody);
+                        if (curArms  !== "") parts.push(curArms);
+                        posePoses = parts;
                     };
 
-                    const curBody = posePoses.find(k => bodyPoses.some(p => p.key === k)) ?? "";
-                    const curArms = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== "")) ?? "";
-                    makeAxisDropdown("Body", bodyPoses, curBody, "body");
-                    makeAxisDropdown("Arms", armPoses, curArms, "arms");
-                    fieldsEl.appendChild(row);
+                    const makePoseGroup = (label: string, poses: { key: string; label: string }[], isArms: boolean): void => {
+                        const lbl = document.createElement("div");
+                        lbl.style.cssText = "font-size:9px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
+                        lbl.textContent = label;
+                        poseGridWrap.appendChild(lbl);
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+                        for (const p of poses) {
+                            const btn = document.createElement("button");
+                            btn.textContent = p.label;
+                            btn.addEventListener("click", () => {
+                                if (isArms) { curArms = p.key; } else { curBody = p.key; }
+                                syncPoseHighlight();
+                            });
+                            if (isArms) { poseArmBtns.set(p.key, btn); } else { poseBodyBtns.set(p.key, btn); }
+                            row.appendChild(btn);
+                        }
+                        poseGridWrap.appendChild(row);
+                    };
+
+                    makePoseGroup("BODY", bodyPoses, false);
+                    makePoseGroup("ARMS", armPoses, true);
+                    syncPoseHighlight();
+                    fieldsEl.appendChild(poseGridWrap);
 
                 } else if (type === "equip" || type === "equip-restraint" || type === "equip-clothes") {
                     const grpFilter = type === "equip-restraint" ? "restraint"
