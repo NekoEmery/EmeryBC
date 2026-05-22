@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.2.5
+// @version      4.2.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16379,6 +16379,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.isOpen = false;
             this.currentTab = "outfits";
             this.resizeObserver = null;
+            this.windowResizeHandler = null;
             this.positioned = false;
             this.hasBeenShown = false;
             this.version = "";
@@ -17573,6 +17574,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // ── Outside chatroom: floating panel anchored to the right edge ───────
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                 this.resizeObserver = null;
+                if (this.windowResizeHandler) {
+                    window.removeEventListener("resize", this.windowResizeHandler);
+                    this.windowResizeHandler = null;
+                }
                 this.stopCrabsPoller();
                 this.stopTimerPoller();
                 // Keep beep windows hidden outside a room
@@ -17661,6 +17666,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.resizeObserver = new ResizeObserver(() => this.syncToChat());
                     this.resizeObserver.observe(chatLog);
                 }
+            }
+            // ResizeObserver only fires when the element's intrinsic size changes — it
+            // does NOT fire when BC repositions TextAreaChatLog via style.left / style.top
+            // (which is what happens when the browser window is resized or snapped).
+            // Listen on window "resize" directly so we can re-anchor after BC redraws.
+            if (!this.windowResizeHandler) {
+                this.windowResizeHandler = () => {
+                    window.requestAnimationFrame(() => {
+                        try {
+                            this.syncToChat();
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                };
+                window.addEventListener("resize", this.windowResizeHandler);
             }
             // Keep EBC tab locked below CRABS regardless of who repositions first.
             this.startCrabsPoller();
@@ -32303,7 +32323,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.5";
+    const MOD_VERSION = "4.2.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32314,6 +32334,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.6",
+            changes: [
+                "EBC panel: fixed disappearing when the browser window is scaled down (split-screen, snap, etc.). BC repositions TextAreaChatLog via CSS left/top changes which ResizeObserver never fires for — added a window 'resize' listener (with a requestAnimationFrame delay to let BC reposition first) so the panel re-anchors correctly after any browser window resize.",
+            ],
+        },
         {
             version: "4.2.5",
             changes: [
