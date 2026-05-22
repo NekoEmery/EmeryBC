@@ -2703,15 +2703,43 @@
             }
             const step = seq.steps[i];
             try {
-                const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
-                for (const [group, name] of Object.entries(groups)) {
-                    try {
-                        applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                if (step.reset) {
+                    // Apply the default face preset, or clear all groups if none is set
+                    const defaultId = getDefaultExprPresetId();
+                    if (defaultId) {
+                        const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                        if (defPreset) {
+                            applyExpressionPreset(defPreset);
+                        }
+                        else {
+                            for (const g of EXPR_GROUPS) {
+                                try {
+                                    applyExprGroup(g, null);
+                                }
+                                catch ( /* skip */_c) { /* skip */ }
+                            }
+                        }
                     }
-                    catch ( /* skip */_c) { /* skip */ }
+                    else {
+                        for (const g of EXPR_GROUPS) {
+                            try {
+                                applyExprGroup(g, null);
+                            }
+                            catch ( /* skip */_d) { /* skip */ }
+                        }
+                    }
+                }
+                else {
+                    const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
+                    for (const [group, name] of Object.entries(groups)) {
+                        try {
+                            applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                        }
+                        catch ( /* skip */_e) { /* skip */ }
+                    }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             i++;
             window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
         };
@@ -22186,10 +22214,16 @@
                         numEl.textContent = `${idx + 1}.`;
                         const lblEl = document.createElement("span");
                         lblEl.className = "ebc-step-label";
-                        const liveName = (_a = getExpressionPresets().find(p => p.id === step.presetId)) === null || _a === void 0 ? void 0 : _a.name;
-                        lblEl.textContent = (_b = liveName !== null && liveName !== void 0 ? liveName : step.presetName) !== null && _b !== void 0 ? _b : "Unknown";
-                        if (!liveName && step.presetName)
-                            lblEl.style.opacity = "0.55";
+                        if (step.reset) {
+                            lblEl.textContent = "↺ Reset face";
+                            lblEl.style.cssText = "flex:1;font-size:11px;font-family:'Trebuchet MS',serif;color:#cf6f98;font-style:italic;";
+                        }
+                        else {
+                            const liveName = (_a = getExpressionPresets().find(p => p.id === step.presetId)) === null || _a === void 0 ? void 0 : _a.name;
+                            lblEl.textContent = (_b = liveName !== null && liveName !== void 0 ? liveName : step.presetName) !== null && _b !== void 0 ? _b : "Unknown";
+                            if (!liveName && step.presetName)
+                                lblEl.style.opacity = "0.55";
+                        }
                         const holdInp = document.createElement("input");
                         holdInp.type = "number";
                         holdInp.min = "100";
@@ -22308,8 +22342,19 @@
                     steps.push({ groups, delayMs: 800, presetId: preset.id, presetName: preset.name });
                     renderStepList();
                 });
+                const resetBtn = document.createElement("button");
+                resetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                resetBtn.textContent = "↺ Reset";
+                resetBtn.title = "Add a reset step — applies your default face preset (or clears all expressions if none is set)";
+                resetBtn.addEventListener("mouseenter", () => { resetBtn.style.color = "#cf6f98"; resetBtn.style.borderColor = "#cf6f98"; });
+                resetBtn.addEventListener("mouseleave", () => { resetBtn.style.color = "#9a6878"; resetBtn.style.borderColor = "#3a1928"; });
+                resetBtn.addEventListener("click", () => {
+                    steps.push({ groups: {}, delayMs: 800, reset: true });
+                    renderStepList();
+                });
                 addRow.appendChild(presetSel);
                 addRow.appendChild(addBtn);
+                addRow.appendChild(resetBtn);
                 container.appendChild(addRow);
                 return { getSteps: () => steps.map(s => (Object.assign({}, s))) };
             };
@@ -33009,7 +33054,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.0";
+    const MOD_VERSION = "4.4.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33020,6 +33065,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.1",
+            changes: [
+                "Expression Sequences: added ↺ Reset step type. Inserting a reset step into a sequence applies your default face preset (★) at playback, or clears all expression groups if no default is set. Shown in the step list as '↺ Reset face' in italic pink.",
+            ],
+        },
         {
             version: "4.4.0",
             changes: [
