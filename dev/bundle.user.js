@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.6
+// @version      4.3.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14092,6 +14092,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
 }
 .ebc-slot-move:hover:not(:disabled) { background: #2a1020; color: #cf6f98; border-color: #7a4a5e; }
@@ -14753,12 +14756,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border-radius: 3px;
     color: #9a6070;
     font-size: 10px;
-    padding: 4px 6px;
+    padding: 3px 5px;
     cursor: pointer;
     line-height: 1;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
 }
 .ebc-step-move:hover { background: #2e1525; color: #cf6f98; }
+.ebc-step-move:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* ± stepper buttons for per-step hold/delay inputs */
+.ebc-step-adj {
+    background: none;
+    border: 1px solid #3a1828;
+    border-radius: 3px;
+    color: #7a5070;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1;
+    padding: 1px 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: "Trebuchet MS", serif;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-step-adj:hover { background: #2e1525; color: #cf6f98; }
+
+/* Kill native number spinners everywhere inside the panel */
+#emerybc-panel input[type=number]::-webkit-inner-spin-button,
+#emerybc-panel input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#emerybc-panel input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .ebc-step-del {
     background: none;
@@ -15181,6 +15211,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     font-size: 9px;
     line-height: 1;
     padding: 4px 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-reorder-btn:hover { background: #2a1421; color: #cf6f98; border-color: #cf6f98; }
@@ -20398,13 +20431,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             reorderCol.className = "ebc-reorder-col";
             const upBtn = document.createElement("button");
             upBtn.className = "ebc-reorder-btn";
-            upBtn.textContent = t("core.moveUp");
+            upBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
             upBtn.title = t("core.moveUpTitle");
             upBtn.disabled = thisIdx <= 0;
             upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
             const downBtn = document.createElement("button");
             downBtn.className = "ebc-reorder-btn";
-            downBtn.textContent = t("core.moveDown");
+            downBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
             downBtn.title = t("core.moveDownTitle");
             downBtn.disabled = thisIdx >= outfitsList.length - 1;
             downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
@@ -21301,13 +21334,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             reorderCol.className = "ebc-reorder-col";
             const upBtn = document.createElement("button");
             upBtn.className = "ebc-reorder-btn";
-            upBtn.textContent = t("core.moveUp");
+            upBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
             upBtn.title = t("core.moveUpTitle");
             upBtn.disabled = thisIdx <= 0;
             upBtn.addEventListener("click", () => { moveRestraint(r.id, "up"); rerender(); });
             const downBtn = document.createElement("button");
             downBtn.className = "ebc-reorder-btn";
-            downBtn.textContent = t("core.moveDown");
+            downBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
             downBtn.title = t("core.moveDownTitle");
             downBtn.disabled = thisIdx >= restraintsList.length - 1;
             downBtn.addEventListener("click", () => { moveRestraint(r.id, "down"); rerender(); });
@@ -21699,7 +21732,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             lbl.title = key; // show raw key for custom poses
                         const upBtn = document.createElement("button");
                         upBtn.className = "ebc-step-move";
-                        upBtn.textContent = "↑";
+                        upBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
                         upBtn.title = "Move earlier";
                         upBtn.disabled = idx === 0;
                         upBtn.addEventListener("click", () => {
@@ -21710,7 +21743,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         });
                         const downBtn = document.createElement("button");
                         downBtn.className = "ebc-step-move";
-                        downBtn.textContent = "↓";
+                        downBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
                         downBtn.title = "Move later";
                         downBtn.disabled = idx === poses.length - 1;
                         downBtn.addEventListener("click", () => {
@@ -22165,15 +22198,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         holdInp.max = "9999";
                         holdInp.value = String(Math.max(100, (_c = step.delayMs) !== null && _c !== void 0 ? _c : 800));
                         holdInp.title = "Hold duration (ms) — how long this face is shown before the next step";
-                        holdInp.style.cssText = "width:52px;font-size:10px;font-family:'Trebuchet MS',serif;padding:1px 3px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:3px;";
+                        holdInp.style.cssText = "width:48px;font-size:10px;font-family:'Trebuchet MS',serif;padding:1px 3px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:3px;text-align:right;";
                         holdInp.addEventListener("input", () => { steps[idx].delayMs = Math.max(100, parseInt(holdInp.value) || 800); });
                         holdInp.addEventListener("keydown", e => e.stopPropagation());
                         const msLbl = document.createElement("span");
                         msLbl.style.cssText = "font-size:10px;color:#5a3050;font-family:'Trebuchet MS',serif;";
                         msLbl.textContent = "ms";
+                        const decBtn = document.createElement("button");
+                        decBtn.className = "ebc-step-adj";
+                        decBtn.textContent = "−";
+                        decBtn.title = "−100 ms";
+                        decBtn.addEventListener("click", () => {
+                            const v = Math.max(100, (parseInt(holdInp.value) || 800) - 100);
+                            holdInp.value = String(v);
+                            steps[idx].delayMs = v;
+                        });
+                        const incBtn = document.createElement("button");
+                        incBtn.className = "ebc-step-adj";
+                        incBtn.textContent = "+";
+                        incBtn.title = "+100 ms";
+                        incBtn.addEventListener("click", () => {
+                            const v = Math.min(9999, (parseInt(holdInp.value) || 800) + 100);
+                            holdInp.value = String(v);
+                            steps[idx].delayMs = v;
+                        });
                         const upBtn = document.createElement("button");
                         upBtn.className = "ebc-step-move";
-                        upBtn.textContent = "↑";
+                        upBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
                         upBtn.title = "Move earlier";
                         upBtn.disabled = idx === 0;
                         upBtn.addEventListener("click", () => {
@@ -22184,7 +22235,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         });
                         const downBtn = document.createElement("button");
                         downBtn.className = "ebc-step-move";
-                        downBtn.textContent = "↓";
+                        downBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
                         downBtn.title = "Move later";
                         downBtn.disabled = idx === steps.length - 1;
                         downBtn.addEventListener("click", () => {
@@ -22200,8 +22251,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         delBtn.addEventListener("click", () => { steps.splice(idx, 1); renderStepList(); });
                         sRow.appendChild(numEl);
                         sRow.appendChild(lblEl);
+                        sRow.appendChild(decBtn);
                         sRow.appendChild(holdInp);
                         sRow.appendChild(msLbl);
+                        sRow.appendChild(incBtn);
                         sRow.appendChild(upBtn);
                         sRow.appendChild(downBtn);
                         sRow.appendChild(delBtn);
@@ -22657,16 +22710,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 delayInp.title = "Milliseconds to wait before this step fires";
                 const msLbl = document.createElement("span");
                 msLbl.className = "ebc-scene-ms-lbl";
-                msLbl.textContent = "ms delay";
+                msLbl.textContent = "ms";
+                const sceneDecBtn = document.createElement("button");
+                sceneDecBtn.className = "ebc-step-adj";
+                sceneDecBtn.textContent = "−";
+                sceneDecBtn.title = "−100 ms";
+                sceneDecBtn.addEventListener("click", () => {
+                    const v = Math.max(0, (parseInt(delayInp.value) || 0) - 100);
+                    delayInp.value = String(v);
+                    delayInp.dispatchEvent(new Event("input"));
+                });
+                const sceneIncBtn = document.createElement("button");
+                sceneIncBtn.className = "ebc-step-adj";
+                sceneIncBtn.textContent = "+";
+                sceneIncBtn.title = "+100 ms";
+                sceneIncBtn.addEventListener("click", () => {
+                    const v = Math.min(30000, (parseInt(delayInp.value) || 0) + 100);
+                    delayInp.value = String(v);
+                    delayInp.dispatchEvent(new Event("input"));
+                });
                 const upBtn = document.createElement("button");
                 upBtn.className = "ebc-step-move";
-                upBtn.textContent = "↑";
+                upBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
                 upBtn.disabled = onMoveUp === null;
                 if (onMoveUp)
                     upBtn.addEventListener("click", onMoveUp);
                 const downBtn = document.createElement("button");
                 downBtn.className = "ebc-step-move";
-                downBtn.textContent = "↓";
+                downBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
                 downBtn.disabled = onMoveDown === null;
                 if (onMoveDown)
                     downBtn.addEventListener("click", onMoveDown);
@@ -22680,8 +22751,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 delBtn.textContent = "×";
                 delBtn.addEventListener("click", onDelete);
                 header.appendChild(typeSelect);
+                header.appendChild(sceneDecBtn);
                 header.appendChild(delayInp);
                 header.appendChild(msLbl);
+                header.appendChild(sceneIncBtn);
                 header.appendChild(upBtn);
                 header.appendChild(downBtn);
                 header.appendChild(dupBtn);
@@ -28428,12 +28501,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ▲ / ▼ reorder buttons
                     const moveUpBtn = document.createElement("button");
                     moveUpBtn.className = "ebc-slot-move";
-                    moveUpBtn.textContent = t("core.moveUp");
+                    moveUpBtn.innerHTML = EBCDrawer.SVG_CHEV_UP;
                     moveUpBtn.title = t("core.moveUpTitle");
                     moveUpBtn.disabled = i === 0;
                     const moveDownBtn = document.createElement("button");
                     moveDownBtn.className = "ebc-slot-move";
-                    moveDownBtn.textContent = t("core.moveDown");
+                    moveDownBtn.innerHTML = EBCDrawer.SVG_CHEV_DOWN;
                     moveDownBtn.title = t("core.moveDownTitle");
                     moveDownBtn.disabled = i === slotCount - 1;
                     topLine.appendChild(toggle);
@@ -32842,6 +32915,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     EBCDrawer.pawDataUri = "";
     // -- Interactive guide ─────────────────────────────────────────────────────
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
+    EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.GUIDE_STEPS = [
         {
             tab: null,
@@ -32945,7 +33020,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.6";
+    const MOD_VERSION = "4.3.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32956,6 +33031,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.7",
+            changes: [
+                "Replaced all ↑↓ arrow text on reorder/move buttons with clean SVG chevrons across the whole panel (expression sequences, pose combos, action button steps, outfit reorder, restraint reorder, action slot reorder).",
+                "Added − and + step buttons next to every hold/delay ms input for easy ±100 ms adjustment without typing.",
+                "Removed native browser number-input spinners from all inputs inside the EBC panel.",
+            ],
+        },
         {
             version: "4.3.6",
             changes: [
