@@ -21893,7 +21893,7 @@
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+                var _a, _b, _c, _d, _e, _f, _g, _h;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -21967,9 +21967,15 @@
                 let equipHeightModifier = initStep.heightModifier;
                 let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
                 let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
-                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
+                let chatFormat = initStep.chatFormat === "(" ? "(" : "";
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
+                // Prevent BC's document-level keyboard handlers from stealing focus
+                // while the user is typing in a step card input field.
+                const stopKeys = (el) => {
+                    el.addEventListener("keydown", (e) => { e.stopPropagation(); });
+                };
+                stopKeys(delayInp);
                 const renderFields = (type) => {
                     var _a, _b;
                     while (fieldsEl.firstChild)
@@ -22117,6 +22123,7 @@
                             const n = Number(heightInp.value);
                             equipHeightModifier = isNaN(n) ? undefined : n;
                         });
+                        stopKeys(heightInp);
                         const heightRangeLbl = document.createElement("span");
                         heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
                         heightWrap.appendChild(heightLbl);
@@ -22131,6 +22138,7 @@
                         typeTextInp.title = "Equip the item in BC, set the desired state, then hit 📷 to fill this automatically";
                         typeTextInp.value = equipPropertyType;
                         typeTextInp.addEventListener("input", () => { equipPropertyType = typeTextInp.value.trim(); });
+                        stopKeys(typeTextInp);
                         const updateStateRow = () => {
                             const info = getAssetExtInfo(groupSel.value, assetSel.value);
                             // Rebuild type dropdown
@@ -22246,6 +22254,7 @@
                             value: equipColorRaw, maxLength: 200,
                         });
                         colorInp.addEventListener("input", () => { equipColorRaw = colorInp.value; });
+                        stopKeys(colorInp);
                         colorInpRef = colorInp;
                         fieldsEl.appendChild(colorInp);
                     }
@@ -22280,6 +22289,7 @@
                             value: emoteText, maxLength: 200,
                         });
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                        stopKeys(textInp);
                         fieldsEl.appendChild(textInp);
                     }
                     else if (type === "chat") {
@@ -22299,11 +22309,12 @@
                             };
                             setActive(chatFormat === val);
                             btn.addEventListener("click", () => {
-                                chatFormat = val;
+                                // Toggle: clicking the active format deactivates it (back to plain)
+                                chatFormat = (chatFormat === val) ? "" : val;
                                 row.querySelectorAll("[data-fmt]").forEach(b => {
                                     const bVal = b.dataset.fmt;
-                                    b.style.background = bVal === val ? "#cf6f98" : "#1b0d17";
-                                    b.style.color = bVal === val ? "#fff" : "#9a6878";
+                                    b.style.background = bVal === chatFormat ? "#cf6f98" : "#1b0d17";
+                                    b.style.color = bVal === chatFormat ? "#fff" : "#9a6878";
                                 });
                             });
                             btn.dataset.fmt = val;
@@ -22316,7 +22327,7 @@
                         });
                         textInp.style.flex = "1";
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
-                        row.appendChild(makeToggle("* *", "*"));
+                        stopKeys(textInp);
                         row.appendChild(makeToggle("( )", "("));
                         row.appendChild(textInp);
                         fieldsEl.appendChild(row);
@@ -32023,7 +32034,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.6";
+    const MOD_VERSION = "3.8.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32034,6 +32045,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.7",
+            changes: [
+                "Scene editor: removed the 'emote' (★) chat format option from chat steps — emotes caused confusion with how BC sends them. The OOC toggle remains; plain text is the default.",
+                "Scene editor: typing in step text fields no longer loses focus due to BC's keyboard handler intercepting keystrokes. All step inputs now stop keydown propagation so BC cannot steal focus mid-type.",
+                "Scene editor: the OOC ( ) format toggle is now a proper toggle — clicking it again deactivates it (back to plain), matching expected button behaviour.",
+            ],
+        },
         {
             version: "3.8.6",
             changes: [
