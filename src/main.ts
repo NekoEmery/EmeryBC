@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.9";
+const MOD_VERSION = "4.4.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.0",
+        changes: [
+            "Android phone fixes: broadened touch detection to also check navigator.maxTouchPoints so builds that misreport pointer:fine still get touch mode. Upgraded touch event guards to stopImmediatePropagation in both capture and bubble phases so BC's canvas handlers cannot override panel scroll. Moved -webkit-overflow-scrolling:touch and overflow-y:scroll to the base body style (not just touch mode). Added touch-action:pan-y to the panel container itself.",
+        ],
+    },
     {
         version: "4.3.9",
         changes: [

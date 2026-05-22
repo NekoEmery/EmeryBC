@@ -368,7 +368,15 @@ const PANEL_OPACITY_KEY = "EBC_panelOpacity";
 const TOUCH_MODE_FORCE_KEY = "EBC_forceTouchMode";
 
 function isTouchDevice(): boolean {
-    try { return window.matchMedia("(pointer: coarse)").matches; } catch { return false; }
+    try {
+        // Primary check: coarse pointer media query (reliable on most browsers).
+        if (window.matchMedia("(pointer: coarse)").matches) return true;
+        // Fallback: some Samsung builds (especially Samsung Internet on phones) can
+        // report pointer:fine even on touchscreen-only devices. If the device reports
+        // any touch points, treat it as touch mode regardless.
+        if (navigator.maxTouchPoints > 1) return true;
+        return false;
+    } catch { return false; }
 }
 
 function setForceTouchMode(v: boolean): void {
@@ -561,6 +569,7 @@ const CSS = `
                 visibility 0.35s;
     will-change: transform, opacity;
     pointer-events: none;
+    touch-action: pan-y; /* tell the browser vertical scroll is allowed — overrides BC's canvas touch-action */
 }
 
 /* +60px extra so the panel clears the 44px tab offset when closed.
@@ -693,12 +702,13 @@ const CSS = `
 .ebc-body {
     flex: 1;
     min-height: 0; /* prevents flex children from refusing to shrink past content height */
-    overflow-y: auto;
+    overflow-y: scroll; /* 'scroll' is more reliable than 'auto' on Android / Samsung */
     padding: 7px;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
     touch-action: pan-y; /* allow vertical touch scroll */
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; /* momentum scroll — needed on some Android builds */
 }
 
 /* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
@@ -3682,11 +3692,16 @@ export class EBCDrawer {
         // Stop BC's in-game touch handlers from eating our touch events.
         // BC registers touchmove/touchstart at document level (non-passive) and calls
         // preventDefault(), which kills native scroll inside HTML overlays.
-        // Stopping propagation here keeps those events inside the panel only.
-        const stopTouch = (e: TouchEvent): void => { e.stopPropagation(); };
-        slideContainer.addEventListener("touchstart", stopTouch, { passive: true });
-        slideContainer.addEventListener("touchmove",  stopTouch, { passive: true });
-        slideContainer.addEventListener("touchend",   stopTouch, { passive: true });
+        // We stop propagation in BOTH capture and bubble phases:
+        //   - capture-phase listener: stops intermediate-element capture handlers
+        //   - bubble-phase listener: stops document-level bubble handlers (BC's main hooks)
+        // stopImmediatePropagation also cancels any other listeners on this exact element.
+        const stopTouchBubble  = (e: TouchEvent): void => { e.stopImmediatePropagation(); };
+        const stopTouchCapture = (e: TouchEvent): void => { e.stopPropagation(); };
+        for (const type of ["touchstart", "touchmove", "touchend"] as const) {
+            slideContainer.addEventListener(type, stopTouchBubble,  { passive: true });
+            slideContainer.addEventListener(type, stopTouchCapture, { passive: true, capture: true });
+        }
 
         // Header
         const header = document.createElement("div");
