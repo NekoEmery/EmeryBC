@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.3";
+const MOD_VERSION = "4.2.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.4",
+        changes: [
+            "Beep windows: removed the 🔔 mute and 👤 profile buttons from the chat window header — mute is now in the Chat and notifications section of the Notes tab, and profiles are accessible from the People in Room / Friends lists there.",
+        ],
+    },
     {
         version: "4.2.3",
         changes: [
