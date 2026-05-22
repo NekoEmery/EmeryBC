@@ -3498,6 +3498,7 @@ export class EBCDrawer {
     private isOpen = false;
     private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
+    private windowResizeHandler: (() => void) | null = null;
     private positioned = false;
     private hasBeenShown = false;
     private version = "";
@@ -4815,6 +4816,10 @@ export class EBCDrawer {
             // ── Outside chatroom: floating panel anchored to the right edge ───────
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
+            if (this.windowResizeHandler) {
+                window.removeEventListener("resize", this.windowResizeHandler);
+                this.windowResizeHandler = null;
+            }
             this.stopCrabsPoller();
             this.stopTimerPoller();
 
@@ -4903,6 +4908,19 @@ export class EBCDrawer {
                 this.resizeObserver = new ResizeObserver(() => this.syncToChat());
                 this.resizeObserver.observe(chatLog);
             }
+        }
+
+        // ResizeObserver only fires when the element's intrinsic size changes — it
+        // does NOT fire when BC repositions TextAreaChatLog via style.left / style.top
+        // (which is what happens when the browser window is resized or snapped).
+        // Listen on window "resize" directly so we can re-anchor after BC redraws.
+        if (!this.windowResizeHandler) {
+            this.windowResizeHandler = () => {
+                window.requestAnimationFrame(() => {
+                    try { this.syncToChat(); } catch { /* ignore */ }
+                });
+            };
+            window.addEventListener("resize", this.windowResizeHandler);
         }
 
         // Keep EBC tab locked below CRABS regardless of who repositions first.

@@ -16362,6 +16362,7 @@
             this.isOpen = false;
             this.currentTab = "outfits";
             this.resizeObserver = null;
+            this.windowResizeHandler = null;
             this.positioned = false;
             this.hasBeenShown = false;
             this.version = "";
@@ -17556,6 +17557,10 @@
                 // ── Outside chatroom: floating panel anchored to the right edge ───────
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                 this.resizeObserver = null;
+                if (this.windowResizeHandler) {
+                    window.removeEventListener("resize", this.windowResizeHandler);
+                    this.windowResizeHandler = null;
+                }
                 this.stopCrabsPoller();
                 this.stopTimerPoller();
                 // Keep beep windows hidden outside a room
@@ -17644,6 +17649,21 @@
                     this.resizeObserver = new ResizeObserver(() => this.syncToChat());
                     this.resizeObserver.observe(chatLog);
                 }
+            }
+            // ResizeObserver only fires when the element's intrinsic size changes — it
+            // does NOT fire when BC repositions TextAreaChatLog via style.left / style.top
+            // (which is what happens when the browser window is resized or snapped).
+            // Listen on window "resize" directly so we can re-anchor after BC redraws.
+            if (!this.windowResizeHandler) {
+                this.windowResizeHandler = () => {
+                    window.requestAnimationFrame(() => {
+                        try {
+                            this.syncToChat();
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                };
+                window.addEventListener("resize", this.windowResizeHandler);
             }
             // Keep EBC tab locked below CRABS regardless of who repositions first.
             this.startCrabsPoller();
@@ -21877,6 +21897,15 @@
             const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "chat", "wait", "expression"];
             const bodyPoses = (_b = (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses) !== null && _b !== void 0 ? _b : [];
             const armPoses = (_d = (_c = KNOWN_POSES.find(g => g.group === "Arms")) === null || _c === void 0 ? void 0 : _c.poses) !== null && _d !== void 0 ? _d : [];
+            // Newer BC versions store Group.Family as an array (e.g. ["Female3DCG","Futanari3DCG"]).
+            // Handle both string and array so groups aren't silently excluded.
+            const familyMatches = (groupFamily, target) => {
+                if (!groupFamily)
+                    return true;
+                if (Array.isArray(groupFamily))
+                    return groupFamily.includes(target);
+                return groupFamily === target;
+            };
             const getAllGroups = (filter) => {
                 var _a, _b;
                 try {
@@ -21888,7 +21917,7 @@
                     const out = [];
                     for (const a of bcAsset) {
                         const g = a.Group;
-                        if ((g.Family === family || !g.Family) && !seen.has(g.Name)) {
+                        if (familyMatches(g.Family, family) && !seen.has(g.Name)) {
                             const isRestraint = g.IsRestraint === true;
                             if (filter === "restraint" && !isRestraint)
                                 continue;
@@ -21914,7 +21943,7 @@
                     const family = (_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
                     const out = [];
                     for (const a of bcAsset) {
-                        if (a.Group.Name === groupName && (a.Group.Family === family || !a.Group.Family)) {
+                        if (a.Group.Name === groupName && familyMatches(a.Group.Family, family)) {
                             const desc = ((_b = a.Description) === null || _b === void 0 ? void 0 : _b.trim()) || a.Name;
                             out.push({ name: a.Name, desc });
                         }
@@ -23191,16 +23220,6 @@
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
-            const muteBtn = document.createElement("button");
-            muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
-            const refreshMuteBtn = () => {
-                const muted = getBeepMuted();
-                muteBtn.textContent = muted ? "🔕" : "🔔";
-                muteBtn.title = muted ? "Unmute notifications" : "Mute notifications";
-                muteBtn.classList.toggle("muted", muted);
-            };
-            refreshMuteBtn();
-            muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
             // Suppress-in-BC-chat toggle — SVG chat bubble, slash through it when suppressed (default)
             const suppressBtn = document.createElement("button");
             suppressBtn.className = "ebc-beep-win-hbtn";
@@ -23274,78 +23293,9 @@
                 this.beepWins.delete(memberNumber);
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
             });
-            // Profile button — person icon, opens BC info sheet
-            const profileBtn = document.createElement("button");
-            profileBtn.className = "ebc-beep-win-hbtn";
-            profileBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-            profileBtn.title = "View profile";
-            profileBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
-            <circle cx="8" cy="5" r="3" fill="#cf6f98"/>
-            <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/>
-        </svg>`;
-            profileBtn.addEventListener("mouseenter", () => { profileBtn.style.background = "#3a1020"; profileBtn.style.borderColor = "#cf6f98"; });
-            profileBtn.addEventListener("mouseleave", () => { profileBtn.style.background = "#2a0e1e"; profileBtn.style.borderColor = "#4c2537"; });
-            profileBtn.addEventListener("click", async () => {
-                const w = window;
-                const loadChar = w.InformationSheetLoadCharacter;
-                const hideEls = w.ChatRoomHideElements;
-                const loadOnline = w.CharacterLoadOnline;
-                const roomChars = w.ChatRoomCharacter;
-                const doOpen = (C) => {
-                    var _a;
-                    this.close();
-                    if (w.CurrentScreen === "ChatRoom") {
-                        try {
-                            hideEls === null || hideEls === void 0 ? void 0 : hideEls();
-                        }
-                        catch ( /* ignore */_b) { /* ignore */ }
-                        try {
-                            const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
-                            if (bgData)
-                                w.ChatRoomBackground = bgData;
-                        }
-                        catch ( /* ignore */_c) { /* ignore */ }
-                    }
-                    loadChar(C);
-                };
-                if (!loadChar || !loadOnline) {
-                    try {
-                        navigator.clipboard.writeText(String(memberNumber));
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    return;
-                }
-                const inRoom = Array.isArray(roomChars)
-                    ? roomChars.find(c => c.MemberNumber === memberNumber)
-                    : undefined;
-                if (inRoom) {
-                    try {
-                        doOpen(inRoom);
-                        return;
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                }
-                const bundle = await getCharacterBundle(memberNumber);
-                if (bundle) {
-                    try {
-                        const C = loadOnline(bundle, memberNumber);
-                        if (C) {
-                            doOpen(C);
-                            return;
-                        }
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
-                }
-                try {
-                    navigator.clipboard.writeText(String(memberNumber));
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-            });
             header.appendChild(dot);
             header.appendChild(titleArea);
             header.appendChild(unreadDot);
-            header.appendChild(muteBtn);
-            header.appendChild(profileBtn);
             header.appendChild(suppressBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
@@ -24048,6 +23998,148 @@
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
+            // ── Tag share ─────────────────────────────────────────────────────────
+            const TAG_CODE_PREFIX = "EBC-TAGS-v1:";
+            const exportTagsCode = () => {
+                var _a;
+                try {
+                    const store = (_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {};
+                    const tags = store.friendTags;
+                    if (!tags || Object.keys(tags).length === 0)
+                        return "";
+                    return TAG_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify({ tags }))));
+                }
+                catch (_b) {
+                    return "";
+                }
+            };
+            const importTagsCode = (code) => {
+                const trimmed = code.trim();
+                if (!trimmed.startsWith(TAG_CODE_PREFIX))
+                    throw new Error("Invalid");
+                const json = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(TAG_CODE_PREFIX.length)))));
+                const incoming = json === null || json === void 0 ? void 0 : json.tags;
+                if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))
+                    throw new Error("Invalid");
+                const store = Player.ExtensionSettings.EmeryBC;
+                if (!store.friendTags || typeof store.friendTags !== "object")
+                    store.friendTags = {};
+                const existing = store.friendTags;
+                let count = 0;
+                for (const [numStr, list] of Object.entries(incoming)) {
+                    if (!Array.isArray(list))
+                        continue;
+                    const valid = list.filter((t) => !!t && typeof t === "object" &&
+                        typeof t.text === "string" &&
+                        typeof t.color === "string");
+                    if (valid.length > 0) {
+                        existing[numStr] = valid;
+                        count++;
+                    }
+                }
+                syncSettings();
+                return count;
+            };
+            const tagShareWrap = document.createElement("div");
+            tagShareWrap.style.cssText = "margin:0 0 2px;";
+            const tagShareHeaderRow = document.createElement("div");
+            tagShareHeaderRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 3px;";
+            const tagShareLbl = document.createElement("div");
+            tagShareLbl.className = "ebc-section-label";
+            tagShareLbl.style.cssText = "margin:0;flex:1;font-size:11px;";
+            tagShareLbl.textContent = "Tag settings";
+            const mkShareBtn = (label, title) => {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.title = title;
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                b.addEventListener("mouseenter", () => { b.style.color = "#cf6f98"; b.style.borderColor = "#cf6f98"; });
+                b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
+                return b;
+            };
+            const exportTagBtn = mkShareBtn("⬆ Export", "Copy a share code containing all your tag assignments");
+            const importTagBtn = mkShareBtn("⬇ Import", "Paste someone else's share code to load their tag assignments");
+            tagShareHeaderRow.appendChild(tagShareLbl);
+            tagShareHeaderRow.appendChild(exportTagBtn);
+            tagShareHeaderRow.appendChild(importTagBtn);
+            // Export panel — read-only textarea, click to copy
+            const exportTagPanel = document.createElement("div");
+            exportTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
+            const exportTagTA = document.createElement("textarea");
+            exportTagTA.readOnly = true;
+            exportTagTA.rows = 3;
+            exportTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;";
+            exportTagTA.title = "Click to copy";
+            exportTagTA.addEventListener("click", () => {
+                exportTagTA.select();
+                try {
+                    navigator.clipboard.writeText(exportTagTA.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                exportTagTA.style.borderColor = "#a0d080";
+                window.setTimeout(() => { exportTagTA.style.borderColor = "#3a1928"; }, 1200);
+            });
+            exportTagPanel.appendChild(exportTagTA);
+            // Import panel — paste code + apply
+            const importTagPanel = document.createElement("div");
+            importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
+            const importTagTA = document.createElement("textarea");
+            importTagTA.placeholder = "Paste EBC-TAGS-v1:… code here";
+            importTagTA.rows = 3;
+            importTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;margin-bottom:4px;";
+            importTagTA.addEventListener("keydown", e => e.stopPropagation());
+            const importApplyBtn = document.createElement("button");
+            importApplyBtn.textContent = "Apply";
+            importApplyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:#2a0e1e;color:#f0a0c0;cursor:pointer;transition:background 0.12s;";
+            importApplyBtn.addEventListener("mouseenter", () => { importApplyBtn.style.background = "#3a1530"; });
+            importApplyBtn.addEventListener("mouseleave", () => { importApplyBtn.style.background = "#2a0e1e"; });
+            const importStatusEl = document.createElement("span");
+            importStatusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;margin-left:6px;";
+            importApplyBtn.addEventListener("click", () => {
+                try {
+                    const n = importTagsCode(importTagTA.value);
+                    importStatusEl.textContent = `✓ Imported tags for ${n} member${n !== 1 ? "s" : ""}`;
+                    importStatusEl.style.color = "#a0d080";
+                    importTagTA.value = "";
+                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 3000);
+                    try {
+                        this.refreshFriendList();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+                catch (_b) {
+                    importStatusEl.textContent = "✗ Invalid code";
+                    importStatusEl.style.color = "#ff6060";
+                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 2500);
+                }
+            });
+            const importBtnRow = document.createElement("div");
+            importBtnRow.style.cssText = "display:flex;align-items:center;";
+            importBtnRow.appendChild(importApplyBtn);
+            importBtnRow.appendChild(importStatusEl);
+            importTagPanel.appendChild(importTagTA);
+            importTagPanel.appendChild(importBtnRow);
+            exportTagBtn.addEventListener("click", () => {
+                const isOpen = exportTagPanel.style.display !== "none";
+                exportTagPanel.style.display = "none";
+                importTagPanel.style.display = "none";
+                if (!isOpen) {
+                    const code = exportTagsCode();
+                    exportTagTA.value = code || "(no tags saved yet)";
+                    exportTagPanel.style.display = "";
+                }
+            });
+            importTagBtn.addEventListener("click", () => {
+                const isOpen = importTagPanel.style.display !== "none";
+                exportTagPanel.style.display = "none";
+                importTagPanel.style.display = "none";
+                if (!isOpen)
+                    importTagPanel.style.display = "";
+            });
+            tagShareWrap.appendChild(tagShareHeaderRow);
+            tagShareWrap.appendChild(exportTagPanel);
+            tagShareWrap.appendChild(importTagPanel);
+            body.appendChild(tagShareWrap);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -32214,7 +32306,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.3";
+    const MOD_VERSION = "4.2.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32225,6 +32317,25 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.6",
+            changes: [
+                "EBC panel: fixed disappearing when the browser window is scaled down (split-screen, snap, etc.). BC repositions TextAreaChatLog via CSS left/top changes which ResizeObserver never fires for — added a window 'resize' listener (with a requestAnimationFrame delay to let BC reposition first) so the panel re-anchors correctly after any browser window resize.",
+            ],
+        },
+        {
+            version: "4.2.5",
+            changes: [
+                "Scenes — item search: fixed 'No items found' for props/hands items (Laptop, etc.). Newer BC versions store Group.Family as an array instead of a string, causing every family check to silently fail. Both getAllGroups and getGroupAssets now handle string and array family values.",
+                "Notes tab: new 'Tag settings' section above the friends list with ⬆ Export and ⬇ Import buttons. Export generates a shareable EBC-TAGS-v1:… code containing all your tag assignments. Import pastes the code and merges the tags into your own settings — useful for sharing a tagging setup with someone else.",
+            ],
+        },
+        {
+            version: "4.2.4",
+            changes: [
+                "Beep windows: removed the 🔔 mute and 👤 profile buttons from the chat window header — mute is now in the Chat and notifications section of the Notes tab, and profiles are accessible from the People in Room / Friends lists there.",
+            ],
+        },
         {
             version: "4.2.3",
             changes: [
