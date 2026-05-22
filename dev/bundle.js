@@ -21762,28 +21762,6 @@
                 });
                 return cnt;
             };
-            // ── Panel utilities ───────────────────────────────────────────────────────
-            {
-                const panelUtilRow = document.createElement("div");
-                panelUtilRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;";
-                const resetPanelsBtn = document.createElement("button");
-                resetPanelsBtn.className = "ebc-btn-footer-btn";
-                resetPanelsBtn.style.cssText = "flex:1;font-size:11px;";
-                resetPanelsBtn.textContent = "📌 Reset all panel positions";
-                resetPanelsBtn.title = "Snap the action buttons sidebar and the EBC drawer back to their default on-screen positions";
-                resetPanelsBtn.addEventListener("click", () => {
-                    // Reset action buttons sidebar
-                    resetSidebarPos();
-                    // Reset EBC drawer to docked/anchored position
-                    this.panelPosition = null;
-                    this.savePanelPosition(null);
-                    this.exitFreeMode();
-                    resetPanelsBtn.textContent = "✓ Panels reset!";
-                    window.setTimeout(() => { resetPanelsBtn.textContent = "📌 Reset all panel positions"; }, 1800);
-                });
-                panelUtilRow.appendChild(resetPanelsBtn);
-                body.appendChild(panelUtilRow);
-            }
             // ── POSES ─────────────────────────────────────────────────────────────
             // Helper: true when a pose key is currently active
             const isPoseActive = (key) => currentPoses.includes(key);
@@ -33153,7 +33131,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.3";
+    const MOD_VERSION = "4.4.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33164,6 +33142,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.4",
+            changes: [
+                "Anims tab: removed the '📌 Reset all panel positions' button.",
+            ],
+        },
         {
             version: "4.4.3",
             changes: [
