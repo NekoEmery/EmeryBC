@@ -17983,8 +17983,15 @@ export class EBCDrawer {
         const clearAllBtn = document.createElement("button");
         clearAllBtn.className = "ebc-btn-footer-btn";
         clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-        clearAllBtn.textContent = "✕  Clear all expressions";
+        clearAllBtn.textContent = "↺  Reset face expression";
+        clearAllBtn.title = "Apply your default face preset (★), or clear all expressions if none is set";
         clearAllBtn.addEventListener("click", () => {
+            const defaultId = getDefaultExprPresetId();
+            if (defaultId) {
+                const def = getExpressionPresets().find(p => p.id === defaultId);
+                if (def) { applyExpressionPreset(def); this.rerender(150); return; }
+            }
+            // No default set — clear all groups back to neutral
             for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
             this.rerender(150);
         });
