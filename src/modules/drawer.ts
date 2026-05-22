@@ -8710,6 +8710,31 @@ export class EBCDrawer {
             return cnt;
         };
 
+        // ── Panel utilities ───────────────────────────────────────────────────────
+        {
+            const panelUtilRow = document.createElement("div");
+            panelUtilRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;";
+
+            const resetPanelsBtn = document.createElement("button");
+            resetPanelsBtn.className = "ebc-btn-footer-btn";
+            resetPanelsBtn.style.cssText = "flex:1;font-size:9px;";
+            resetPanelsBtn.textContent = "📌 Reset all panel positions";
+            resetPanelsBtn.title = "Snap the action buttons sidebar and the EBC drawer back to their default on-screen positions";
+            resetPanelsBtn.addEventListener("click", () => {
+                // Reset action buttons sidebar
+                resetSidebarPos();
+                // Reset EBC drawer to docked/anchored position
+                this.panelPosition = null;
+                this.savePanelPosition(null);
+                this.exitFreeMode();
+                resetPanelsBtn.textContent = "✓ Panels reset!";
+                window.setTimeout(() => { resetPanelsBtn.textContent = "📌 Reset all panel positions"; }, 1800);
+            });
+
+            panelUtilRow.appendChild(resetPanelsBtn);
+            body.appendChild(panelUtilRow);
+        }
+
         // ── POSES ─────────────────────────────────────────────────────────────
 
 
@@ -17322,88 +17347,19 @@ export class EBCDrawer {
 
         const F = "font-family:'Trebuchet MS',serif;font-size:";
 
-        // Helper: read currently active expression for a group
-        const getActiveExpr = (group: string): string | null => {
-            try {
-                const it = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === group);
-                if (!it) return null;
-                const pExpr = (it.Property as Record<string, unknown> | undefined)?.Expression as string | undefined;
-                return pExpr || it.Asset.Name || null;
-            } catch { return null; }
-        };
-
-        // ── FACE BUILDER ─────────────────────────────────────────────────────────
-        const builderLbl = document.createElement("div");
-        builderLbl.className = "ebc-section-label";
-        builderLbl.textContent = "FACE BUILDER";
-        builderLbl.style.marginBottom = "5px";
-        body.appendChild(builderLbl);
-
-        const hintEl = document.createElement("div");
-        hintEl.style.cssText = `${F}8px;color:#5a3a5a;margin-bottom:7px;`;
-        hintEl.textContent = "Click any button to apply live. — = clear that group.";
-        body.appendChild(hintEl);
-
-        for (const group of EXPR_GROUPS) {
-            const groupRow = document.createElement("div");
-            groupRow.style.cssText = "display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;";
-
-            const lbl = document.createElement("div");
-            lbl.style.cssText = `${F}8px;color:#9a6aaa;flex-shrink:0;width:44px;padding-top:3px;text-align:right;`;
-            lbl.textContent = EXPR_GROUP_LABELS[group] ?? group;
-            groupRow.appendChild(lbl);
-
-            const btnGrid = document.createElement("div");
-            btnGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0;";
-
-            const currentExpr = getActiveExpr(group);
-            const allBtns: HTMLButtonElement[] = [];
-
-            const setHighlight = (active: HTMLButtonElement): void => {
-                for (const b of allBtns) {
-                    const on = b === active;
-                    b.style.background  = on ? "#5a1e3a" : "#16081a";
-                    b.style.borderColor = on ? "#cf6f98" : "#361525";
-                    b.style.color       = on ? "#f7c0d8" : "#7a4a6e";
-                }
-            };
-
-            const mkExprBtn = (name: string | null): HTMLButtonElement => {
-                const btn = document.createElement("button");
-                btn.textContent = name ?? "—";
-                btn.title = name ?? `Clear ${EXPR_GROUP_LABELS[group] ?? group}`;
-                const isActive = name === null ? currentExpr === null : name === currentExpr;
-                btn.style.cssText = `${F}8px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;font-family:'Trebuchet MS',serif;` +
-                    (isActive
-                        ? "background:#5a1e3a;border:1px solid #cf6f98;color:#f7c0d8;"
-                        : "background:#16081a;border:1px solid #361525;color:#7a4a6e;");
-                btn.addEventListener("click", () => {
-                    applyExprGroup(group, name);
-                    setHighlight(btn);
-                });
-                return btn;
-            };
-
-            // "—" (clear) button first, then all expression options
-            const noneBtn = mkExprBtn(null);
-            allBtns.push(noneBtn);
-            btnGrid.appendChild(noneBtn);
-            for (const opt of getExprGroupOptions(group)) {
-                const b = mkExprBtn(opt);
-                allBtns.push(b);
-                btnGrid.appendChild(b);
-            }
-
-            groupRow.appendChild(btnGrid);
-            body.appendChild(groupRow);
-        }
+        // ── How-to info ───────────────────────────────────────────────────────────
+        const infoBox = document.createElement("div");
+        infoBox.style.cssText = `${F}9px;color:#9a7aaa;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
+        infoBox.innerHTML =
+            "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
+            "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
+            "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
+            "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
+            "<b style=\"color:#9a7aaa;\">action buttons</b> or <b style=\"color:#9a7aaa;\">scenes</b>, " +
+            "or triggered when you <b style=\"color:#9a7aaa;\">send a matching chat message</b> (see Triggers below).";
+        body.appendChild(infoBox);
 
         // ── Save & Clear ──────────────────────────────────────────────────────────
-        const saveDiv1 = document.createElement("div");
-        saveDiv1.className = "ebc-divider";
-        saveDiv1.style.margin = "8px 0 6px";
-        body.appendChild(saveDiv1);
-
         const captureInput = Object.assign(document.createElement("input"), {
             type: "text", maxLength: 30, placeholder: "Preset name…",
         }) as HTMLInputElement;

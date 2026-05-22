@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.1.4";
+const MOD_VERSION = "4.1.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.1.5",
+        changes: [
+            "Anims tab — Expressions: removed the live face-builder button grid. Replaced with a clear how-to explanation: set your face using BC's own expression controls in-game, then use '💾 Save face' to capture it as a preset. Save, presets, triggers, and scene/button integration all remain.",
+            "Anims tab — top of tab: added '📌 Reset all panel positions' button that snaps both the action buttons sidebar and the EBC drawer back to their default on-screen positions in one click.",
+        ],
+    },
     {
         version: "4.1.4",
         changes: [
