@@ -11611,7 +11611,7 @@ export class EBCDrawer {
             searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
             const searchInput = document.createElement("input");
             searchInput.type = "text";
-            searchInput.placeholder = "🔍 Search friends…";
+            searchInput.placeholder = "Search friends…";
             searchInput.value = this.friendSearch;
             searchInput.className = "ebc-form-input";
             searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
