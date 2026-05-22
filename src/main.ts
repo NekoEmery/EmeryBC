@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.6";
+const MOD_VERSION = "4.4.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.7",
+        changes: [
+            "Beep windows: replaced the global 'suppress BC chat' button in the header with a per-person 🔔/🔇 mute toggle. Clicking it silences beep sounds from that specific person for the session without affecting anyone else.",
+        ],
+    },
     {
         version: "4.4.6",
         changes: [
@@ -5510,7 +5516,7 @@ function init(): void {
                 const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
                 if (msg) {
                     addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                    if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
                 }
             } catch { /* ignore */ }

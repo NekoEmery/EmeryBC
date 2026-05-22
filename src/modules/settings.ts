@@ -572,3 +572,15 @@ export function getBadgeDragMode(): boolean { return _badgeDragMode; }
 export function setBadgeDragMode(v: boolean): void { _badgeDragMode = v; }
 export function getBadgeDragStyleTarget(): "text" | "cat" { return _badgeDragStyleTarget; }
 export function setBadgeDragStyleTarget(v: "text" | "cat"): void { _badgeDragStyleTarget = v; }
+
+// -- Per-person beep mute (in-memory, session-only) ----------------------------
+// Members whose beep sounds and notifications are silenced for this session.
+// Does NOT affect BC's native beep handling — only suppresses EBC's IM sound.
+
+const _mutedBeepMembers = new Set<number>();
+export function isBeepMemberMuted(num: number): boolean { return _mutedBeepMembers.has(num); }
+export function toggleMutedBeepMember(num: number): boolean {
+    if (_mutedBeepMembers.has(num)) { _mutedBeepMembers.delete(num); return false; }
+    _mutedBeepMembers.add(num); return true;
+}
+

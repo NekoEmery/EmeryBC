@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -11310,34 +11310,20 @@ export class EBCDrawer {
         const unreadDot = document.createElement("div");
         unreadDot.className = "ebc-beep-win-unread-dot";
 
-        // Suppress-in-BC-chat toggle — SVG chat bubble, slash through it when suppressed (default)
-        const suppressBtn = document.createElement("button");
-        suppressBtn.className = "ebc-beep-win-hbtn";
-        suppressBtn.style.cssText = "background:#2a0e1e;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-        const refreshSuppressBtn = (): void => {
-            const suppressed = getSuppressNativeBeep();
-            const bubbleColor = suppressed ? "#6a3a4a" : "#cf6f98";
-            const slashLine  = suppressed
-                ? `<line x1="1" y1="15" x2="15" y2="1" stroke="#ff4455" stroke-width="2.2" stroke-linecap="round"/>`
-                : "";
-            suppressBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
-                <rect x="1" y="1" width="12" height="10" rx="3" fill="${bubbleColor}"/>
-                <polygon points="2,11 1,15 5,12.5" fill="${bubbleColor}"/>
-                ${slashLine}
-            </svg>`;
-            suppressBtn.title = suppressed
-                ? "Beeps hidden from BC chat — click to show them there too"
-                : "Beeps visible in BC chat — click to hide them";
-            suppressBtn.style.border = suppressed ? "1px solid #5a2030" : "1px solid #cf6f98";
+        // Per-person mute toggle — silences beep sounds from this specific person
+        const muteBtn = document.createElement("button");
+        muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
+        const refreshMuteBtn = (): void => {
+            const muted = isBeepMemberMuted(memberNumber);
+            muteBtn.textContent = muted ? "🔇" : "🔔";
+            muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
+            muteBtn.classList.toggle("muted", muted);
         };
-        refreshSuppressBtn();
-        (win as unknown as Record<string, unknown>)._refreshSuppressBtn = refreshSuppressBtn;
-        suppressBtn.addEventListener("click", () => {
-            setSuppressNativeBeep(!getSuppressNativeBeep());
-            for (const { el } of this.beepWins.values()) {
-                const fn = (el as unknown as Record<string, unknown>)._refreshSuppressBtn as (() => void) | undefined;
-                try { fn?.(); } catch { /* ignore */ }
-            }
+        refreshMuteBtn();
+        (win as unknown as Record<string, unknown>)._refreshMuteBtn = refreshMuteBtn;
+        muteBtn.addEventListener("click", () => {
+            toggleMutedBeepMember(memberNumber);
+            refreshMuteBtn();
         });
 
         const minimizeBtn = document.createElement("button");
@@ -11382,7 +11368,7 @@ export class EBCDrawer {
         header.appendChild(dot);
         header.appendChild(titleArea);
         header.appendChild(unreadDot);
-        header.appendChild(suppressBtn);
+        header.appendChild(muteBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
