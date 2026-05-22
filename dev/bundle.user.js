@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.2
+// @version      4.3.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -18628,47 +18628,49 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             resetPosBtn.addEventListener("click", () => { resetBadgePosition(); resetCatBadgePosition(); resetVersionTextPosition(); });
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
-            // ── Tag share ─────────────────────────────────────────────────────────
-            const TAG_CODE_PREFIX = "EBC-TAGS-v1:";
-            const exportTagsCode = () => {
+            // ── Badge settings share ──────────────────────────────────────────────
+            // Exports/imports ALL overhead-badge display settings (style, scale,
+            // offsets, opacity, visibility toggles) so you can share your exact
+            // tag layout with someone else or restore it after a reinstall.
+            const BADGE_CODE_PREFIX = "EBC-BADGE-v1:";
+            // The complete list of ExtensionSettings keys that make up badge display.
+            const BADGE_KEYS = [
+                "badgeEnabled", "showOthersBadge", "showVersionBadge", "showOthersVersionBadge",
+                "badgeStyle", "othersBadgeStyle",
+                "badgeScale", "textBadgeScale", "catBadgeScale",
+                "badgeBgOpacity", "badgeTextOpacity",
+                "badgeOffsetX", "badgeOffsetY",
+                "catBadgeOffsetX", "catBadgeOffsetY",
+                "versionTextOffsetX", "versionTextOffsetY",
+            ];
+            const exportBadgeCode = () => {
                 var _a;
                 try {
                     const store = (_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {};
-                    const tags = store.friendTags;
-                    if (!tags || Object.keys(tags).length === 0)
-                        return "";
-                    return TAG_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify({ tags }))));
+                    const settings = {};
+                    for (const k of BADGE_KEYS) {
+                        if (k in store)
+                            settings[k] = store[k];
+                    }
+                    return BADGE_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(settings))));
                 }
                 catch (_b) {
                     return "";
                 }
             };
-            const importTagsCode = (code) => {
+            const importBadgeCode = (code) => {
                 const trimmed = code.trim();
-                if (!trimmed.startsWith(TAG_CODE_PREFIX))
+                if (!trimmed.startsWith(BADGE_CODE_PREFIX))
                     throw new Error("Invalid");
-                const json = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(TAG_CODE_PREFIX.length)))));
-                const incoming = json === null || json === void 0 ? void 0 : json.tags;
+                const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length)))));
                 if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))
                     throw new Error("Invalid");
                 const store = Player.ExtensionSettings.EmeryBC;
-                if (!store.friendTags || typeof store.friendTags !== "object")
-                    store.friendTags = {};
-                const existing = store.friendTags;
-                let count = 0;
-                for (const [numStr, list] of Object.entries(incoming)) {
-                    if (!Array.isArray(list))
-                        continue;
-                    const valid = list.filter((t) => !!t && typeof t === "object" &&
-                        typeof t.text === "string" &&
-                        typeof t.color === "string");
-                    if (valid.length > 0) {
-                        existing[numStr] = valid;
-                        count++;
-                    }
+                for (const k of BADGE_KEYS) {
+                    if (k in incoming)
+                        store[k] = incoming[k];
                 }
                 syncSettings();
-                return count;
             };
             const tagShareWrap = document.createElement("div");
             tagShareWrap.style.cssText = "margin:6px 0 2px;border-top:1px solid #2a1020;padding-top:6px;";
@@ -18676,7 +18678,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tagShareHeaderRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:0 4px 3px;";
             const tagShareLbl = document.createElement("div");
             tagShareLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#9a6878;flex:1;";
-            tagShareLbl.textContent = "Tag settings";
+            tagShareLbl.textContent = "Share badge settings";
             const mkShareBtn = (label, title) => {
                 const b = document.createElement("button");
                 b.textContent = label;
@@ -18686,8 +18688,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
                 return b;
             };
-            const exportTagBtn = mkShareBtn("⬆ Export", "Copy a share code containing all your tag assignments");
-            const importTagBtn = mkShareBtn("⬇ Import", "Paste someone else's share code to load their tag assignments");
+            const exportTagBtn = mkShareBtn("⬆ Export", "Copy a code with your full badge layout (style, scale, position, opacity, toggles)");
+            const importTagBtn = mkShareBtn("⬇ Import", "Paste a badge settings code to apply someone else's layout");
             tagShareHeaderRow.appendChild(tagShareLbl);
             tagShareHeaderRow.appendChild(exportTagBtn);
             tagShareHeaderRow.appendChild(importTagBtn);
@@ -18713,7 +18715,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const importTagPanel = document.createElement("div");
             importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
             const importTagTA = document.createElement("textarea");
-            importTagTA.placeholder = "Paste EBC-TAGS-v1:… code here";
+            importTagTA.placeholder = "Paste EBC-BADGE-v1:… code here";
             importTagTA.rows = 3;
             importTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;margin-bottom:4px;";
             importTagTA.addEventListener("keydown", e => e.stopPropagation());
@@ -18726,17 +18728,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             importStatusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;margin-left:6px;";
             importApplyBtn.addEventListener("click", () => {
                 try {
-                    const n = importTagsCode(importTagTA.value);
-                    importStatusEl.textContent = `✓ Imported tags for ${n} member${n !== 1 ? "s" : ""}`;
+                    importBadgeCode(importTagTA.value);
+                    importStatusEl.textContent = "✓ Badge settings applied";
                     importStatusEl.style.color = "#a0d080";
                     importTagTA.value = "";
                     window.setTimeout(() => { importStatusEl.textContent = ""; }, 3000);
-                    try {
-                        this.refreshFriendList();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    this.rerender();
                 }
-                catch (_b) {
+                catch (_a) {
                     importStatusEl.textContent = "✗ Invalid code";
                     importStatusEl.style.color = "#ff6060";
                     window.setTimeout(() => { importStatusEl.textContent = ""; }, 2500);
@@ -18753,8 +18752,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 exportTagPanel.style.display = "none";
                 importTagPanel.style.display = "none";
                 if (!isOpen) {
-                    const code = exportTagsCode();
-                    exportTagTA.value = code || "(no tags saved yet)";
+                    exportTagTA.value = exportBadgeCode();
                     exportTagPanel.style.display = "";
                 }
             });
@@ -32928,7 +32926,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.2";
+    const MOD_VERSION = "4.3.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32939,6 +32937,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.3",
+            changes: [
+                "EBC Tag Settings strip: fixed Export/Import — it now exports and imports your actual overhead badge display settings (style, scale, position offsets, opacity, visibility toggles), not friend labels. Code format changed to EBC-BADGE-v1. Removed the incorrectly seeded friend tags from v4.3.1.",
+            ],
+        },
         {
             version: "4.3.2",
             changes: [
@@ -37896,30 +37900,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
     }
-    // Default friend tags — seeded once on first run if no tags exist yet.
-    // Members with plain-string legacy entries get wrapped with a neutral colour.
-    const DEFAULT_FRIEND_TAGS = {
-        "80": [{ text: "BC Asset Dev", color: "#9a6878" }],
-        "124961": [{ text: "Horny boi...", color: "#9a6878" }],
-        "143776": [{ text: "BC DEV", color: "#40a0b8" }],
-        "230466": [{ text: "Owner", color: "#e06060" }],
-    };
-    function seedDefaultTags() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            const store = Player.ExtensionSettings.EmeryBC;
-            // Only seed if no tags have been saved at all yet
-            const existing = store.friendTags;
-            if (existing && typeof existing === "object" && Object.keys(existing).length > 0)
-                return;
-            store.friendTags = structuredClone(DEFAULT_FRIEND_TAGS);
-            syncSettings();
-        }
-        catch ( /* ignore — Player may not be ready yet */_a) { /* ignore — Player may not be ready yet */ }
-    }
     function showRoomLoadNotice() {
         if (noticeShown)
             return;
@@ -38001,11 +37981,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
             migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => { });
-            // Seed default friend tags on first run (no-op if tags already exist)
-            window.setTimeout(() => { try {
-                seedDefaultTags();
-            }
-            catch ( /* ignore */_a) { /* ignore */ } }, 1200);
         }
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
