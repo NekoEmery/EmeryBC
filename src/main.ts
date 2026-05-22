@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.1";
+const MOD_VERSION = "4.2.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.2",
+        changes: [
+            "Scenes — Equip steps: added a 🔍 item search box above the slot/item dropdowns. Type any part of an item's name and a live dropdown shows up to 20 matches with the item name and its slot. Clicking a result auto-selects both the slot and the item — no need to browse categories manually.",
+        ],
+    },
     {
         version: "4.2.1",
         changes: [

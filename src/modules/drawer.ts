@@ -9588,6 +9588,97 @@ export class EBCDrawer {
                                     : type === "equip-clothes"   ? "clothes"
                                     : undefined;
                     const groups = getAllGroups(grpFilter);
+
+                    // ── Item search ────────────────────────────────────────────────────────
+                    const searchWrap = document.createElement("div");
+                    searchWrap.style.cssText = "position:relative;margin-bottom:5px;";
+
+                    const searchInp = document.createElement("input");
+                    searchInp.className = "ebc-form-input";
+                    searchInp.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px 3px 26px;";
+                    searchInp.placeholder = "Search items…";
+                    searchInp.title = "Type any item name to find it instantly — no need to browse slots";
+
+                    const searchIcon = document.createElement("span");
+                    searchIcon.textContent = "🔍";
+                    searchIcon.style.cssText = "position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;pointer-events:none;line-height:1;";
+
+                    const resultsList = document.createElement("div");
+                    resultsList.style.cssText = [
+                        "display:none;position:absolute;z-index:10000;top:calc(100% + 2px);left:0;right:0;",
+                        "max-height:200px;overflow-y:auto;",
+                        "background:#1a0815;border:1px solid #4a2535;border-radius:5px;",
+                        "box-shadow:0 4px 14px rgba(0,0,0,0.7);",
+                    ].join("");
+
+                    type FlatItem = { group: string; groupDesc: string; asset: string; assetDesc: string };
+                    let flatItems: FlatItem[] | null = null;
+                    const getFlatItems = (): FlatItem[] => {
+                        if (flatItems) return flatItems;
+                        flatItems = [];
+                        for (const g of groups) {
+                            for (const a of getGroupAssets(g.name)) {
+                                flatItems.push({ group: g.name, groupDesc: g.desc, asset: a.name, assetDesc: a.desc });
+                            }
+                        }
+                        return flatItems;
+                    };
+
+                    const showResults = (q: string): void => {
+                        while (resultsList.firstChild) resultsList.removeChild(resultsList.firstChild);
+                        if (!q) { resultsList.style.display = "none"; return; }
+                        resultsList.style.display = "";
+                        const matches = getFlatItems().filter(it =>
+                            it.assetDesc.toLowerCase().includes(q) ||
+                            it.asset.toLowerCase().includes(q) ||
+                            it.groupDesc.toLowerCase().includes(q)
+                        ).slice(0, 20);
+                        if (matches.length === 0) {
+                            const noRes = document.createElement("div");
+                            noRes.style.cssText = "padding:6px 10px;font-size:11px;color:#7a5060;font-family:'Trebuchet MS',serif;";
+                            noRes.textContent = "No items found";
+                            resultsList.appendChild(noRes);
+                            return;
+                        }
+                        for (const it of matches) {
+                            const resRow = document.createElement("div");
+                            resRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-bottom:1px solid #200a18;";
+                            resRow.addEventListener("mouseenter", () => { resRow.style.background = "#2e0e20"; });
+                            resRow.addEventListener("mouseleave", () => { resRow.style.background = ""; });
+                            const assetLabel = document.createElement("span");
+                            assetLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d0f0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            assetLabel.textContent = it.assetDesc;
+                            const groupLabel = document.createElement("span");
+                            groupLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5070;flex-shrink:0;";
+                            groupLabel.textContent = it.groupDesc;
+                            resRow.appendChild(assetLabel);
+                            resRow.appendChild(groupLabel);
+                            resRow.addEventListener("mousedown", (e) => {
+                                e.preventDefault();
+                                groupSel.value = it.group;
+                                equipGroup = it.group;
+                                updateAssetSel(it.asset);
+                                searchInp.value = "";
+                                resultsList.style.display = "none";
+                            });
+                            resultsList.appendChild(resRow);
+                        }
+                    };
+
+                    let searchTimer: ReturnType<typeof setTimeout> | null = null;
+                    searchInp.addEventListener("input", () => {
+                        if (searchTimer) clearTimeout(searchTimer);
+                        searchTimer = setTimeout(() => showResults(searchInp.value.trim().toLowerCase()), 80);
+                    });
+                    searchInp.addEventListener("blur",  () => { setTimeout(() => { resultsList.style.display = "none"; }, 160); });
+                    searchInp.addEventListener("focus", () => { if (searchInp.value.trim()) showResults(searchInp.value.trim().toLowerCase()); });
+                    stopKeys(searchInp);
+
+                    searchWrap.appendChild(searchIcon);
+                    searchWrap.appendChild(searchInp);
+                    searchWrap.appendChild(resultsList);
+                    fieldsEl.appendChild(searchWrap);
+
                     const row1 = document.createElement("div");
                     row1.className = "ebc-scene-fields-row";
 
