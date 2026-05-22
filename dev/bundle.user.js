@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.8
+// @version      4.3.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13697,7 +13697,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     overflow: hidden;
 }
 
@@ -15897,9 +15897,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 
 #emerybc-panel[data-touch] .ebc-lang-pill {
-    font-size: 13px !important;
-    padding: 9px 16px !important;
-    min-height: 38px !important;
+    font-size: 12px !important;
+    padding: 7px 12px !important;
+    min-height: 34px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-header {
@@ -33011,7 +33011,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.8";
+    const MOD_VERSION = "4.3.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33022,6 +33022,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.9",
+            changes: [
+                "Phone/touch mode: language pills now wrap to a second row instead of squishing into one — also slightly reduced their touch-mode size so they sit neatly.",
+            ],
+        },
         {
             version: "4.3.8",
             changes: [
