@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.0
+// @version      3.8.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15360,11 +15360,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     position: fixed !important;
     right: auto !important;
     top: auto;           /* no !important — inline style.top must win during drag */
+    width: min(390px, calc(100vw - 16px)) !important;
     height: min(80vh, 650px) !important;
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     transition: opacity 0.18s !important;
     transform: none !important;
+}
+/* On touch devices, use more vertical space so the panel is usable */
+#emerybc-panel[data-touch].ebc-free-mode {
+    height: min(90vh, 700px) !important;
 }
 #emerybc-panel.ebc-free-mode.ebc-closed {
     opacity: 0 !important;
@@ -17334,22 +17339,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
-            var _a, _b;
             try {
                 const store = Player.ExtensionSettings.EmeryBC;
                 const v = store === null || store === void 0 ? void 0 : store.panelPos;
                 if (v && typeof v.x === "number" && typeof v.y === "number") {
                     // Clamp to current viewport so a position saved on a wider/taller screen
                     // doesn't put the panel off-screen on the next load.
-                    const pW = ((_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.offsetWidth) || 360;
-                    const pH = ((_b = this.panelEl) === null || _b === void 0 ? void 0 : _b.offsetHeight) || 200;
+                    const pW = Math.min(390, window.innerWidth - 16);
                     const x = Math.max(0, Math.min(window.innerWidth - pW, v.x));
-                    const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                    const y = Math.max(0, Math.min(window.innerHeight - 80, v.y));
                     return { x, y };
                 }
                 return null;
             }
-            catch (_c) {
+            catch (_a) {
                 return null;
             }
         }
@@ -17358,8 +17361,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             const w = window.innerWidth;
             const h = window.innerHeight;
-            const x = Math.max(0, Math.min(w - 100, pos.x));
-            const y = Math.max(0, Math.min(h - 100, pos.y));
+            const pW = Math.min(390, w - 16);
+            const x = Math.max(0, Math.min(w - pW, pos.x));
+            const y = Math.max(0, Math.min(h - 80, pos.y));
             this.panelEl.classList.add("ebc-free-mode");
             this.panelEl.style.left = `${x}px`;
             this.panelEl.style.top = `${y}px`;
@@ -31704,6 +31708,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.panelPosition = saved;
                     this.enterFreeMode(saved);
                 }
+                else if (isTouchDevice()) {
+                    // Touch devices (tablet/phone): anchor mode relies on BC's desktop chat-log
+                    // layout which is completely different on mobile — auto-center the panel
+                    // in free-float mode so it's always reachable and positioned sensibly.
+                    const pW = this.panelEl.offsetWidth || Math.min(390, window.innerWidth - 16);
+                    const pH = this.panelEl.offsetHeight || Math.min(520, window.innerHeight - 20);
+                    const pos = {
+                        x: Math.max(8, Math.round((window.innerWidth - pW) / 2)),
+                        y: Math.max(8, Math.round((window.innerHeight - pH) / 4)),
+                    };
+                    this.panelPosition = pos;
+                    this.enterFreeMode(pos);
+                }
             }
             if (this.panelPosition !== null) {
                 // Free-float: just make visible at saved spot, no slide animation
@@ -31891,7 +31908,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.0";
+    const MOD_VERSION = "3.8.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31902,6 +31919,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.1",
+            changes: [
+                "Tablet/phone: panel now automatically opens in free-float mode centered on screen instead of trying to anchor to BC's desktop chat-log layout (which is completely wrong on mobile).",
+                "Free-float panel width is now responsive — uses up to calc(100vw - 16px) on narrow screens.",
+                "Panel position clamping updated to always keep the panel reachable on any screen size.",
+            ],
+        },
         {
             version: "3.8.0",
             changes: [
