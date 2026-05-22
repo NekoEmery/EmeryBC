@@ -11112,13 +11112,6 @@ export class EBCDrawer {
             return row;
         };
 
-        // OOC mode
-        chatSettingsBody.appendChild(mkToggleRow(
-            "OOC mode",
-            getOocEnabled,
-            (v) => setOocEnabled(v),
-        ));
-
         // Mute beep sounds
         chatSettingsBody.appendChild(mkToggleRow(
             "Mute beep sounds",
