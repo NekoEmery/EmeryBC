@@ -12310,11 +12310,11 @@
     }
 
     // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
     // Friendly labels shown in the picker row headers
     const EXPR_GROUP_LABELS = {
         Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+        Eyes: "Eyes L", Eyes2: "Eyes R", Fluids: "Fluids", Mouth: "Mouth", Tears: "Tears",
     };
     function uid() {
         return Math.random().toString(36).slice(2, 9);
@@ -13117,6 +13117,16 @@
         { label: "😡 Brow — angry", cmd: "Eyebrows:Angry" },
         { label: "😊 Brow — soft", cmd: "Eyebrows:Soft" },
         { label: "× Brow — clear", cmd: "Eyebrows:" },
+        // ── Fluids ───────────────────────────────────────────────────
+        { label: "💧 Drool — low", cmd: "Fluids:DroolLow" },
+        { label: "💧 Drool — medium", cmd: "Fluids:DroolMedium" },
+        { label: "💦 Drool — high", cmd: "Fluids:DroolHigh" },
+        { label: "💦 Drool — sides", cmd: "Fluids:DroolSides" },
+        { label: "💦 Drool — messy", cmd: "Fluids:DroolMessy" },
+        { label: "😢 Tears — low", cmd: "Fluids:TearsLow" },
+        { label: "😢 Tears — medium", cmd: "Fluids:TearsMedium" },
+        { label: "😭 Tears — high", cmd: "Fluids:TearsHigh" },
+        { label: "× Fluids — clear", cmd: "Fluids:" },
     ];
     const KITTY_REACTION_POSES = [
         { label: "— None —", poses: [] },
@@ -29989,7 +29999,7 @@
                     b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                     return b;
                 };
-                const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Emoticon"];
+                const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Fluids", "Emoticon"];
                 presets.forEach((ep, pIdx) => {
                     const card = document.createElement("div");
                     card.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(30,10,30,0.5);border:1px solid #3a1538;border-radius:5px;padding:5px 7px;";
@@ -30051,12 +30061,13 @@
                     const stateSel = document.createElement("select");
                     stateSel.style.cssText = "flex:1;min-width:0;" + INP;
                     const EP_STATES = {
-                        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", ""],
-                        Eyes: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
-                        Eyes2: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
-                        Mouth: ["Happy", "Sad", "Pout", "Angry", "Moan", "Devious", "Grin", "Smirk", ""],
-                        Eyebrows: ["Raised", "Harsh", "Angry", "Soft", ""],
-                        Emoticon: ["Afk", "Hearing_Loss", "Whisper", "Sleep", ""],
+                        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath", ""],
+                        Eyes: ["Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd", "Heart", "HeartPink", "LewdHeart", "LewdHeartPink", "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared", ""],
+                        Eyes2: ["Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd", "Heart", "HeartPink", "LewdHeart", "LewdHeartPink", "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared", ""],
+                        Mouth: ["Frown", "Sad", "Pained", "Angry", "HalfOpen", "Open", "Ahegao", "Moan", "TonguePinch", "LipBite", "Happy", "Devious", "Laughing", "Grin", "Smirk", "Pout", ""],
+                        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft", ""],
+                        Fluids: ["DroolLow", "DroolMedium", "DroolHigh", "DroolSides", "DroolMessy", "DroolTearsLow", "DroolTearsMedium", "DroolTearsHigh", "DroolTearsMessy", "DroolTearsSides", "TearsHigh", "TearsMedium", "TearsLow", ""],
+                        Emoticon: ["Afk", "Whisper", "Sleep", "Hearts", "Tear", "Hearing", "Confusion", "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator", "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock", "Wardrobe", "Gaming", ""],
                     };
                     const refreshStateSel = () => {
                         var _a;
@@ -32014,7 +32025,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.1";
+    const MOD_VERSION = "3.9.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
