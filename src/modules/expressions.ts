@@ -18,16 +18,20 @@ export interface ExpressionPreset {
 }
 
 // A sequence step is a self-contained face snapshot — no preset reference needed.
+// presetId/presetName are display metadata only; groups is the authoritative playback data.
 export interface ExprSequenceStep {
     groups: Partial<Record<string, string | null>>;   // group → expr name, or null = clear
     delayMs: number;
     label?: string;
+    presetId?: string;   // source preset id (for display — not required at playback)
+    presetName?: string; // cached preset name (shown when preset is later deleted)
 }
 
 export interface ExpressionSequence {
     id: string;
     name: string;
     steps: ExprSequenceStep[];
+    command?: string; // optional /command trigger (matched by handleExprSequenceCommand)
 }
 
 function uid(): string {
@@ -222,8 +226,36 @@ export function saveExpressionSequences(seqs: ExpressionSequence[]): void {
     } catch { /* ignore */ }
 }
 
-export function createExpressionSequence(name: string, steps: ExprSequenceStep[]): ExpressionSequence {
-    return { id: uid(), name: name || "Sequence", steps };
+export function createExpressionSequence(name: string, steps: ExprSequenceStep[], command?: string): ExpressionSequence {
+    const seq: ExpressionSequence = { id: uid(), name: name || "Sequence", steps };
+    if (command?.trim()) seq.command = command.trim();
+    return seq;
+}
+
+export function updateExpressionSequence(id: string, name: string, steps: ExprSequenceStep[], command?: string): void {
+    const seqs = getExpressionSequences();
+    const i = seqs.findIndex(s => s.id === id);
+    if (i === -1) return;
+    const trimCmd = command?.trim();
+    seqs[i] = { ...seqs[i], name: name.trim() || seqs[i].name, steps, command: trimCmd || undefined };
+    if (!trimCmd) delete seqs[i].command;
+    saveExpressionSequences(seqs);
+}
+
+export function deleteExpressionSequence(id: string): void {
+    saveExpressionSequences(getExpressionSequences().filter(s => s.id !== id));
+}
+
+// Returns true if a sequence command matched and playback was started.
+export function handleExprSequenceCommand(text: string): boolean {
+    const lower = text.trim().toLowerCase().replace(/^\//, "");
+    for (const seq of getExpressionSequences()) {
+        if (seq.command && lower === seq.command.toLowerCase()) {
+            playExpressionSequence(seq);
+            return true;
+        }
+    }
+    return false;
 }
 
 // -- Default expression preset -------------------------------------------------
@@ -323,7 +355,7 @@ export function checkExpressionTriggers(message: string): void {
 }
 
 let _seqRunning = false;
-export function isSeqRunning(): boolean { return _seqRunning; }
+export function isExprSeqRunning(): boolean { return _seqRunning; }
 
 export function playExpressionSequence(seq: ExpressionSequence, onDone?: () => void): void {
     if (_seqRunning) return;

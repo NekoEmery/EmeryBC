@@ -3,6 +3,7 @@ import { drawActionButtons, handleActionButtonClick, initDragListener } from "./
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
+import { handleExprSequenceCommand } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
@@ -22,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.9";
+const MOD_VERSION = "4.3.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.0",
+        changes: [
+            "Animations tab: new 'Expression Sequences' section. Build a named sequence of saved face presets — each step shows for a configurable hold time (ms) before advancing to the next. Play manually with ▶, or assign an optional /command to trigger from chat. Steps are reorderable with ↑/↓ and each hold time is independently adjustable. Sequences are self-contained snapshots so they survive preset renames/deletions.",
+        ],
+    },
     {
         version: "4.2.9",
         changes: [
@@ -5469,6 +5476,7 @@ function init(): void {
                 || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handlePoseComboCommand(raw)
+                || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
                 || handleEmoteShortcut(raw)) {
@@ -5491,6 +5499,7 @@ function init(): void {
                     || handleRestraintCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handleOutfitCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handlePoseComboCommand(input.value)
+                    || handleExprSequenceCommand(input.value)
                     || handleSceneCommand(input.value)
                     || handleDomCommand(input.value)
                     || handleEmoteShortcut(input.value)
@@ -5514,6 +5523,7 @@ function init(): void {
                 || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handlePoseComboCommand(raw)
+                || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
                 || handleEmoteShortcut(raw)
