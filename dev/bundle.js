@@ -10592,6 +10592,13 @@
         }
     }
     const db = new EBCDatabase();
+    // Eagerly open the database and silently swallow any failure.
+    // On Android/mobile browsers IndexedDB can fail immediately (storage restrictions,
+    // private-browsing mode, quota errors) and Dexie rejects its internal open promise
+    // with a raw IDBRequest error Event — which shows up as "[object Event]" in BC's
+    // unhandled-rejection reporter.  By calling open().catch() up-front we guarantee
+    // that rejection is always handled before any table operation creates its own chain.
+    db.open().catch(() => { });
     // Migrate existing localStorage bundles into IndexedDB (one-time, runs on startup).
     // Cleans up localStorage entries after a successful migration.
     async function migrateLocalStorageBundles() {
@@ -31899,7 +31906,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.3";
+    const MOD_VERSION = "3.8.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31910,6 +31917,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.4",
+            changes: [
+                "Fix: unhandled promise rejection '[object Event]' on Android/mobile. Dexie rejects its internal IndexedDB open promise with a raw IDB error Event on some Android Chrome builds. Added db.open().catch() at startup to always catch this before any table operation creates its own chain.",
+            ],
+        },
         {
             version: "3.8.3",
             changes: [
