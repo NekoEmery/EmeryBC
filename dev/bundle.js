@@ -18519,6 +18519,147 @@
             resetPosBtn.addEventListener("click", () => { resetBadgePosition(); resetCatBadgePosition(); resetVersionTextPosition(); });
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
+            // ── Tag share ─────────────────────────────────────────────────────────
+            const TAG_CODE_PREFIX = "EBC-TAGS-v1:";
+            const exportTagsCode = () => {
+                var _a;
+                try {
+                    const store = (_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {};
+                    const tags = store.friendTags;
+                    if (!tags || Object.keys(tags).length === 0)
+                        return "";
+                    return TAG_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify({ tags }))));
+                }
+                catch (_b) {
+                    return "";
+                }
+            };
+            const importTagsCode = (code) => {
+                const trimmed = code.trim();
+                if (!trimmed.startsWith(TAG_CODE_PREFIX))
+                    throw new Error("Invalid");
+                const json = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(TAG_CODE_PREFIX.length)))));
+                const incoming = json === null || json === void 0 ? void 0 : json.tags;
+                if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))
+                    throw new Error("Invalid");
+                const store = Player.ExtensionSettings.EmeryBC;
+                if (!store.friendTags || typeof store.friendTags !== "object")
+                    store.friendTags = {};
+                const existing = store.friendTags;
+                let count = 0;
+                for (const [numStr, list] of Object.entries(incoming)) {
+                    if (!Array.isArray(list))
+                        continue;
+                    const valid = list.filter((t) => !!t && typeof t === "object" &&
+                        typeof t.text === "string" &&
+                        typeof t.color === "string");
+                    if (valid.length > 0) {
+                        existing[numStr] = valid;
+                        count++;
+                    }
+                }
+                syncSettings();
+                return count;
+            };
+            const tagShareWrap = document.createElement("div");
+            tagShareWrap.style.cssText = "margin:6px 0 2px;border-top:1px solid #2a1020;padding-top:6px;";
+            const tagShareHeaderRow = document.createElement("div");
+            tagShareHeaderRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:0 4px 3px;";
+            const tagShareLbl = document.createElement("div");
+            tagShareLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#9a6878;flex:1;";
+            tagShareLbl.textContent = "Tag settings";
+            const mkShareBtn = (label, title) => {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.title = title;
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                b.addEventListener("mouseenter", () => { b.style.color = "#cf6f98"; b.style.borderColor = "#cf6f98"; });
+                b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
+                return b;
+            };
+            const exportTagBtn = mkShareBtn("⬆ Export", "Copy a share code containing all your tag assignments");
+            const importTagBtn = mkShareBtn("⬇ Import", "Paste someone else's share code to load their tag assignments");
+            tagShareHeaderRow.appendChild(tagShareLbl);
+            tagShareHeaderRow.appendChild(exportTagBtn);
+            tagShareHeaderRow.appendChild(importTagBtn);
+            // Export panel — read-only textarea, click to copy
+            const exportTagPanel = document.createElement("div");
+            exportTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
+            const exportTagTA = document.createElement("textarea");
+            exportTagTA.readOnly = true;
+            exportTagTA.rows = 3;
+            exportTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;";
+            exportTagTA.title = "Click to copy";
+            exportTagTA.addEventListener("click", () => {
+                exportTagTA.select();
+                try {
+                    navigator.clipboard.writeText(exportTagTA.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                exportTagTA.style.borderColor = "#a0d080";
+                window.setTimeout(() => { exportTagTA.style.borderColor = "#3a1928"; }, 1200);
+            });
+            exportTagPanel.appendChild(exportTagTA);
+            // Import panel — paste code + apply
+            const importTagPanel = document.createElement("div");
+            importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
+            const importTagTA = document.createElement("textarea");
+            importTagTA.placeholder = "Paste EBC-TAGS-v1:… code here";
+            importTagTA.rows = 3;
+            importTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;margin-bottom:4px;";
+            importTagTA.addEventListener("keydown", e => e.stopPropagation());
+            const importApplyBtn = document.createElement("button");
+            importApplyBtn.textContent = "Apply";
+            importApplyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:#2a0e1e;color:#f0a0c0;cursor:pointer;transition:background 0.12s;";
+            importApplyBtn.addEventListener("mouseenter", () => { importApplyBtn.style.background = "#3a1530"; });
+            importApplyBtn.addEventListener("mouseleave", () => { importApplyBtn.style.background = "#2a0e1e"; });
+            const importStatusEl = document.createElement("span");
+            importStatusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;margin-left:6px;";
+            importApplyBtn.addEventListener("click", () => {
+                try {
+                    const n = importTagsCode(importTagTA.value);
+                    importStatusEl.textContent = `✓ Imported tags for ${n} member${n !== 1 ? "s" : ""}`;
+                    importStatusEl.style.color = "#a0d080";
+                    importTagTA.value = "";
+                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 3000);
+                    try {
+                        this.refreshFriendList();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+                catch (_b) {
+                    importStatusEl.textContent = "✗ Invalid code";
+                    importStatusEl.style.color = "#ff6060";
+                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 2500);
+                }
+            });
+            const importBtnRow = document.createElement("div");
+            importBtnRow.style.cssText = "display:flex;align-items:center;";
+            importBtnRow.appendChild(importApplyBtn);
+            importBtnRow.appendChild(importStatusEl);
+            importTagPanel.appendChild(importTagTA);
+            importTagPanel.appendChild(importBtnRow);
+            exportTagBtn.addEventListener("click", () => {
+                const isOpen = exportTagPanel.style.display !== "none";
+                exportTagPanel.style.display = "none";
+                importTagPanel.style.display = "none";
+                if (!isOpen) {
+                    const code = exportTagsCode();
+                    exportTagTA.value = code || "(no tags saved yet)";
+                    exportTagPanel.style.display = "";
+                }
+            });
+            importTagBtn.addEventListener("click", () => {
+                const isOpen = importTagPanel.style.display !== "none";
+                exportTagPanel.style.display = "none";
+                importTagPanel.style.display = "none";
+                if (!isOpen)
+                    importTagPanel.style.display = "";
+            });
+            tagShareWrap.appendChild(tagShareHeaderRow);
+            tagShareWrap.appendChild(exportTagPanel);
+            tagShareWrap.appendChild(importTagPanel);
+            ebcTagsBody.appendChild(tagShareWrap);
             strip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
@@ -23998,148 +24139,6 @@
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
-            // ── Tag share ─────────────────────────────────────────────────────────
-            const TAG_CODE_PREFIX = "EBC-TAGS-v1:";
-            const exportTagsCode = () => {
-                var _a;
-                try {
-                    const store = (_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {};
-                    const tags = store.friendTags;
-                    if (!tags || Object.keys(tags).length === 0)
-                        return "";
-                    return TAG_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify({ tags }))));
-                }
-                catch (_b) {
-                    return "";
-                }
-            };
-            const importTagsCode = (code) => {
-                const trimmed = code.trim();
-                if (!trimmed.startsWith(TAG_CODE_PREFIX))
-                    throw new Error("Invalid");
-                const json = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(TAG_CODE_PREFIX.length)))));
-                const incoming = json === null || json === void 0 ? void 0 : json.tags;
-                if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))
-                    throw new Error("Invalid");
-                const store = Player.ExtensionSettings.EmeryBC;
-                if (!store.friendTags || typeof store.friendTags !== "object")
-                    store.friendTags = {};
-                const existing = store.friendTags;
-                let count = 0;
-                for (const [numStr, list] of Object.entries(incoming)) {
-                    if (!Array.isArray(list))
-                        continue;
-                    const valid = list.filter((t) => !!t && typeof t === "object" &&
-                        typeof t.text === "string" &&
-                        typeof t.color === "string");
-                    if (valid.length > 0) {
-                        existing[numStr] = valid;
-                        count++;
-                    }
-                }
-                syncSettings();
-                return count;
-            };
-            const tagShareWrap = document.createElement("div");
-            tagShareWrap.style.cssText = "margin:0 0 2px;";
-            const tagShareHeaderRow = document.createElement("div");
-            tagShareHeaderRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 3px;";
-            const tagShareLbl = document.createElement("div");
-            tagShareLbl.className = "ebc-section-label";
-            tagShareLbl.style.cssText = "margin:0;flex:1;font-size:11px;";
-            tagShareLbl.textContent = "Tag settings";
-            const mkShareBtn = (label, title) => {
-                const b = document.createElement("button");
-                b.textContent = label;
-                b.title = title;
-                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                b.addEventListener("mouseenter", () => { b.style.color = "#cf6f98"; b.style.borderColor = "#cf6f98"; });
-                b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
-                return b;
-            };
-            const exportTagBtn = mkShareBtn("⬆ Export", "Copy a share code containing all your tag assignments");
-            const importTagBtn = mkShareBtn("⬇ Import", "Paste someone else's share code to load their tag assignments");
-            tagShareHeaderRow.appendChild(tagShareLbl);
-            tagShareHeaderRow.appendChild(exportTagBtn);
-            tagShareHeaderRow.appendChild(importTagBtn);
-            // Export panel — read-only textarea, click to copy
-            const exportTagPanel = document.createElement("div");
-            exportTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
-            const exportTagTA = document.createElement("textarea");
-            exportTagTA.readOnly = true;
-            exportTagTA.rows = 3;
-            exportTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;";
-            exportTagTA.title = "Click to copy";
-            exportTagTA.addEventListener("click", () => {
-                exportTagTA.select();
-                try {
-                    navigator.clipboard.writeText(exportTagTA.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                exportTagTA.style.borderColor = "#a0d080";
-                window.setTimeout(() => { exportTagTA.style.borderColor = "#3a1928"; }, 1200);
-            });
-            exportTagPanel.appendChild(exportTagTA);
-            // Import panel — paste code + apply
-            const importTagPanel = document.createElement("div");
-            importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
-            const importTagTA = document.createElement("textarea");
-            importTagTA.placeholder = "Paste EBC-TAGS-v1:… code here";
-            importTagTA.rows = 3;
-            importTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;margin-bottom:4px;";
-            importTagTA.addEventListener("keydown", e => e.stopPropagation());
-            const importApplyBtn = document.createElement("button");
-            importApplyBtn.textContent = "Apply";
-            importApplyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:#2a0e1e;color:#f0a0c0;cursor:pointer;transition:background 0.12s;";
-            importApplyBtn.addEventListener("mouseenter", () => { importApplyBtn.style.background = "#3a1530"; });
-            importApplyBtn.addEventListener("mouseleave", () => { importApplyBtn.style.background = "#2a0e1e"; });
-            const importStatusEl = document.createElement("span");
-            importStatusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;margin-left:6px;";
-            importApplyBtn.addEventListener("click", () => {
-                try {
-                    const n = importTagsCode(importTagTA.value);
-                    importStatusEl.textContent = `✓ Imported tags for ${n} member${n !== 1 ? "s" : ""}`;
-                    importStatusEl.style.color = "#a0d080";
-                    importTagTA.value = "";
-                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 3000);
-                    try {
-                        this.refreshFriendList();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
-                catch (_b) {
-                    importStatusEl.textContent = "✗ Invalid code";
-                    importStatusEl.style.color = "#ff6060";
-                    window.setTimeout(() => { importStatusEl.textContent = ""; }, 2500);
-                }
-            });
-            const importBtnRow = document.createElement("div");
-            importBtnRow.style.cssText = "display:flex;align-items:center;";
-            importBtnRow.appendChild(importApplyBtn);
-            importBtnRow.appendChild(importStatusEl);
-            importTagPanel.appendChild(importTagTA);
-            importTagPanel.appendChild(importBtnRow);
-            exportTagBtn.addEventListener("click", () => {
-                const isOpen = exportTagPanel.style.display !== "none";
-                exportTagPanel.style.display = "none";
-                importTagPanel.style.display = "none";
-                if (!isOpen) {
-                    const code = exportTagsCode();
-                    exportTagTA.value = code || "(no tags saved yet)";
-                    exportTagPanel.style.display = "";
-                }
-            });
-            importTagBtn.addEventListener("click", () => {
-                const isOpen = importTagPanel.style.display !== "none";
-                exportTagPanel.style.display = "none";
-                importTagPanel.style.display = "none";
-                if (!isOpen)
-                    importTagPanel.style.display = "";
-            });
-            tagShareWrap.appendChild(tagShareHeaderRow);
-            tagShareWrap.appendChild(exportTagPanel);
-            tagShareWrap.appendChild(importTagPanel);
-            body.appendChild(tagShareWrap);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -32306,7 +32305,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.6";
+    const MOD_VERSION = "4.2.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32317,6 +32316,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.7",
+            changes: [
+                "EBC Tag Settings strip: moved the Tag settings Export/Import section here from the Notes tab, where it belongs alongside the other tag options.",
+            ],
+        },
         {
             version: "4.2.6",
             changes: [
