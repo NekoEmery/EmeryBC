@@ -10562,14 +10562,25 @@ export class EBCDrawer {
         header.appendChild(closeBtn);
         win.appendChild(header);
 
-        // Restore saved position from localStorage, or fall back to default offset
+        // Restore saved position from localStorage, or fall back to default offset.
+        // Clamp the restored values so the window is always fully on-screen even if
+        // it was saved with an out-of-bounds position (e.g. after window resize).
         const savedPosKey = `EBC_beepPos_${memberNumber}`;
+        const clampBeepPos = (left: number, bottom: number): { left: number; bottom: number } => {
+            const winW = win.offsetWidth  || 300;
+            const winH = win.offsetHeight || 380;
+            return {
+                left:   Math.max(0, Math.min(left,   window.innerWidth  - winW)),
+                bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
+            };
+        };
         try {
             const saved = localStorage.getItem(savedPosKey);
             if (saved) {
                 const { left, bottom } = JSON.parse(saved) as { left: number; bottom: number };
-                win.style.left   = `${left}px`;
-                win.style.bottom = `${bottom}px`;
+                const clamped = clampBeepPos(left, bottom);
+                win.style.left   = `${clamped.left}px`;
+                win.style.bottom = `${clamped.bottom}px`;
                 win.style.right  = "";
             }
         } catch { /* ignore — use default offset position */ }
@@ -10586,12 +10597,14 @@ export class EBCDrawer {
             const oyFromBottom = rect.bottom - start.clientY;
             addPointerTracking(
                 (pos) => {
-                    const winW  = win.offsetWidth  || 280;
-                    const hdrH  = header.offsetHeight || 38;
                     const rawL  = pos.clientX - ox;
                     const rawB  = vh - pos.clientY - oyFromBottom;
+                    // Clamp so the full window stays within the viewport (use winH, not hdrH —
+                    // using hdrH let the window be dragged almost entirely off the top edge).
+                    const winW  = win.offsetWidth  || 300;
+                    const winH  = win.offsetHeight || 380;
                     win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, window.innerHeight - hdrH))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },

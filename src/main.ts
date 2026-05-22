@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.7";
+const MOD_VERSION = "3.8.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.8",
+        changes: [
+            "Fix: beep/chat windows could get stuck off the top of the screen after being dragged. The drag clamp was using the header height (~38 px) as the upper bound instead of the full window height (~380 px), allowing the window to be dragged until only its bottom edge was visible. Both the drag clamp and the saved-position restore now clamp to keep the entire window within the viewport.",
+        ],
+    },
     {
         version: "3.8.7",
         changes: [
