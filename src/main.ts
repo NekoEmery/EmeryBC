@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.1.7";
+const MOD_VERSION = "4.1.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.1.8",
+        changes: [
+            "Readability pass: all inline font sizes below 11px (8px, 9px, 10px) in the drawer panel are now 11px. Dim muted label colours (#5a3a5a, #5a3a6e, #9a6a98, #9a6ac8, #9a7aaa, and others) are brightened to readable pink/lavender values throughout all tabs.",
+        ],
+    },
     {
         version: "4.1.7",
         changes: [

@@ -3665,7 +3665,7 @@ export class EBCDrawer {
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
-        titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+        titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
 
         title.appendChild(titleMain);
         title.appendChild(titleSub);
@@ -3673,7 +3673,7 @@ export class EBCDrawer {
         if (this.isDev) {
             const devChip = document.createElement("span");
             devChip.textContent = "DEV";
-            devChip.style.cssText = "font-size:8px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+            devChip.style.cssText = "font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
             title.appendChild(devChip);
         }
 
@@ -3801,7 +3801,7 @@ export class EBCDrawer {
         notesTabBtn.appendChild(notesTabLabel);
         const notesBadgeEl = document.createElement("span");
         notesBadgeEl.id = "ebc-notes-tab-badge";
-        notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:8px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
+        notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
         notesTabBtn.appendChild(notesBadgeEl);
 
         const thanksTabBtn = document.createElement("button");
@@ -3931,7 +3931,7 @@ export class EBCDrawer {
         qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
 
         const qaConfirmLbl = document.createElement("span");
-        qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
+        qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;user-select:none;";
         qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         this._i18nRefs.qaConfirmLbl = qaConfirmLbl;
 
@@ -3942,7 +3942,7 @@ export class EBCDrawer {
             qaConfirmToggle.textContent = on ? t("core.on") : t("core.off");
             qaConfirmToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
+                "font-size:11px",
                 "font-weight:bold",
                 "padding:4px 10px",
                 "border-radius:4px",
@@ -3967,7 +3967,7 @@ export class EBCDrawer {
 
         // Row 2: self-picker toggle (full-width, subtle)
         const selfPickToggle = document.createElement("button");
-        selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
+        selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
         selfPickToggle.textContent = t("qa.pickRestraints");
         selfPickToggle.title = t("qa.pickTitle");
         this._i18nRefs.pickBtn = selfPickToggle;
@@ -3981,7 +3981,7 @@ export class EBCDrawer {
         selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
 
         const selfPickStatus = document.createElement("div");
-        selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+        selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
 
         // Track selections: group → "restraint" | "lock"
         const selfSelected = new Map<string, "restraint" | "lock">();
@@ -3995,7 +3995,7 @@ export class EBCDrawer {
 
             if (restraints.length === 0 && locks.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
                 hint.textContent = t("qa.nothingToRemove");
                 selfPickPanel.appendChild(hint);
                 selfPickPanel.appendChild(selfPickStatus);
@@ -4005,7 +4005,7 @@ export class EBCDrawer {
             const makeSection = (title: string, items: Array<{ group: string; name: string }>, kind: "restraint" | "lock"): void => {
                 if (items.length === 0) return;
                 const hdr = document.createElement("div");
-                hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
+                hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
                 hdr.textContent = title;
                 selfPickPanel.appendChild(hdr);
                 for (const item of items) {
@@ -4021,10 +4021,10 @@ export class EBCDrawer {
                         else selfSelected.delete(item.group);
                     });
                     const nm = document.createElement("span");
-                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     nm.textContent = item.name;
                     const gr = document.createElement("span");
-                    gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                     gr.textContent = item.group.replace("Item", "");
                     lbl.appendChild(cb); lbl.appendChild(nm); lbl.appendChild(gr);
                     selfPickPanel.appendChild(lbl);
@@ -4039,7 +4039,7 @@ export class EBCDrawer {
             btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
 
             const removeSelBtn = document.createElement("button");
-            removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
             removeSelBtn.textContent = t("qa.removeSelected");
             removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
             removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
@@ -4053,7 +4053,7 @@ export class EBCDrawer {
             });
 
             const unlockSelBtn = document.createElement("button");
-            unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
+            unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
             unlockSelBtn.textContent = t("qa.unlockSelected");
             unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
             unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
@@ -4126,12 +4126,12 @@ export class EBCDrawer {
         swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
 
         const swLabel = document.createElement("span");
-        swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
+        swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;flex:1;";
         swLabel.textContent = t("strip.safewords");
 
         // Grace active indicator (hidden unless grace is running)
         const swGraceTag = document.createElement("span");
-        swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
+        swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
         swGraceTag.textContent = t("sw.graceActive");
 
         const swEnableBtn = document.createElement("button");
@@ -4164,7 +4164,7 @@ export class EBCDrawer {
         });
 
         const swArrow = document.createElement("span");
-        swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+        swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
         swArrow.textContent = "▼";
 
         swHdr.appendChild(swIcon);
@@ -4187,14 +4187,14 @@ export class EBCDrawer {
                 const graceRow = document.createElement("div");
                 graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
                 const graceLbl = document.createElement("span");
-                graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+                graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
                 const rem = getGraceRemaining();
                 graceLbl.textContent = rem === Infinity
                     ? "🛡 Grace active (indefinite)"
                     : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
                 const cancelBtn = document.createElement("button");
                 cancelBtn.textContent = t("sw.endGrace");
-                cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                 cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
                 graceRow.appendChild(graceLbl);
                 graceRow.appendChild(cancelBtn);
@@ -4206,7 +4206,7 @@ export class EBCDrawer {
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
                 lbl.textContent = label;
                 const inp = document.createElement("input");
                 inp.type = "text";
@@ -4240,7 +4240,7 @@ export class EBCDrawer {
                 const wordRow = document.createElement("div");
                 wordRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const wordLbl = document.createElement("span");
-                wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
                 wordLbl.textContent = wordLabel;
                 const wordInp = document.createElement("input");
                 wordInp.type = "text"; wordInp.maxLength = 40; wordInp.value = wordValue;
@@ -4256,7 +4256,7 @@ export class EBCDrawer {
                 actRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding-left:66px;";
                 for (const act of actions) {
                     const btn = document.createElement("button");
-                    btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
+                    btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
                     const setActStyle = (on: boolean): void => {
                         btn.style.background = on ? accentColor + "44" : "transparent";
                         btn.style.color       = on ? accentColor        : "#6a4858";
@@ -4277,7 +4277,7 @@ export class EBCDrawer {
                 const outfitRow = document.createElement("div");
                 outfitRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const outfitLbl = document.createElement("span");
-                outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
                 outfitLbl.textContent = outfitLabel;
                 const sel = document.createElement("select");
                 sel.className = "ebc-form-input"; sel.style.fontSize = "10px";
@@ -4330,20 +4330,20 @@ export class EBCDrawer {
             const graceDurRow = document.createElement("div");
             graceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
             const graceDurLbl = document.createElement("span");
-            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
+            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
             graceDurLbl.textContent = "Grace:";
             const graceDurInp = document.createElement("input");
             graceDurInp.type = "number"; graceDurInp.min = "0"; graceDurInp.max = "9999";
             graceDurInp.value = String(Math.round(cfg.graceDurationMs / 60_000));
             graceDurInp.className = "ebc-form-input";
-            graceDurInp.style.cssText = graceDurInp.style.cssText + ";width:48px;flex:none;font-size:10px;";
+            graceDurInp.style.cssText = graceDurInp.style.cssText + ";width:48px;flex:none;font-size:11px;";
             graceDurInp.addEventListener("change", () => {
                 const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
                 setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
                 graceDurInp.value = String(mins);
             });
             const graceDurUnit = document.createElement("span");
-            graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
             graceDurUnit.textContent = t("strip.graceUnit");
             graceDurRow.appendChild(graceDurLbl);
             graceDurRow.appendChild(graceDurInp);
@@ -4352,7 +4352,7 @@ export class EBCDrawer {
 
             // -- Hint --
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";
             hint.textContent = t("strip.swHint");
             swInner.appendChild(hint);
 
@@ -4381,7 +4381,7 @@ export class EBCDrawer {
 
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
-        footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
+        footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
         footer.appendChild(footerVerEl);
 
         const timerEl = document.createElement("div");
@@ -5587,12 +5587,12 @@ export class EBCDrawer {
         const ebcTagsHdrLeft = document.createElement("div");
         ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
         const ebcTagsHdrLabel = document.createElement("span");
-        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
         ebcTagsHdrLabel.textContent = t("dev.ebcTags");
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
         const ebcTagsChev = document.createElement("span");
-        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
 
         ebcTagsHdr.appendChild(ebcTagsHdrLeft);
         ebcTagsHdr.appendChild(ebcTagsChev);
@@ -5605,7 +5605,7 @@ export class EBCDrawer {
 
         // Description line
         const ebcTagsDesc = document.createElement("div");
-        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
         ebcTagsDesc.textContent = t("strip.tagToggleDesc");
         ebcTagsBody.appendChild(ebcTagsDesc);
 
@@ -5626,16 +5626,16 @@ export class EBCDrawer {
             const cardTop = document.createElement("div");
             cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
             const cardLabel = document.createElement("span");
-            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
+            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;";
             cardLabel.textContent = label;
             cardTop.appendChild(cardLabel);
 
             const cardSub = document.createElement("div");
-            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
+            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.4;margin-bottom:6px;";
             cardSub.textContent = sublabel;
 
             const cardStatus = document.createElement("div");
-            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
+            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:10px;";
 
             const cardDot = document.createElement("span");
             cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
@@ -5669,7 +5669,7 @@ export class EBCDrawer {
 
         // Version display row
         const versionRowLbl = document.createElement("div");
-        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
         versionRowLbl.textContent = t("strip.versionDisplay");
         ebcTagsBody.appendChild(versionRowLbl);
 
@@ -5685,7 +5685,7 @@ export class EBCDrawer {
         ebcTagsBody.appendChild(badgeDivider);
 
         const badgeAppLbl = document.createElement("div");
-        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
         badgeAppLbl.textContent = t("strip.badgeAppearance");
         ebcTagsBody.appendChild(badgeAppLbl);
 
@@ -5695,7 +5695,7 @@ export class EBCDrawer {
             row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
             const makeBtn = (styleName: BadgeStyle, labelText: string): HTMLButtonElement => {
                 const btn = document.createElement("button");
-                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
                 btn.textContent = labelText;
                 const refresh = (): void => {
                     const active = getter() === styleName;
@@ -5718,13 +5718,13 @@ export class EBCDrawer {
         };
 
         const myStyleLbl = document.createElement("div");
-        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
         myStyleLbl.textContent = t("strip.myStyle");
         ebcTagsBody.appendChild(myStyleLbl);
         buildStyleRow(getBadgeStyle, setBadgeStyle);
 
         const othersStyleLbl = document.createElement("div");
-        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
         othersStyleLbl.textContent = t("strip.othersStyle");
         ebcTagsBody.appendChild(othersStyleLbl);
         buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
@@ -5734,7 +5734,7 @@ export class EBCDrawer {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
             const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;min-width:54px;";
             lbl.textContent = labelText;
             const slider = document.createElement("input");
             slider.type  = "range"; slider.min = "0.3"; slider.max = "3"; slider.step = "0.05";
@@ -5742,7 +5742,7 @@ export class EBCDrawer {
             slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             slider.title = "Scale multiplier (1.0 = default)";
             const valLbl = document.createElement("span");
-            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
             valLbl.textContent = getVal().toFixed(2) + "×";
             slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = v.toFixed(2) + "×"; });
             row.appendChild(lbl); row.appendChild(slider); row.appendChild(valLbl);
@@ -5750,7 +5750,7 @@ export class EBCDrawer {
         };
 
         const scaleSectionLbl = document.createElement("div");
-        scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+        scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
         scaleSectionLbl.textContent = t("strip.scale");
         ebcTagsBody.appendChild(scaleSectionLbl);
         makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
@@ -5761,7 +5761,7 @@ export class EBCDrawer {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
             const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;min-width:28px;";
             lbl.textContent = t(labelKey);
             const slider = document.createElement("input");
             slider.type = "range"; slider.min = "0"; slider.max = "1"; slider.step = "0.05";
@@ -5769,7 +5769,7 @@ export class EBCDrawer {
             slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             slider.title = titleHint;
             const valLbl = document.createElement("span");
-            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
             valLbl.textContent = Math.round(getVal() * 100) + "%";
             slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = Math.round(v * 100) + "%"; });
             row.appendChild(lbl); row.appendChild(slider); row.appendChild(valLbl);
@@ -5780,14 +5780,14 @@ export class EBCDrawer {
 
         // Position drag row
         const posHint = document.createElement("div");
-        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
         posHint.textContent = t("strip.dragHint");
         ebcTagsBody.appendChild(posHint);
 
         const posRow = document.createElement("div");
         posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
 
-        const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:4px;cursor:pointer;flex:1;transition:background 0.12s,border-color 0.12s,color 0.12s";
+        const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 8px;border-radius:4px;cursor:pointer;flex:1;transition:background 0.12s,border-color 0.12s,color 0.12s";
 
         const makePosBtn = (styleTarget: "text" | "cat", label: string): HTMLButtonElement => {
             const btn = document.createElement("button");
@@ -5867,7 +5867,7 @@ export class EBCDrawer {
     private makeTitleSelect(currentValue: string, isDefault = false): HTMLSelectElement {
         const sel = document.createElement("select");
         sel.style.cssText = [
-            "font-family:'Trebuchet MS',serif", "font-size:10px",
+            "font-family:'Trebuchet MS',serif", "font-size:11px",
             "background:#1a0810", "color:#f0d8ec",
             "border:1px solid #4c2537", "border-radius:4px",
             "padding:3px 6px", "cursor:pointer", "outline:none",
@@ -5943,7 +5943,7 @@ export class EBCDrawer {
         nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
 
         const nickLbl = document.createElement("span");
-        nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+        nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
         nickLbl.textContent = t("settings.defaultNickname");
 
         const nickInp = Object.assign(document.createElement("input"), {
@@ -5956,7 +5956,7 @@ export class EBCDrawer {
         nickInp.style.flex = "1";
 
         const nickSaveBtn = document.createElement("button");
-        nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
         nickSaveBtn.textContent = "Save";
         nickSaveBtn.addEventListener("click", () => {
             setDefaultNickname(nickInp.value);
@@ -5973,7 +5973,7 @@ export class EBCDrawer {
         const defTitleRow = document.createElement("div");
         defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
         const defTitleLbl = document.createElement("span");
-        defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+        defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
         defTitleLbl.textContent = t("settings.defaultTitle");
         const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
         defTitleSel.style.flex = "1";
@@ -6029,7 +6029,7 @@ export class EBCDrawer {
 
                     const nameSpan = document.createElement("span");
                     nameSpan.textContent = tag.name;
-                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
                     const delSpan = document.createElement("span");
                     delSpan.textContent = "×";
@@ -6060,7 +6060,7 @@ export class EBCDrawer {
                 tagMgmtBody.appendChild(chipsWrap);
             } else {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:2px 0 5px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 0 5px;";
                 hint.textContent = "No tags yet — add one below.";
                 tagMgmtBody.appendChild(hint);
             }
@@ -6084,7 +6084,7 @@ export class EBCDrawer {
             newTagColor.title = "Pick color";
 
             const addTagBtn = document.createElement("button");
-            addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
+            addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
             addTagBtn.textContent = t("core.add");
             addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
             addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
@@ -6663,12 +6663,12 @@ export class EBCDrawer {
                     } catch { /* ignore */ }
 
                     const chip = document.createElement("span");
-                    chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:9px;color:#c48aa8;";
+                    chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;";
                     const chipTxt = document.createElement("span");
                     chipTxt.textContent = chipLabel;
                     const rmBtn = document.createElement("span");
                     rmBtn.textContent = "×";
-                    rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:10px;line-height:1;";
+                    rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:11px;line-height:1;";
                     rmBtn.title = "Remove from protected items";
                     rmBtn.addEventListener("mouseenter", () => { rmBtn.style.color = "#cf6f98"; });
                     rmBtn.addEventListener("mouseleave", () => { rmBtn.style.color = "#8a6070"; });
@@ -6684,7 +6684,7 @@ export class EBCDrawer {
                 inner.appendChild(chipsWrap);
             } else {
                 const empty = document.createElement("div");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;margin-bottom:6px;";
                 empty.textContent = "No protected items — add some from the list below.";
                 inner.appendChild(empty);
             }
@@ -6693,7 +6693,7 @@ export class EBCDrawer {
             let wornOpen = false;
             try { wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") === "1"; } catch { /* ignore */ }
             const wornToggle = document.createElement("div");
-            wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
+            wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
             const wornBody = document.createElement("div");
             wornBody.style.display = wornOpen ? "flex" : "none";
             wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
@@ -6716,7 +6716,7 @@ export class EBCDrawer {
                         const gDesc = ((item.Asset.Group as unknown as Record<string, unknown>).Description as string | undefined)?.trim() || group.replace(/^Item/, "");
                         const btn = document.createElement("button");
                         btn.className = "ebc-wear-btn";
-                        btn.style.cssText += "font-size:9px;padding:2px 7px;";
+                        btn.style.cssText += "font-size:11px;padding:2px 7px;";
                         btn.textContent = `${iDesc} · ${gDesc}`;
                         btn.title = `Protect this slot (${group})`;
                         btn.addEventListener("click", () => {
@@ -6730,7 +6730,7 @@ export class EBCDrawer {
                 } catch { /* ignore */ }
                 if (!anyShown) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                     hint.textContent = "No unprotected restraints currently worn.";
                     wornBody.appendChild(hint);
                 }
@@ -6809,14 +6809,14 @@ export class EBCDrawer {
             const selDot = document.createElement("span");
             selDot.className = "ebc-sel-dot";
             const selHex = document.createElement("span");
-            selHex.style.cssText = "font-family:'Courier New',monospace;font-size:9px;color:#c48aa8;flex-shrink:0;";
+            selHex.style.cssText = "font-family:'Courier New',monospace;font-size:11px;color:#c48aa8;flex-shrink:0;";
             const selHint = document.createElement("span");
-            selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
+            selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
             selHint.textContent = "Pick a colour above";
 
             const saveToMyBtn = document.createElement("button");
             saveToMyBtn.className = "ebc-wear-btn";
-            saveToMyBtn.style.cssText += "padding:1px 8px;font-size:9px;flex-shrink:0;";
+            saveToMyBtn.style.cssText += "padding:1px 8px;font-size:11px;flex-shrink:0;";
             saveToMyBtn.textContent = "+ Save";
             saveToMyBtn.title = "Save selected colour to My Colours";
             saveToMyBtn.addEventListener("click", () => {
@@ -6830,7 +6830,7 @@ export class EBCDrawer {
 
             const clrBtn = document.createElement("button");
             clrBtn.textContent = "x";
-            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
+            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
             clrBtn.title = "Clear selected colour";
             clrBtn.addEventListener("click", () => {
                 selectedColor = null;
@@ -6880,7 +6880,7 @@ export class EBCDrawer {
                 const saved = getCustomColors();
                 if (!saved.length) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                     hint.textContent = t("outfits.noSavedColours");
                     swatchesWrap.appendChild(hint);
                     return;
@@ -6966,12 +6966,12 @@ export class EBCDrawer {
                     refreshPreview();
 
                     const wName = document.createElement("span");
-                    wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     wName.textContent = wItem.name; wName.title = wItem.name;
 
                     const allBtn = document.createElement("button");
                     allBtn.className = "ebc-wear-btn";
-                    allBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                    allBtn.style.cssText += "padding:1px 7px;font-size:11px;flex-shrink:0;";
                     allBtn.textContent = "All";
                     allBtn.title = "Apply selected colour to all zones";
                     allBtn.addEventListener("click", (e) => {
@@ -6985,7 +6985,7 @@ export class EBCDrawer {
                     });
 
                     const wArrow = document.createElement("span");
-                    wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                    wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                     wArrow.textContent = "▼";
 
                     wRow.appendChild(previewDots); wRow.appendChild(wName);
@@ -7090,7 +7090,7 @@ export class EBCDrawer {
             if (worn.length) {
                 const savePresGroupSel = document.createElement("select");
                 savePresGroupSel.className = "ebc-form-input";
-                savePresGroupSel.style.cssText = "font-size:9px;flex:none;width:auto;max-width:90px;";
+                savePresGroupSel.style.cssText = "font-size:11px;flex:none;width:auto;max-width:90px;";
                 savePresGroupSel.title = "Capture colours from this worn item";
                 const phOpt = document.createElement("option");
                 phOpt.value = ""; phOpt.textContent = "— from —";
@@ -7104,7 +7104,7 @@ export class EBCDrawer {
 
                 const savePresBtn = document.createElement("button");
                 savePresBtn.className = "ebc-wear-btn";
-                savePresBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                savePresBtn.style.cssText += "padding:1px 7px;font-size:11px;flex-shrink:0;";
                 savePresBtn.textContent = "+ Preset";
                 savePresBtn.title = "Save current zone colours as a named preset";
                 savePresBtn.addEventListener("click", () => {
@@ -7132,7 +7132,7 @@ export class EBCDrawer {
                 const presets = getRestraintPresets();
                 if (!presets.length) {
                     const none = document.createElement("div");
-                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                     none.textContent = "No presets saved yet.";
                     presetsContainer.appendChild(none);
                     return;
@@ -7153,12 +7153,12 @@ export class EBCDrawer {
                     const nameInp = document.createElement("input");
                     nameInp.value = preset.name; nameInp.maxLength = 30;
                     nameInp.className = "ebc-form-input";
-                    nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
+                    nameInp.style.cssText = nameInp.style.cssText + ";font-size:11px;min-width:0;";
                     nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
 
                     const applyToSel = document.createElement("select");
                     applyToSel.className = "ebc-form-input";
-                    applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:90px;";
+                    applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:11px;flex:none;width:auto;max-width:90px;";
                     applyToSel.title = "Choose restraint to apply to";
                     const phOpt2 = document.createElement("option");
                     phOpt2.value = ""; phOpt2.textContent = "— pick —";
@@ -7171,7 +7171,7 @@ export class EBCDrawer {
 
                     const applyBtn = document.createElement("button");
                     applyBtn.className = "ebc-wear-btn";
-                    applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
+                    applyBtn.style.cssText += "padding:1px 6px;font-size:11px;flex-shrink:0;";
                     applyBtn.textContent = t("core.apply");
                     applyBtn.addEventListener("click", () => {
                         const group = applyToSel.value;
@@ -7211,7 +7211,7 @@ export class EBCDrawer {
             let palCollapsed = true;
             try { palCollapsed = localStorage.getItem("EBC_paletteCollapsed") !== "0"; } catch { /* ignore */ }
             const palToggle = document.createElement("div");
-            palToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4a5a;cursor:pointer;user-select:none;padding:2px 0 4px;";
+            palToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a4a5a;cursor:pointer;user-select:none;padding:2px 0 4px;";
             palToggle.textContent = (palCollapsed ? "▶" : "▼") + " Saved palettes (capture & apply full looks)";
             const palContainer = document.createElement("div");
 
@@ -7455,7 +7455,7 @@ export class EBCDrawer {
 
         // Tag assignment
         const eTagsLbl = document.createElement("div");
-        eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+        eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;margin:6px 0 3px;";
         eTagsLbl.textContent = "Tags";
 
         const eTagsGrid = document.createElement("div");
@@ -7466,7 +7466,7 @@ export class EBCDrawer {
             const allTags = getOutfitTags();
             if (allTags.length === 0) {
                 const hint = document.createElement("span");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
                 hint.textContent = "No tags yet — create some in the Tags section below.";
                 eTagsGrid.appendChild(hint);
                 return;
@@ -7474,7 +7474,7 @@ export class EBCDrawer {
             const currentTagIds = new Set(o.tagIds ?? []);
             for (const tag of allTags) {
                 const btn = document.createElement("button");
-                btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
                 btn.textContent = tag.name;
                 const active = currentTagIds.has(tag.id);
                 btn.style.opacity = active ? "1" : "0.35";
@@ -7540,7 +7540,7 @@ export class EBCDrawer {
         // Export button inside edit panel (keeps the main row uncluttered)
         const eExportBtn = document.createElement("button");
         eExportBtn.className = "ebc-btn-footer-btn";
-        eExportBtn.style.cssText = "margin-top:2px;font-size:10px;";
+        eExportBtn.style.cssText = "margin-top:2px;font-size:11px;";
         eExportBtn.textContent = "↑ Copy to Clipboard";
         eExportBtn.title = "Export this outfit as JSON to share with others";
         editPanel.appendChild(eExportBtn);
@@ -8176,10 +8176,10 @@ export class EBCDrawer {
             cpHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;";
             const cpLbl = document.createElement("div");
             cpLbl.className = "ebc-section-label";
-            cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
+            cpLbl.style.cssText += ";margin:0;flex:1;font-size:11px;";
             cpLbl.textContent = t("buttons.colourPresets");
             const cpHintEl = document.createElement("span");
-            cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
+            cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#4c2537;flex-shrink:0;";
             cpHintEl.textContent = "saved from restraint log";
             cpHeader.appendChild(cpLbl);
             cpHeader.appendChild(cpHintEl);
@@ -8216,7 +8216,7 @@ export class EBCDrawer {
 
                     // Name (editable)
                     const nameEl2 = document.createElement("span");
-                    nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
+                    nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
                     nameEl2.textContent = preset.name;
                     nameEl2.title = `${preset.group} · ${preset.itemName} — click to rename`;
                     nameEl2.addEventListener("click", () => {
@@ -8229,7 +8229,7 @@ export class EBCDrawer {
 
                     // Group label
                     const grpEl = document.createElement("span");
-                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;white-space:nowrap;";
+                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#4c2537;flex-shrink:0;white-space:nowrap;";
                     grpEl.textContent = preset.group;
                     card.appendChild(grpEl);
 
@@ -8237,7 +8237,7 @@ export class EBCDrawer {
                     const applyPresetBtn = document.createElement("button");
                     applyPresetBtn.textContent = "▶ Set";
                     applyPresetBtn.title = "Apply these colours to a restraint set item";
-                    applyPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;white-space:nowrap;";
+                    applyPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;white-space:nowrap;";
                     applyPresetBtn.addEventListener("mouseenter", () => { applyPresetBtn.style.color = "#cf6f98"; applyPresetBtn.style.borderColor = "#cf6f98"; });
                     applyPresetBtn.addEventListener("mouseleave", () => { applyPresetBtn.style.color = "#7a5a6a"; applyPresetBtn.style.borderColor = "#4c2537"; });
                     applyPresetBtn.addEventListener("click", () => {
@@ -8353,7 +8353,7 @@ export class EBCDrawer {
 
         if (r.items.length === 0) {
             const emptyHint = document.createElement("span");
-            emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;font-style:italic;";
+            emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-style:italic;";
             emptyHint.textContent = "⚠ no items — click Update while wearing restraints";
             info.appendChild(emptyHint);
         }
@@ -8454,7 +8454,7 @@ export class EBCDrawer {
 
         // Tag assignment
         const eTagsLbl = document.createElement("div");
-        eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+        eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;margin:6px 0 3px;";
         eTagsLbl.textContent = "Tags";
 
         const eTagsGrid = document.createElement("div");
@@ -8465,7 +8465,7 @@ export class EBCDrawer {
             const allTags = getOutfitTags();
             if (allTags.length === 0) {
                 const hint = document.createElement("span");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
                 hint.textContent = "No tags yet — create some in the Tags section above.";
                 eTagsGrid.appendChild(hint);
                 return;
@@ -8473,7 +8473,7 @@ export class EBCDrawer {
             const currentTagIds = new Set(r.tagIds ?? []);
             for (const tag of allTags) {
                 const btn = document.createElement("button");
-                btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
                 btn.textContent = tag.name;
                 const active = currentTagIds.has(tag.id);
                 btn.style.opacity = active ? "1" : "0.35";
@@ -8688,7 +8688,7 @@ export class EBCDrawer {
             const hdr = document.createElement("div");
             hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0 3px;";
             const chev = document.createElement("span");
-            chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+            chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:10px;";
             chev.textContent = collapsed ? "▶" : "▼";
             const lbl = document.createElement("span");
             lbl.className = "ebc-section-label";
@@ -8717,7 +8717,7 @@ export class EBCDrawer {
 
             const resetPanelsBtn = document.createElement("button");
             resetPanelsBtn.className = "ebc-btn-footer-btn";
-            resetPanelsBtn.style.cssText = "flex:1;font-size:9px;";
+            resetPanelsBtn.style.cssText = "flex:1;font-size:11px;";
             resetPanelsBtn.textContent = "📌 Reset all panel positions";
             resetPanelsBtn.title = "Snap the action buttons sidebar and the EBC drawer back to their default on-screen positions";
             resetPanelsBtn.addEventListener("click", () => {
@@ -8872,7 +8872,7 @@ export class EBCDrawer {
 
             for (const group of KNOWN_POSES) {
                 const groupLbl = document.createElement("div");
-                groupLbl.style.cssText = "font-size:9px;color:#8a4460;margin:3px 0 2px;font-family:'Trebuchet MS',serif;";
+                groupLbl.style.cssText = "font-size:11px;color:#8a4460;margin:3px 0 2px;font-family:'Trebuchet MS',serif;";
                 groupLbl.textContent = group.group.toUpperCase();
                 parent.appendChild(groupLbl);
 
@@ -9048,7 +9048,7 @@ export class EBCDrawer {
             posesEl.textContent = poseLabels.join(" → ") || t("core.none");
             if (combo.command) {
                 const cmdBadge = document.createElement("span");
-                cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:11px;";
                 cmdBadge.textContent = `/${combo.command}`;
                 posesEl.appendChild(cmdBadge);
             }
@@ -9541,7 +9541,7 @@ export class EBCDrawer {
                     let curBody = posePoses.find(k => bodyPoses.some(p => p.key === k)) ?? "";
                     let curArms = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== "")) ?? "";
 
-                    const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                    const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
                     const POSE_ON  = "background:#4a1f30;border:1px solid #cf6f98;color:#f7e6ee;";
                     const POSE_OFF = "background:#1b0d17;border:1px solid #3a1928;color:#9a6878;";
 
@@ -9560,7 +9560,7 @@ export class EBCDrawer {
 
                     const makePoseGroup = (label: string, poses: { key: string; label: string }[], isArms: boolean): void => {
                         const lbl = document.createElement("div");
-                        lbl.style.cssText = "font-size:9px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
+                        lbl.style.cssText = "font-size:11px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
                         lbl.textContent = label;
                         poseGridWrap.appendChild(lbl);
                         const row = document.createElement("div");
@@ -9667,7 +9667,7 @@ export class EBCDrawer {
                     const heightWrap = document.createElement("div");
                     heightWrap.style.cssText = "display:none;flex:1;align-items:center;gap:4px;";
                     const heightLbl = document.createElement("span");
-                    heightLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex-shrink:0;";
+                    heightLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex-shrink:0;";
                     heightLbl.textContent = "Height:";
                     const heightInp = document.createElement("input");
                     heightInp.type = "number";
@@ -9681,7 +9681,7 @@ export class EBCDrawer {
                     });
                     stopKeys(heightInp);
                     const heightRangeLbl = document.createElement("span");
-                    heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+                    heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
                     heightWrap.appendChild(heightLbl);
                     heightWrap.appendChild(heightInp);
                     heightWrap.appendChild(heightRangeLbl);
@@ -9898,18 +9898,18 @@ export class EBCDrawer {
 
                 if (type === "expression") {
                     const F2 = "font-family:'Trebuchet MS',serif;font-size:";
-                    const INP2 = `${F2}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;width:100%;box-sizing:border-box;`;
+                    const INP2 = `${F2}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;width:100%;box-sizing:border-box;`;
                     const presets = getExpressionPresets();
                     if (presets.length === 0) {
                         const hint2 = document.createElement("div");
-                        hint2.style.cssText = `${F2}9px;color:#5a3a5a;padding:4px 0;`;
+                        hint2.style.cssText = `${F2}11px;color:#b090c0;padding:4px 0;`;
                         hint2.textContent = "No face presets yet — create some in the Anims tab first.";
                         fieldsEl.appendChild(hint2);
                     } else {
                         const exprRow1 = document.createElement("div");
                         exprRow1.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:4px;";
                         const exprFaceLbl = document.createElement("span");
-                        exprFaceLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                        exprFaceLbl.style.cssText = `${F2}11px;color:#d0a0d8;flex-shrink:0;`;
                         exprFaceLbl.textContent = "Face:";
                         const exprPresetSel = document.createElement("select");
                         exprPresetSel.style.cssText = INP2;
@@ -9930,7 +9930,7 @@ export class EBCDrawer {
                         const exprRow2 = document.createElement("div");
                         exprRow2.style.cssText = "display:flex;gap:4px;align-items:center;";
                         const exprDurLbl = document.createElement("span");
-                        exprDurLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                        exprDurLbl.style.cssText = `${F2}11px;color:#d0a0d8;flex-shrink:0;`;
                         exprDurLbl.textContent = "Revert:";
                         const EXPR_DUR_OPTS2: [string, number][] = [
                             ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
@@ -10149,7 +10149,7 @@ export class EBCDrawer {
             stepCountEl.textContent = `${scene.steps.length} step${scene.steps.length !== 1 ? "s" : ""}`;
             if (scene.command) {
                 const badge = document.createElement("span");
-                badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:11px;";
                 badge.textContent = `/${scene.command}`;
                 stepCountEl.appendChild(badge);
             }
@@ -10427,7 +10427,7 @@ export class EBCDrawer {
 
         const impTextarea = document.createElement("textarea");
         impTextarea.placeholder = 'Paste scene JSON here…';
-        impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
+        impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:11px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
         impPanel.appendChild(impTextarea);
 
         const impError = document.createElement("div");
@@ -10794,7 +10794,7 @@ export class EBCDrawer {
             const self = Player.MemberNumber ?? 0;
             if (entries.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "text-align:center;color:#8a6070;font-size:10px;padding:20px 0;";
+                hint.style.cssText = "text-align:center;color:#8a6070;font-size:11px;padding:20px 0;";
                 hint.textContent = "No messages yet. Say hi!";
                 history.appendChild(hint);
             }
@@ -10806,7 +10806,7 @@ export class EBCDrawer {
                 const bubbleMember = isSent ? self : e.from;
                 const nameLabel = document.createElement("div");
                 nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
-                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
                 // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
                 // Fall back to solid colour for non-EBC senders.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
@@ -10974,14 +10974,14 @@ export class EBCDrawer {
         if (unread > 0) {
             const badge = document.createElement("span");
             badge.textContent = unread > 99 ? "99+" : String(unread);
-            badge.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-weight:bold;padding:1px 5px;flex-shrink:0;line-height:14px;";
+            badge.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-weight:bold;padding:1px 5px;flex-shrink:0;line-height:14px;";
             nameLine.appendChild(badge);
         }
         left.appendChild(nameLine);
 
         const preview = document.createElement("div");
         const previewText = lastMsg.replace(/^> .+\n/, "").slice(0, 90);
-        preview.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;color:${unread > 0 ? "#d0a0b8" : "#6a4050"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;`;
+        preview.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${unread > 0 ? "#d0a0b8" : "#6a4050"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;`;
         preview.textContent = previewText || "…";
         left.appendChild(preview);
 
@@ -10992,13 +10992,13 @@ export class EBCDrawer {
         right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;";
 
         const timeEl = document.createElement("span");
-        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;";
+        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3040;";
         timeEl.textContent = formatLastSeen(lastTs);
         right.appendChild(timeEl);
 
         const openBtn = document.createElement("button");
         openBtn.textContent = "Open";
-        openBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid ${unread > 0 ? "#cf6f98" : "#3a1928"};background:${unread > 0 ? "#3a1020" : "transparent"};color:${unread > 0 ? "#cf6f98" : "#7a5a6a"};`;
+        openBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid ${unread > 0 ? "#cf6f98" : "#3a1928"};background:${unread > 0 ? "#3a1020" : "transparent"};color:${unread > 0 ? "#cf6f98" : "#7a5a6a"};`;
         openBtn.addEventListener("mouseenter", () => { openBtn.style.background = "#3a1020"; openBtn.style.borderColor = "#cf6f98"; openBtn.style.color = "#cf6f98"; });
         openBtn.addEventListener("mouseleave", () => { openBtn.style.background = unread > 0 ? "#3a1020" : "transparent"; openBtn.style.borderColor = unread > 0 ? "#cf6f98" : "#3a1928"; openBtn.style.color = unread > 0 ? "#cf6f98" : "#7a5a6a"; });
         openBtn.addEventListener("click", () => {
@@ -11156,13 +11156,13 @@ export class EBCDrawer {
         hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;";
 
         const hdrLbl = document.createElement("span");
-        hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
+        hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
         hdrLbl.textContent = `MISSED MESSAGES (${totalUnread})`;
         hdr.appendChild(hdrLbl);
 
         const markBtn = document.createElement("button");
         markBtn.textContent = "✓ Dismiss all";
-        markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+        markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
         markBtn.addEventListener("mouseenter", () => { markBtn.style.color = "#cf6f98"; markBtn.style.borderColor = "#cf6f98"; });
         markBtn.addEventListener("mouseleave", () => { markBtn.style.color = "#7a5a6a"; markBtn.style.borderColor = "#3a1928"; });
         markBtn.addEventListener("click", () => {
@@ -11204,7 +11204,7 @@ export class EBCDrawer {
         chatSettingsLbl.style.margin = "0";
         chatSettingsLbl.textContent = "Chat and notifications";
         const chatSettingsChevron = document.createElement("span");
-        chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+        chatSettingsChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         chatSettingsHeader.appendChild(chatSettingsLbl);
         chatSettingsHeader.appendChild(chatSettingsChevron);
         body.appendChild(chatSettingsHeader);
@@ -11222,14 +11222,14 @@ export class EBCDrawer {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;align-items:center;gap:8px;";
             const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
             lbl.textContent = label;
             const btn = document.createElement("button");
             const refresh = (): void => {
                 const on = getVal();
                 btn.textContent = on ? t("core.on") : t("core.off");
                 btn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                     "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                     "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
                     "background:" + (on ? "#4a1f30" : "#100508"),
@@ -11277,10 +11277,10 @@ export class EBCDrawer {
         const afkSubHeader = document.createElement("div");
         afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
         const afkSubLbl = document.createElement("span");
-        afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;font-weight:bold;";
+        afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
         afkSubLbl.textContent = t("settings.afkAutoReply");
         const afkChevron = document.createElement("span");
-        afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+        afkChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         afkSubHeader.appendChild(afkSubLbl);
         afkSubHeader.appendChild(afkChevron);
         chatSettingsBody.appendChild(afkSubHeader);
@@ -11297,14 +11297,14 @@ export class EBCDrawer {
 
         // Threshold — label row + h/m/s inputs
         const afkThreshLbl = document.createElement("div");
-        afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
+        afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
         afkThreshLbl.textContent = t("settings.idleThreshold");
 
         const afkThreshRow = document.createElement("div");
         afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
 
-        const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-        const unitCss  = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+        const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+        const unitCss  = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;";
 
         const makeTimeBox = (max: number): HTMLInputElement => {
             const inp = document.createElement("input") as HTMLInputElement;
@@ -11351,7 +11351,7 @@ export class EBCDrawer {
 
         // Message
         const afkMsgLbl = document.createElement("div");
-        afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+        afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;";
         afkMsgLbl.textContent = t("settings.afkReplyMsg");
         afkBody.appendChild(afkMsgLbl);
         const afkMsgArea = document.createElement("textarea");
@@ -11359,18 +11359,18 @@ export class EBCDrawer {
         afkMsgArea.maxLength = 200;
         afkMsgArea.rows = 2;
         afkMsgArea.placeholder = "I'm currently AFK — I'll reply when I'm back!";
-        afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
+        afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
         afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
         afkBody.appendChild(afkMsgArea);
 
         // Hints
         const afkHintBeep = document.createElement("div");
-        afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+        afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
         afkHintBeep.textContent = t("settings.afkHintBeep");
         afkBody.appendChild(afkHintBeep);
 
         const afkHint = document.createElement("div");
-        afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+        afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
         afkHint.textContent = t("settings.afkHint");
         afkBody.appendChild(afkHint);
 
@@ -11417,7 +11417,7 @@ export class EBCDrawer {
         userNotesLbl.textContent = t("users.header");
 
         const userNotesChevron = document.createElement("span");
-        userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+        userNotesChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
 
         userNotesHeaderRow.appendChild(userNotesLbl);
@@ -11519,7 +11519,7 @@ export class EBCDrawer {
 
                     // Member number
                     const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
 
                     // Relationship badge
@@ -11561,7 +11561,7 @@ export class EBCDrawer {
                     if (relBadge) {
                         const badge = document.createElement("span");
                         badge.textContent = relBadge;
-                        badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        badge.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
                         nameRow.appendChild(badge);
                     }
 
@@ -11573,7 +11573,7 @@ export class EBCDrawer {
                         const ebcBadge = document.createElement("span");
                         ebcBadge.textContent = "EBC " + ebcVer;
                         ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                         metaRow.appendChild(ebcBadge);
                     }
 
@@ -11663,7 +11663,7 @@ export class EBCDrawer {
                         if (unread > 0) {
                             const badge = document.createElement("span");
                             badge.textContent = unread > 9 ? "9+" : String(unread);
-                            badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                            badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
                             beepBtn.appendChild(badge);
                         }
                         beepBtn.addEventListener("click", (e) => {
@@ -11711,15 +11711,15 @@ export class EBCDrawer {
                     roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
                     roomToggle.innerHTML = "";
                     const arrow = document.createElement("span");
-                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex-shrink:0;";
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
                     lbl.textContent = t("users.peopleInRoom");
                     const cnt = document.createElement("span");
                     cnt.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
-                        "font-size:10px",
+                        "font-size:11px",
                         "font-weight:bold",
                         "color:#e8b4c4",
                         "background:rgba(192,100,130,0.18)",
@@ -11768,7 +11768,7 @@ export class EBCDrawer {
             const lblFText = document.createElement("span");
             lblFText.textContent = t("users.friends");
             const lblFCount = document.createElement("span");
-            lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
+            lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:normal;flex:1;";
             lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
 
             lblF.appendChild(lblFText);
@@ -11778,7 +11778,7 @@ export class EBCDrawer {
             try { this.friendSort = localStorage.getItem("EBC_friendSort") ?? "status"; } catch { /* ignore */ }
             const sortSel = document.createElement("select");
             sortSel.title = "Sort friends";
-            sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
+            sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
             const SORT_OPTIONS: [string, string][] = [
                 ["status",     "↕ Status"],
                 ["starred",    "★ Starred first"],
@@ -11804,7 +11804,7 @@ export class EBCDrawer {
                 const markReadBtn = document.createElement("button");
                 markReadBtn.textContent = "✓ All read";
                 markReadBtn.title = "Dismiss all unread beep notifications";
-                markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                 markReadBtn.addEventListener("mouseenter", () => { markReadBtn.style.color = "#cf6f98"; markReadBtn.style.borderColor = "#cf6f98"; });
                 markReadBtn.addEventListener("mouseleave", () => { markReadBtn.style.color = "#7a5a6a"; markReadBtn.style.borderColor = "#3a1928"; });
                 markReadBtn.addEventListener("click", () => {
@@ -11825,7 +11825,7 @@ export class EBCDrawer {
             searchInput.placeholder = "Search friends…";
             searchInput.value = this.friendSearch;
             searchInput.className = "ebc-form-input";
-            searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+            searchInput.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
             searchInput.dataset.ebcRole = "friend-search";
             // Prevent BC's document-level key handler stealing focus while typing
             searchInput.addEventListener("keydown", (e) => { e.stopPropagation(); });
@@ -11947,7 +11947,7 @@ export class EBCDrawer {
 
                 const pinDot = document.createElement("span");
                 pinDot.textContent = "📌";
-                pinDot.style.cssText = "font-size:9px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
+                pinDot.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
 
                 // Relationship badge (❤️ lover · 🔒 owned by them · 👑 you own them)
                 const relBadge = (() => {
@@ -11977,7 +11977,7 @@ export class EBCDrawer {
                 if (vipFriend) applyGradientText(nameEl, vipFriend.gradient[0], vipFriend.gradient[1]);
 
                 const numEl = document.createElement("span");
-                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
+                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                 numEl.textContent = "#" + num;
 
                 // Room info tag (built here, appended to metaRow below)
@@ -12001,7 +12001,7 @@ export class EBCDrawer {
                     roomTagEl.title = roomName
                         ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                         : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
-                    roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                    roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
                 }
 
                 // Last-seen timestamp for away/offline friends
@@ -12012,7 +12012,7 @@ export class EBCDrawer {
                         lsEl = document.createElement("span");
                         lsEl.textContent = formatLastSeen(lsTs);
                         lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
-                        lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;";
+                        lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#a06878;flex-shrink:0;";
                     }
                 }
 
@@ -12041,7 +12041,7 @@ export class EBCDrawer {
                     ebcBadge = document.createElement("span");
                     ebcBadge.textContent = "EBC " + ebcVer;
                     ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                    ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
+                    ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                 }
 
                 // ── Tag display area (first tag + "+N more", hover = tooltip) ──
@@ -12127,7 +12127,7 @@ export class EBCDrawer {
                 if (relBadge) {
                     const relBadgeEl = document.createElement("span");
                     relBadgeEl.textContent = relBadge;
-                    relBadgeEl.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                    relBadgeEl.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
                     nameRow.appendChild(relBadgeEl);
                 }
 
@@ -12195,7 +12195,7 @@ export class EBCDrawer {
                 if (unread > 0) {
                     const badge = document.createElement("span");
                     badge.textContent = unread > 9 ? "9+" : String(unread);
-                    badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                    badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
                     beepBtn.appendChild(badge);
                 }
                 beepBtn.addEventListener("click", (e) => {
@@ -12268,7 +12268,7 @@ export class EBCDrawer {
 
                     // ── Friend info (since + last seen) ───────────────────────
                     const infoBox = document.createElement("div");
-                    infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
+                    infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
 
                     // Read (and auto-stamp) the "friends since" date directly from the
                     // raw store — bypasses all helper functions to rule out any module
@@ -12375,7 +12375,7 @@ export class EBCDrawer {
 
                     // Tags label
                     const tagsLbl = document.createElement("div");
-                    tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
+                    tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:1px;";
                     tagsLbl.textContent = t("users.tags");
                     expand.appendChild(tagsLbl);
 
@@ -12398,7 +12398,7 @@ export class EBCDrawer {
                                 txt.textContent = t.text;
                                 const lockIcon = document.createElement("span");
                                 lockIcon.textContent = "🔒";
-                                lockIcon.style.cssText = "font-size:8px;opacity:0.7;margin-left:2px;";
+                                lockIcon.style.cssText = "font-size:11px;opacity:0.7;margin-left:2px;";
                                 lockIcon.title = "Permanent tag — cannot be removed";
                                 chip.appendChild(txt);
                                 chip.appendChild(lockIcon);
@@ -12437,13 +12437,13 @@ export class EBCDrawer {
                     newTagInput.type = "text";
                     newTagInput.maxLength = 30;
                     newTagInput.placeholder = t("users.newTagPlaceholder");
-                    newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                    newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
                     newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
                     newTagInput.addEventListener("blur",  () => { newTagInput.style.borderColor = "#3a1928"; });
 
                     const addTagBtn = document.createElement("button");
                     addTagBtn.textContent = t("core.add");
-                    addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
 
                     addRow.appendChild(newTagInput);
                     addRow.appendChild(addTagBtn);
@@ -12490,7 +12490,7 @@ export class EBCDrawer {
                     const refreshPinBtn = (): void => {
                         const p = isFriendPinned(num);
                         pinBtn.textContent = p ? t("users.unpin") : t("users.pinToTop");
-                        pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
+                        pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
                         row.classList.toggle("pinned", p);
                         pinDot.style.display = p ? "" : "none";
                     };
@@ -12501,7 +12501,7 @@ export class EBCDrawer {
 
                     // ── Inline note editor ─────────────────────────────────────
                     const noteLbl = document.createElement("div");
-                    noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
+                    noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
                     noteLbl.textContent = t("users.note");
                     expand.appendChild(noteLbl);
 
@@ -12591,10 +12591,10 @@ export class EBCDrawer {
                     offlineToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 2px;cursor:pointer;user-select:none;";
                     offlineToggle.innerHTML = "";
                     const arrow = document.createElement("span");
-                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex:1;";
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex:1;";
                     lbl.textContent = query ? `Offline — ${offlineFriends.length} match${offlineFriends.length === 1 ? "" : "es"}` : `Offline (${offlineFriends.length})`;
                     offlineToggle.appendChild(arrow);
                     offlineToggle.appendChild(lbl);
@@ -12664,7 +12664,7 @@ export class EBCDrawer {
             const badge = document.createElement("span");
             badge.textContent = "★";
             badge.title = vip.label;
-            badge.style.cssText = `font-size:10px;color:${vip.gradient[0]};flex-shrink:0;margin-right:2px;`;
+            badge.style.cssText = `font-size:11px;color:${vip.gradient[0]};flex-shrink:0;margin-right:2px;`;
             header.appendChild(badge);
         }
         header.appendChild(num);
@@ -12672,7 +12672,7 @@ export class EBCDrawer {
 
         if (isSelf) {
             const selfNote = document.createElement("div");
-            selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
+            selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a84b;padding:2px 4px 4px 18px;";
             selfNote.textContent = t("users.notesOnSelf");
             container.appendChild(selfNote);
             return container;
@@ -12739,7 +12739,7 @@ export class EBCDrawer {
             hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
             if (guideTarget) hdr.setAttribute("data-guide-target", guideTarget);
             const chev = document.createElement("span");
-            chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+            chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:10px;";
             const lbl = document.createElement("span");
             lbl.className = "ebc-section-label";
             lbl.style.margin = "0";
@@ -12773,11 +12773,11 @@ export class EBCDrawer {
             touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
 
             const touchLbl = document.createElement("span");
-            touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
             touchLbl.textContent = t("dev.touchMode");
 
             const touchAutoSpan = document.createElement("span");
-            touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
+            touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
             touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
 
             const touchForceBtn = document.createElement("button");
@@ -12786,7 +12786,7 @@ export class EBCDrawer {
                 touchForceBtn.textContent = active ? t("dev.touchForceOn") : t("dev.touchForceOff");
                 touchForceBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
+                    "font-size:11px",
                     "font-weight:bold",
                     "padding:4px 10px",
                     "border-radius:4px",
@@ -12818,7 +12818,7 @@ export class EBCDrawer {
             opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
 
             const opacityLbl = document.createElement("span");
-            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
             opacityLbl.textContent = t("dev.panelOpacity");
 
             const opacitySlider = document.createElement("input");
@@ -12831,7 +12831,7 @@ export class EBCDrawer {
             opacitySlider.title = "100% = fully solid, lower = semi-transparent";
 
             const opacityVal = document.createElement("span");
-            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
             opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
 
             opacitySlider.addEventListener("input", () => {
@@ -12851,7 +12851,7 @@ export class EBCDrawer {
             zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
 
             const zoomLbl = document.createElement("span");
-            zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
             zoomLbl.textContent = t("dev.textSize");
 
             const zoomSlider = document.createElement("input");
@@ -12864,7 +12864,7 @@ export class EBCDrawer {
             zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
 
             const zoomVal = document.createElement("span");
-            zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
             zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
 
             zoomSlider.addEventListener("input", () => {
@@ -12884,12 +12884,12 @@ export class EBCDrawer {
             stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
 
             const stripVisTitle = document.createElement("div");
-            stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#c09098;margin-bottom:4px;";
+            stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;margin-bottom:4px;";
             stripVisTitle.textContent = "Pinned strip visibility";
             stripVisBox.appendChild(stripVisTitle);
 
             const stripVisDesc = document.createElement("div");
-            stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
+            stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
             stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
             stripVisBox.appendChild(stripVisDesc);
 
@@ -12899,7 +12899,7 @@ export class EBCDrawer {
                 wrap.style.cssText = "margin-bottom:8px;";
 
                 const lbl = document.createElement("div");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
                 lbl.textContent = rowLabel;
                 wrap.appendChild(lbl);
 
@@ -12909,7 +12909,7 @@ export class EBCDrawer {
                 for (const tid of PINNED_STRIP_TABS) {
                     const chip = document.createElement("button");
                     chip.textContent = PINNED_TAB_SHORT[tid] ?? tid;
-                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
                     const refreshChip = (): void => {
                         const f = loadStripTabFilter(storageKey);
                         const on = !f || f.has(tid);
@@ -12948,7 +12948,7 @@ export class EBCDrawer {
 
             // ── Tab visibility ─────────────────────────────────────────────────
             const tabVisLbl = document.createElement("div");
-            tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+            tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:4px;";
             tabVisLbl.textContent = t("dev.visibleTabs");
             cnt.appendChild(tabVisLbl);
             const tabVisGrid = document.createElement("div");
@@ -12957,7 +12957,7 @@ export class EBCDrawer {
             for (const tabId of EBC_USER_TABS) {
                 if (tabId === "dev") {
                     const chip = document.createElement("button");
-                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
                     chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
                     chip.title = t("dev.devTabLocked");
                     chip.disabled = true;
@@ -12966,7 +12966,7 @@ export class EBCDrawer {
                 }
                 const isVisible = !hiddenTabs.includes(tabId);
                 const chip = document.createElement("button");
-                chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
+                chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
                 chip.textContent = EBC_TAB_LABELS[tabId] ?? tabId.toUpperCase();
                 chip.dataset["tabId"] = tabId;
                 chip.addEventListener("click", () => {
@@ -12990,7 +12990,7 @@ export class EBCDrawer {
             hotkeyWrap.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.5);";
 
             const hotkeyTitle = document.createElement("div");
-            hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
+            hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
             hotkeyTitle.textContent = t("dev.menuHotkey");
             hotkeyWrap.appendChild(hotkeyTitle);
 
@@ -13022,7 +13022,7 @@ export class EBCDrawer {
             };
             refreshHotkeyDisplay();
 
-            const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+            const BTN = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             const setHotkeyBtn = document.createElement("button");
             setHotkeyBtn.textContent = t("dev.setKey");
             setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
@@ -13066,7 +13066,7 @@ export class EBCDrawer {
             hotkeyWrap.appendChild(hotkeyRow);
 
             const hotkeyHint = document.createElement("div");
-            hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
+            hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3a4a;margin-top:5px;";
             hotkeyHint.textContent = t("dev.hotkeyHint");
             hotkeyWrap.appendChild(hotkeyHint);
             cnt.appendChild(hotkeyWrap);
@@ -13076,20 +13076,20 @@ export class EBCDrawer {
         makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
             // Character Inspector
             const charLbl = document.createElement("div");
-            charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
+            charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
             charLbl.textContent = t("dev.characterInspector");
             cnt.appendChild(charLbl);
             const charHint = document.createElement("div");
-            charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+            charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:4px;";
             charHint.textContent = t("dev.charInspHint");
             cnt.appendChild(charHint);
             const charPickRow = document.createElement("div");
             charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
             const charSelect = document.createElement("select");
-            charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+            charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 4px;";
             const charInspBtn = document.createElement("button");
             charInspBtn.className = "ebc-create-btn";
-            charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
+            charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:11px;";
             charInspBtn.textContent = t("dev.inspect");
             charPickRow.appendChild(charSelect); charPickRow.appendChild(charInspBtn);
             cnt.appendChild(charPickRow);
@@ -13137,7 +13137,7 @@ export class EBCDrawer {
 
             // Addons Loaded
             const hookLbl = document.createElement("div");
-            hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
+            hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
             hookLbl.textContent = t("dev.addonsLoaded");
             cnt.appendChild(hookLbl);
             const hookList = document.createElement("div");
@@ -13150,7 +13150,7 @@ export class EBCDrawer {
                     const mods = getModsInfo ? (getModsInfo.call(sdk) as unknown[]) : [];
                     if (!Array.isArray(mods) || mods.length === 0) {
                         const hint = document.createElement("div");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;";
                         hint.textContent = t("dev.noModsdk");
                         hookList.appendChild(hint); return;
                     }
@@ -13165,13 +13165,13 @@ export class EBCDrawer {
                         nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                         nameEl.textContent = String(m.name ?? "?");
                         const verEl = document.createElement("span");
-                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
+                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;";
                         verEl.textContent = "v" + String(m.version ?? "?");
                         topLine.appendChild(nameEl); topLine.appendChild(verEl);
                         row.appendChild(topLine);
                         if (hooks.length > 0) {
                             const hookDetail = document.createElement("div");
-                            hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:8px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
+                            hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:11px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
                             hookDetail.textContent = hooks.join(", ");
                             row.appendChild(hookDetail);
                         }
@@ -13179,14 +13179,14 @@ export class EBCDrawer {
                     }
                 } catch (e) {
                     const err = document.createElement("div");
-                    err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;padding:4px 2px;";
+                    err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#ff6b6b;padding:4px 2px;";
                     err.textContent = "Error reading hooks: " + String(e);
                     hookList.appendChild(err);
                 }
             };
             renderHooks();
             const hookRefreshBtn = document.createElement("button");
-            hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
+            hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
             hookRefreshBtn.textContent = t("dev.refresh");
             hookRefreshBtn.addEventListener("click", renderHooks);
             cnt.appendChild(hookRefreshBtn);
@@ -13196,7 +13196,7 @@ export class EBCDrawer {
         if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
         makeSection(t("dev.copyRestraintsFromMember"), "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
             hint.textContent = "Export a room member's restraints as a BC outfit code. Choose which items to include, then import via BC's wardrobe.";
             cnt.appendChild(hint);
 
@@ -13205,7 +13205,7 @@ export class EBCDrawer {
             pickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
 
             const memberSelect = document.createElement("select");
-            memberSelect.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+            memberSelect.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 4px;";
 
             const populateSelect = (): void => {
                 while (memberSelect.firstChild) memberSelect.removeChild(memberSelect.firstChild);
@@ -13231,8 +13231,8 @@ export class EBCDrawer {
                 const b = document.createElement("button");
                 b.textContent = label;
                 b.style.cssText = primary
-                    ? "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:3px 10px;transition:background 0.12s,color 0.12s;"
-                    : "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
+                    ? "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 10px;transition:background 0.12s,color 0.12s;"
+                    : "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
                 b.addEventListener("mouseenter", () => {
                     b.style.background = primary ? "#91405f" : "transparent";
                     b.style.borderColor = "#cf6f98"; b.style.color = primary ? "#f7e6ee" : "#cf6f98";
@@ -13264,11 +13264,11 @@ export class EBCDrawer {
             const checklistHeader = document.createElement("div");
             checklistHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
             const checklistLbl = document.createElement("span");
-            checklistLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+            checklistLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
             const allBtn  = mkBtn("All");
             const noneBtn = mkBtn("None");
-            allBtn.style.cssText  += "font-size:9px;padding:1px 6px;";
-            noneBtn.style.cssText += "font-size:9px;padding:1px 6px;";
+            allBtn.style.cssText  += "font-size:11px;padding:1px 6px;";
+            noneBtn.style.cssText += "font-size:11px;padding:1px 6px;";
             checklistHeader.appendChild(checklistLbl);
             checklistHeader.appendChild(allBtn);
             checklistHeader.appendChild(noneBtn);
@@ -13315,7 +13315,7 @@ export class EBCDrawer {
             codeWrap.appendChild(codeTA);
 
             const statusEl = document.createElement("div");
-            statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;min-height:14px;";
+            statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:14px;";
             cnt.appendChild(statusEl);
 
             // ── Load handler ───────────────────────────────────────────────────
@@ -13351,11 +13351,11 @@ export class EBCDrawer {
                     cb.type = "checkbox"; cb.checked = true;
                     cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
                     const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     nameEl.textContent = label;
                     nameEl.title = label;
                     const grpEl = document.createElement("span");
-                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;";
                     grpEl.textContent = group;
                     row.appendChild(cb); row.appendChild(nameEl); row.appendChild(grpEl);
                     checklistItems.appendChild(row);
@@ -13485,7 +13485,7 @@ export class EBCDrawer {
                 const partners = getWhisperPartners();
                 if (partners.length === 0) {
                     const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3a4e;padding:8px 4px;text-align:center;";
                     empty.textContent = t("dev.noWhispers");
                     cnt.appendChild(empty);
                     return;
@@ -13496,7 +13496,7 @@ export class EBCDrawer {
                 whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
                 const whClearBtn = document.createElement("button");
                 whClearBtn.className = "ebc-outfit-del";
-                whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+                whClearBtn.style.cssText = "font-size:11px;padding:2px 7px;border-radius:4px;";
                 whClearBtn.textContent = t("dev.clearLog");
                 whClearBtn.title = "Clear whisper log";
                 whClearBtn.addEventListener("click", () => {
@@ -13524,7 +13524,7 @@ export class EBCDrawer {
                     const nameSpan = document.createElement("span");
                     nameSpan.textContent = lastName;
                     const countSpan = document.createElement("span");
-                    countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+                    countSpan.style.cssText = "font-size:11px;color:#7a5070;flex-shrink:0;";
                     countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
                     btn.appendChild(nameSpan);
                     btn.appendChild(countSpan);
@@ -13589,12 +13589,12 @@ export class EBCDrawer {
                     nameEl.textContent = visit.name; nameRow.appendChild(nameEl);
                     if (visit.space) {
                         const sp = document.createElement("span");
-                        sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                        sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                         sp.textContent = visit.space; nameRow.appendChild(sp);
                     }
                     c.appendChild(nameRow);
                     const timeEl = document.createElement("div");
-                    timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:8px;";
+                    timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;margin-bottom:8px;";
                     timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
                     c.appendChild(timeEl);
 
@@ -13643,7 +13643,7 @@ export class EBCDrawer {
                     // Members on entry
                     if (visit.members.length > 0) {
                         const mLbl = document.createElement("div");
-                        mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
+                        mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                         mLbl.textContent = `On entry (${visit.members.length})`; c.appendChild(mLbl);
                         for (const m of visit.members) {
                             const mr = document.createElement("div");
@@ -13652,7 +13652,7 @@ export class EBCDrawer {
                             mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                             mn.textContent = m.name;
                             const mid = document.createElement("span");
-                            mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                            mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;flex-shrink:0;";
                             mid.textContent = `#${m.memberNumber}`;
                             mr.appendChild(mn); mr.appendChild(mid); mr.appendChild(makeRoomProfBtn(m.memberNumber)); c.appendChild(mr);
                         }
@@ -13661,11 +13661,11 @@ export class EBCDrawer {
 
                     // People who joined after
                     const jLbl = document.createElement("div");
-                    jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
+                    jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                     jLbl.textContent = `Joined after you (${visit.joins.length})`; c.appendChild(jLbl);
                     if (visit.joins.length === 0) {
                         const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;font-style:italic;";
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
                         none.textContent = "Nobody yet."; c.appendChild(none);
                     } else {
                         for (const j of visit.joins) {
@@ -13675,10 +13675,10 @@ export class EBCDrawer {
                             jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                             jn.textContent = j.name;
                             const jid = document.createElement("span");
-                            jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                            jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;";
                             jid.textContent = `#${j.memberNumber}`;
                             const jt = document.createElement("span");
-                            jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
+                            jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;flex-shrink:0;";
                             jt.textContent = fmtTs(j.at);
                             row.appendChild(jn); row.appendChild(jid); row.appendChild(jt); row.appendChild(makeRoomProfBtn(j.memberNumber)); c.appendChild(row);
                         }
@@ -13700,14 +13700,14 @@ export class EBCDrawer {
                 const rhToggleRow = document.createElement("div");
                 rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                 const rhToggleLbl = document.createElement("span");
-                rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
                 rhToggleLbl.textContent = "Save room visits";
                 const rhToggleBtn = document.createElement("button");
                 const refreshRhToggle = (): void => {
                     const on = getRoomHistoryEnabled();
                     rhToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rhToggleBtn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
+                        "font-family:'Trebuchet MS',serif","font-size:11px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
                         on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
                     ].join(";");
@@ -13741,16 +13741,16 @@ export class EBCDrawer {
                         nameEl.textContent = visit.name; hRow.appendChild(nameEl);
                         if (visit.space) {
                             const sp = document.createElement("span");
-                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                             sp.textContent = visit.space; hRow.appendChild(sp);
                         }
                         card.appendChild(hRow);
                         const timeRow = document.createElement("div");
-                        timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:4px;";
+                        timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;margin-bottom:4px;";
                         timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "in progress"}`;
                         card.appendChild(timeRow);
                         const summary = document.createElement("div");
-                        summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;cursor:pointer;user-select:none;";
+                        summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;cursor:pointer;user-select:none;";
                         const detail = document.createElement("div");
                         detail.style.display = "none"; detail.style.marginTop = "6px";
                         let expanded = false;
@@ -13765,7 +13765,7 @@ export class EBCDrawer {
                                 while (detail.firstChild) detail.removeChild(detail.firstChild);
                                 if (visit.members.length > 0) {
                                     const mh = document.createElement("div");
-                                    mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:3px;";
+                                    mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:3px;";
                                     mh.textContent = "On entry:"; detail.appendChild(mh);
                                     for (const m of visit.members) {
                                         const mr = document.createElement("div");
@@ -13774,14 +13774,14 @@ export class EBCDrawer {
                                         mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                         mn.textContent = m.name;
                                         const mid = document.createElement("span");
-                                        mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                                        mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;flex-shrink:0;";
                                         mid.textContent = `#${m.memberNumber}`;
                                         mr.appendChild(mn); mr.appendChild(mid); detail.appendChild(mr);
                                     }
                                 }
                                 if (visit.joins.length > 0) {
                                     const jh = document.createElement("div");
-                                    jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-top:6px;margin-bottom:3px;";
+                                    jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-top:6px;margin-bottom:3px;";
                                     jh.textContent = "Joined after:"; detail.appendChild(jh);
                                     for (const j of visit.joins) {
                                         const jr = document.createElement("div");
@@ -13790,10 +13790,10 @@ export class EBCDrawer {
                                         jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                         jn.textContent = j.name;
                                         const jid = document.createElement("span");
-                                        jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                                        jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;";
                                         jid.textContent = `#${j.memberNumber}`;
                                         const jt = document.createElement("span");
-                                        jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
+                                        jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;flex-shrink:0;";
                                         jt.textContent = fmtTs(j.at);
                                         jr.appendChild(jn); jr.appendChild(jid); jr.appendChild(jt); detail.appendChild(jr);
                                     }
@@ -13821,14 +13821,14 @@ export class EBCDrawer {
                 const rlToggleRow = document.createElement("div");
                 rlToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                 const rlToggleLbl = document.createElement("span");
-                rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
                 rlToggleLbl.textContent = "Record restraint changes";
                 const rlToggleBtn = document.createElement("button");
                 const refreshRlToggle = (): void => {
                     const on = getRestraintLogEnabled();
                     rlToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rlToggleBtn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
+                        "font-family:'Trebuchet MS',serif","font-size:11px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
                         on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
                     ].join(";");
@@ -13862,11 +13862,11 @@ export class EBCDrawer {
                         nameEl.textContent = entry.itemName;
 
                         const groupEl = document.createElement("span");
-                        groupEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;white-space:nowrap;";
+                        groupEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;white-space:nowrap;";
                         groupEl.textContent = entry.group;
 
                         const durEl = document.createElement("span");
-                        durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex-shrink:0;white-space:nowrap;";
+                        durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;flex-shrink:0;white-space:nowrap;";
                         if (entry.removedAt !== null) {
                             durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
                             durEl.style.color = "#9a7090";
@@ -13883,7 +13883,7 @@ export class EBCDrawer {
                         // Craft name subtitle (if present)
                         if (entry.craftName) {
                             const craftEl = document.createElement("div");
-                            craftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c9ab72;font-style:italic;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            craftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c9ab72;font-style:italic;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             craftEl.textContent = `"${entry.craftName}"`;
                             craftEl.title = `Craft name: ${entry.craftName}`;
                             card.appendChild(craftEl);
@@ -13916,7 +13916,7 @@ export class EBCDrawer {
                         // Lock badge
                         if (entry.lockType !== null) {
                             const lockEl = document.createElement("span");
-                            lockEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#2a1020;border:1px solid #5a2040;color:#e890b8;padding:0 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;";
+                            lockEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#2a1020;border:1px solid #5a2040;color:#e890b8;padding:0 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;";
                             const lockerLabel = entry.lockedByName ?? (entry.lockedByNumber != null ? `#${entry.lockedByNumber}` : null);
                             lockEl.textContent = lockerLabel
                                 ? `🔒 ${entry.lockType} · ${lockerLabel}`
@@ -13936,12 +13936,12 @@ export class EBCDrawer {
                         const applierWrap = document.createElement("span");
                         applierWrap.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;";
                         const applierEl = document.createElement("span");
-                        applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                         applierEl.textContent = entry.applier;
                         applierWrap.appendChild(applierEl);
                         if (entry.applierNumber != null) {
                             const numEl = document.createElement("span");
-                            numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7090;white-space:nowrap;";
+                            numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;white-space:nowrap;";
                             numEl.textContent = `#${entry.applierNumber}`;
                             applierWrap.appendChild(numEl);
                         }
@@ -13959,7 +13959,7 @@ export class EBCDrawer {
             // ── Message Log ───────────────────────────────────────────────────
             makeInner("Message Log", "EBC_msgLogCollapsed", true, (c) => {
                 const logStatusDot = document.createElement("span");
-                logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;margin-bottom:4px;display:inline-block;";
+                logStatusDot.style.cssText = "font-size:11px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;margin-bottom:4px;display:inline-block;";
                 const updateStatusDot = (): void => {
                     if (isDevLogEnabled()) {
                         logStatusDot.textContent = "● CAPTURING";
@@ -13976,19 +13976,19 @@ export class EBCDrawer {
                 msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
                 const msgRefreshBtn2 = document.createElement("button");
                 msgRefreshBtn2.className = "ebc-icon-btn";
-                msgRefreshBtn2.style.cssText = "font-size:10px;padding:2px 8px;";
+                msgRefreshBtn2.style.cssText = "font-size:11px;padding:2px 8px;";
                 msgRefreshBtn2.textContent = "↻"; msgRefreshBtn2.title = "Refresh log";
                 const msgClearBtn = document.createElement("button");
                 msgClearBtn.className = "ebc-icon-btn";
                 msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
                 msgClearBtn.textContent = t("dev.clearLog");
                 const logToggleWrap = document.createElement("label");
-                logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
+                logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
                 const logToggleChk = document.createElement("input");
                 logToggleChk.type = "checkbox"; logToggleChk.checked = isDevLogEnabled();
                 const msgTestBtn = document.createElement("button");
                 msgTestBtn.className = "ebc-icon-btn";
-                msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+                msgTestBtn.style.cssText = "font-size:11px;padding:2px 8px;";
                 msgTestBtn.textContent = "Test"; msgTestBtn.title = "Inject a test entry";
                 msgTestBtn.addEventListener("click", () => { pushTestEntry(); renderMsgLog(); });
                 logToggleWrap.appendChild(logToggleChk);
@@ -13998,13 +13998,13 @@ export class EBCDrawer {
                 c.appendChild(msgCtrlRow);
 
                 const logOffHint = document.createElement("div");
-                logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
+                logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
                 logOffHint.style.display = isDevLogEnabled() ? "none" : "flex";
                 const logOffText = document.createElement("span"); logOffText.textContent = "Logging is off."; logOffText.style.flex = "1";
                 logOffHint.appendChild(logOffText);
                 const enableBtn = document.createElement("button");
                 enableBtn.textContent = t("core.enable");
-                enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                 enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
                 enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
                 enableBtn.addEventListener("click", () => {
@@ -14027,7 +14027,7 @@ export class EBCDrawer {
                     const entries = [...getDevLog()].reverse();
                     if (entries.length === 0) {
                         const hint = document.createElement("div");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:8px 6px;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:8px 6px;";
                         hint.textContent = isDevLogEnabled()
                             ? "No messages yet — chat, emote, or click Test above."
                             : "Logging is off. Click Enable above.";
@@ -14039,15 +14039,15 @@ export class EBCDrawer {
                         const headerLine = document.createElement("div");
                         headerLine.style.cssText = "display:flex;gap:5px;align-items:baseline;";
                         const typeTag = document.createElement("span");
-                        typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:9px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
+                        typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:11px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
                         typeTag.textContent = entry.type;
                         const timeTag = document.createElement("span");
-                        timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-left:auto;";
+                        timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;margin-left:auto;";
                         timeTag.textContent = entry.timestamp.toLocaleTimeString();
                         headerLine.appendChild(typeTag);
                         if (entry.sender !== undefined) {
                             const senderTag = document.createElement("span");
-                            senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;";
+                            senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                             senderTag.textContent = "from #" + entry.sender;
                             headerLine.appendChild(senderTag);
                         }
@@ -14085,12 +14085,12 @@ export class EBCDrawer {
                 ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
 
                 const countLbl = document.createElement("span");
-                countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
+                countLbl.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex:1;`;
 
                 const searchInp = document.createElement("input");
                 searchInp.type = "text";
                 searchInp.placeholder = t("dev.searchPlaceholder");
-                searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
+                searchInp.style.cssText = `${PFONT}font-size:11px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
 
                 const clearBtn = document.createElement("button");
                 clearBtn.textContent = t("core.clearAll");
@@ -14121,7 +14121,7 @@ export class EBCDrawer {
 
                     if (filtered.length === 0) {
                         const hint = document.createElement("div");
-                        hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
+                        hint.style.cssText = `${PFONT}font-size:11px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
                         hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
                         listEl.appendChild(hint);
                         return;
@@ -14132,12 +14132,12 @@ export class EBCDrawer {
                         row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
 
                         const nameSpan = document.createElement("span");
-                        nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                        nameSpan.style.cssText = `${PFONT}font-size:11px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
                         nameSpan.textContent = person.name;
                         nameSpan.title = person.name;
 
                         const numSpan = document.createElement("span");
-                        numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
+                        numSpan.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex-shrink:0;`;
                         numSpan.textContent = `#${person.n}`;
 
                         const profBtn = document.createElement("button");
@@ -14212,7 +14212,7 @@ export class EBCDrawer {
                 // Helper: sub-label
                 const subLbl = (text: string): HTMLElement => {
                     const el = document.createElement("div");
-                    el.style.cssText = `${FONT}font-size:9px;color:#e890b8;font-weight:bold;text-transform:uppercase;letter-spacing:0.06em;margin:6px 0 3px;`;
+                    el.style.cssText = `${FONT}font-size:11px;color:#e890b8;font-weight:bold;text-transform:uppercase;letter-spacing:0.06em;margin:6px 0 3px;`;
                     el.textContent = text; return el;
                 };
 
@@ -14222,15 +14222,15 @@ export class EBCDrawer {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                    lbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                     lbl.textContent = label;
                     const inp = document.createElement("input");
                     inp.type = "number"; inp.value = String(value);
-                    inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                    inp.style.cssText = `${FONT}font-size:11px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
                     const mkBtn = (sym: string, delta: number): HTMLButtonElement => {
                         const b = document.createElement("button");
                         b.textContent = sym;
-                        b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                        b.style.cssText = `${FONT}font-size:11px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
                         b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
                         b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
                         b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
@@ -14290,15 +14290,15 @@ export class EBCDrawer {
                     const skillRow = document.createElement("div");
                     skillRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                     const skillLbl = document.createElement("span");
-                    skillLbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                    skillLbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                     skillLbl.textContent = label;
                     const skillInp = document.createElement("input");
                     skillInp.type = "number"; skillInp.value = String(readSkill(key));
-                    skillInp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                    skillInp.style.cssText = `${FONT}font-size:11px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
                     const mkDeltaBtn = (sym: string, delta: number): HTMLButtonElement => {
                         const b = document.createElement("button");
                         b.textContent = sym;
-                        b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                        b.style.cssText = `${FONT}font-size:11px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
                         b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
                         b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
                         b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
@@ -14306,7 +14306,7 @@ export class EBCDrawer {
                     };
                     const setBtn = document.createElement("button");
                     setBtn.textContent = "Set";
-                    setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                    setBtn.style.cssText = `${FONT}font-size:11px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
                     setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
                     setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
                     setBtn.addEventListener("click", () => {
@@ -14352,15 +14352,15 @@ export class EBCDrawer {
                         const row = document.createElement("div");
                         row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                        lbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                         lbl.textContent = repType;
                         const inp = document.createElement("input");
                         inp.type = "number"; inp.value = String(repMap.get(repType) ?? 0);
-                        inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                        inp.style.cssText = `${FONT}font-size:11px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
                         const mkRepBtn = (sym: string, delta: number): HTMLButtonElement => {
                             const b = document.createElement("button");
                             b.textContent = sym;
-                            b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                            b.style.cssText = `${FONT}font-size:11px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
                             b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
                             b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
                             b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
@@ -14378,12 +14378,12 @@ export class EBCDrawer {
                 // ── Money ─────────────────────────────────────────────────────
                 cnt.appendChild(subLbl("Account"));
                 {
-                    const INP = `${FONT}font-size:10px;width:90px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
-                    const BTN = `${FONT}font-size:10px;padding:2px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:border-color 0.1s,background 0.1s;`;
+                    const INP = `${FONT}font-size:11px;width:90px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                    const BTN = `${FONT}font-size:11px;padding:2px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:border-color 0.1s,background 0.1s;`;
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                    lbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                     lbl.textContent = "Money";
                     const moneyInp = document.createElement("input");
                     moneyInp.type = "number";
@@ -14427,7 +14427,7 @@ export class EBCDrawer {
                 cnt.appendChild(subLbl("Actions"));
                 {
                     const unlockBtn = document.createElement("button");
-                    unlockBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-bottom:4px;padding:5px 0;border-radius:5px;border:1px solid #9b7de0;background:#1e1035;color:#d8c8ff;cursor:pointer;transition:background 0.12s;`;
+                    unlockBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;width:100%;margin-bottom:4px;padding:5px 0;border-radius:5px;border:1px solid #9b7de0;background:#1e1035;color:#d8c8ff;cursor:pointer;transition:background 0.12s;`;
                     unlockBtn.textContent = "Unlock All Items";
                     unlockBtn.addEventListener("mouseenter", () => { unlockBtn.style.background = "#2e1850"; });
                     unlockBtn.addEventListener("mouseleave", () => { unlockBtn.style.background = "#1e1035"; });
@@ -14455,7 +14455,7 @@ export class EBCDrawer {
 
                 // ── Apply All button ──────────────────────────────────────────
                 const applyBtn = document.createElement("button");
-                applyBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
+                applyBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
                 applyBtn.textContent = "Apply All Stats";
                 applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                 applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
@@ -14531,7 +14531,7 @@ export class EBCDrawer {
         hdrTxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:22px;letter-spacing:0.05em;color:#b8a0f7;";
         hdrTxt.textContent = "🐾 Puppy";
         const hdrSub = document.createElement("div");
-        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7ab0;margin-top:3px;";
+        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a7ab0;margin-top:3px;";
         hdrSub.textContent = "woof woof~";
         hdr.appendChild(hdrTxt);
         hdr.appendChild(hdrSub);
@@ -14601,7 +14601,7 @@ export class EBCDrawer {
 
         // -- Bark sounds list --
         const barksLbl = document.createElement("div");
-        barksLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
+        barksLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
         barksLbl.textContent = "Bark Sounds";
         body.appendChild(barksLbl);
 
@@ -14614,7 +14614,7 @@ export class EBCDrawer {
             const barks = getBarks();
             if (barks.length === 0) {
                 const none = document.createElement("div");
-                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a5880;padding:2px 0;";
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a5880;padding:2px 0;";
                 none.textContent = "No sounds yet.";
                 barkList.appendChild(none);
                 return;
@@ -14624,7 +14624,7 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(58,32,96,0.4);border:1px solid #5a3a90;border-radius:5px;padding:3px 7px;";
 
                 const txt = document.createElement("span");
-                txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#d8c8ff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d8c8ff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                 txt.textContent = barks[i];
 
                 const editBtn = document.createElement("button");
@@ -14649,15 +14649,15 @@ export class EBCDrawer {
                     inp.maxLength = 60;
                     inp.value = barks[i];
                     inp.className = "ebc-form-input";
-                    inp.style.cssText = "flex:1;font-size:10px;min-width:0;";
+                    inp.style.cssText = "flex:1;font-size:11px;min-width:0;";
                     const saveBtn = document.createElement("button");
                     saveBtn.textContent = "Save";
-                    saveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
+                    saveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
                     saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#5a30a0"; });
                     saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#3a2060"; });
                     const cancelBtn = document.createElement("button");
                     cancelBtn.textContent = "Cancel";
-                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #5a3a80;background:transparent;color:#8a7ab0;cursor:pointer;flex-shrink:0;";
+                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #5a3a80;background:transparent;color:#8a7ab0;cursor:pointer;flex-shrink:0;";
                     const doSave = (): void => {
                         const val = inp.value.trim();
                         if (!val) return;
@@ -14702,10 +14702,10 @@ export class EBCDrawer {
         addInp.maxLength = 60;
         addInp.placeholder = "e.g. Woof woof~";
         addInp.className = "ebc-form-input";
-        addInp.style.cssText = "flex:1;font-size:10px;";
+        addInp.style.cssText = "flex:1;font-size:11px;";
         const addBtn = document.createElement("button");
         addBtn.textContent = t("core.add");
-        addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+        addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
         addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
         addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
         const doAdd = (): void => {
@@ -14902,14 +14902,14 @@ export class EBCDrawer {
         const sidebarRow = document.createElement("div");
         sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
         const sidebarLbl = document.createElement("span");
-        sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;flex:1;user-select:none;";
+        sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;user-select:none;";
         sidebarLbl.textContent = t("buttons.showSidebar");
         const sidebarToggle = document.createElement("button");
         const refreshSidebarToggle = (): void => {
             const on = getActionButtonsVisible();
             sidebarToggle.textContent = on ? t("core.on") : t("core.off");
             sidebarToggle.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                 "padding:2px 9px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                 "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                 "background:" + (on ? "#6b3048" : "#1b0d17"),
@@ -14945,7 +14945,7 @@ export class EBCDrawer {
 
         const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
         const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-        const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
+        const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:11px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
 
         cats.forEach((cat, i) => {
             const isActive = i === activeCatIdx;
@@ -14958,7 +14958,7 @@ export class EBCDrawer {
             hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
 
             const chevron = document.createElement("span");
-            chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            chevron.style.cssText = "font-size:11px;color:#7a5060;flex-shrink:0;";
             chevron.textContent = isActive ? "▼" : "▶";
 
             const nameLbl = document.createElement("span");
@@ -15044,7 +15044,7 @@ export class EBCDrawer {
         addCatRow.style.cssText = "margin-bottom:8px;";
         const addCatBtn = document.createElement("button");
         addCatBtn.className = "ebc-cat-pill";
-        addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
+        addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
         addCatBtn.textContent = t("buttons.addCategory");
         addCatBtn.setAttribute("data-guide-target", "btn-add-category");
         addCatBtn.addEventListener("click", () => {
@@ -15106,7 +15106,7 @@ export class EBCDrawer {
                 colorInp.placeholder = "#hex";
                 colorInp.value = normalizeHex(btn.color);
                 colorInp.title = "Button colour (hex, e.g. #cf6f98)";
-                colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                colorInp.style.cssText = "width:52px;font-size:11px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
                 colorWrap.appendChild(colorDot);
                 colorWrap.appendChild(colorInp);
 
@@ -15191,7 +15191,7 @@ export class EBCDrawer {
                 if (isSeq) {
                     // seq: badge only — step builder below handles all config
                     const seqBadge = document.createElement("span");
-                    seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
+                    seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7ac8;padding:1px 4px;";
                     seqBadge.textContent = t("buttons.seqBadge");
                     botLine.appendChild(seqBadge);
                 } else {
@@ -15246,10 +15246,10 @@ export class EBCDrawer {
                         const exprLine = document.createElement("div");
                         exprLine.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
                         const exprLineLbl = document.createElement("span");
-                        exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                        exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                         exprLineLbl.textContent = "Face:";
                         const exprLineSel = document.createElement("select");
-                        exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+                        exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
                         const exprLineNone = document.createElement("option");
                         exprLineNone.value = ""; exprLineNone.textContent = "— no face —";
                         exprLineSel.appendChild(exprLineNone);
@@ -15264,7 +15264,7 @@ export class EBCDrawer {
                         ];
                         const exprLineDurSel = document.createElement("select");
                         exprLineDurSel.title = "How long to hold this face before reverting (keep = stay forever)";
-                        exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
+                        exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
                         for (const [lbl3, ms3] of EXPR_LINE_DUR) {
                             const exprLineDurOpt = document.createElement("option");
                             exprLineDurOpt.value = String(ms3); exprLineDurOpt.textContent = lbl3;
@@ -15729,7 +15729,7 @@ export class EBCDrawer {
         slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
 
         const slEditorChev = document.createElement("span");
-        slEditorChev.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+        slEditorChev.style.cssText = "font-size:11px;color:#7a5060;flex-shrink:0;";
         slEditorChev.textContent = slEditorOpen ? "▼" : "▶";
 
         const slEditorLbl = document.createElement("span");
@@ -15744,7 +15744,7 @@ export class EBCDrawer {
         const slEditorBody = document.createElement("div");
         slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
 
-        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
 
         const slPresetDropdown = document.createElement("select");
         slPresetDropdown.style.cssText = DD_CSS;
@@ -15767,7 +15767,7 @@ export class EBCDrawer {
         const slSeqArea = document.createElement("textarea");
         slSeqArea.rows = 3;
         slSeqArea.spellcheck = false;
-        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
         slSeqArea.title = t("sl.seqHint");
         const slSeqInitPresets = getSlowLeavePresets();
         const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
@@ -15785,7 +15785,7 @@ export class EBCDrawer {
         const slDurRow = document.createElement("div");
         slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
         const slDurLbl = document.createElement("span");
-        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
         slDurLbl.textContent = "⏱";
         slDurLbl.title = t("sl.header");
         const slDurSlider = document.createElement("input");
@@ -15793,7 +15793,7 @@ export class EBCDrawer {
         slDurSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
         slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
         const slDurVal = document.createElement("span");
-        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
         slDurVal.textContent = slDurSlider.value + "s";
         slDurSlider.addEventListener("input", () => {
             slDurVal.textContent = slDurSlider.value + "s";
@@ -15835,12 +15835,12 @@ export class EBCDrawer {
         hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;flex:1;";
         hdrLbl.textContent = "KITTY";
         const hdrSub = document.createElement("span");
-        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;flex:1;";
+        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a3a50;font-style:italic;flex:1;";
         hdrSub.textContent = "for lucy's eyes only~";
         const beepEmeryBtn = document.createElement("button");
         beepEmeryBtn.textContent = "📟 Beep";
         beepEmeryBtn.title = "Open IM window to Emery";
-        beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
+        beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
         beepEmeryBtn.addEventListener("mouseenter", () => { beepEmeryBtn.style.background = "#3a1020"; beepEmeryBtn.style.borderColor = "#cf6f98"; });
         beepEmeryBtn.addEventListener("mouseleave", () => { beepEmeryBtn.style.background = "transparent"; beepEmeryBtn.style.borderColor = "#4c2537"; });
         beepEmeryBtn.addEventListener("click", () => { this.openBeepWindow(EMERY_MEMBER); });
@@ -15993,7 +15993,7 @@ export class EBCDrawer {
             el.appendChild(lbl);
             let editing = false;
             const editBtn = document.createElement("button");
-            editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
+            editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
             editBtn.textContent = t("core.edit");
             if (onEditToggle) {
                 editBtn.addEventListener("click", () => {
@@ -16007,7 +16007,7 @@ export class EBCDrawer {
             }
             if (onAdd) {
                 const addBtn = document.createElement("button");
-                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
+                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
                 addBtn.textContent = t("core.add");
                 addBtn.addEventListener("mouseenter", () => { addBtn.style.color = "#cf6f98"; addBtn.style.borderColor = "#cf6f98"; });
                 addBtn.addEventListener("mouseleave", () => { addBtn.style.color = "#7a5a6a"; addBtn.style.borderColor = "#4c2537"; });
@@ -16050,7 +16050,7 @@ export class EBCDrawer {
             return d;
         };
 
-        const INP = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+        const INP = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
 
         const sendRoomEmote = (text: string): void => {
             if (!text) return;
@@ -16107,7 +16107,7 @@ export class EBCDrawer {
             if (onEditToggle) {
                 let editing = false;
                 const editBtn = document.createElement("button");
-                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
                 editBtn.textContent = t("core.edit");
                 editBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -16120,7 +16120,7 @@ export class EBCDrawer {
                 ch.appendChild(editBtn);
             }
             const chArrow = document.createElement("span");
-            chArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+            chArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;";
             chArrow.textContent = open ? "▲" : "▼";
             ch.appendChild(chArrow);
             wrap.appendChild(ch);
@@ -16168,7 +16168,7 @@ export class EBCDrawer {
                 }
                 emotesWrap.appendChild(row);
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                 hint.textContent = "Sends emote to room; mood-aware text";
                 emotesWrap.appendChild(hint);
                 return;
@@ -16190,19 +16190,19 @@ export class EBCDrawer {
 
                 // Row 2: kind text
                 const kindRow = document.createElement("div"); kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
                 const kindInp = document.createElement("input"); kindInp.value = em.text; kindInp.placeholder = "Kind mode text…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
                 kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
 
                 // Row 3: rough text
                 const roughRow = document.createElement("div"); roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
                 const roughInp = document.createElement("input"); roughInp.value = em.roughText ?? ""; roughInp.placeholder = "Rough mode text (optional)…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                 roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
 
                 // Row 4: reaction category
                 const catRow = document.createElement("div"); catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
+                const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
                 const catSel = document.createElement("select"); catSel.style.cssText = "flex:1;min-width:0;" + INP;
                 for (const [v, t] of [["", "— none —"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
                     const o = document.createElement("option"); o.value = v; o.textContent = t; catSel.appendChild(o);
@@ -16232,7 +16232,7 @@ export class EBCDrawer {
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
             const newText = document.createElement("input"); newText.placeholder = t("buttons.emoteText"); newText.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = t("core.add");
+            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = t("core.add");
             addBtnE.addEventListener("click", () => {
                 if (!newLbl.value.trim()) return;
                 const updated = getKittyEmotes();
@@ -16264,7 +16264,7 @@ export class EBCDrawer {
 
             const makeCatLabel = (text: string, color: string): HTMLElement => {
                 const el = document.createElement("div");
-                el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
+                el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
                 el.textContent = text;
                 return el;
             };
@@ -16296,7 +16296,7 @@ export class EBCDrawer {
                 reactionsWrap.appendChild(renderCatRow(rewards, "#79c8a0"));
 
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                 hint.textContent = "Sends a reaction emote from Emery";
                 reactionsWrap.appendChild(hint);
                 return;
@@ -16342,7 +16342,7 @@ export class EBCDrawer {
                 newInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtn = document.createElement("button");
                 addBtn.textContent = t("core.add");
-                addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
+                addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
                 addBtn.addEventListener("click", () => {
                     const text = newInp.value.trim();
                     if (!text) return;
@@ -16397,7 +16397,7 @@ export class EBCDrawer {
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                 hint.textContent = "Applies the pose on Emery then sends a room emote";
                 posesWrap.appendChild(hint);
                 return;
@@ -16423,14 +16423,14 @@ export class EBCDrawer {
                 // Row 2: kind emote
                 const kindRow = document.createElement("div");
                 kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
                 const kindInp = document.createElement("input"); kindInp.value = p.kindEmote; kindInp.placeholder = "Room emote in kind mode…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
                 kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
 
                 // Row 3: rough emote
                 const roughRow = document.createElement("div");
                 roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
                 const roughInp = document.createElement("input"); roughInp.value = p.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                 roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
 
@@ -16457,7 +16457,7 @@ export class EBCDrawer {
             const newLbl2 = document.createElement("input"); newLbl2.placeholder = "Label"; newLbl2.style.cssText = "width:90px;flex-shrink:0;" + INP;
             const newPose = document.createElement("input"); newPose.placeholder = "BC pose (empty = neutral)"; newPose.style.cssText = "flex:1;min-width:0;" + INP;
             const addBtnP = document.createElement("button");
-            addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
             addBtnP.textContent = t("core.add");
             addBtnP.addEventListener("click", () => {
                 if (!newLbl2.value.trim()) return;
@@ -16519,7 +16519,7 @@ export class EBCDrawer {
                 }
                 punishWrap.appendChild(row);
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                 hint.textContent = "Sends room emotes + gives Emery a chance to fight back";
                 punishWrap.appendChild(hint);
                 return;
@@ -16544,7 +16544,7 @@ export class EBCDrawer {
                 r.appendChild(hdr);
 
                 // Steps header label
-                const stepsHdr = document.createElement("div"); stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;"; stepsHdr.textContent = "Steps";
+                const stepsHdr = document.createElement("div"); stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;"; stepsHdr.textContent = "Steps";
                 r.appendChild(stepsHdr);
 
                 // Steps container
@@ -16554,7 +16554,7 @@ export class EBCDrawer {
                     stepsWrap.innerHTML = "";
                     const steps = getKittyPunishments()[idx]?.steps ?? [];
                     if (steps.length === 0) {
-                        const em = document.createElement("div"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;"; em.textContent = "No steps yet.";
+                        const em = document.createElement("div"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:2px 0;"; em.textContent = "No steps yet.";
                         stepsWrap.appendChild(em); return;
                     }
                     steps.forEach((step, sIdx) => {
@@ -16565,10 +16565,10 @@ export class EBCDrawer {
                         // Step header: type badge + delete button
                         const sh = document.createElement("div"); sh.style.cssText = "display:flex;align-items:center;gap:4px;";
                         const badge = document.createElement("span");
-                        badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
+                        badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
                             (step.type === "emote" ? "background:#2a1035;color:#cf6f98;border:1px solid #4c2537;" : "background:#1a1004;color:#c07040;border:1px solid #4a3020;");
                         badge.textContent = step.type === "emote" ? "🗯 Sentence" : "⛓ Restraints";
-                        const delStep = document.createElement("button"); delStep.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;"; delStep.textContent = "×";
+                        const delStep = document.createElement("button"); delStep.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;"; delStep.textContent = "×";
                         delStep.addEventListener("click", () => {
                             const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.splice(sIdx, 1); saveKittyPunishments(upd); } rebuildSteps();
                         });
@@ -16577,13 +16577,13 @@ export class EBCDrawer {
                         if (step.type === "emote") {
                             // Kind text input
                             const kr = document.createElement("div"); kr.style.cssText = "display:flex;align-items:center;gap:3px;";
-                            const kl = document.createElement("span"); kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:16px;"; kl.textContent = "🌸";
+                            const kl = document.createElement("span"); kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:16px;"; kl.textContent = "🌸";
                             const ki = document.createElement("input"); ki.value = step.kindText ?? ""; ki.placeholder = "Kind emote"; ki.style.cssText = "flex:1;min-width:0;" + INP;
                             ki.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].kindText = ki.value; saveKittyPunishments(upd); } });
                             kr.appendChild(kl); kr.appendChild(ki); sc.appendChild(kr);
                             // Rough text input
                             const rr = document.createElement("div"); rr.style.cssText = "display:flex;align-items:center;gap:3px;";
-                            const rl = document.createElement("span"); rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:16px;"; rl.textContent = "⚡";
+                            const rl = document.createElement("span"); rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:16px;"; rl.textContent = "⚡";
                             const ri = document.createElement("input"); ri.value = step.roughText ?? ""; ri.placeholder = "Rough emote"; ri.style.cssText = "flex:1;min-width:0;" + INP;
                             ri.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].roughText = ri.value; saveKittyPunishments(upd); } });
                             rr.appendChild(rl); rr.appendChild(ri); sc.appendChild(rr);
@@ -16595,16 +16595,16 @@ export class EBCDrawer {
                                 itemsWrap.innerHTML = "";
                                 const liveItems = getKittyPunishments()[idx]?.steps[sIdx]?.items ?? [];
                                 if (liveItems.length === 0) {
-                                    const em2 = document.createElement("div"); em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;"; em2.textContent = "No items yet";
+                                    const em2 = document.createElement("div"); em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:1px 0;"; em2.textContent = "No items yet";
                                     itemsWrap.appendChild(em2);
                                 } else {
                                     liveItems.forEach((item, iIdx) => {
                                         const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
-                                        const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
-                                        const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                                        const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                                        const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
                                         const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
                                         colInp.addEventListener("change", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items?.[iIdx]) { upd[idx].steps[sIdx].items![iIdx].Color = strToColor(colInp.value); saveKittyPunishments(upd); } });
-                                        const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                                        const delI = document.createElement("button"); delI.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
                                         delI.addEventListener("click", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items) { upd[idx].steps[sIdx].items!.splice(iIdx, 1); saveKittyPunishments(upd); } rebuildItems(); });
                                         iRow.appendChild(nm); iRow.appendChild(grp); iRow.appendChild(colInp); iRow.appendChild(delI);
                                         itemsWrap.appendChild(iRow);
@@ -16618,7 +16618,7 @@ export class EBCDrawer {
                                 const kpSel = document.createElement("select"); kpSel.style.cssText = "flex:1;min-width:0;" + INP;
                                 const kpPh = document.createElement("option"); kpPh.value = ""; kpPh.textContent = "— load preset —"; kpPh.disabled = true; kpPh.selected = true; kpSel.appendChild(kpPh);
                                 for (const kp of kittyPresets) { const o = document.createElement("option"); o.value = kp.id; o.textContent = kp.label + " (" + kp.items.length + ")"; kpSel.appendChild(o); }
-                                const kpBtn = document.createElement("button"); kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; kpBtn.textContent = "Load ↓";
+                                const kpBtn = document.createElement("button"); kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; kpBtn.textContent = "Load ↓";
                                 kpBtn.addEventListener("click", () => {
                                     const kp = getKittyRestraintSets().find(p => p.id === kpSel.value); if (!kp) return;
                                     const upd = getKittyPunishments();
@@ -16651,7 +16651,7 @@ export class EBCDrawer {
 
                             const aiColRow2 = document.createElement("div"); aiColRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
                             const aiColInp = document.createElement("input"); aiColInp.placeholder = "Default or #rrggbb"; aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
-                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = t("core.add");
+                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = t("core.add");
                             aiAddBtn.addEventListener("click", () => {
                                 if (!aiSl.value || !aiItemSel.value) return;
                                 const newItem: KittyItem = { Name: aiItemSel.value, Group: aiSl.value, Color: strToColor(aiColInp.value || "Default") };
@@ -16670,7 +16670,7 @@ export class EBCDrawer {
                                 const fsSel = document.createElement("select"); fsSel.style.cssText = "flex:1;min-width:0;" + INP;
                                 const fsPh = document.createElement("option"); fsPh.value = ""; fsPh.textContent = "— import saved set —"; fsPh.disabled = true; fsPh.selected = true; fsSel.appendChild(fsPh);
                                 for (const rs of fromSaved) { const o = document.createElement("option"); o.value = rs.id; o.textContent = rs.displayName + " (" + rs.items.filter((i: { Group: string }) => RESTRAINT_GROUPS.has(i.Group)).length + ")"; fsSel.appendChild(o); }
-                                const fsBtn = document.createElement("button"); fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; fsBtn.textContent = "Use ↓";
+                                const fsBtn = document.createElement("button"); fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; fsBtn.textContent = "Use ↓";
                                 fsBtn.addEventListener("click", () => {
                                     const rs = fromSaved.find((s: { id: string }) => s.id === fsSel.value); if (!rs) return;
                                     const rawItems = rs.items as unknown as Array<Record<string, unknown>>;
@@ -16683,7 +16683,7 @@ export class EBCDrawer {
                             // Import from pasted BC outfit code
                             const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
                             const codeInp = document.createElement("input"); codeInp.placeholder = t("outfits.importBCPlaceholder"); codeInp.style.cssText = "flex:1;min-width:0;" + INP;
-                            const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                            const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
                             codeBtn.addEventListener("click", () => {
                                 const code = codeInp.value.trim(); if (!code) return;
                                 try {
@@ -16700,7 +16700,7 @@ export class EBCDrawer {
                             // Save current items as a named kitty preset
                             const spRow = document.createElement("div"); spRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
                             const spInp = document.createElement("input"); spInp.placeholder = "Save items as preset…"; spInp.style.cssText = "flex:1;min-width:0;" + INP;
-                            const spBtn = document.createElement("button"); spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; spBtn.textContent = "💾 Save";
+                            const spBtn = document.createElement("button"); spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; spBtn.textContent = "💾 Save";
                             spBtn.addEventListener("click", () => {
                                 const name = spInp.value.trim(); if (!name) { spInp.focus(); return; }
                                 const items = getKittyPunishments()[idx]?.steps[sIdx]?.items ?? [];
@@ -16723,19 +16723,19 @@ export class EBCDrawer {
                 // Add step buttons
                 const addStepRow = document.createElement("div"); addStepRow.style.cssText = "display:flex;gap:5px;margin-top:3px;";
                 const mkAddBtn = (lbl: string, fn: () => void): HTMLButtonElement => {
-                    const b = document.createElement("button"); b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;"; b.textContent = lbl; b.addEventListener("click", fn); return b;
+                    const b = document.createElement("button"); b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;"; b.textContent = lbl; b.addEventListener("click", fn); return b;
                 };
                 addStepRow.appendChild(mkAddBtn("+ Sentence", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "emote", kindText: "", roughText: "" }); saveKittyPunishments(upd); } rebuildSteps(); }));
                 addStepRow.appendChild(mkAddBtn("+ Restraints", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "restraint", items: [] }); saveKittyPunishments(upd); } rebuildSteps(); }));
                 r.appendChild(addStepRow);
 
                 // Reaction section
-                const reactHdr = document.createElement("div"); reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;"; reactHdr.textContent = "Emery reacts (on accept)";
+                const reactHdr = document.createElement("div"); reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;"; reactHdr.textContent = "Emery reacts (on accept)";
                 r.appendChild(reactHdr);
 
                 // Expression picker
                 const exprRow = document.createElement("div"); exprRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const exprLbl = document.createElement("span"); exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; exprLbl.textContent = "Expression";
+                const exprLbl = document.createElement("span"); exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:56px;"; exprLbl.textContent = "Expression";
                 const exprSel = document.createElement("select"); exprSel.style.cssText = "flex:1;min-width:0;" + INP;
                 for (const e of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = e.cmd; o.textContent = e.label; exprSel.appendChild(o); }
                 const exprPresets2 = getKittyExpressionPresets();
@@ -16749,7 +16749,7 @@ export class EBCDrawer {
 
                 // Pose picker
                 const poseRow2 = document.createElement("div"); poseRow2.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const poseLbl2 = document.createElement("span"); poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; poseLbl2.textContent = "Pose";
+                const poseLbl2 = document.createElement("span"); poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:56px;"; poseLbl2.textContent = "Pose";
                 const poseSel2 = document.createElement("select"); poseSel2.style.cssText = "flex:1;min-width:0;" + INP;
                 for (const p2 of KITTY_REACTION_POSES) { const o = document.createElement("option"); o.value = JSON.stringify(p2.poses); o.textContent = p2.label; poseSel2.appendChild(o); }
                 poseSel2.value = JSON.stringify(pun.reaction?.poses ?? []);
@@ -16765,7 +16765,7 @@ export class EBCDrawer {
             // Add new action
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "New action name"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = t("core.add");
+            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = t("core.add");
             addBtnPun.addEventListener("click", () => {
                 if (!newPunLbl.value.trim()) return;
                 const updated = getKittyPunishments();
@@ -16797,7 +16797,7 @@ export class EBCDrawer {
             newNameInp.placeholder = t("anims.newPresetName");
             newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
             const createBtn = document.createElement("button");
-            createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
             createBtn.textContent = "+ Create";
             createBtn.addEventListener("click", () => {
                 if (!newNameInp.value.trim()) return;
@@ -16813,7 +16813,7 @@ export class EBCDrawer {
 
             if (presets.length === 0) {
                 const em = document.createElement("div");
-                em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:2px 0;";
                 em.textContent = "No restraint presets yet — create one above.";
                 rpWrap.appendChild(em);
                 return;
@@ -16836,12 +16836,12 @@ export class EBCDrawer {
             }
 
             const applyBtn = document.createElement("button");
-            applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
+            applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
             applyBtn.textContent = "Apply 🔒";
             applyBtn.disabled = true;
 
             const deleteBtn = document.createElement("button");
-            deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
+            deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
             deleteBtn.textContent = "Delete";
             deleteBtn.disabled = true;
 
@@ -16872,20 +16872,20 @@ export class EBCDrawer {
                     if (opt) opt.textContent = `🔒 ${preset.label} (${liveItems.length})`;
                     if (liveItems.length === 0) {
                         const em2 = document.createElement("div");
-                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:1px 0;";
                         em2.textContent = "No items yet";
                         itemsWrap.appendChild(em2);
                     } else {
                         liveItems.forEach((item, iIdx) => {
                             const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
-                            const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
-                            const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                            const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                            const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
                             const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
                             colInp.addEventListener("change", () => {
                                 const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
                                 if (pp?.items?.[iIdx]) { pp.items[iIdx].Color = strToColor(colInp.value); saveKittyRestraintSets(upd); }
                             });
-                            const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                            const delI = document.createElement("button"); delI.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
                             delI.addEventListener("click", () => {
                                 const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
                                 if (pp?.items) { pp.items.splice(iIdx, 1); saveKittyRestraintSets(upd); } rebuildItems();
@@ -16900,7 +16900,7 @@ export class EBCDrawer {
 
                 // Expression trigger row
                 const rpExprRow = document.createElement("div"); rpExprRow.style.cssText = "display:flex;align-items:center;gap:4px;padding-bottom:4px;border-bottom:1px solid #3a2010;margin-bottom:4px;";
-                const rpExprLbl = document.createElement("span"); rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:56px;"; rpExprLbl.textContent = "😊 Expression";
+                const rpExprLbl = document.createElement("span"); rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:56px;"; rpExprLbl.textContent = "😊 Expression";
                 const rpExprSel = document.createElement("select"); rpExprSel.style.cssText = "flex:1;min-width:0;" + INP;
                 const rpExprNone = document.createElement("option"); rpExprNone.value = ""; rpExprNone.textContent = "— none —"; rpExprSel.appendChild(rpExprNone);
                 for (const ex of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = ex.cmd; o.textContent = ex.label; rpExprSel.appendChild(o); }
@@ -16932,7 +16932,7 @@ export class EBCDrawer {
                     else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
                 });
                 const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
-                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = t("core.add");
+                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = t("core.add");
                 addItemBtn.addEventListener("click", () => {
                     if (!sl.value || !itemSel.value) return;
                     const newItem: KittyItem = { Name: itemSel.value, Group: sl.value, Color: strToColor(colInp2.value || "Default") };
@@ -16947,7 +16947,7 @@ export class EBCDrawer {
                 // BC outfit/craft code import
                 const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
                 const codeInp = document.createElement("input"); codeInp.placeholder = "Paste BC outfit/craft code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
-                const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
                 codeBtn.addEventListener("click", () => {
                     const code = codeInp.value.trim(); if (!code) return;
                     try {
@@ -17001,7 +17001,7 @@ export class EBCDrawer {
 
             // Hint
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
             hint.textContent = "Select a preset and Apply to send restraints to Emery";
             rpWrap.appendChild(hint);
         };
@@ -17013,12 +17013,12 @@ export class EBCDrawer {
         // ── Copy Restraints from Member ─────────────────────────────────────────
         const crDiv = divider(); rpCBody.appendChild(crDiv);
         const crHdr = document.createElement("div");
-        crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
+        crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
         crHdr.textContent = t("dom.copyRestraints");
         rpCBody.appendChild(crHdr);
 
         const crHint = document.createElement("div");
-        crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
         crHint.textContent = "Pick a room member, load their restraints, then generate a BC outfit code to import via wardrobe.";
         rpCBody.appendChild(crHint);
 
@@ -17046,7 +17046,7 @@ export class EBCDrawer {
         const crMkBtn = (label: string): HTMLButtonElement => {
             const b = document.createElement("button");
             b.textContent = label;
-            b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+            b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
             return b;
         };
         const crRefreshBtn = crMkBtn("↻");
@@ -17061,7 +17061,7 @@ export class EBCDrawer {
         const crCheckHdr = document.createElement("div");
         crCheckHdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
         const crCheckLbl = document.createElement("span");
-        crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+        crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
         const crAllBtn = crMkBtn("All"); const crNoneBtn = crMkBtn("None");
         crCheckHdr.appendChild(crCheckLbl); crCheckHdr.appendChild(crAllBtn); crCheckHdr.appendChild(crNoneBtn);
         crCheckWrap.appendChild(crCheckHdr);
@@ -17076,14 +17076,14 @@ export class EBCDrawer {
         rpCBody.appendChild(crCodeWrap);
         const crTA = document.createElement("textarea");
         crTA.readOnly = true; crTA.rows = 2;
-        crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:8px;padding:3px 5px;";
+        crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:11px;padding:3px 5px;";
         const crCodeBtnRow = document.createElement("div"); crCodeBtnRow.style.cssText = "display:flex;gap:4px;";
         const crGenBtn = crMkBtn("Generate Code"); const crCopyBtn = crMkBtn("Copy");
         crCodeBtnRow.appendChild(crGenBtn); crCodeBtnRow.appendChild(crCopyBtn);
         crCodeWrap.appendChild(crCodeBtnRow); crCodeWrap.appendChild(crTA);
 
         const crStatus = document.createElement("div");
-        crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;min-height:13px;";
+        crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:13px;";
         rpCBody.appendChild(crStatus);
 
         const crClear = (): void => {
@@ -17115,8 +17115,8 @@ export class EBCDrawer {
                 const row = document.createElement("label");
                 row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;cursor:pointer;";
                 const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
-                const nm = document.createElement("span"); nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"; nm.textContent = label;
-                const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; grp.textContent = item.Asset.Group.Name.replace("Item", "");
+                const nm = document.createElement("span"); nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"; nm.textContent = label;
+                const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;"; grp.textContent = item.Asset.Group.Name.replace("Item", "");
                 row.appendChild(cb); row.appendChild(nm); row.appendChild(grp);
                 crCheckItems.appendChild(row); crLoaded.push({ item, checkbox: cb });
             }
@@ -17169,7 +17169,7 @@ export class EBCDrawer {
         customInp.type = "number"; customInp.min = "0"; customInp.max = "100"; customInp.placeholder = "0–100";
         customInp.style.cssText = "width:55px;" + INP;
         const setBtn = document.createElement("button");
-        setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+        setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
         setBtn.textContent = "Set";
         setBtn.addEventListener("click", () => {
             const v = parseInt(customInp.value, 10);
@@ -17185,12 +17185,12 @@ export class EBCDrawer {
 
         // ── Expression Presets (at top) ───────────────────────────────────────
         const epHdr = document.createElement("div");
-        epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+        epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
         epHdr.textContent = "Expression Presets";
         exprCBody.appendChild(epHdr);
 
         const epHint = document.createElement("div");
-        epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
         epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
         exprCBody.appendChild(epHint);
 
@@ -17215,7 +17215,7 @@ export class EBCDrawer {
             exprWrap.appendChild(b);
         }
         const exprHint = document.createElement("div");
-        exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
+        exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:2px;";
         exprHint.textContent = "Sends a single facial expression command to Emery";
 
         const renderExprPresets = (): void => {
@@ -17230,7 +17230,7 @@ export class EBCDrawer {
                     const fireBtn = document.createElement("button");
                     fireBtn.textContent = "★ " + ep.label;
                     fireBtn.title = ep.commands.join(", ") || "No commands";
-                    fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
+                    fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
                     fireBtn.addEventListener("mouseenter", () => { fireBtn.style.background = "rgba(80,30,80,0.6)"; });
                     fireBtn.addEventListener("mouseleave", () => { fireBtn.style.background = "rgba(50,20,50,0.5)"; });
                     fireBtn.addEventListener("click", () => { sendExprOrPreset("preset:" + ep.id); });
@@ -17246,7 +17246,7 @@ export class EBCDrawer {
             const epMkBtn = (label: string): HTMLButtonElement => {
                 const b = document.createElement("button");
                 b.textContent = label;
-                b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                 return b;
             };
 
@@ -17269,16 +17269,16 @@ export class EBCDrawer {
                 // Commands list
                 const cmdsWrap = document.createElement("div"); cmdsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
                 ep.commands.forEach((cmd, cIdx) => {
-                    const chip = document.createElement("span"); chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:8px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
+                    const chip = document.createElement("span"); chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:11px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
                     chip.textContent = cmd;
-                    const removeChip = document.createElement("button"); removeChip.textContent = "×"; removeChip.style.cssText = "font-size:9px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
+                    const removeChip = document.createElement("button"); removeChip.textContent = "×"; removeChip.style.cssText = "font-size:11px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
                     removeChip.addEventListener("click", () => {
                         const upd = getKittyExpressionPresets(); if (upd[pIdx]) { upd[pIdx].commands.splice(cIdx, 1); saveKittyExpressionPresets(upd); } renderExprPresets();
                     });
                     chip.appendChild(removeChip); cmdsWrap.appendChild(chip);
                 });
                 if (ep.commands.length === 0) {
-                    const em = document.createElement("span"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;"; em.textContent = "No expressions yet"; cmdsWrap.appendChild(em);
+                    const em = document.createElement("span"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;"; em.textContent = "No expressions yet"; cmdsWrap.appendChild(em);
                 }
                 card.appendChild(cmdsWrap);
 
@@ -17350,14 +17350,14 @@ export class EBCDrawer {
 
         // ── How-to info ───────────────────────────────────────────────────────────
         const infoBox = document.createElement("div");
-        infoBox.style.cssText = `${F}9px;color:#9a7aaa;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
+        infoBox.style.cssText = `${F}11px;color:#d0a0d8;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
         infoBox.innerHTML =
             "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
             "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
             "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
             "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
-            "<b style=\"color:#9a7aaa;\">action buttons</b> or <b style=\"color:#9a7aaa;\">scenes</b>, " +
-            "or triggered when you <b style=\"color:#9a7aaa;\">send a matching chat message</b> (see Triggers below).";
+            "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
+            "or triggered when you <b style=\"color:#d0a0d8;\">send a matching chat message</b> (see Triggers below).";
         body.appendChild(infoBox);
 
         // ── Save & Clear ──────────────────────────────────────────────────────────
@@ -17365,12 +17365,12 @@ export class EBCDrawer {
             type: "text", maxLength: 30, placeholder: "Preset name…",
         }) as HTMLInputElement;
         captureInput.className = "ebc-form-input";
-        captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;margin-bottom:4px;";
+        captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
         body.appendChild(captureInput);
 
         const savePresetBtn = document.createElement("button");
         savePresetBtn.className = "ebc-create-btn";
-        savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;padding:3px 8px;margin-bottom:5px;";
+        savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px;margin-bottom:5px;";
         savePresetBtn.textContent = "💾 Save face";
         savePresetBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
@@ -17382,7 +17382,7 @@ export class EBCDrawer {
 
         const clearAllBtn = document.createElement("button");
         clearAllBtn.className = "ebc-btn-footer-btn";
-        clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+        clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
         clearAllBtn.textContent = "✕  Clear all expressions";
         clearAllBtn.addEventListener("click", () => {
             for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
@@ -17413,7 +17413,7 @@ export class EBCDrawer {
                 pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
 
                 const applyBtn = document.createElement("button");
-                applyBtn.style.cssText = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
+                applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
                 applyBtn.textContent = "✓ Apply";
                 applyBtn.title = "Apply this preset";
                 applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
@@ -17423,7 +17423,7 @@ export class EBCDrawer {
                 nameEl.value = preset.name;
                 nameEl.maxLength = 30;
                 nameEl.title = "Click to rename";
-                nameEl.style.cssText = `${F}10px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
+                nameEl.style.cssText = `${F}11px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
                 nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
                 nameEl.addEventListener("blur", () => {
                     nameEl.style.borderColor = "transparent";
@@ -17477,13 +17477,13 @@ export class EBCDrawer {
             const trigHdr = document.createElement("div");
             trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
             const trigChev = document.createElement("span");
-            trigChev.style.cssText = `${F}10px;color:#9a6ac8;min-width:10px;`;
+            trigChev.style.cssText = `${F}11px;color:#d0a0d8;min-width:10px;`;
             const trigLbl = document.createElement("span");
             trigLbl.className = "ebc-section-label";
-            trigLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;";
+            trigLbl.style.cssText = "margin:0;font-size:11px;color:#d0a0d8;";
             trigLbl.textContent = "TRIGGERS";
             const trigHint = document.createElement("span");
-            trigHint.style.cssText = `${F}8px;color:#5a3a6e;margin-left:4px;`;
+            trigHint.style.cssText = `${F}11px;color:#b090c0;margin-left:4px;`;
             trigHint.textContent = "apply preset when you send a message";
             trigHdr.appendChild(trigChev);
             trigHdr.appendChild(trigLbl);
@@ -17512,7 +17512,7 @@ export class EBCDrawer {
 
                 if (triggers.length === 0) {
                     const emptyNote = document.createElement("div");
-                    emptyNote.style.cssText = `${F}9px;color:#5a3a5a;padding:4px 0;`;
+                    emptyNote.style.cssText = `${F}11px;color:#b090c0;padding:4px 0;`;
                     emptyNote.textContent = "No triggers yet.";
                     trigBody.appendChild(emptyNote);
                 } else {
@@ -17526,7 +17526,7 @@ export class EBCDrawer {
                         tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
 
                         const tInfo = document.createElement("span");
-                        tInfo.style.cssText = `${F}9px;color:#c0a0d8;flex:1;min-width:0;`;
+                        tInfo.style.cssText = `${F}11px;color:#c0a0d8;flex:1;min-width:0;`;
                         tInfo.innerHTML = "";
                         const namePart = document.createElement("b");
                         namePart.style.color = "#d0b0e8";
@@ -17553,11 +17553,11 @@ export class EBCDrawer {
 
                 // Add trigger form
                 const formLbl = document.createElement("div");
-                formLbl.style.cssText = `${F}9px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
+                formLbl.style.cssText = `${F}11px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
                 formLbl.textContent = "New trigger";
                 trigBody.appendChild(formLbl);
 
-                const INP_CSS = `${F}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
+                const INP_CSS = `${F}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
 
                 // Row 1: name + match text
                 const formRow1 = document.createElement("div");
@@ -17606,7 +17606,7 @@ export class EBCDrawer {
 
                 const addTrigBtn = document.createElement("button");
                 addTrigBtn.className = "ebc-create-btn";
-                addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+                addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
                 addTrigBtn.textContent = "+ Add Trigger";
                 addTrigBtn.addEventListener("click", () => {
                     const match = matchInp.value.trim();
@@ -17715,7 +17715,7 @@ export class EBCDrawer {
         intro.className = "ebc-thanks-intro";
         intro.textContent = t("credits.intro") + " ";
         const introSub = document.createElement("span");
-        introSub.style.cssText = "font-size:9px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
+        introSub.style.cssText = "font-size:11px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
         introSub.textContent = "EmeryBC";
         intro.appendChild(introSub);
         body.appendChild(intro);
@@ -17819,7 +17819,7 @@ export class EBCDrawer {
         antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
         antiTitle.textContent = "Auto-escape incoming restraints";
         const antiHint = document.createElement("span");
-        antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+        antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-top:1px;";
         antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
         antiInfo.appendChild(antiTitle);
         antiInfo.appendChild(antiHint);
@@ -17830,7 +17830,7 @@ export class EBCDrawer {
             antiToggle.textContent = on ? t("core.on") : t("core.off");
             antiToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
-                "font-size:10px",
+                "font-size:11px",
                 "font-weight:bold",
                 "padding:2px 10px",
                 "border-radius:4px",
@@ -17858,7 +17858,7 @@ export class EBCDrawer {
         whitelistSection.style.cssText = "margin-bottom:10px;";
 
         const wlTitle = document.createElement("span");
-        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
+        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
         wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
         whitelistSection.appendChild(wlTitle);
 
@@ -17869,7 +17869,7 @@ export class EBCDrawer {
 
         const domMakeChip = (key: string, fallbackLabel: string, onRemove: () => void): HTMLDivElement => {
             const chip = document.createElement("div");
-            chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+            chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;margin:2px 2px 2px 0;";
             const txt = document.createElement("span");
             const labels = getWlLabels();
             txt.textContent = labels[key] ?? fallbackLabel;
@@ -17903,7 +17903,7 @@ export class EBCDrawer {
             const whitelist = getAntiRestraintWhitelist();
             if (whitelist.length === 0) {
                 const empty = document.createElement("span");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
                 empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
                 wlChips.appendChild(empty);
             } else {
@@ -17926,7 +17926,7 @@ export class EBCDrawer {
                 if (wornItems.length > 0) {
                     // Collapsible "add from worn" toggle
                     const wornToggle = document.createElement("button");
-                    wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
+                    wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
                     const wornList = document.createElement("div");
                     wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
                     let wornOpen = false;
@@ -17943,7 +17943,7 @@ export class EBCDrawer {
                         const displayName = getItemDisplayName(item);
                         btn.textContent = "+ " + displayName;
                         btn.title = `Whitelist this item — auto-escape will keep it`;
-                        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
                         btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
                         btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
                         btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
@@ -18020,7 +18020,7 @@ export class EBCDrawer {
             // ── Member picker + action buttons ────────────────────────────────
             const memberSel = document.createElement("select");
             memberSel.className = "ebc-form-input";
-            memberSel.style.cssText = "width:100%;font-size:10px;";
+            memberSel.style.cssText = "width:100%;font-size:11px;";
             const ph = document.createElement("option");
             ph.value = ""; ph.textContent = "— choose member —";
             ph.disabled = true; ph.selected = true;
@@ -18048,7 +18048,7 @@ export class EBCDrawer {
                 btn.style.cssText = [
                     "flex:1",
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:10px",
+                    "font-size:11px",
                     "font-weight:bold",
                     "padding:6px 4px",
                     "border-radius:6px",
@@ -18091,7 +18091,7 @@ export class EBCDrawer {
             demBtn.addEventListener("click",  () => sendAction("Demote"));
 
             const refreshBtn2 = document.createElement("button");
-            refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
             refreshBtn2.textContent = "↻";
             refreshBtn2.title = "Refresh member list";
             refreshBtn2.addEventListener("click", buildMemberOpts);
@@ -18141,14 +18141,14 @@ export class EBCDrawer {
             const row = document.createElement("div");
             row.style.cssText = "margin-bottom:5px;";
             const lbl = document.createElement("label");
-            lbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
+            lbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
             lbl.textContent = label;
             row.appendChild(lbl);
             const wrap = document.createElement("div");
             wrap.style.cssText = "display:flex;align-items:center;";
             if (prefix) {
                 const pre = document.createElement("span");
-                pre.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;background:#1b0d17;border:1px solid #4c2537;border-right:none;border-radius:4px 0 0 4px;padding:3px 5px;flex-shrink:0;";
+                pre.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;background:#1b0d17;border:1px solid #4c2537;border-right:none;border-radius:4px 0 0 4px;padding:3px 5px;flex-shrink:0;";
                 pre.textContent = prefix;
                 wrap.appendChild(pre);
             }
@@ -18156,7 +18156,7 @@ export class EBCDrawer {
             input.type = "text";
             input.value = value;
             if (placeholder) input.placeholder = placeholder;
-            input.style.cssText = `flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;${prefix ? "border-radius:0 4px 4px 0;" : "border-radius:4px;"}color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;outline:none;transition:border-color 0.14s;`;
+            input.style.cssText = `flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;${prefix ? "border-radius:0 4px 4px 0;" : "border-radius:4px;"}color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;outline:none;transition:border-color 0.14s;`;
             input.addEventListener("focus", () => { input.style.borderColor = "#91405f"; });
             input.addEventListener("blur",  () => { input.style.borderColor = "#4c2537"; });
             wrap.appendChild(input);
@@ -18191,7 +18191,7 @@ export class EBCDrawer {
                 nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                 nameEl.textContent = t.name;
                 const numEl = document.createElement("span");
-                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;";
+                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                 numEl.textContent = "#" + t.id;
                 const delBtn = document.createElement("button");
                 delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#9a7080;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
@@ -18214,20 +18214,20 @@ export class EBCDrawer {
             const addable = getRoomAddable();
             if (addable.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                 hint.textContent = "No new people in room to add.";
                 addableWrap.appendChild(hint);
                 return;
             }
             const addLbl = document.createElement("div");
-            addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;margin-bottom:4px;";
+            addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;margin-bottom:4px;";
             addLbl.textContent = "Add from room:";
             addableWrap.appendChild(addLbl);
             const chipRow = document.createElement("div");
             chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
             for (const p of addable) {
                 const chip = document.createElement("button");
-                chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
+                chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
                 chip.textContent = "+ " + p.name + " #" + p.id;
                 chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
                 chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
@@ -18255,11 +18255,11 @@ export class EBCDrawer {
         rescueHdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
 
         const rescueHdrLbl = document.createElement("span");
-        rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
+        rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
         rescueHdrLbl.textContent = "ROOM RESCUE";
 
         const rescueArrow = document.createElement("span");
-        rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+        rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
         rescueArrow.textContent = "▼";
 
         rescueHdr.appendChild(rescueHdrIcon);
@@ -18281,7 +18281,7 @@ export class EBCDrawer {
 
         // Hint
         const rescueHint = document.createElement("div");
-        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.4;";
+        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;";
         rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
         rescuePanel.appendChild(rescueHint);
 
@@ -18291,7 +18291,7 @@ export class EBCDrawer {
 
         const rescueSel = document.createElement("select");
         rescueSel.className = "ebc-form-input";
-        rescueSel.style.cssText = "flex:1;font-size:10px;";
+        rescueSel.style.cssText = "flex:1;font-size:11px;";
         const rescuePh = document.createElement("option");
         rescuePh.value = ""; rescuePh.textContent = "— choose person —";
         rescuePh.disabled = true; rescuePh.selected = true;
@@ -18311,7 +18311,7 @@ export class EBCDrawer {
         };
 
         const rescueRefreshBtn = document.createElement("button");
-        rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+        rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
         rescueRefreshBtn.textContent = "↻";
         rescueRefreshBtn.title = "Refresh room member list";
         rescueRefreshBtn.addEventListener("click", () => { populateRescueSel(); rebuildRescueItems(); });
@@ -18330,7 +18330,7 @@ export class EBCDrawer {
         selAllChk.type = "checkbox";
         selAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
         const selAllLbl = document.createElement("span");
-        selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+        selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
         selAllLbl.textContent = "Select / deselect all";
         selAllRow.appendChild(selAllChk);
         selAllRow.appendChild(selAllLbl);
@@ -18341,14 +18341,14 @@ export class EBCDrawer {
 
         // 🔓 Unlock Selected button
         const unlockSelBtn = document.createElement("button");
-        unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+        unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
         unlockSelBtn.textContent = "🔓 Unlock Selected";
         unlockSelBtn.title = "Clear locks on selected items only (does not remove them)";
         unlockSelBtn.disabled = true;
 
         // 🗑 Remove Selected button
         const removeSelBtn = document.createElement("button");
-        removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+        removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
         removeSelBtn.textContent = "🗑 Remove Selected";
         removeSelBtn.title = "Remove selected items from this person (clears locks first)";
         removeSelBtn.disabled = true;
@@ -18367,7 +18367,7 @@ export class EBCDrawer {
 
         // Status line
         const rescueStatus = document.createElement("div");
-        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
 
         // ── Helpers ────────────────────────────────────────────────────────────
         const updateActionBtns = (): void => {
@@ -18408,13 +18408,13 @@ export class EBCDrawer {
                     updateActionBtns();
                 });
                 const lockIco = document.createElement("span");
-                lockIco.style.cssText = "font-size:9px;flex-shrink:0;width:13px;text-align:center;";
+                lockIco.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
                 lockIco.textContent = it.locked ? "🔒" : "";
                 const nm = document.createElement("span");
-                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                 nm.textContent = it.name;
                 const grp = document.createElement("span");
-                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                 grp.textContent = it.group.replace("Item", "");
                 row2.appendChild(chk); row2.appendChild(lockIco); row2.appendChild(nm); row2.appendChild(grp);
                 rescueItemsEl.appendChild(row2);
@@ -18500,7 +18500,7 @@ export class EBCDrawer {
 
         const makeQuickBtn = (label: string, title: string): HTMLButtonElement => {
             const b = document.createElement("button");
-            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
             b.textContent = label;
             b.title = title;
             b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
@@ -18515,7 +18515,7 @@ export class EBCDrawer {
         body.appendChild(quickRow);
 
         const releaseStatus = document.createElement("div");
-        releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
+        releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-bottom:4px;";
         body.appendChild(releaseStatus);
 
         const showReleaseStatus = (results: Array<{ name: string; count: number; inRoom: boolean }>): void => {
@@ -18542,7 +18542,7 @@ export class EBCDrawer {
 
         // ── "Pick items to remove" picker ─────────────────────────────────────
         const pickToggle = document.createElement("button");
-        pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+        pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
         pickToggle.textContent = "↓ Pick items to remove";
         body.appendChild(pickToggle);
 
@@ -18560,7 +18560,7 @@ export class EBCDrawer {
             const sections = getTargetRestraints();
             if (sections.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                 hint.textContent = "No targets are in the room right now.";
                 pickPanel.appendChild(hint);
                 return;
@@ -18570,13 +18570,13 @@ export class EBCDrawer {
                 pendingRemove.set(target.id, new Set());
 
                 const targHdr = document.createElement("div");
-                targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
+                targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
                 targHdr.textContent = target.name;
                 pickPanel.appendChild(targHdr);
 
                 if (items.length === 0) {
                     const none = document.createElement("div");
-                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:1px 4px 4px;";
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:1px 4px 4px;";
                     none.textContent = "No restraints worn.";
                     pickPanel.appendChild(none);
                     continue;
@@ -18599,10 +18599,10 @@ export class EBCDrawer {
                         else sel.delete(item.group);
                     });
                     const cbN = document.createElement("span");
-                    cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     cbN.textContent = item.name;
                     const cbG = document.createElement("span");
-                    cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                     cbG.textContent = item.group.replace("Item", "");
                     lbl3.appendChild(cb2); lbl3.appendChild(cbN); lbl3.appendChild(cbG);
                     itemsWrap.appendChild(lbl3);
@@ -18612,7 +18612,7 @@ export class EBCDrawer {
 
             // Remove selected button
             const removeSelBtn = document.createElement("button");
-            removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+            removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
             removeSelBtn.textContent = "Remove Selected";
             removeSelBtn.addEventListener("click", () => {
                 const results: Array<{ name: string; count: number; inRoom: boolean }> = [];
@@ -18655,7 +18655,7 @@ export class EBCDrawer {
         setsLbl.style.margin = "0";
         setsLbl.textContent = t("kitty.restraintSets");
         const newSetBtn = document.createElement("button");
-        newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+        newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
         newSetBtn.textContent = t("dom.newSet");
         newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
@@ -18674,7 +18674,7 @@ export class EBCDrawer {
 
             if (cfg.sets.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
                 hint.textContent = "No sets yet — create one with + New Set.";
                 setsContainer.appendChild(hint);
             }
@@ -18690,20 +18690,20 @@ export class EBCDrawer {
                 setNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                 setNameEl.textContent = set.name;
                 const setCmdEl = document.createElement("div");
-                setCmdEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                setCmdEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                 setCmdEl.textContent = set.command ? ("/" + set.command) : (set.items.length + " item(s)");
                 setInfo.appendChild(setNameEl);
                 setInfo.appendChild(setCmdEl);
 
                 const applyBtn = document.createElement("button");
-                applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #91405f;background:#6b3048;color:#f7e6ee;cursor:pointer;transition:background 0.14s;white-space:nowrap;flex-shrink:0;";
+                applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #91405f;background:#6b3048;color:#f7e6ee;cursor:pointer;transition:background 0.14s;white-space:nowrap;flex-shrink:0;";
                 applyBtn.textContent = "▶ Apply";
                 applyBtn.title = "Apply to targets in room";
                 applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
                 applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
 
                 const editBtn = document.createElement("button");
-                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
                 editBtn.textContent = "✎";
                 editBtn.title = "Edit set";
                 editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#2a1421"; editBtn.style.color = "#cf6f98"; });
@@ -18716,7 +18716,7 @@ export class EBCDrawer {
 
                 // Apply status (shown briefly below the row)
                 const applyStatus = document.createElement("div");
-                applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;padding:1px 7px 3px;display:none;";
+                applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;padding:1px 7px 3px;display:none;";
                 setsContainer.appendChild(applyStatus);
 
                 applyBtn.addEventListener("click", () => {
@@ -18744,12 +18744,12 @@ export class EBCDrawer {
                 editor.appendChild(annRow);
 
                 const tokenHint = document.createElement("div");
-                tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:0 0 6px;";
+                tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:0 0 6px;";
                 tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
                 editor.appendChild(tokenHint);
 
                 const saveBtn = document.createElement("button");
-                saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
+                saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
                 saveBtn.textContent = "Save";
                 saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#3a1828"; });
                 saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#2a1421"; });
@@ -18763,7 +18763,7 @@ export class EBCDrawer {
 
                 // Items sub-section
                 const itemsLbl = document.createElement("div");
-                itemsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;font-weight:bold;margin-bottom:4px;letter-spacing:0.04em;text-transform:uppercase;";
+                itemsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;font-weight:bold;margin-bottom:4px;letter-spacing:0.04em;text-transform:uppercase;";
                 editor.appendChild(itemsLbl);
 
                 const itemListEl = document.createElement("div");
@@ -18777,7 +18777,7 @@ export class EBCDrawer {
                     itemsLbl.textContent = "Items (" + items.length + ")";
                     if (items.length === 0) {
                         const hint2 = document.createElement("div");
-                        hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                        hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                         hint2.textContent = "No items yet — import from a BC code below.";
                         itemListEl.appendChild(hint2);
                         return;
@@ -18787,10 +18787,10 @@ export class EBCDrawer {
                         const irow = document.createElement("div");
                         irow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;background:rgba(42,20,33,0.4);";
                         const iname = document.createElement("span");
-                        iname.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        iname.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                         iname.textContent = item.Name;
                         const igrp = document.createElement("span");
-                        igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
+                        igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;";
                         igrp.textContent = item.Group.replace("Item", "");
                         const iDel = document.createElement("button");
                         iDel.style.cssText = "background:transparent;border:none;color:#9a7080;cursor:pointer;font-size:12px;padding:0 3px;line-height:1;";
@@ -18811,7 +18811,7 @@ export class EBCDrawer {
 
                 // Import sub-panel
                 const importToggle = document.createElement("button");
-                importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+                importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
                 importToggle.textContent = t("outfits.importFromBCCode");
                 editor.appendChild(importToggle);
 
@@ -18819,11 +18819,11 @@ export class EBCDrawer {
                 importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:5px;";
 
                 const importTA = document.createElement("textarea");
-                importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
+                importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
                 importTA.placeholder = t("outfits.importPlaceholder");
 
                 const importMsg = document.createElement("div");
-                importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";
+                importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;min-height:14px;";
 
                 const checklistEl = document.createElement("div");
                 checklistEl.style.cssText = "display:none;max-height:120px;overflow-y:auto;border:1px solid #3a1928;border-radius:5px;background:rgba(27,13,23,0.6);padding:4px;";
@@ -18831,7 +18831,7 @@ export class EBCDrawer {
                 let parsedItems: ParsedBCItem[] = [];
 
                 const parseBtn = document.createElement("button");
-                parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
                 parseBtn.textContent = "Parse Code";
                 parseBtn.addEventListener("click", () => {
                     importMsg.textContent = "";
@@ -18854,7 +18854,7 @@ export class EBCDrawer {
 
                     const addSectionHeader = (text: string): void => {
                         const sh = document.createElement("div");
-                        sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
+                        sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
                         sh.textContent = text;
                         checklistEl.appendChild(sh);
                     };
@@ -18869,10 +18869,10 @@ export class EBCDrawer {
                         cb.checked = defaultChecked;
                         cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
                         const cbName = document.createElement("span");
-                        cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
+                        cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
                         cbName.textContent = pItem.Name;
                         const cbGrp = document.createElement("span");
-                        cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                         cbGrp.textContent = pItem.Group.replace("Item", "");
                         lbl2.appendChild(cb); lbl2.appendChild(cbName); lbl2.appendChild(cbGrp);
                         checklistEl.appendChild(lbl2);
@@ -18895,7 +18895,7 @@ export class EBCDrawer {
                 });
 
                 const useSelectedBtn = document.createElement("button");
-                useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
                 useSelectedBtn.textContent = "Use Selected";
                 useSelectedBtn.addEventListener("click", () => {
                     const checks = checklistEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]");
@@ -18946,7 +18946,7 @@ export class EBCDrawer {
 
                 // Delete set
                 const delSetBtn = document.createElement("button");
-                delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#9a7080;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
+                delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#9a7080;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
                 delSetBtn.textContent = "Delete Set";
                 let delConfirm = false;
                 delSetBtn.addEventListener("click", () => {
