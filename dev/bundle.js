@@ -23191,16 +23191,6 @@
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
-            const muteBtn = document.createElement("button");
-            muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
-            const refreshMuteBtn = () => {
-                const muted = getBeepMuted();
-                muteBtn.textContent = muted ? "🔕" : "🔔";
-                muteBtn.title = muted ? "Unmute notifications" : "Mute notifications";
-                muteBtn.classList.toggle("muted", muted);
-            };
-            refreshMuteBtn();
-            muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
             // Suppress-in-BC-chat toggle — SVG chat bubble, slash through it when suppressed (default)
             const suppressBtn = document.createElement("button");
             suppressBtn.className = "ebc-beep-win-hbtn";
@@ -23274,78 +23264,9 @@
                 this.beepWins.delete(memberNumber);
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
             });
-            // Profile button — person icon, opens BC info sheet
-            const profileBtn = document.createElement("button");
-            profileBtn.className = "ebc-beep-win-hbtn";
-            profileBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-            profileBtn.title = "View profile";
-            profileBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
-            <circle cx="8" cy="5" r="3" fill="#cf6f98"/>
-            <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/>
-        </svg>`;
-            profileBtn.addEventListener("mouseenter", () => { profileBtn.style.background = "#3a1020"; profileBtn.style.borderColor = "#cf6f98"; });
-            profileBtn.addEventListener("mouseleave", () => { profileBtn.style.background = "#2a0e1e"; profileBtn.style.borderColor = "#4c2537"; });
-            profileBtn.addEventListener("click", async () => {
-                const w = window;
-                const loadChar = w.InformationSheetLoadCharacter;
-                const hideEls = w.ChatRoomHideElements;
-                const loadOnline = w.CharacterLoadOnline;
-                const roomChars = w.ChatRoomCharacter;
-                const doOpen = (C) => {
-                    var _a;
-                    this.close();
-                    if (w.CurrentScreen === "ChatRoom") {
-                        try {
-                            hideEls === null || hideEls === void 0 ? void 0 : hideEls();
-                        }
-                        catch ( /* ignore */_b) { /* ignore */ }
-                        try {
-                            const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
-                            if (bgData)
-                                w.ChatRoomBackground = bgData;
-                        }
-                        catch ( /* ignore */_c) { /* ignore */ }
-                    }
-                    loadChar(C);
-                };
-                if (!loadChar || !loadOnline) {
-                    try {
-                        navigator.clipboard.writeText(String(memberNumber));
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    return;
-                }
-                const inRoom = Array.isArray(roomChars)
-                    ? roomChars.find(c => c.MemberNumber === memberNumber)
-                    : undefined;
-                if (inRoom) {
-                    try {
-                        doOpen(inRoom);
-                        return;
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                }
-                const bundle = await getCharacterBundle(memberNumber);
-                if (bundle) {
-                    try {
-                        const C = loadOnline(bundle, memberNumber);
-                        if (C) {
-                            doOpen(C);
-                            return;
-                        }
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
-                }
-                try {
-                    navigator.clipboard.writeText(String(memberNumber));
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-            });
             header.appendChild(dot);
             header.appendChild(titleArea);
             header.appendChild(unreadDot);
-            header.appendChild(muteBtn);
-            header.appendChild(profileBtn);
             header.appendChild(suppressBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
@@ -32214,7 +32135,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.3";
+    const MOD_VERSION = "4.2.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32225,6 +32146,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.4",
+            changes: [
+                "Beep windows: removed the 🔔 mute and 👤 profile buttons from the chat window header — mute is now in the Chat and notifications section of the Notes tab, and profiles are accessible from the People in Room / Friends lists there.",
+            ],
+        },
         {
             version: "4.2.3",
             changes: [
