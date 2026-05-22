@@ -15370,8 +15370,19 @@ export class EBCDrawer {
         importToggleBtn.textContent = t("core.import");
         importToggleBtn.title = "Load a shared button config";
 
+        const resetPosBtn = document.createElement("button");
+        resetPosBtn.className = "ebc-btn-footer-btn";
+        resetPosBtn.textContent = "📌 Reset pos";
+        resetPosBtn.title = "Move the action buttons panel back to its default on-screen position";
+        resetPosBtn.addEventListener("click", () => {
+            resetSidebarPos();
+            resetPosBtn.textContent = "✓ Moved!";
+            window.setTimeout(() => { resetPosBtn.textContent = "📌 Reset pos"; }, 1500);
+        });
+
         ioRow.appendChild(exportBtn);
         ioRow.appendChild(importToggleBtn);
+        ioRow.appendChild(resetPosBtn);
         activeBodyEl.appendChild(ioRow);
 
         // Import panel (collapsible)
