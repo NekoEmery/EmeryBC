@@ -23529,50 +23529,92 @@
                 body.removeChild(body.firstChild);
             // ── Messages dropdown ─────────────────────────────────────────────────
             this.renderMessagesDropdown(body);
-            // ── AFK auto-reply ────────────────────────────────────────────────────
+            // ── Chat & Notifications ──────────────────────────────────────────────
+            let chatSettingsCollapsed = true;
+            try {
+                chatSettingsCollapsed = localStorage.getItem("EBC_chatSettingsCollapsed") !== "0";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const chatSettingsHeader = document.createElement("div");
+            chatSettingsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+            const chatSettingsLbl = document.createElement("div");
+            chatSettingsLbl.className = "ebc-section-label";
+            chatSettingsLbl.style.margin = "0";
+            chatSettingsLbl.textContent = "Chat & Notifications";
+            const chatSettingsChevron = document.createElement("span");
+            chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            chatSettingsHeader.appendChild(chatSettingsLbl);
+            chatSettingsHeader.appendChild(chatSettingsChevron);
+            body.appendChild(chatSettingsHeader);
+            const chatSettingsBody = document.createElement("div");
+            chatSettingsBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
+            // Helper: build a [label ......... ON/OFF] toggle row
+            const mkToggleRow = (label, getVal, setVal, onAfterToggle) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:8px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+                lbl.textContent = label;
+                const btn = document.createElement("button");
+                const refresh = () => {
+                    const on = getVal();
+                    btn.textContent = on ? t("core.on") : t("core.off");
+                    btn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                        "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                    ].join(";");
+                };
+                refresh();
+                btn.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+                row.appendChild(lbl);
+                row.appendChild(btn);
+                return row;
+            };
+            // OOC mode
+            chatSettingsBody.appendChild(mkToggleRow("OOC mode", getOocEnabled, (v) => setOocEnabled(v)));
+            // Mute beep sounds
+            chatSettingsBody.appendChild(mkToggleRow("Mute beep sounds", getBeepMuted, (v) => setBeepMuted(v)));
+            // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
+            chatSettingsBody.appendChild(mkToggleRow("Show beeps in BC chat", () => !getSuppressNativeBeep(), (v) => {
+                setSuppressNativeBeep(!v);
+                // keep the icon in any open beep windows in sync
+                for (const { el } of this.beepWins.values()) {
+                    const fn = el._refreshSuppressBtn;
+                    try {
+                        fn === null || fn === void 0 ? void 0 : fn();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }));
+            // ── AFK sub-section (nested collapsible) ──────────────────────────────
+            const afkSubDiv = document.createElement("div");
+            afkSubDiv.className = "ebc-divider";
+            afkSubDiv.style.margin = "2px 0";
+            chatSettingsBody.appendChild(afkSubDiv);
             let afkCollapsed = true;
             try {
                 afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
-            const afkHeader = document.createElement("div");
-            afkHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-            const afkLbl = document.createElement("div");
-            afkLbl.className = "ebc-section-label";
-            afkLbl.style.margin = "0";
-            afkLbl.textContent = t("settings.afkAutoReply");
+            catch ( /* ignore */_c) { /* ignore */ }
+            const afkSubHeader = document.createElement("div");
+            afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
+            const afkSubLbl = document.createElement("span");
+            afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;font-weight:bold;";
+            afkSubLbl.textContent = t("settings.afkAutoReply");
             const afkChevron = document.createElement("span");
             afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            afkHeader.appendChild(afkLbl);
-            afkHeader.appendChild(afkChevron);
-            body.appendChild(afkHeader);
+            afkSubHeader.appendChild(afkSubLbl);
+            afkSubHeader.appendChild(afkChevron);
+            chatSettingsBody.appendChild(afkSubHeader);
             const afkBody = document.createElement("div");
-            afkBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
-            // ON/OFF row
-            const afkToggleRow = document.createElement("div");
-            afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
-            const afkToggleLbl = document.createElement("span");
-            afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
-            const afkToggleBtn = document.createElement("button");
-            const refreshAfkToggle = () => {
-                const on = getAfkEnabled();
-                afkToggleBtn.textContent = on ? t("core.on") : t("core.off");
-                afkToggleBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
-                    "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                    "background:" + (on ? "#4a1f30" : "#100508"),
-                    "color:" + (on ? "#f7e6ee" : "#4c2537"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshAfkToggle();
-            afkToggleBtn.addEventListener("click", () => { setAfkEnabled(!getAfkEnabled()); refreshAfkToggle(); });
-            afkToggleRow.appendChild(afkToggleLbl);
-            afkToggleRow.appendChild(afkToggleBtn);
-            afkBody.appendChild(afkToggleRow);
-            // Threshold — label row + h/m/s inputs on separate row
+            afkBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:7px;";
+            // AFK ON/OFF
+            afkBody.appendChild(mkToggleRow(t("users.autoReplyWhenAfk"), getAfkEnabled, (v) => setAfkEnabled(v)));
+            // Threshold — label row + h/m/s inputs
             const afkThreshLbl = document.createElement("div");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
             afkThreshLbl.textContent = t("settings.idleThreshold");
@@ -23586,7 +23628,6 @@
                 inp.min = "0";
                 inp.max = String(max);
                 inp.style.cssText = inputCss;
-                // format as 2-digit on blur
                 inp.addEventListener("blur", () => {
                     const v = Math.max(0, Math.min(max, parseInt(inp.value, 10) || 0));
                     inp.value = String(v).padStart(2, "0");
@@ -23630,7 +23671,7 @@
             afkThreshRow.appendChild(sLbl);
             afkBody.appendChild(afkThreshLbl);
             afkBody.appendChild(afkThreshRow);
-            // Message row
+            // Message
             const afkMsgLbl = document.createElement("div");
             afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
             afkMsgLbl.textContent = t("settings.afkReplyMsg");
@@ -23643,7 +23684,7 @@
             afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
             afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
             afkBody.appendChild(afkMsgArea);
-            // Hint
+            // Hints
             const afkHintBeep = document.createElement("div");
             afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
             afkHintBeep.textContent = t("settings.afkHintBeep");
@@ -23663,19 +23704,33 @@
             };
             afkChevron.textContent = afkCollapsed ? "▲" : "▼";
             afkBody.style.display = afkCollapsed ? "none" : "flex";
-            afkHeader.addEventListener("click", toggleAfkCollapsed);
-            body.appendChild(afkBody);
+            afkSubHeader.addEventListener("click", toggleAfkCollapsed);
+            chatSettingsBody.appendChild(afkBody);
+            // Outer collapse/expand
+            const toggleChatSettings = () => {
+                chatSettingsCollapsed = !chatSettingsCollapsed;
+                chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
+                chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_chatSettingsCollapsed", chatSettingsCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
+            chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
+            chatSettingsHeader.addEventListener("click", toggleChatSettings);
+            body.appendChild(chatSettingsBody);
             // ── Divider ───────────────────────────────────────────────────────────
-            const afkDiv = document.createElement("div");
-            afkDiv.className = "ebc-divider";
-            body.appendChild(afkDiv);
+            const chatSettingsDiv = document.createElement("div");
+            chatSettingsDiv.className = "ebc-divider";
+            body.appendChild(chatSettingsDiv);
             const notes = getNotes();
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -32025,7 +32080,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.2";
+    const MOD_VERSION = "3.9.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
