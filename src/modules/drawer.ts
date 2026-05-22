@@ -300,9 +300,10 @@ const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
 const PANEL_OPACITY_KEY = "EBC_panelOpacity";
 
 // ── Touch / phone mode ─────────────────────────────────────────────────────
-// Auto-detected via pointer media query; can be forced on in the DEV tab for
-// desktop preview. When active, a data-touch attribute is placed on the panel
-// container and CSS !important overrides raise all tap target sizes.
+// Auto-detected via pointer media query; can be forced on/off in the DEV tab.
+// "1" = force ON (desktop preview), "0" = force OFF (override on real tablets),
+// absent = auto (use device detection).  When active, a data-touch attribute is
+// placed on the panel container and CSS !important overrides raise tap targets.
 
 const TOUCH_MODE_FORCE_KEY = "EBC_forceTouchMode";
 
@@ -310,16 +311,17 @@ function isTouchDevice(): boolean {
     try { return window.matchMedia("(pointer: coarse)").matches; } catch { return false; }
 }
 
-function getForceTouchMode(): boolean {
-    try { return localStorage.getItem(TOUCH_MODE_FORCE_KEY) === "1"; } catch { return false; }
-}
-
 function setForceTouchMode(v: boolean): void {
     try { localStorage.setItem(TOUCH_MODE_FORCE_KEY, v ? "1" : "0"); } catch { /* ignore */ }
 }
 
 function isTouchModeActive(): boolean {
-    return isTouchDevice() || getForceTouchMode();
+    try {
+        const v = localStorage.getItem(TOUCH_MODE_FORCE_KEY);
+        if (v === "1") return true;   // explicitly forced ON
+        if (v === "0") return false;  // explicitly forced OFF — beats device detection
+    } catch { /* ignore */ }
+    return isTouchDevice();           // fall back to hardware detection
 }
 
 function applyTouchMode(panelEl: HTMLElement): void {
@@ -12536,8 +12538,8 @@ export class EBCDrawer {
 
             const touchForceBtn = document.createElement("button");
             const refreshTouchBtn = (): void => {
-                const forced = getForceTouchMode();
-                touchForceBtn.textContent = forced ? t("dev.touchForceOn") : t("dev.touchForceOff");
+                const active = isTouchModeActive();
+                touchForceBtn.textContent = active ? t("dev.touchForceOn") : t("dev.touchForceOff");
                 touchForceBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
@@ -12546,15 +12548,18 @@ export class EBCDrawer {
                     "border-radius:4px",
                     "cursor:pointer",
                     "flex-shrink:0",
-                    "border:1px solid " + (forced ? "#cf6f98" : "#3a1928"),
-                    "background:" + (forced ? "#4a1f30" : "#100508"),
-                    "color:" + (forced ? "#f7e6ee" : "#7a5070"),
+                    "border:1px solid " + (active ? "#cf6f98" : "#3a1928"),
+                    "background:" + (active ? "#4a1f30" : "#100508"),
+                    "color:" + (active ? "#f7e6ee" : "#7a5070"),
                     "transition:background 0.14s,color 0.14s,border-color 0.14s",
                 ].join(";");
             };
             refreshTouchBtn();
             touchForceBtn.addEventListener("click", () => {
-                setForceTouchMode(!getForceTouchMode());
+                // Toggle based on the ACTUAL current state so the button always
+                // reflects reality — on real touch devices isTouchDevice() is true,
+                // so only an explicit "0" can turn touch mode OFF.
+                setForceTouchMode(!isTouchModeActive());
                 refreshTouchBtn();
                 const panelEl = this.rootEl?.querySelector("#emerybc-panel") as HTMLElement | null;
                 if (panelEl) applyTouchMode(panelEl);
@@ -18717,7 +18722,7 @@ export class EBCDrawer {
             if (saved !== null) {
                 this.panelPosition = saved;
                 this.enterFreeMode(saved);
-            } else if (isTouchDevice()) {
+            } else if (isTouchModeActive()) {
                 // Touch devices (tablet/phone): anchor mode relies on BC's desktop chat-log
                 // layout which is completely different on mobile — auto-center the panel
                 // in free-float mode so it's always reachable and positioned sensibly.

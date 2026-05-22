@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.1";
+const MOD_VERSION = "3.8.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.2",
+        changes: [
+            "Fix: Phone mode toggle now actually works on real touch devices. Previously isTouchModeActive() always returned true on tablets (device detection won), so toggling it OFF had no effect. An explicit force-off ('0') now beats device detection.",
+        ],
+    },
     {
         version: "3.8.1",
         changes: [
