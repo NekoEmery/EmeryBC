@@ -3696,7 +3696,7 @@
             ctx.font = "bold 11px arial";
             ctx.textBaseline = "top";
             ctx.fillStyle = "#3a1525";
-            ctx.fillText(label.length > 5 ? label.slice(0, 5) : label, x + size / 2, y + 4);
+            ctx.fillText(label.length > 8 ? label.slice(0, 8) : label, x + size / 2, y + 4);
             // Countdown number centred — bright pink, large
             const secs = Math.ceil(remainMs / 1000);
             ctx.font = "bold 20px arial";
@@ -28514,10 +28514,10 @@
                     const labelInp = document.createElement("input");
                     labelInp.className = "ebc-slot-label";
                     labelInp.type = "text";
-                    labelInp.maxLength = 6;
+                    labelInp.maxLength = 16;
                     labelInp.placeholder = "Label";
                     labelInp.value = btn.label;
-                    labelInp.title = "Button label (max 6 chars)";
+                    labelInp.title = "Button label (max 16 chars)";
                     // Colour preview dot + hex text input; dot opens floating picker
                     const colorWrap = document.createElement("span");
                     colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
@@ -28732,7 +28732,7 @@
                         toggle.textContent = btns[idx].enabled ? t("core.on") : t("core.off");
                     });
                     labelInp.addEventListener("input", () => {
-                        btns[idx].label = labelInp.value.trim().slice(0, 6);
+                        btns[idx].label = labelInp.value.trim().slice(0, 16);
                     });
                     colorInp.addEventListener("input", () => {
                         let v = colorInp.value.trim();
@@ -33131,7 +33131,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.4";
+    const MOD_VERSION = "4.4.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33142,6 +33142,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.5",
+            changes: [
+                "Buttons tab: increased action button label max length from 6 to 16 characters so names like 'Default', 'Release' etc. fit.",
+            ],
+        },
         {
             version: "4.4.4",
             changes: [
