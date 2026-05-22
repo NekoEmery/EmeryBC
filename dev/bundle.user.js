@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.2
+// @version      4.5.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25362,20 +25362,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const isFull = info.roomFull;
                         const roomName = info.roomName;
                         const icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
-                        let bg = "#1e0d1a", color = "#9a6878", border = "#3a1928";
+                        let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
                         if (isLocked) {
                             bg = "#1a100d";
-                            color = "#c8905a";
+                            color = "#daa070";
                             border = "#5a3020";
                         }
                         else if (isPrivate) {
                             bg = "#1a0d20";
-                            color = "#b07ab8";
+                            color = "#c890d8";
                             border = "#4a2060";
                         }
                         else if (roomName) {
                             bg = "#0d1a18";
-                            color = "#60a898";
+                            color = "#7dcab8";
                             border = "#1e4038";
                         }
                         const label = roomName
@@ -25386,7 +25386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomTagEl.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
-                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -33192,7 +33192,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.2";
+    const MOD_VERSION = "4.5.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33203,6 +33203,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.3",
+            changes: [
+                "Friends list: room name chip max-width increased from 90px to 160px so names no longer clip after 5–6 characters. Text colours brightened slightly for better readability.",
+            ],
+        },
         {
             version: "4.5.2",
             changes: [
