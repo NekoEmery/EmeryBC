@@ -11693,9 +11693,20 @@ export class EBCDrawer {
             searchInput.value = this.friendSearch;
             searchInput.className = "ebc-form-input";
             searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+            searchInput.dataset.ebcRole = "friend-search";
+            // Prevent BC's document-level key handler stealing focus while typing
+            searchInput.addEventListener("keydown", (e) => { e.stopPropagation(); });
             searchInput.addEventListener("input", () => {
                 this.friendSearch = searchInput.value;
+                // Capture cursor position before the rebuild destroys this element
+                const sel: [number, number] = [searchInput.selectionStart ?? 0, searchInput.selectionEnd ?? 0];
                 try { this.renderFriendRows(body); } catch { /* ignore */ }
+                // Restore focus + cursor to the freshly-created search input
+                const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
+                if (reborn) {
+                    reborn.focus();
+                    try { reborn.setSelectionRange(sel[0], sel[1]); } catch { /* ignore */ }
+                }
             });
             const clearSearchBtn = document.createElement("button");
             clearSearchBtn.textContent = "×";
@@ -11706,6 +11717,8 @@ export class EBCDrawer {
             clearSearchBtn.addEventListener("click", () => {
                 this.friendSearch = "";
                 try { this.renderFriendRows(body); } catch { /* ignore */ }
+                const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
+                if (reborn) reborn.focus();
             });
             searchRow.appendChild(searchInput);
             searchRow.appendChild(clearSearchBtn);
