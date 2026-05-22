@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.1";
+const MOD_VERSION = "4.3.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.2",
+        changes: [
+            "Expressions → Chat Triggers: new section at the bottom of the Expressions panel. Add a trigger with a match phrase (e.g. >:3) and a face preset — whenever your outgoing chat message contains that text the preset fires automatically. Each trigger has an independent hold time (ms) before reverting to your default face, or 0 for permanent. The logic was already wired up but had no UI to configure it.",
+        ],
+    },
     {
         version: "4.3.1",
         changes: [
