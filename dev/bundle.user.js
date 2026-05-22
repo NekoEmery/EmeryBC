@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.1.7
+// @version      4.1.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16522,13 +16522,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
-            titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+            titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
             title.appendChild(titleMain);
             title.appendChild(titleSub);
             if (this.isDev) {
                 const devChip = document.createElement("span");
                 devChip.textContent = "DEV";
-                devChip.style.cssText = "font-size:8px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+                devChip.style.cssText = "font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
                 title.appendChild(devChip);
             }
             const headerBtns = document.createElement("div");
@@ -16639,7 +16639,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             notesTabBtn.appendChild(notesTabLabel);
             const notesBadgeEl = document.createElement("span");
             notesBadgeEl.id = "ebc-notes-tab-badge";
-            notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:8px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
+            notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
             notesTabBtn.appendChild(notesBadgeEl);
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
@@ -16752,7 +16752,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const qaConfirmRow = document.createElement("div");
             qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
             const qaConfirmLbl = document.createElement("span");
-            qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
+            qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;user-select:none;";
             qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
             this._i18nRefs.qaConfirmLbl = qaConfirmLbl;
             const qaConfirmToggle = document.createElement("button");
@@ -16762,7 +16762,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 qaConfirmToggle.textContent = on ? t("core.on") : t("core.off");
                 qaConfirmToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
+                    "font-size:11px",
                     "font-weight:bold",
                     "padding:4px 10px",
                     "border-radius:4px",
@@ -16785,7 +16785,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             quickActions.appendChild(qaConfirmRow);
             // Row 2: self-picker toggle (full-width, subtle)
             const selfPickToggle = document.createElement("button");
-            selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
+            selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
             selfPickToggle.textContent = t("qa.pickRestraints");
             selfPickToggle.title = t("qa.pickTitle");
             this._i18nRefs.pickBtn = selfPickToggle;
@@ -16797,7 +16797,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const selfPickPanel = document.createElement("div");
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
             const selfPickStatus = document.createElement("div");
-            selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+            selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
             // Track selections: group → "restraint" | "lock"
             const selfSelected = new Map();
             const rebuildSelfPicker = () => {
@@ -16808,7 +16808,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const locks = getPlayerLockedItems();
                 if (restraints.length === 0 && locks.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
                     hint.textContent = t("qa.nothingToRemove");
                     selfPickPanel.appendChild(hint);
                     selfPickPanel.appendChild(selfPickStatus);
@@ -16818,7 +16818,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (items.length === 0)
                         return;
                     const hdr = document.createElement("div");
-                    hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
+                    hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
                     hdr.textContent = title;
                     selfPickPanel.appendChild(hdr);
                     for (const item of items) {
@@ -16836,10 +16836,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 selfSelected.delete(item.group);
                         });
                         const nm = document.createElement("span");
-                        nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                         nm.textContent = item.name;
                         const gr = document.createElement("span");
-                        gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                         gr.textContent = item.group.replace("Item", "");
                         lbl.appendChild(cb);
                         lbl.appendChild(nm);
@@ -16853,7 +16853,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const btnRow = document.createElement("div");
                 btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
                 const removeSelBtn = document.createElement("button");
-                removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
                 removeSelBtn.textContent = t("qa.removeSelected");
                 removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
                 removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
@@ -16869,7 +16869,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
                 });
                 const unlockSelBtn = document.createElement("button");
-                unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
+                unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
                 unlockSelBtn.textContent = t("qa.unlockSelected");
                 unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
                 unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
@@ -16944,11 +16944,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             swIcon.textContent = "🛑";
             swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
             const swLabel = document.createElement("span");
-            swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
+            swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;flex:1;";
             swLabel.textContent = t("strip.safewords");
             // Grace active indicator (hidden unless grace is running)
             const swGraceTag = document.createElement("span");
-            swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
+            swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
             swGraceTag.textContent = t("sw.graceActive");
             const swEnableBtn = document.createElement("button");
             const refreshSwEnable = () => {
@@ -16980,7 +16980,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 refreshSwEnable();
             });
             const swArrow = document.createElement("span");
-            swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+            swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
             swArrow.textContent = "▼";
             swHdr.appendChild(swIcon);
             swHdr.appendChild(swLabel);
@@ -17000,14 +17000,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const graceRow = document.createElement("div");
                     graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
                     const graceLbl = document.createElement("span");
-                    graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+                    graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
                     const rem = getGraceRemaining();
                     graceLbl.textContent = rem === Infinity
                         ? "🛡 Grace active (indefinite)"
                         : `🛡 Grace active — ${Math.ceil(rem / 60000)} min remaining`;
                     const cancelBtn = document.createElement("button");
                     cancelBtn.textContent = t("sw.endGrace");
-                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                     cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
                     graceRow.appendChild(graceLbl);
                     graceRow.appendChild(cancelBtn);
@@ -17021,7 +17021,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const wordRow = document.createElement("div");
                     wordRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                     const wordLbl = document.createElement("span");
-                    wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                    wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
                     wordLbl.textContent = wordLabel;
                     const wordInp = document.createElement("input");
                     wordInp.type = "text";
@@ -17043,7 +17043,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     actRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding-left:66px;";
                     for (const act of actions) {
                         const btn = document.createElement("button");
-                        btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
+                        btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
                         const setActStyle = (on) => {
                             btn.style.background = on ? accentColor + "44" : "transparent";
                             btn.style.color = on ? accentColor : "#6a4858";
@@ -17063,7 +17063,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const outfitRow = document.createElement("div");
                     outfitRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                     const outfitLbl = document.createElement("span");
-                    outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                    outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
                     outfitLbl.textContent = outfitLabel;
                     const sel = document.createElement("select");
                     sel.className = "ebc-form-input";
@@ -17104,7 +17104,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const graceDurRow = document.createElement("div");
                 graceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const graceDurLbl = document.createElement("span");
-                graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
+                graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
                 graceDurLbl.textContent = "Grace:";
                 const graceDurInp = document.createElement("input");
                 graceDurInp.type = "number";
@@ -17112,14 +17112,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 graceDurInp.max = "9999";
                 graceDurInp.value = String(Math.round(cfg.graceDurationMs / 60000));
                 graceDurInp.className = "ebc-form-input";
-                graceDurInp.style.cssText = graceDurInp.style.cssText + ";width:48px;flex:none;font-size:10px;";
+                graceDurInp.style.cssText = graceDurInp.style.cssText + ";width:48px;flex:none;font-size:11px;";
                 graceDurInp.addEventListener("change", () => {
                     const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
                     setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { graceDurationMs: mins * 60000 }));
                     graceDurInp.value = String(mins);
                 });
                 const graceDurUnit = document.createElement("span");
-                graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                 graceDurUnit.textContent = t("strip.graceUnit");
                 graceDurRow.appendChild(graceDurLbl);
                 graceDurRow.appendChild(graceDurInp);
@@ -17127,7 +17127,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 swInner.appendChild(graceDurRow);
                 // -- Hint --
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";
                 hint.textContent = t("strip.swHint");
                 swInner.appendChild(hint);
             };
@@ -17155,7 +17155,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             footer.className = "ebc-footer";
             const footerVerEl = document.createElement("span");
             footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
-            footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
+            footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
             footer.appendChild(footerVerEl);
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
@@ -18319,11 +18319,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const ebcTagsHdrLeft = document.createElement("div");
             ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
             const ebcTagsHdrLabel = document.createElement("span");
-            ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
+            ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
             ebcTagsHdrLabel.textContent = t("dev.ebcTags");
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             const ebcTagsChev = document.createElement("span");
-            ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
+            ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
             ebcTagsHdr.appendChild(ebcTagsHdrLeft);
             ebcTagsHdr.appendChild(ebcTagsChev);
             strip.appendChild(ebcTagsHdr);
@@ -18333,7 +18333,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
             // Description line
             const ebcTagsDesc = document.createElement("div");
-            ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
+            ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
             ebcTagsDesc.textContent = t("strip.tagToggleDesc");
             ebcTagsBody.appendChild(ebcTagsDesc);
             // Tag toggle cards
@@ -18345,14 +18345,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const cardTop = document.createElement("div");
                 cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
                 const cardLabel = document.createElement("span");
-                cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
+                cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;";
                 cardLabel.textContent = label;
                 cardTop.appendChild(cardLabel);
                 const cardSub = document.createElement("div");
-                cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
+                cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.4;margin-bottom:6px;";
                 cardSub.textContent = sublabel;
                 const cardStatus = document.createElement("div");
-                cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
+                cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:10px;";
                 const cardDot = document.createElement("span");
                 cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
                 cardStatus.appendChild(cardDot);
@@ -18380,7 +18380,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.appendChild(ebcTagsCardRow);
             // Version display row
             const versionRowLbl = document.createElement("div");
-            versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+            versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
             versionRowLbl.textContent = t("strip.versionDisplay");
             ebcTagsBody.appendChild(versionRowLbl);
             const versionCardRow = document.createElement("div");
@@ -18393,7 +18393,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
             ebcTagsBody.appendChild(badgeDivider);
             const badgeAppLbl = document.createElement("div");
-            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
             badgeAppLbl.textContent = t("strip.badgeAppearance");
             ebcTagsBody.appendChild(badgeAppLbl);
             // Style picker: Text | Cat
@@ -18402,7 +18402,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
                 const makeBtn = (styleName, labelText) => {
                     const btn = document.createElement("button");
-                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
                     btn.textContent = labelText;
                     const refresh = () => {
                         const active = getter() === styleName;
@@ -18424,12 +18424,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ebcTagsBody.appendChild(row);
             };
             const myStyleLbl = document.createElement("div");
-            myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+            myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
             myStyleLbl.textContent = t("strip.myStyle");
             ebcTagsBody.appendChild(myStyleLbl);
             buildStyleRow(getBadgeStyle, setBadgeStyle);
             const othersStyleLbl = document.createElement("div");
-            othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+            othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
             othersStyleLbl.textContent = t("strip.othersStyle");
             ebcTagsBody.appendChild(othersStyleLbl);
             buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
@@ -18438,7 +18438,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
                 const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;min-width:54px;";
                 lbl.textContent = labelText;
                 const slider = document.createElement("input");
                 slider.type = "range";
@@ -18449,7 +18449,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 slider.title = "Scale multiplier (1.0 = default)";
                 const valLbl = document.createElement("span");
-                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
                 valLbl.textContent = getVal().toFixed(2) + "×";
                 slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = v.toFixed(2) + "×"; });
                 row.appendChild(lbl);
@@ -18458,7 +18458,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ebcTagsBody.appendChild(row);
             };
             const scaleSectionLbl = document.createElement("div");
-            scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+            scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
             scaleSectionLbl.textContent = t("strip.scale");
             ebcTagsBody.appendChild(scaleSectionLbl);
             makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
@@ -18468,7 +18468,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
                 const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;min-width:28px;";
                 lbl.textContent = t(labelKey);
                 const slider = document.createElement("input");
                 slider.type = "range";
@@ -18479,7 +18479,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 slider.title = titleHint;
                 const valLbl = document.createElement("span");
-                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
                 valLbl.textContent = Math.round(getVal() * 100) + "%";
                 slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = Math.round(v * 100) + "%"; });
                 row.appendChild(lbl);
@@ -18491,12 +18491,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             makeOpacitySliderRow("strip.textOpacity", getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
             // Position drag row
             const posHint = document.createElement("div");
-            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
             posHint.textContent = t("strip.dragHint");
             ebcTagsBody.appendChild(posHint);
             const posRow = document.createElement("div");
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:4px;cursor:pointer;flex:1;transition:background 0.12s,border-color 0.12s,color 0.12s";
+            const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 8px;border-radius:4px;cursor:pointer;flex:1;transition:background 0.12s,border-color 0.12s,color 0.12s";
             const makePosBtn = (styleTarget, label) => {
                 const btn = document.createElement("button");
                 const refresh = () => {
@@ -18578,7 +18578,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         makeTitleSelect(currentValue, isDefault = false) {
             const sel = document.createElement("select");
             sel.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px",
+                "font-family:'Trebuchet MS',serif", "font-size:11px",
                 "background:#1a0810", "color:#f0d8ec",
                 "border:1px solid #4c2537", "border-radius:4px",
                 "padding:3px 6px", "cursor:pointer", "outline:none",
@@ -18649,7 +18649,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const nickRow = document.createElement("div");
             nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
             const nickLbl = document.createElement("span");
-            nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+            nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
             nickLbl.textContent = t("settings.defaultNickname");
             const nickInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
@@ -18660,7 +18660,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             nickInp.style.flex = "1";
             const nickSaveBtn = document.createElement("button");
-            nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
             nickSaveBtn.textContent = "Save";
             nickSaveBtn.addEventListener("click", () => {
                 setDefaultNickname(nickInp.value);
@@ -18675,7 +18675,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const defTitleRow = document.createElement("div");
             defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
             const defTitleLbl = document.createElement("span");
-            defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+            defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
             defTitleLbl.textContent = t("settings.defaultTitle");
             const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
             defTitleSel.style.flex = "1";
@@ -18727,7 +18727,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         });
                         const nameSpan = document.createElement("span");
                         nameSpan.textContent = tag.name;
-                        nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                         const delSpan = document.createElement("span");
                         delSpan.textContent = "×";
                         delSpan.title = "Delete tag (click twice)";
@@ -18763,7 +18763,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 else {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:2px 0 5px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 0 5px;";
                     hint.textContent = "No tags yet — add one below.";
                     tagMgmtBody.appendChild(hint);
                 }
@@ -18783,7 +18783,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newTagColor.style.cssText = "width:24px;height:24px;padding:0;border:1px solid #4c2537;border-radius:4px;background:transparent;cursor:pointer;flex-shrink:0;";
                 newTagColor.title = "Pick color";
                 const addTagBtn = document.createElement("button");
-                addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
+                addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
                 addTagBtn.textContent = t("core.add");
                 addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
                 addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
@@ -19364,12 +19364,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                         catch ( /* ignore */_c) { /* ignore */ }
                         const chip = document.createElement("span");
-                        chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:9px;color:#c48aa8;";
+                        chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;";
                         const chipTxt = document.createElement("span");
                         chipTxt.textContent = chipLabel;
                         const rmBtn = document.createElement("span");
                         rmBtn.textContent = "×";
-                        rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:10px;line-height:1;";
+                        rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:11px;line-height:1;";
                         rmBtn.title = "Remove from protected items";
                         rmBtn.addEventListener("mouseenter", () => { rmBtn.style.color = "#cf6f98"; });
                         rmBtn.addEventListener("mouseleave", () => { rmBtn.style.color = "#8a6070"; });
@@ -19386,7 +19386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 else {
                     const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;margin-bottom:6px;";
                     empty.textContent = "No protected items — add some from the list below.";
                     inner.appendChild(empty);
                 }
@@ -19397,7 +19397,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
                 const wornToggle = document.createElement("div");
-                wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
+                wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
                 const wornBody = document.createElement("div");
                 wornBody.style.display = wornOpen ? "flex" : "none";
                 wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
@@ -19422,7 +19422,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const gDesc = ((_b = item.Asset.Group.Description) === null || _b === void 0 ? void 0 : _b.trim()) || group.replace(/^Item/, "");
                             const btn = document.createElement("button");
                             btn.className = "ebc-wear-btn";
-                            btn.style.cssText += "font-size:9px;padding:2px 7px;";
+                            btn.style.cssText += "font-size:11px;padding:2px 7px;";
                             btn.textContent = `${iDesc} · ${gDesc}`;
                             btn.title = `Protect this slot (${group})`;
                             btn.addEventListener("click", () => {
@@ -19437,7 +19437,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     catch ( /* ignore */_c) { /* ignore */ }
                     if (!anyShown) {
                         const hint = document.createElement("span");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                         hint.textContent = "No unprotected restraints currently worn.";
                         wornBody.appendChild(hint);
                     }
@@ -19519,13 +19519,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const selDot = document.createElement("span");
                 selDot.className = "ebc-sel-dot";
                 const selHex = document.createElement("span");
-                selHex.style.cssText = "font-family:'Courier New',monospace;font-size:9px;color:#c48aa8;flex-shrink:0;";
+                selHex.style.cssText = "font-family:'Courier New',monospace;font-size:11px;color:#c48aa8;flex-shrink:0;";
                 const selHint = document.createElement("span");
-                selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
+                selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
                 selHint.textContent = "Pick a colour above";
                 const saveToMyBtn = document.createElement("button");
                 saveToMyBtn.className = "ebc-wear-btn";
-                saveToMyBtn.style.cssText += "padding:1px 8px;font-size:9px;flex-shrink:0;";
+                saveToMyBtn.style.cssText += "padding:1px 8px;font-size:11px;flex-shrink:0;";
                 saveToMyBtn.textContent = "+ Save";
                 saveToMyBtn.title = "Save selected colour to My Colours";
                 saveToMyBtn.addEventListener("click", () => {
@@ -19539,7 +19539,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 const clrBtn = document.createElement("button");
                 clrBtn.textContent = "x";
-                clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
+                clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
                 clrBtn.title = "Clear selected colour";
                 clrBtn.addEventListener("click", () => {
                     selectedColor = null;
@@ -19586,7 +19586,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const saved = getCustomColors();
                     if (!saved.length) {
                         const hint = document.createElement("span");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                         hint.textContent = t("outfits.noSavedColours");
                         swatchesWrap.appendChild(hint);
                         return;
@@ -19672,12 +19672,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         };
                         refreshPreview();
                         const wName = document.createElement("span");
-                        wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                         wName.textContent = wItem.name;
                         wName.title = wItem.name;
                         const allBtn = document.createElement("button");
                         allBtn.className = "ebc-wear-btn";
-                        allBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                        allBtn.style.cssText += "padding:1px 7px;font-size:11px;flex-shrink:0;";
                         allBtn.textContent = "All";
                         allBtn.title = "Apply selected colour to all zones";
                         allBtn.addEventListener("click", (e) => {
@@ -19694,7 +19694,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             window.setTimeout(() => { allBtn.textContent = "All"; }, 1400);
                         });
                         const wArrow = document.createElement("span");
-                        wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                        wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                         wArrow.textContent = "▼";
                         wRow.appendChild(previewDots);
                         wRow.appendChild(wName);
@@ -19797,7 +19797,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (worn.length) {
                     const savePresGroupSel = document.createElement("select");
                     savePresGroupSel.className = "ebc-form-input";
-                    savePresGroupSel.style.cssText = "font-size:9px;flex:none;width:auto;max-width:90px;";
+                    savePresGroupSel.style.cssText = "font-size:11px;flex:none;width:auto;max-width:90px;";
                     savePresGroupSel.title = "Capture colours from this worn item";
                     const phOpt = document.createElement("option");
                     phOpt.value = "";
@@ -19812,7 +19812,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     savePresRow.appendChild(savePresGroupSel);
                     const savePresBtn = document.createElement("button");
                     savePresBtn.className = "ebc-wear-btn";
-                    savePresBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                    savePresBtn.style.cssText += "padding:1px 7px;font-size:11px;flex-shrink:0;";
                     savePresBtn.textContent = "+ Preset";
                     savePresBtn.title = "Save current zone colours as a named preset";
                     savePresBtn.addEventListener("click", () => {
@@ -19845,7 +19845,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const presets = getRestraintPresets();
                     if (!presets.length) {
                         const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
                         none.textContent = "No presets saved yet.";
                         presetsContainer.appendChild(none);
                         return;
@@ -19865,11 +19865,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         nameInp.value = preset.name;
                         nameInp.maxLength = 30;
                         nameInp.className = "ebc-form-input";
-                        nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
+                        nameInp.style.cssText = nameInp.style.cssText + ";font-size:11px;min-width:0;";
                         nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
                         const applyToSel = document.createElement("select");
                         applyToSel.className = "ebc-form-input";
-                        applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:90px;";
+                        applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:11px;flex:none;width:auto;max-width:90px;";
                         applyToSel.title = "Choose restraint to apply to";
                         const phOpt2 = document.createElement("option");
                         phOpt2.value = "";
@@ -19883,7 +19883,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                         const applyBtn = document.createElement("button");
                         applyBtn.className = "ebc-wear-btn";
-                        applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
+                        applyBtn.style.cssText += "padding:1px 6px;font-size:11px;flex-shrink:0;";
                         applyBtn.textContent = t("core.apply");
                         applyBtn.addEventListener("click", () => {
                             const group = applyToSel.value;
@@ -19933,7 +19933,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
                 const palToggle = document.createElement("div");
-                palToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4a5a;cursor:pointer;user-select:none;padding:2px 0 4px;";
+                palToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a4a5a;cursor:pointer;user-select:none;padding:2px 0 4px;";
                 palToggle.textContent = (palCollapsed ? "▶" : "▼") + " Saved palettes (capture & apply full looks)";
                 const palContainer = document.createElement("div");
                 const renderPal = () => {
@@ -20219,7 +20219,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             editPanel.appendChild(makeEditRow("Title", eTitleSel));
             // Tag assignment
             const eTagsLbl = document.createElement("div");
-            eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+            eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;margin:6px 0 3px;";
             eTagsLbl.textContent = "Tags";
             const eTagsGrid = document.createElement("div");
             eTagsGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
@@ -20230,7 +20230,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const allTags = getOutfitTags();
                 if (allTags.length === 0) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
                     hint.textContent = "No tags yet — create some in the Tags section below.";
                     eTagsGrid.appendChild(hint);
                     return;
@@ -20238,7 +20238,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const currentTagIds = new Set((_a = o.tagIds) !== null && _a !== void 0 ? _a : []);
                 for (const tag of allTags) {
                     const btn = document.createElement("button");
-                    btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                    btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
                     btn.textContent = tag.name;
                     const active = currentTagIds.has(tag.id);
                     btn.style.opacity = active ? "1" : "0.35";
@@ -20301,7 +20301,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Export button inside edit panel (keeps the main row uncluttered)
             const eExportBtn = document.createElement("button");
             eExportBtn.className = "ebc-btn-footer-btn";
-            eExportBtn.style.cssText = "margin-top:2px;font-size:10px;";
+            eExportBtn.style.cssText = "margin-top:2px;font-size:11px;";
             eExportBtn.textContent = "↑ Copy to Clipboard";
             eExportBtn.title = "Export this outfit as JSON to share with others";
             editPanel.appendChild(eExportBtn);
@@ -20872,10 +20872,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 cpHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;";
                 const cpLbl = document.createElement("div");
                 cpLbl.className = "ebc-section-label";
-                cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
+                cpLbl.style.cssText += ";margin:0;flex:1;font-size:11px;";
                 cpLbl.textContent = t("buttons.colourPresets");
                 const cpHintEl = document.createElement("span");
-                cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
+                cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#4c2537;flex-shrink:0;";
                 cpHintEl.textContent = "saved from restraint log";
                 cpHeader.appendChild(cpLbl);
                 cpHeader.appendChild(cpHintEl);
@@ -20909,7 +20909,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         card.appendChild(sw);
                         // Name (editable)
                         const nameEl2 = document.createElement("span");
-                        nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
+                        nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
                         nameEl2.textContent = preset.name;
                         nameEl2.title = `${preset.group} · ${preset.itemName} — click to rename`;
                         nameEl2.addEventListener("click", () => {
@@ -20921,14 +20921,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         card.appendChild(nameEl2);
                         // Group label
                         const grpEl = document.createElement("span");
-                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;white-space:nowrap;";
+                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#4c2537;flex-shrink:0;white-space:nowrap;";
                         grpEl.textContent = preset.group;
                         card.appendChild(grpEl);
                         // Apply to set button
                         const applyPresetBtn = document.createElement("button");
                         applyPresetBtn.textContent = "▶ Set";
                         applyPresetBtn.title = "Apply these colours to a restraint set item";
-                        applyPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;white-space:nowrap;";
+                        applyPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;white-space:nowrap;";
                         applyPresetBtn.addEventListener("mouseenter", () => { applyPresetBtn.style.color = "#cf6f98"; applyPresetBtn.style.borderColor = "#cf6f98"; });
                         applyPresetBtn.addEventListener("mouseleave", () => { applyPresetBtn.style.color = "#7a5a6a"; applyPresetBtn.style.borderColor = "#4c2537"; });
                         applyPresetBtn.addEventListener("click", () => {
@@ -21029,7 +21029,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             info.appendChild(rFlagsRow);
             if (r.items.length === 0) {
                 const emptyHint = document.createElement("span");
-                emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;font-style:italic;";
+                emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-style:italic;";
                 emptyHint.textContent = "⚠ no items — click Update while wearing restraints";
                 info.appendChild(emptyHint);
             }
@@ -21121,7 +21121,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
             // Tag assignment
             const eTagsLbl = document.createElement("div");
-            eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+            eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;margin:6px 0 3px;";
             eTagsLbl.textContent = "Tags";
             const eTagsGrid = document.createElement("div");
             eTagsGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
@@ -21132,7 +21132,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const allTags = getOutfitTags();
                 if (allTags.length === 0) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
                     hint.textContent = "No tags yet — create some in the Tags section above.";
                     eTagsGrid.appendChild(hint);
                     return;
@@ -21140,7 +21140,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const currentTagIds = new Set((_a = r.tagIds) !== null && _a !== void 0 ? _a : []);
                 for (const tag of allTags) {
                     const btn = document.createElement("button");
-                    btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                    btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
                     btn.textContent = tag.name;
                     const active = currentTagIds.has(tag.id);
                     btn.style.opacity = active ? "1" : "0.35";
@@ -21359,7 +21359,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const hdr = document.createElement("div");
                 hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0 3px;";
                 const chev = document.createElement("span");
-                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:10px;";
                 chev.textContent = collapsed ? "▶" : "▼";
                 const lbl = document.createElement("span");
                 lbl.className = "ebc-section-label";
@@ -21389,7 +21389,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 panelUtilRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;";
                 const resetPanelsBtn = document.createElement("button");
                 resetPanelsBtn.className = "ebc-btn-footer-btn";
-                resetPanelsBtn.style.cssText = "flex:1;font-size:9px;";
+                resetPanelsBtn.style.cssText = "flex:1;font-size:11px;";
                 resetPanelsBtn.textContent = "📌 Reset all panel positions";
                 resetPanelsBtn.title = "Snap the action buttons sidebar and the EBC drawer back to their default on-screen positions";
                 resetPanelsBtn.addEventListener("click", () => {
@@ -21530,7 +21530,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 parent.appendChild(addHint);
                 for (const group of KNOWN_POSES) {
                     const groupLbl = document.createElement("div");
-                    groupLbl.style.cssText = "font-size:9px;color:#8a4460;margin:3px 0 2px;font-family:'Trebuchet MS',serif;";
+                    groupLbl.style.cssText = "font-size:11px;color:#8a4460;margin:3px 0 2px;font-family:'Trebuchet MS',serif;";
                     groupLbl.textContent = group.group.toUpperCase();
                     parent.appendChild(groupLbl);
                     const btnRow = document.createElement("div");
@@ -21687,7 +21687,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 posesEl.textContent = poseLabels.join(" → ") || t("core.none");
                 if (combo.command) {
                     const cmdBadge = document.createElement("span");
-                    cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                    cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:11px;";
                     cmdBadge.textContent = `/${combo.command}`;
                     posesEl.appendChild(cmdBadge);
                 }
@@ -22127,7 +22127,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         poseGridWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
                         let curBody = (_a = posePoses.find(k => bodyPoses.some(p => p.key === k))) !== null && _a !== void 0 ? _a : "";
                         let curArms = (_b = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== ""))) !== null && _b !== void 0 ? _b : "";
-                        const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                        const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
                         const POSE_ON = "background:#4a1f30;border:1px solid #cf6f98;color:#f7e6ee;";
                         const POSE_OFF = "background:#1b0d17;border:1px solid #3a1928;color:#9a6878;";
                         const poseBodyBtns = new Map();
@@ -22147,7 +22147,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         };
                         const makePoseGroup = (label, poses, isArms) => {
                             const lbl = document.createElement("div");
-                            lbl.style.cssText = "font-size:9px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
+                            lbl.style.cssText = "font-size:11px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
                             lbl.textContent = label;
                             poseGridWrap.appendChild(lbl);
                             const row = document.createElement("div");
@@ -22262,7 +22262,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const heightWrap = document.createElement("div");
                         heightWrap.style.cssText = "display:none;flex:1;align-items:center;gap:4px;";
                         const heightLbl = document.createElement("span");
-                        heightLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex-shrink:0;";
+                        heightLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex-shrink:0;";
                         heightLbl.textContent = "Height:";
                         const heightInp = document.createElement("input");
                         heightInp.type = "number";
@@ -22276,7 +22276,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         });
                         stopKeys(heightInp);
                         const heightRangeLbl = document.createElement("span");
-                        heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+                        heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
                         heightWrap.appendChild(heightLbl);
                         heightWrap.appendChild(heightInp);
                         heightWrap.appendChild(heightRangeLbl);
@@ -22487,11 +22487,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // wait: no extra fields — delay IS the step
                     if (type === "expression") {
                         const F2 = "font-family:'Trebuchet MS',serif;font-size:";
-                        const INP2 = `${F2}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;width:100%;box-sizing:border-box;`;
+                        const INP2 = `${F2}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;width:100%;box-sizing:border-box;`;
                         const presets = getExpressionPresets();
                         if (presets.length === 0) {
                             const hint2 = document.createElement("div");
-                            hint2.style.cssText = `${F2}9px;color:#5a3a5a;padding:4px 0;`;
+                            hint2.style.cssText = `${F2}11px;color:#b090c0;padding:4px 0;`;
                             hint2.textContent = "No face presets yet — create some in the Anims tab first.";
                             fieldsEl.appendChild(hint2);
                         }
@@ -22499,7 +22499,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const exprRow1 = document.createElement("div");
                             exprRow1.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:4px;";
                             const exprFaceLbl = document.createElement("span");
-                            exprFaceLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                            exprFaceLbl.style.cssText = `${F2}11px;color:#d0a0d8;flex-shrink:0;`;
                             exprFaceLbl.textContent = "Face:";
                             const exprPresetSel = document.createElement("select");
                             exprPresetSel.style.cssText = INP2;
@@ -22521,7 +22521,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const exprRow2 = document.createElement("div");
                             exprRow2.style.cssText = "display:flex;gap:4px;align-items:center;";
                             const exprDurLbl = document.createElement("span");
-                            exprDurLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                            exprDurLbl.style.cssText = `${F2}11px;color:#d0a0d8;flex-shrink:0;`;
                             exprDurLbl.textContent = "Revert:";
                             const EXPR_DUR_OPTS2 = [
                                 ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
@@ -22712,7 +22712,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 stepCountEl.textContent = `${scene.steps.length} step${scene.steps.length !== 1 ? "s" : ""}`;
                 if (scene.command) {
                     const badge = document.createElement("span");
-                    badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                    badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:11px;";
                     badge.textContent = `/${scene.command}`;
                     stepCountEl.appendChild(badge);
                 }
@@ -22973,7 +22973,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             impPanel.appendChild(impHint);
             const impTextarea = document.createElement("textarea");
             impTextarea.placeholder = 'Paste scene JSON here…';
-            impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
+            impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:11px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
             impPanel.appendChild(impTextarea);
             const impError = document.createElement("div");
             impError.className = "ebc-import-error";
@@ -23348,7 +23348,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
                 if (entries.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "text-align:center;color:#8a6070;font-size:10px;padding:20px 0;";
+                    hint.style.cssText = "text-align:center;color:#8a6070;font-size:11px;padding:20px 0;";
                     hint.textContent = "No messages yet. Say hi!";
                     history.appendChild(hint);
                 }
@@ -23359,7 +23359,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const bubbleMember = isSent ? self : e.from;
                     const nameLabel = document.createElement("div");
                     nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
-                    nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+                    nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
                     // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
                     // Fall back to solid colour for non-EBC senders.
                     const vipEntry = VIP_MEMBERS[bubbleMember];
@@ -23506,13 +23506,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (unread > 0) {
                 const badge = document.createElement("span");
                 badge.textContent = unread > 99 ? "99+" : String(unread);
-                badge.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-weight:bold;padding:1px 5px;flex-shrink:0;line-height:14px;";
+                badge.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-weight:bold;padding:1px 5px;flex-shrink:0;line-height:14px;";
                 nameLine.appendChild(badge);
             }
             left.appendChild(nameLine);
             const preview = document.createElement("div");
             const previewText = lastMsg.replace(/^> .+\n/, "").slice(0, 90);
-            preview.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;color:${unread > 0 ? "#d0a0b8" : "#6a4050"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;`;
+            preview.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;color:${unread > 0 ? "#d0a0b8" : "#6a4050"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;`;
             preview.textContent = previewText || "…";
             left.appendChild(preview);
             card.appendChild(left);
@@ -23520,12 +23520,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const right = document.createElement("div");
             right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;";
             const timeEl = document.createElement("span");
-            timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;";
+            timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3040;";
             timeEl.textContent = formatLastSeen(lastTs);
             right.appendChild(timeEl);
             const openBtn = document.createElement("button");
             openBtn.textContent = "Open";
-            openBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid ${unread > 0 ? "#cf6f98" : "#3a1928"};background:${unread > 0 ? "#3a1020" : "transparent"};color:${unread > 0 ? "#cf6f98" : "#7a5a6a"};`;
+            openBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid ${unread > 0 ? "#cf6f98" : "#3a1928"};background:${unread > 0 ? "#3a1020" : "transparent"};color:${unread > 0 ? "#cf6f98" : "#7a5a6a"};`;
             openBtn.addEventListener("mouseenter", () => { openBtn.style.background = "#3a1020"; openBtn.style.borderColor = "#cf6f98"; openBtn.style.color = "#cf6f98"; });
             openBtn.addEventListener("mouseleave", () => { openBtn.style.background = unread > 0 ? "#3a1020" : "transparent"; openBtn.style.borderColor = unread > 0 ? "#cf6f98" : "#3a1928"; openBtn.style.color = unread > 0 ? "#cf6f98" : "#7a5a6a"; });
             openBtn.addEventListener("click", () => {
@@ -23674,12 +23674,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const hdr = document.createElement("div");
             hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;";
             const hdrLbl = document.createElement("span");
-            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
+            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
             hdrLbl.textContent = `MISSED MESSAGES (${totalUnread})`;
             hdr.appendChild(hdrLbl);
             const markBtn = document.createElement("button");
             markBtn.textContent = "✓ Dismiss all";
-            markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+            markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
             markBtn.addEventListener("mouseenter", () => { markBtn.style.color = "#cf6f98"; markBtn.style.borderColor = "#cf6f98"; });
             markBtn.addEventListener("mouseleave", () => { markBtn.style.color = "#7a5a6a"; markBtn.style.borderColor = "#3a1928"; });
             markBtn.addEventListener("click", () => {
@@ -23720,7 +23720,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             chatSettingsLbl.style.margin = "0";
             chatSettingsLbl.textContent = "Chat and notifications";
             const chatSettingsChevron = document.createElement("span");
-            chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            chatSettingsChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
             chatSettingsHeader.appendChild(chatSettingsLbl);
             chatSettingsHeader.appendChild(chatSettingsChevron);
             body.appendChild(chatSettingsHeader);
@@ -23731,14 +23731,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:8px;";
                 const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
                 lbl.textContent = label;
                 const btn = document.createElement("button");
                 const refresh = () => {
                     const on = getVal();
                     btn.textContent = on ? t("core.on") : t("core.off");
                     btn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                         "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                         "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
                         "background:" + (on ? "#4a1f30" : "#100508"),
@@ -23779,10 +23779,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const afkSubHeader = document.createElement("div");
             afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
             const afkSubLbl = document.createElement("span");
-            afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;font-weight:bold;";
+            afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
             afkSubLbl.textContent = t("settings.afkAutoReply");
             const afkChevron = document.createElement("span");
-            afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            afkChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
             afkSubHeader.appendChild(afkSubLbl);
             afkSubHeader.appendChild(afkChevron);
             chatSettingsBody.appendChild(afkSubHeader);
@@ -23792,12 +23792,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             afkBody.appendChild(mkToggleRow(t("users.autoReplyWhenAfk"), getAfkEnabled, (v) => setAfkEnabled(v)));
             // Threshold — label row + h/m/s inputs
             const afkThreshLbl = document.createElement("div");
-            afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
+            afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
             afkThreshLbl.textContent = t("settings.idleThreshold");
             const afkThreshRow = document.createElement("div");
             afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
-            const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-            const unitCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+            const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+            const unitCss = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;";
             const makeTimeBox = (max) => {
                 const inp = document.createElement("input");
                 inp.type = "number";
@@ -23849,7 +23849,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             afkBody.appendChild(afkThreshRow);
             // Message
             const afkMsgLbl = document.createElement("div");
-            afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+            afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;";
             afkMsgLbl.textContent = t("settings.afkReplyMsg");
             afkBody.appendChild(afkMsgLbl);
             const afkMsgArea = document.createElement("textarea");
@@ -23857,16 +23857,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             afkMsgArea.maxLength = 200;
             afkMsgArea.rows = 2;
             afkMsgArea.placeholder = "I'm currently AFK — I'll reply when I'm back!";
-            afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
+            afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
             afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
             afkBody.appendChild(afkMsgArea);
             // Hints
             const afkHintBeep = document.createElement("div");
-            afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
             afkHintBeep.textContent = t("settings.afkHintBeep");
             afkBody.appendChild(afkHintBeep);
             const afkHint = document.createElement("div");
-            afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+            afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
             afkHint.textContent = t("settings.afkHint");
             afkBody.appendChild(afkHint);
             const toggleAfkCollapsed = () => {
@@ -23914,7 +23914,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             userNotesLbl.style.margin = "0";
             userNotesLbl.textContent = t("users.header");
             const userNotesChevron = document.createElement("span");
-            userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            userNotesChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
             userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
             userNotesHeaderRow.appendChild(userNotesLbl);
             userNotesHeaderRow.appendChild(userNotesChevron);
@@ -24012,7 +24012,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             applyGradientText(nameEl, vipRoom.gradient[0], vipRoom.gradient[1]);
                         // Member number
                         const numEl = document.createElement("span");
-                        numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
+                        numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                         numEl.textContent = "#" + num;
                         // Relationship badge
                         const relBadge = (() => {
@@ -24062,7 +24062,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (relBadge) {
                             const badge = document.createElement("span");
                             badge.textContent = relBadge;
-                            badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                            badge.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
                             nameRow.appendChild(badge);
                         }
                         // Build metaRow
@@ -24072,7 +24072,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const ebcBadge = document.createElement("span");
                             ebcBadge.textContent = "EBC " + ebcVer;
                             ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
+                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                             metaRow.appendChild(ebcBadge);
                         }
                         // Tag chips from friend list (if any)
@@ -24169,7 +24169,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             if (unread > 0) {
                                 const badge = document.createElement("span");
                                 badge.textContent = unread > 9 ? "9+" : String(unread);
-                                badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                                badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
                                 beepBtn.appendChild(badge);
                             }
                             beepBtn.addEventListener("click", (e) => {
@@ -24220,15 +24220,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
                         roomToggle.innerHTML = "";
                         const arrow = document.createElement("span");
-                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex-shrink:0;";
+                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
                         lbl.textContent = t("users.peopleInRoom");
                         const cnt = document.createElement("span");
                         cnt.style.cssText = [
                             "font-family:'Trebuchet MS',serif",
-                            "font-size:10px",
+                            "font-size:11px",
                             "font-weight:bold",
                             "color:#e8b4c4",
                             "background:rgba(192,100,130,0.18)",
@@ -24279,7 +24279,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const lblFText = document.createElement("span");
                 lblFText.textContent = t("users.friends");
                 const lblFCount = document.createElement("span");
-                lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
+                lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:normal;flex:1;";
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
@@ -24290,7 +24290,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_c) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
-                sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
+                sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
                 const SORT_OPTIONS = [
                     ["status", "↕ Status"],
                     ["starred", "★ Starred first"],
@@ -24323,7 +24323,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const markReadBtn = document.createElement("button");
                     markReadBtn.textContent = "✓ All read";
                     markReadBtn.title = "Dismiss all unread beep notifications";
-                    markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                    markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                     markReadBtn.addEventListener("mouseenter", () => { markReadBtn.style.color = "#cf6f98"; markReadBtn.style.borderColor = "#cf6f98"; });
                     markReadBtn.addEventListener("mouseleave", () => { markReadBtn.style.color = "#7a5a6a"; markReadBtn.style.borderColor = "#3a1928"; });
                     markReadBtn.addEventListener("click", () => {
@@ -24345,7 +24345,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 searchInput.placeholder = "Search friends…";
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
-                searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+                searchInput.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
                 searchInput.dataset.ebcRole = "friend-search";
                 // Prevent BC's document-level key handler stealing focus while typing
                 searchInput.addEventListener("keydown", (e) => { e.stopPropagation(); });
@@ -24471,7 +24471,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     dot.className = "ebc-friend-dot " + status;
                     const pinDot = document.createElement("span");
                     pinDot.textContent = "📌";
-                    pinDot.style.cssText = "font-size:9px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
+                    pinDot.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
                     // Relationship badge (❤️ lover · 🔒 owned by them · 👑 you own them)
                     const relBadge = (() => {
                         var _a;
@@ -24503,7 +24503,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (vipFriend)
                         applyGradientText(nameEl, vipFriend.gradient[0], vipFriend.gradient[1]);
                     const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
                     // Room info tag (built here, appended to metaRow below)
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
@@ -24538,7 +24538,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomTagEl.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
-                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -24548,7 +24548,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             lsEl = document.createElement("span");
                             lsEl.textContent = formatLastSeen(lsTs);
                             lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
-                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;";
+                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#a06878;flex-shrink:0;";
                         }
                     }
                     // EBC badge
@@ -24579,7 +24579,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ebcBadge = document.createElement("span");
                         ebcBadge.textContent = "EBC " + ebcVer;
                         ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                     }
                     // ── Tag display area (first tag + "+N more", hover = tooltip) ──
                     const tagArea = document.createElement("span");
@@ -24668,7 +24668,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (relBadge) {
                         const relBadgeEl = document.createElement("span");
                         relBadgeEl.textContent = relBadge;
-                        relBadgeEl.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        relBadgeEl.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
                         nameRow.appendChild(relBadgeEl);
                     }
                     // metaRow: roomTag/lsEl + ebcBadge + tagArea
@@ -24759,7 +24759,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (unread > 0) {
                         const badge = document.createElement("span");
                         badge.textContent = unread > 9 ? "9+" : String(unread);
-                        badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                        badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:11px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
                         beepBtn.appendChild(badge);
                     }
                     beepBtn.addEventListener("click", (e) => {
@@ -24835,7 +24835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         expandBuilt = true;
                         // ── Friend info (since + last seen) ───────────────────────
                         const infoBox = document.createElement("div");
-                        infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
+                        infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
                         // Read (and auto-stamp) the "friends since" date directly from the
                         // raw store — bypasses all helper functions to rule out any module
                         // bugs. Also calls getFriendSince as a secondary path for consistency.
@@ -24941,7 +24941,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         expand.appendChild(infoBox);
                         // Tags label
                         const tagsLbl = document.createElement("div");
-                        tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
+                        tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:1px;";
                         tagsLbl.textContent = t("users.tags");
                         expand.appendChild(tagsLbl);
                         // Chips container
@@ -24962,7 +24962,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     txt.textContent = t.text;
                                     const lockIcon = document.createElement("span");
                                     lockIcon.textContent = "🔒";
-                                    lockIcon.style.cssText = "font-size:8px;opacity:0.7;margin-left:2px;";
+                                    lockIcon.style.cssText = "font-size:11px;opacity:0.7;margin-left:2px;";
                                     lockIcon.title = "Permanent tag — cannot be removed";
                                     chip.appendChild(txt);
                                     chip.appendChild(lockIcon);
@@ -25005,12 +25005,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         newTagInput.type = "text";
                         newTagInput.maxLength = 30;
                         newTagInput.placeholder = t("users.newTagPlaceholder");
-                        newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                        newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
                         newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
                         newTagInput.addEventListener("blur", () => { newTagInput.style.borderColor = "#3a1928"; });
                         const addTagBtn = document.createElement("button");
                         addTagBtn.textContent = t("core.add");
-                        addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                        addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                         addRow.appendChild(newTagInput);
                         addRow.appendChild(addTagBtn);
                         expand.appendChild(addRow);
@@ -25060,7 +25060,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const refreshPinBtn = () => {
                             const p = isFriendPinned(num);
                             pinBtn.textContent = p ? t("users.unpin") : t("users.pinToTop");
-                            pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
+                            pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
                             row.classList.toggle("pinned", p);
                             pinDot.style.display = p ? "" : "none";
                         };
@@ -25070,7 +25070,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         expand.appendChild(actRow);
                         // ── Inline note editor ─────────────────────────────────────
                         const noteLbl = document.createElement("div");
-                        noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
+                        noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
                         noteLbl.textContent = t("users.note");
                         expand.appendChild(noteLbl);
                         const noteWrap = document.createElement("div");
@@ -25171,10 +25171,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         offlineToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 2px;cursor:pointer;user-select:none;";
                         offlineToggle.innerHTML = "";
                         const arrow = document.createElement("span");
-                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex:1;";
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex:1;";
                         lbl.textContent = query ? `Offline — ${offlineFriends.length} match${offlineFriends.length === 1 ? "" : "es"}` : `Offline (${offlineFriends.length})`;
                         offlineToggle.appendChild(arrow);
                         offlineToggle.appendChild(lbl);
@@ -25243,14 +25243,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const badge = document.createElement("span");
                 badge.textContent = "★";
                 badge.title = vip.label;
-                badge.style.cssText = `font-size:10px;color:${vip.gradient[0]};flex-shrink:0;margin-right:2px;`;
+                badge.style.cssText = `font-size:11px;color:${vip.gradient[0]};flex-shrink:0;margin-right:2px;`;
                 header.appendChild(badge);
             }
             header.appendChild(num);
             container.appendChild(header);
             if (isSelf) {
                 const selfNote = document.createElement("div");
-                selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
+                selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a84b;padding:2px 4px 4px 18px;";
                 selfNote.textContent = t("users.notesOnSelf");
                 container.appendChild(selfNote);
                 return container;
@@ -25311,7 +25311,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (guideTarget)
                     hdr.setAttribute("data-guide-target", guideTarget);
                 const chev = document.createElement("span");
-                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:10px;";
                 const lbl = document.createElement("span");
                 lbl.className = "ebc-section-label";
                 lbl.style.margin = "0";
@@ -25346,10 +25346,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const touchLbl = document.createElement("span");
-                touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+                touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
                 touchLbl.textContent = t("dev.touchMode");
                 const touchAutoSpan = document.createElement("span");
-                touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
+                touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
                 touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
                 const touchForceBtn = document.createElement("button");
                 const refreshTouchBtn = () => {
@@ -25357,7 +25357,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     touchForceBtn.textContent = active ? t("dev.touchForceOn") : t("dev.touchForceOff");
                     touchForceBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
-                        "font-size:9px",
+                        "font-size:11px",
                         "font-weight:bold",
                         "padding:4px 10px",
                         "border-radius:4px",
@@ -25389,7 +25389,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const opacityRow = document.createElement("div");
                 opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const opacityLbl = document.createElement("span");
-                opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+                opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
                 opacityLbl.textContent = t("dev.panelOpacity");
                 const opacitySlider = document.createElement("input");
                 opacitySlider.type = "range";
@@ -25400,7 +25400,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 opacitySlider.title = "100% = fully solid, lower = semi-transparent";
                 const opacityVal = document.createElement("span");
-                opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+                opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
                 opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
                 opacitySlider.addEventListener("input", () => {
                     const v = parseFloat(opacitySlider.value);
@@ -25416,7 +25416,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const zoomRow = document.createElement("div");
                 zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const zoomLbl = document.createElement("span");
-                zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+                zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
                 zoomLbl.textContent = t("dev.textSize");
                 const zoomSlider = document.createElement("input");
                 zoomSlider.type = "range";
@@ -25427,7 +25427,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
                 const zoomVal = document.createElement("span");
-                zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+                zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
                 zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
                 zoomSlider.addEventListener("input", () => {
                     const v = parseFloat(zoomSlider.value);
@@ -25443,11 +25443,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const stripVisBox = document.createElement("div");
                 stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const stripVisTitle = document.createElement("div");
-                stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#c09098;margin-bottom:4px;";
+                stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;margin-bottom:4px;";
                 stripVisTitle.textContent = "Pinned strip visibility";
                 stripVisBox.appendChild(stripVisTitle);
                 const stripVisDesc = document.createElement("div");
-                stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
+                stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
                 stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
                 stripVisBox.appendChild(stripVisDesc);
                 // Helper: one labeled row of tab chips per pinned strip
@@ -25456,7 +25456,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const wrap = document.createElement("div");
                     wrap.style.cssText = "margin-bottom:8px;";
                     const lbl = document.createElement("div");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
                     lbl.textContent = rowLabel;
                     wrap.appendChild(lbl);
                     const chipRow = document.createElement("div");
@@ -25464,7 +25464,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     for (const tid of PINNED_STRIP_TABS) {
                         const chip = document.createElement("button");
                         chip.textContent = (_a = PINNED_TAB_SHORT[tid]) !== null && _a !== void 0 ? _a : tid;
-                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
                         const refreshChip = () => {
                             const f = loadStripTabFilter(storageKey);
                             const on = !f || f.has(tid);
@@ -25504,7 +25504,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 cnt.appendChild(stripVisBox);
                 // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
-                tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+                tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:4px;";
                 tabVisLbl.textContent = t("dev.visibleTabs");
                 cnt.appendChild(tabVisLbl);
                 const tabVisGrid = document.createElement("div");
@@ -25513,7 +25513,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const tabId of EBC_USER_TABS) {
                     if (tabId === "dev") {
                         const chip = document.createElement("button");
-                        chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
+                        chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
                         chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
                         chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
@@ -25522,7 +25522,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     const isVisible = !hiddenTabs.includes(tabId);
                     const chip = document.createElement("button");
-                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
                     chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
                     chip.dataset["tabId"] = tabId;
                     chip.addEventListener("click", () => {
@@ -25545,7 +25545,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const hotkeyWrap = document.createElement("div");
                 hotkeyWrap.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.5);";
                 const hotkeyTitle = document.createElement("div");
-                hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
+                hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
                 hotkeyTitle.textContent = t("dev.menuHotkey");
                 hotkeyWrap.appendChild(hotkeyTitle);
                 const hotkeyRow = document.createElement("div");
@@ -25574,7 +25574,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     ].join(";");
                 };
                 refreshHotkeyDisplay();
-                const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+                const BTN = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
                 const setHotkeyBtn = document.createElement("button");
                 setHotkeyBtn.textContent = t("dev.setKey");
                 setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
@@ -25619,7 +25619,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hotkeyRow.appendChild(clearHotkeyBtn);
                 hotkeyWrap.appendChild(hotkeyRow);
                 const hotkeyHint = document.createElement("div");
-                hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
+                hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3a4a;margin-top:5px;";
                 hotkeyHint.textContent = t("dev.hotkeyHint");
                 hotkeyWrap.appendChild(hotkeyHint);
                 cnt.appendChild(hotkeyWrap);
@@ -25628,20 +25628,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
                 // Character Inspector
                 const charLbl = document.createElement("div");
-                charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
+                charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
                 charLbl.textContent = t("dev.characterInspector");
                 cnt.appendChild(charLbl);
                 const charHint = document.createElement("div");
-                charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+                charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:4px;";
                 charHint.textContent = t("dev.charInspHint");
                 cnt.appendChild(charHint);
                 const charPickRow = document.createElement("div");
                 charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
                 const charSelect = document.createElement("select");
-                charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+                charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 4px;";
                 const charInspBtn = document.createElement("button");
                 charInspBtn.className = "ebc-create-btn";
-                charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
+                charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:11px;";
                 charInspBtn.textContent = t("dev.inspect");
                 charPickRow.appendChild(charSelect);
                 charPickRow.appendChild(charInspBtn);
@@ -25700,7 +25700,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 // Addons Loaded
                 const hookLbl = document.createElement("div");
-                hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
+                hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
                 hookLbl.textContent = t("dev.addonsLoaded");
                 cnt.appendChild(hookLbl);
                 const hookList = document.createElement("div");
@@ -25715,7 +25715,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const mods = getModsInfo ? getModsInfo.call(sdk) : [];
                         if (!Array.isArray(mods) || mods.length === 0) {
                             const hint = document.createElement("div");
-                            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
+                            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;";
                             hint.textContent = t("dev.noModsdk");
                             hookList.appendChild(hint);
                             return;
@@ -25731,14 +25731,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                             nameEl.textContent = String((_a = m.name) !== null && _a !== void 0 ? _a : "?");
                             const verEl = document.createElement("span");
-                            verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
+                            verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;";
                             verEl.textContent = "v" + String((_b = m.version) !== null && _b !== void 0 ? _b : "?");
                             topLine.appendChild(nameEl);
                             topLine.appendChild(verEl);
                             row.appendChild(topLine);
                             if (hooks.length > 0) {
                                 const hookDetail = document.createElement("div");
-                                hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:8px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
+                                hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:11px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
                                 hookDetail.textContent = hooks.join(", ");
                                 row.appendChild(hookDetail);
                             }
@@ -25747,14 +25747,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     catch (e) {
                         const err = document.createElement("div");
-                        err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;padding:4px 2px;";
+                        err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#ff6b6b;padding:4px 2px;";
                         err.textContent = "Error reading hooks: " + String(e);
                         hookList.appendChild(err);
                     }
                 };
                 renderHooks();
                 const hookRefreshBtn = document.createElement("button");
-                hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
+                hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
                 hookRefreshBtn.textContent = t("dev.refresh");
                 hookRefreshBtn.addEventListener("click", renderHooks);
                 cnt.appendChild(hookRefreshBtn);
@@ -25763,14 +25763,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
                 makeSection(t("dev.copyRestraintsFromMember"), "EBC_devCopyRestrCollapsed", true, (cnt) => {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
                     hint.textContent = "Export a room member's restraints as a BC outfit code. Choose which items to include, then import via BC's wardrobe.";
                     cnt.appendChild(hint);
                     // ── Member picker row ──────────────────────────────────────────────
                     const pickRow = document.createElement("div");
                     pickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
                     const memberSelect = document.createElement("select");
-                    memberSelect.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+                    memberSelect.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 4px;";
                     const populateSelect = () => {
                         var _a;
                         while (memberSelect.firstChild)
@@ -25797,8 +25797,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const b = document.createElement("button");
                         b.textContent = label;
                         b.style.cssText = primary
-                            ? "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:3px 10px;transition:background 0.12s,color 0.12s;"
-                            : "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
+                            ? "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 10px;transition:background 0.12s,color 0.12s;"
+                            : "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
                         b.addEventListener("mouseenter", () => {
                             b.style.background = primary ? "#91405f" : "transparent";
                             b.style.borderColor = "#cf6f98";
@@ -25827,11 +25827,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const checklistHeader = document.createElement("div");
                     checklistHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
                     const checklistLbl = document.createElement("span");
-                    checklistLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                    checklistLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
                     const allBtn = mkBtn("All");
                     const noneBtn = mkBtn("None");
-                    allBtn.style.cssText += "font-size:9px;padding:1px 6px;";
-                    noneBtn.style.cssText += "font-size:9px;padding:1px 6px;";
+                    allBtn.style.cssText += "font-size:11px;padding:1px 6px;";
+                    noneBtn.style.cssText += "font-size:11px;padding:1px 6px;";
                     checklistHeader.appendChild(checklistLbl);
                     checklistHeader.appendChild(allBtn);
                     checklistHeader.appendChild(noneBtn);
@@ -25869,7 +25869,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     codeWrap.appendChild(codeBtnRow);
                     codeWrap.appendChild(codeTA);
                     const statusEl = document.createElement("div");
-                    statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;min-height:14px;";
+                    statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:14px;";
                     cnt.appendChild(statusEl);
                     // ── Load handler ───────────────────────────────────────────────────
                     loadBtn.addEventListener("click", () => {
@@ -25909,11 +25909,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             cb.checked = true;
                             cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
                             const nameEl = document.createElement("span");
-                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             nameEl.textContent = label;
                             nameEl.title = label;
                             const grpEl = document.createElement("span");
-                            grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                            grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;";
                             grpEl.textContent = group;
                             row.appendChild(cb);
                             row.appendChild(nameEl);
@@ -26061,7 +26061,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const partners = getWhisperPartners();
                     if (partners.length === 0) {
                         const empty = document.createElement("div");
-                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
+                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a3a4e;padding:8px 4px;text-align:center;";
                         empty.textContent = t("dev.noWhispers");
                         cnt.appendChild(empty);
                         return;
@@ -26071,7 +26071,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
                     const whClearBtn = document.createElement("button");
                     whClearBtn.className = "ebc-outfit-del";
-                    whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+                    whClearBtn.style.cssText = "font-size:11px;padding:2px 7px;border-radius:4px;";
                     whClearBtn.textContent = t("dev.clearLog");
                     whClearBtn.title = "Clear whisper log";
                     whClearBtn.addEventListener("click", () => {
@@ -26097,7 +26097,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const nameSpan = document.createElement("span");
                         nameSpan.textContent = lastName;
                         const countSpan = document.createElement("span");
-                        countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+                        countSpan.style.cssText = "font-size:11px;color:#7a5070;flex-shrink:0;";
                         countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
                         btn.appendChild(nameSpan);
                         btn.appendChild(countSpan);
@@ -26164,13 +26164,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         nameRow.appendChild(nameEl);
                         if (visit.space) {
                             const sp = document.createElement("span");
-                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                             sp.textContent = visit.space;
                             nameRow.appendChild(sp);
                         }
                         c.appendChild(nameRow);
                         const timeEl = document.createElement("div");
-                        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:8px;";
+                        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;margin-bottom:8px;";
                         timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
                         c.appendChild(timeEl);
                         // Shared helper: build a small "view profile" button for a member number
@@ -26242,7 +26242,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // Members on entry
                         if (visit.members.length > 0) {
                             const mLbl = document.createElement("div");
-                            mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
+                            mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                             mLbl.textContent = `On entry (${visit.members.length})`;
                             c.appendChild(mLbl);
                             for (const m of visit.members) {
@@ -26252,7 +26252,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                 mn.textContent = m.name;
                                 const mid = document.createElement("span");
-                                mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                                mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;flex-shrink:0;";
                                 mid.textContent = `#${m.memberNumber}`;
                                 mr.appendChild(mn);
                                 mr.appendChild(mid);
@@ -26265,12 +26265,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                         // People who joined after
                         const jLbl = document.createElement("div");
-                        jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
+                        jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                         jLbl.textContent = `Joined after you (${visit.joins.length})`;
                         c.appendChild(jLbl);
                         if (visit.joins.length === 0) {
                             const none = document.createElement("div");
-                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;font-style:italic;";
+                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
                             none.textContent = "Nobody yet.";
                             c.appendChild(none);
                         }
@@ -26282,10 +26282,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                 jn.textContent = j.name;
                                 const jid = document.createElement("span");
-                                jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                                jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;";
                                 jid.textContent = `#${j.memberNumber}`;
                                 const jt = document.createElement("span");
-                                jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
+                                jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;flex-shrink:0;";
                                 jt.textContent = fmtTs(j.at);
                                 row.appendChild(jn);
                                 row.appendChild(jid);
@@ -26309,14 +26309,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const rhToggleRow = document.createElement("div");
                     rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                     const rhToggleLbl = document.createElement("span");
-                    rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                    rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
                     rhToggleLbl.textContent = "Save room visits";
                     const rhToggleBtn = document.createElement("button");
                     const refreshRhToggle = () => {
                         const on = getRoomHistoryEnabled();
                         rhToggleBtn.textContent = on ? t("core.on") : t("core.off");
                         rhToggleBtn.style.cssText = [
-                            "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                            "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                             "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                             on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
                         ].join(";");
@@ -26359,17 +26359,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             hRow.appendChild(nameEl);
                             if (visit.space) {
                                 const sp = document.createElement("span");
-                                sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                                sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                                 sp.textContent = visit.space;
                                 hRow.appendChild(sp);
                             }
                             card.appendChild(hRow);
                             const timeRow = document.createElement("div");
-                            timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:4px;";
+                            timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;margin-bottom:4px;";
                             timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "in progress"}`;
                             card.appendChild(timeRow);
                             const summary = document.createElement("div");
-                            summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;cursor:pointer;user-select:none;";
+                            summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;cursor:pointer;user-select:none;";
                             const detail = document.createElement("div");
                             detail.style.display = "none";
                             detail.style.marginTop = "6px";
@@ -26386,7 +26386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         detail.removeChild(detail.firstChild);
                                     if (visit.members.length > 0) {
                                         const mh = document.createElement("div");
-                                        mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:3px;";
+                                        mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-bottom:3px;";
                                         mh.textContent = "On entry:";
                                         detail.appendChild(mh);
                                         for (const m of visit.members) {
@@ -26396,7 +26396,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                             mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                             mn.textContent = m.name;
                                             const mid = document.createElement("span");
-                                            mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                                            mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;flex-shrink:0;";
                                             mid.textContent = `#${m.memberNumber}`;
                                             mr.appendChild(mn);
                                             mr.appendChild(mid);
@@ -26405,7 +26405,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     }
                                     if (visit.joins.length > 0) {
                                         const jh = document.createElement("div");
-                                        jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-top:6px;margin-bottom:3px;";
+                                        jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;font-weight:bold;margin-top:6px;margin-bottom:3px;";
                                         jh.textContent = "Joined after:";
                                         detail.appendChild(jh);
                                         for (const j of visit.joins) {
@@ -26415,10 +26415,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                             jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
                                             jn.textContent = j.name;
                                             const jid = document.createElement("span");
-                                            jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                                            jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;";
                                             jid.textContent = `#${j.memberNumber}`;
                                             const jt = document.createElement("span");
-                                            jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
+                                            jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b899a8;flex-shrink:0;";
                                             jt.textContent = fmtTs(j.at);
                                             jr.appendChild(jn);
                                             jr.appendChild(jid);
@@ -26448,14 +26448,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const rlToggleRow = document.createElement("div");
                     rlToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                     const rlToggleLbl = document.createElement("span");
-                    rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                    rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
                     rlToggleLbl.textContent = "Record restraint changes";
                     const rlToggleBtn = document.createElement("button");
                     const refreshRlToggle = () => {
                         const on = getRestraintLogEnabled();
                         rlToggleBtn.textContent = on ? t("core.on") : t("core.off");
                         rlToggleBtn.style.cssText = [
-                            "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                            "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                             "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                             on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
                         ].join(";");
@@ -26494,10 +26494,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             nameEl.textContent = entry.itemName;
                             const groupEl = document.createElement("span");
-                            groupEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;white-space:nowrap;";
+                            groupEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;white-space:nowrap;";
                             groupEl.textContent = entry.group;
                             const durEl = document.createElement("span");
-                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex-shrink:0;white-space:nowrap;";
+                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;flex-shrink:0;white-space:nowrap;";
                             if (entry.removedAt !== null) {
                                 durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
                                 durEl.style.color = "#9a7090";
@@ -26515,7 +26515,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             // Craft name subtitle (if present)
                             if (entry.craftName) {
                                 const craftEl = document.createElement("div");
-                                craftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c9ab72;font-style:italic;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                                craftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c9ab72;font-style:italic;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                                 craftEl.textContent = `"${entry.craftName}"`;
                                 craftEl.title = `Craft name: ${entry.craftName}`;
                                 card.appendChild(craftEl);
@@ -26544,7 +26544,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             // Lock badge
                             if (entry.lockType !== null) {
                                 const lockEl = document.createElement("span");
-                                lockEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#2a1020;border:1px solid #5a2040;color:#e890b8;padding:0 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;";
+                                lockEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#2a1020;border:1px solid #5a2040;color:#e890b8;padding:0 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;";
                                 const lockerLabel = (_a = entry.lockedByName) !== null && _a !== void 0 ? _a : (entry.lockedByNumber != null ? `#${entry.lockedByNumber}` : null);
                                 lockEl.textContent = lockerLabel
                                     ? `🔒 ${entry.lockType} · ${lockerLabel}`
@@ -26562,12 +26562,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const applierWrap = document.createElement("span");
                             applierWrap.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;";
                             const applierEl = document.createElement("span");
-                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             applierEl.textContent = entry.applier;
                             applierWrap.appendChild(applierEl);
                             if (entry.applierNumber != null) {
                                 const numEl = document.createElement("span");
-                                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7090;white-space:nowrap;";
+                                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7090;white-space:nowrap;";
                                 numEl.textContent = `#${entry.applierNumber}`;
                                 applierWrap.appendChild(numEl);
                             }
@@ -26583,7 +26583,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // ── Message Log ───────────────────────────────────────────────────
                 makeInner("Message Log", "EBC_msgLogCollapsed", true, (c) => {
                     const logStatusDot = document.createElement("span");
-                    logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;margin-bottom:4px;display:inline-block;";
+                    logStatusDot.style.cssText = "font-size:11px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;margin-bottom:4px;display:inline-block;";
                     const updateStatusDot = () => {
                         if (isDevLogEnabled()) {
                             logStatusDot.textContent = "● CAPTURING";
@@ -26604,7 +26604,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
                     const msgRefreshBtn2 = document.createElement("button");
                     msgRefreshBtn2.className = "ebc-icon-btn";
-                    msgRefreshBtn2.style.cssText = "font-size:10px;padding:2px 8px;";
+                    msgRefreshBtn2.style.cssText = "font-size:11px;padding:2px 8px;";
                     msgRefreshBtn2.textContent = "↻";
                     msgRefreshBtn2.title = "Refresh log";
                     const msgClearBtn = document.createElement("button");
@@ -26612,13 +26612,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
                     msgClearBtn.textContent = t("dev.clearLog");
                     const logToggleWrap = document.createElement("label");
-                    logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
+                    logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
                     const logToggleChk = document.createElement("input");
                     logToggleChk.type = "checkbox";
                     logToggleChk.checked = isDevLogEnabled();
                     const msgTestBtn = document.createElement("button");
                     msgTestBtn.className = "ebc-icon-btn";
-                    msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+                    msgTestBtn.style.cssText = "font-size:11px;padding:2px 8px;";
                     msgTestBtn.textContent = "Test";
                     msgTestBtn.title = "Inject a test entry";
                     msgTestBtn.addEventListener("click", () => { pushTestEntry(); renderMsgLog(); });
@@ -26630,7 +26630,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     msgCtrlRow.appendChild(logToggleWrap);
                     c.appendChild(msgCtrlRow);
                     const logOffHint = document.createElement("div");
-                    logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
+                    logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
                     logOffHint.style.display = isDevLogEnabled() ? "none" : "flex";
                     const logOffText = document.createElement("span");
                     logOffText.textContent = "Logging is off.";
@@ -26638,7 +26638,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     logOffHint.appendChild(logOffText);
                     const enableBtn = document.createElement("button");
                     enableBtn.textContent = t("core.enable");
-                    enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                    enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                     enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
                     enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
                     enableBtn.addEventListener("click", () => {
@@ -26666,7 +26666,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const entries = [...getDevLog()].reverse();
                         if (entries.length === 0) {
                             const hint = document.createElement("div");
-                            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:8px 6px;";
+                            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:8px 6px;";
                             hint.textContent = isDevLogEnabled()
                                 ? "No messages yet — chat, emote, or click Test above."
                                 : "Logging is off. Click Enable above.";
@@ -26679,15 +26679,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const headerLine = document.createElement("div");
                             headerLine.style.cssText = "display:flex;gap:5px;align-items:baseline;";
                             const typeTag = document.createElement("span");
-                            typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:9px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
+                            typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:11px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
                             typeTag.textContent = entry.type;
                             const timeTag = document.createElement("span");
-                            timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-left:auto;";
+                            timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;margin-left:auto;";
                             timeTag.textContent = entry.timestamp.toLocaleTimeString();
                             headerLine.appendChild(typeTag);
                             if (entry.sender !== undefined) {
                                 const senderTag = document.createElement("span");
-                                senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;";
+                                senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                                 senderTag.textContent = "from #" + entry.sender;
                                 headerLine.appendChild(senderTag);
                             }
@@ -26733,11 +26733,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const ctrlRow = document.createElement("div");
                     ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
                     const countLbl = document.createElement("span");
-                    countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
+                    countLbl.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex:1;`;
                     const searchInp = document.createElement("input");
                     searchInp.type = "text";
                     searchInp.placeholder = t("dev.searchPlaceholder");
-                    searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
+                    searchInp.style.cssText = `${PFONT}font-size:11px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
                     const clearBtn = document.createElement("button");
                     clearBtn.textContent = t("core.clearAll");
                     clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
@@ -26763,7 +26763,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         countLbl.textContent = `${filtered.length} / ${all.length} people`;
                         if (filtered.length === 0) {
                             const hint = document.createElement("div");
-                            hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
+                            hint.style.cssText = `${PFONT}font-size:11px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
                             hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
                             listEl.appendChild(hint);
                             return;
@@ -26772,11 +26772,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const row = document.createElement("div");
                             row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
                             const nameSpan = document.createElement("span");
-                            nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                            nameSpan.style.cssText = `${PFONT}font-size:11px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
                             nameSpan.textContent = person.name;
                             nameSpan.title = person.name;
                             const numSpan = document.createElement("span");
-                            numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
+                            numSpan.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex-shrink:0;`;
                             numSpan.textContent = `#${person.n}`;
                             const profBtn = document.createElement("button");
                             profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
@@ -26862,7 +26862,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // Helper: sub-label
                     const subLbl = (text) => {
                         const el = document.createElement("div");
-                        el.style.cssText = `${FONT}font-size:9px;color:#e890b8;font-weight:bold;text-transform:uppercase;letter-spacing:0.06em;margin:6px 0 3px;`;
+                        el.style.cssText = `${FONT}font-size:11px;color:#e890b8;font-weight:bold;text-transform:uppercase;letter-spacing:0.06em;margin:6px 0 3px;`;
                         el.textContent = text;
                         return el;
                     };
@@ -26911,16 +26911,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const skillRow = document.createElement("div");
                         skillRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                         const skillLbl = document.createElement("span");
-                        skillLbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                        skillLbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                         skillLbl.textContent = label;
                         const skillInp = document.createElement("input");
                         skillInp.type = "number";
                         skillInp.value = String(readSkill(key));
-                        skillInp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                        skillInp.style.cssText = `${FONT}font-size:11px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
                         const mkDeltaBtn = (sym, delta) => {
                             const b = document.createElement("button");
                             b.textContent = sym;
-                            b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                            b.style.cssText = `${FONT}font-size:11px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
                             b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
                             b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
                             b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
@@ -26928,7 +26928,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         };
                         const setBtn = document.createElement("button");
                         setBtn.textContent = "Set";
-                        setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                        setBtn.style.cssText = `${FONT}font-size:11px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
                         setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
                         setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
                         setBtn.addEventListener("click", () => {
@@ -26977,16 +26977,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const row = document.createElement("div");
                             row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                             const lbl = document.createElement("span");
-                            lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                            lbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                             lbl.textContent = repType;
                             const inp = document.createElement("input");
                             inp.type = "number";
                             inp.value = String((_a = repMap.get(repType)) !== null && _a !== void 0 ? _a : 0);
-                            inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                            inp.style.cssText = `${FONT}font-size:11px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
                             const mkRepBtn = (sym, delta) => {
                                 const b = document.createElement("button");
                                 b.textContent = sym;
-                                b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                                b.style.cssText = `${FONT}font-size:11px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
                                 b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
                                 b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
                                 b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
@@ -27006,12 +27006,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ── Money ─────────────────────────────────────────────────────
                     cnt.appendChild(subLbl("Account"));
                     {
-                        const INP = `${FONT}font-size:10px;width:90px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
-                        const BTN = `${FONT}font-size:10px;padding:2px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:border-color 0.1s,background 0.1s;`;
+                        const INP = `${FONT}font-size:11px;width:90px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                        const BTN = `${FONT}font-size:11px;padding:2px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:border-color 0.1s,background 0.1s;`;
                         const row = document.createElement("div");
                         row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                        lbl.style.cssText = `${FONT}font-size:11px;color:#c8a0b8;flex:1;`;
                         lbl.textContent = "Money";
                         const moneyInp = document.createElement("input");
                         moneyInp.type = "number";
@@ -27058,7 +27058,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     cnt.appendChild(subLbl("Actions"));
                     {
                         const unlockBtn = document.createElement("button");
-                        unlockBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-bottom:4px;padding:5px 0;border-radius:5px;border:1px solid #9b7de0;background:#1e1035;color:#d8c8ff;cursor:pointer;transition:background 0.12s;`;
+                        unlockBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;width:100%;margin-bottom:4px;padding:5px 0;border-radius:5px;border:1px solid #9b7de0;background:#1e1035;color:#d8c8ff;cursor:pointer;transition:background 0.12s;`;
                         unlockBtn.textContent = "Unlock All Items";
                         unlockBtn.addEventListener("mouseenter", () => { unlockBtn.style.background = "#2e1850"; });
                         unlockBtn.addEventListener("mouseleave", () => { unlockBtn.style.background = "#1e1035"; });
@@ -27093,7 +27093,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     // ── Apply All button ──────────────────────────────────────────
                     const applyBtn = document.createElement("button");
-                    applyBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
+                    applyBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
                     applyBtn.textContent = "Apply All Stats";
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
@@ -27172,7 +27172,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             hdrTxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:22px;letter-spacing:0.05em;color:#b8a0f7;";
             hdrTxt.textContent = "🐾 Puppy";
             const hdrSub = document.createElement("div");
-            hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7ab0;margin-top:3px;";
+            hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a7ab0;margin-top:3px;";
             hdrSub.textContent = "woof woof~";
             hdr.appendChild(hdrTxt);
             hdr.appendChild(hdrSub);
@@ -27246,7 +27246,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(barkBtn);
             // -- Bark sounds list --
             const barksLbl = document.createElement("div");
-            barksLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
+            barksLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
             barksLbl.textContent = "Bark Sounds";
             body.appendChild(barksLbl);
             const barkList = document.createElement("div");
@@ -27258,7 +27258,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const barks = getBarks();
                 if (barks.length === 0) {
                     const none = document.createElement("div");
-                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a5880;padding:2px 0;";
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a5880;padding:2px 0;";
                     none.textContent = "No sounds yet.";
                     barkList.appendChild(none);
                     return;
@@ -27267,7 +27267,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(58,32,96,0.4);border:1px solid #5a3a90;border-radius:5px;padding:3px 7px;";
                     const txt = document.createElement("span");
-                    txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#d8c8ff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d8c8ff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     txt.textContent = barks[i];
                     const editBtn = document.createElement("button");
                     editBtn.textContent = "✎";
@@ -27290,15 +27290,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         inp.maxLength = 60;
                         inp.value = barks[i];
                         inp.className = "ebc-form-input";
-                        inp.style.cssText = "flex:1;font-size:10px;min-width:0;";
+                        inp.style.cssText = "flex:1;font-size:11px;min-width:0;";
                         const saveBtn = document.createElement("button");
                         saveBtn.textContent = "Save";
-                        saveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
+                        saveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
                         saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#5a30a0"; });
                         saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#3a2060"; });
                         const cancelBtn = document.createElement("button");
                         cancelBtn.textContent = "Cancel";
-                        cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #5a3a80;background:transparent;color:#8a7ab0;cursor:pointer;flex-shrink:0;";
+                        cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #5a3a80;background:transparent;color:#8a7ab0;cursor:pointer;flex-shrink:0;";
                         const doSave = () => {
                             const val = inp.value.trim();
                             if (!val)
@@ -27343,10 +27343,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addInp.maxLength = 60;
             addInp.placeholder = "e.g. Woof woof~";
             addInp.className = "ebc-form-input";
-            addInp.style.cssText = "flex:1;font-size:10px;";
+            addInp.style.cssText = "flex:1;font-size:11px;";
             const addBtn = document.createElement("button");
             addBtn.textContent = t("core.add");
-            addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+            addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
             addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
             const doAdd = () => {
@@ -27535,14 +27535,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sidebarRow = document.createElement("div");
             sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
             const sidebarLbl = document.createElement("span");
-            sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;flex:1;user-select:none;";
+            sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;user-select:none;";
             sidebarLbl.textContent = t("buttons.showSidebar");
             const sidebarToggle = document.createElement("button");
             const refreshSidebarToggle = () => {
                 const on = getActionButtonsVisible();
                 sidebarToggle.textContent = on ? t("core.on") : t("core.off");
                 sidebarToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
                     "padding:2px 9px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                     "background:" + (on ? "#6b3048" : "#1b0d17"),
@@ -27574,7 +27574,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             let activeBodyEl = document.createElement("div"); // filled below
             const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
             const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-            const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
+            const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:11px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
             cats.forEach((cat, i) => {
                 const isActive = i === activeCatIdx;
                 const section = document.createElement("div");
@@ -27583,7 +27583,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const hrow = document.createElement("div");
                 hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
                 const chevron = document.createElement("span");
-                chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+                chevron.style.cssText = "font-size:11px;color:#7a5060;flex-shrink:0;";
                 chevron.textContent = isActive ? "▼" : "▶";
                 const nameLbl = document.createElement("span");
                 nameLbl.style.cssText = CAT_LBL_CSS;
@@ -27668,7 +27668,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addCatRow.style.cssText = "margin-bottom:8px;";
             const addCatBtn = document.createElement("button");
             addCatBtn.className = "ebc-cat-pill";
-            addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
+            addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
             addCatBtn.textContent = t("buttons.addCategory");
             addCatBtn.setAttribute("data-guide-target", "btn-add-category");
             addCatBtn.addEventListener("click", () => {
@@ -27726,7 +27726,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     colorInp.placeholder = "#hex";
                     colorInp.value = normalizeHex(btn.color);
                     colorInp.title = "Button colour (hex, e.g. #cf6f98)";
-                    colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                    colorInp.style.cssText = "width:52px;font-size:11px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
                     colorWrap.appendChild(colorDot);
                     colorWrap.appendChild(colorInp);
                     // Floating picker popup — created on demand, one per slot at a time
@@ -27807,7 +27807,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (isSeq) {
                         // seq: badge only — step builder below handles all config
                         const seqBadge = document.createElement("span");
-                        seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
+                        seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7ac8;padding:1px 4px;";
                         seqBadge.textContent = t("buttons.seqBadge");
                         botLine.appendChild(seqBadge);
                     }
@@ -27859,10 +27859,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const exprLine = document.createElement("div");
                             exprLine.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
                             const exprLineLbl = document.createElement("span");
-                            exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                            exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                             exprLineLbl.textContent = "Face:";
                             const exprLineSel = document.createElement("select");
-                            exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+                            exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
                             const exprLineNone = document.createElement("option");
                             exprLineNone.value = "";
                             exprLineNone.textContent = "— no face —";
@@ -27879,7 +27879,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             ];
                             const exprLineDurSel = document.createElement("select");
                             exprLineDurSel.title = "How long to hold this face before reverting (keep = stay forever)";
-                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
+                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
                             for (const [lbl3, ms3] of EXPR_LINE_DUR) {
                                 const exprLineDurOpt = document.createElement("option");
                                 exprLineDurOpt.value = String(ms3);
@@ -28319,7 +28319,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const slEditorHdr = document.createElement("div");
             slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
             const slEditorChev = document.createElement("span");
-            slEditorChev.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            slEditorChev.style.cssText = "font-size:11px;color:#7a5060;flex-shrink:0;";
             slEditorChev.textContent = slEditorOpen ? "▼" : "▶";
             const slEditorLbl = document.createElement("span");
             slEditorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;";
@@ -28330,7 +28330,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Editor body
             const slEditorBody = document.createElement("div");
             slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
-            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
             const slPresetDropdown = document.createElement("select");
             slPresetDropdown.style.cssText = DD_CSS;
             const populateSlPresets = () => {
@@ -28360,7 +28360,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const slSeqArea = document.createElement("textarea");
             slSeqArea.rows = 3;
             slSeqArea.spellcheck = false;
-            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
             slSeqArea.title = t("sl.seqHint");
             const slSeqInitPresets = getSlowLeavePresets();
             const slSeqInitIdx = parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10);
@@ -28377,7 +28377,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const slDurRow = document.createElement("div");
             slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
             const slDurLbl = document.createElement("span");
-            slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+            slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
             slDurLbl.textContent = "⏱";
             slDurLbl.title = t("sl.header");
             const slDurSlider = document.createElement("input");
@@ -28388,7 +28388,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slDurSlider.value = (_e = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _e !== void 0 ? _e : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
-            slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+            slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
             slDurVal.textContent = slDurSlider.value + "s";
             slDurSlider.addEventListener("input", () => {
                 slDurVal.textContent = slDurSlider.value + "s";
@@ -28435,12 +28435,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;flex:1;";
             hdrLbl.textContent = "KITTY";
             const hdrSub = document.createElement("span");
-            hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;flex:1;";
+            hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a3a50;font-style:italic;flex:1;";
             hdrSub.textContent = "for lucy's eyes only~";
             const beepEmeryBtn = document.createElement("button");
             beepEmeryBtn.textContent = "📟 Beep";
             beepEmeryBtn.title = "Open IM window to Emery";
-            beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
+            beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
             beepEmeryBtn.addEventListener("mouseenter", () => { beepEmeryBtn.style.background = "#3a1020"; beepEmeryBtn.style.borderColor = "#cf6f98"; });
             beepEmeryBtn.addEventListener("mouseleave", () => { beepEmeryBtn.style.background = "transparent"; beepEmeryBtn.style.borderColor = "#4c2537"; });
             beepEmeryBtn.addEventListener("click", () => { this.openBeepWindow(EMERY_MEMBER); });
@@ -28615,7 +28615,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 d.style.cssText = "height:1px;background:#2a1421;margin:8px 0;";
                 return d;
             };
-            const INP = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+            const INP = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
             const sendRoomEmote = (text) => {
                 if (!text)
                     return;
@@ -28677,7 +28677,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (onEditToggle) {
                     let editing = false;
                     const editBtn = document.createElement("button");
-                    editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
+                    editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
                     editBtn.textContent = t("core.edit");
                     editBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
@@ -28690,7 +28690,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     ch.appendChild(editBtn);
                 }
                 const chArrow = document.createElement("span");
-                chArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                chArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;";
                 chArrow.textContent = open ? "▲" : "▼";
                 ch.appendChild(chArrow);
                 wrap.appendChild(ch);
@@ -28741,7 +28741,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     emotesWrap.appendChild(row);
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                     hint.textContent = "Sends emote to room; mood-aware text";
                     emotesWrap.appendChild(hint);
                     return;
@@ -28769,7 +28769,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const kindRow = document.createElement("div");
                     kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const kindLbl = document.createElement("span");
-                    kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;";
+                    kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;";
                     kindLbl.textContent = "🌸 Kind:";
                     const kindInp = document.createElement("input");
                     kindInp.value = em.text;
@@ -28781,7 +28781,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const roughRow = document.createElement("div");
                     roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const roughLbl = document.createElement("span");
-                    roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;";
+                    roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;";
                     roughLbl.textContent = "⚡ Rough:";
                     const roughInp = document.createElement("input");
                     roughInp.value = (_a = em.roughText) !== null && _a !== void 0 ? _a : "";
@@ -28793,7 +28793,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const catRow = document.createElement("div");
                     catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const catLbl = document.createElement("span");
-                    catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;";
+                    catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:38px;";
                     catLbl.textContent = "😊 React:";
                     const catSel = document.createElement("select");
                     catSel.style.cssText = "flex:1;min-width:0;" + INP;
@@ -28835,7 +28835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newText.placeholder = t("buttons.emoteText");
                 newText.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnE = document.createElement("button");
-                addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                 addBtnE.textContent = t("core.add");
                 addBtnE.addEventListener("click", () => {
                     if (!newLbl.value.trim())
@@ -28867,7 +28867,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const rewards = reactions.filter(r => r.category === "reward");
                 const makeCatLabel = (text, color) => {
                     const el = document.createElement("div");
-                    el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
+                    el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
                     el.textContent = text;
                     return el;
                 };
@@ -28897,7 +28897,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     reactionsWrap.appendChild(makeCatLabel("🌸 Reward", "#79c8a0"));
                     reactionsWrap.appendChild(renderCatRow(rewards, "#79c8a0"));
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                     hint.textContent = "Sends a reaction emote from Emery";
                     reactionsWrap.appendChild(hint);
                     return;
@@ -28944,7 +28944,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     newInp.style.cssText = "flex:1;min-width:0;" + INP;
                     const addBtn = document.createElement("button");
                     addBtn.textContent = t("core.add");
-                    addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
+                    addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
                     addBtn.addEventListener("click", () => {
                         const text = newInp.value.trim();
                         if (!text)
@@ -28997,7 +28997,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     posesWrap.appendChild(row);
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                     hint.textContent = "Applies the pose on Emery then sends a room emote";
                     posesWrap.appendChild(hint);
                     return;
@@ -29028,7 +29028,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const kindRow = document.createElement("div");
                     kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const kindLbl = document.createElement("span");
-                    kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;";
+                    kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;";
                     kindLbl.textContent = "🌸 Kind:";
                     const kindInp = document.createElement("input");
                     kindInp.value = p.kindEmote;
@@ -29040,7 +29040,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const roughRow = document.createElement("div");
                     roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const roughLbl = document.createElement("span");
-                    roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;";
+                    roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;";
                     roughLbl.textContent = "⚡ Rough:";
                     const roughInp = document.createElement("input");
                     roughInp.value = p.roughEmote;
@@ -29075,7 +29075,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newPose.placeholder = "BC pose (empty = neutral)";
                 newPose.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnP = document.createElement("button");
-                addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                 addBtnP.textContent = t("core.add");
                 addBtnP.addEventListener("click", () => {
                     if (!newLbl2.value.trim())
@@ -29140,7 +29140,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     punishWrap.appendChild(row);
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                     hint.textContent = "Sends room emotes + gives Emery a chance to fight back";
                     punishWrap.appendChild(hint);
                     return;
@@ -29170,7 +29170,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     r.appendChild(hdr);
                     // Steps header label
                     const stepsHdr = document.createElement("div");
-                    stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;";
+                    stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;";
                     stepsHdr.textContent = "Steps";
                     r.appendChild(stepsHdr);
                     // Steps container
@@ -29182,7 +29182,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const steps = (_b = (_a = getKittyPunishments()[idx]) === null || _a === void 0 ? void 0 : _a.steps) !== null && _b !== void 0 ? _b : [];
                         if (steps.length === 0) {
                             const em = document.createElement("div");
-                            em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                            em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:2px 0;";
                             em.textContent = "No steps yet.";
                             stepsWrap.appendChild(em);
                             return;
@@ -29196,11 +29196,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const sh = document.createElement("div");
                             sh.style.cssText = "display:flex;align-items:center;gap:4px;";
                             const badge = document.createElement("span");
-                            badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
+                            badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
                                 (step.type === "emote" ? "background:#2a1035;color:#cf6f98;border:1px solid #4c2537;" : "background:#1a1004;color:#c07040;border:1px solid #4a3020;");
                             badge.textContent = step.type === "emote" ? "🗯 Sentence" : "⛓ Restraints";
                             const delStep = document.createElement("button");
-                            delStep.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;";
+                            delStep.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;";
                             delStep.textContent = "×";
                             delStep.addEventListener("click", () => {
                                 const upd = getKittyPunishments();
@@ -29218,7 +29218,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 const kr = document.createElement("div");
                                 kr.style.cssText = "display:flex;align-items:center;gap:3px;";
                                 const kl = document.createElement("span");
-                                kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:16px;";
+                                kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:16px;";
                                 kl.textContent = "🌸";
                                 const ki = document.createElement("input");
                                 ki.value = (_a = step.kindText) !== null && _a !== void 0 ? _a : "";
@@ -29235,7 +29235,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 const rr = document.createElement("div");
                                 rr.style.cssText = "display:flex;align-items:center;gap:3px;";
                                 const rl = document.createElement("span");
-                                rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:16px;";
+                                rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:16px;";
                                 rl.textContent = "⚡";
                                 const ri = document.createElement("input");
                                 ri.value = (_b = step.roughText) !== null && _b !== void 0 ? _b : "";
@@ -29259,7 +29259,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     const liveItems = (_c = (_b = (_a = getKittyPunishments()[idx]) === null || _a === void 0 ? void 0 : _a.steps[sIdx]) === null || _b === void 0 ? void 0 : _b.items) !== null && _c !== void 0 ? _c : [];
                                     if (liveItems.length === 0) {
                                         const em2 = document.createElement("div");
-                                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:1px 0;";
                                         em2.textContent = "No items yet";
                                         itemsWrap.appendChild(em2);
                                     }
@@ -29268,11 +29268,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                             const iRow = document.createElement("div");
                                             iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
                                             const nm = document.createElement("span");
-                                            nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                                            nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
                                             nm.textContent = item.Name;
                                             nm.title = item.Name;
                                             const grp = document.createElement("span");
-                                            grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                                            grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                                             grp.textContent = item.Group.replace("Item", "");
                                             const colInp = document.createElement("input");
                                             colInp.value = colorToStr(item.Color);
@@ -29284,7 +29284,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                                 saveKittyPunishments(upd);
                                             } });
                                             const delI = document.createElement("button");
-                                            delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                                            delI.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                                             delI.textContent = "×";
                                             delI.addEventListener("click", () => { var _a, _b; const upd = getKittyPunishments(); if ((_b = (_a = upd[idx]) === null || _a === void 0 ? void 0 : _a.steps[sIdx]) === null || _b === void 0 ? void 0 : _b.items) {
                                                 upd[idx].steps[sIdx].items.splice(iIdx, 1);
@@ -29318,7 +29318,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         kpSel.appendChild(o);
                                     }
                                     const kpBtn = document.createElement("button");
-                                    kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                    kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                                     kpBtn.textContent = "Load ↓";
                                     kpBtn.addEventListener("click", () => {
                                         var _a;
@@ -29402,7 +29402,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 aiColInp.placeholder = "Default or #rrggbb";
                                 aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
                                 const aiAddBtn = document.createElement("button");
-                                aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                                 aiAddBtn.textContent = t("core.add");
                                 aiAddBtn.addEventListener("click", () => {
                                     var _a;
@@ -29448,7 +29448,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         fsSel.appendChild(o);
                                     }
                                     const fsBtn = document.createElement("button");
-                                    fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                    fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                                     fsBtn.textContent = "Use ↓";
                                     fsBtn.addEventListener("click", () => {
                                         var _a;
@@ -29478,7 +29478,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 codeInp.placeholder = t("outfits.importBCPlaceholder");
                                 codeInp.style.cssText = "flex:1;min-width:0;" + INP;
                                 const codeBtn = document.createElement("button");
-                                codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                                 codeBtn.textContent = "Import";
                                 codeBtn.addEventListener("click", () => {
                                     var _a, _b, _c;
@@ -29520,7 +29520,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 spInp.placeholder = "Save items as preset…";
                                 spInp.style.cssText = "flex:1;min-width:0;" + INP;
                                 const spBtn = document.createElement("button");
-                                spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                                 spBtn.textContent = "💾 Save";
                                 spBtn.addEventListener("click", () => {
                                     var _a, _b, _c;
@@ -29554,7 +29554,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     addStepRow.style.cssText = "display:flex;gap:5px;margin-top:3px;";
                     const mkAddBtn = (lbl, fn) => {
                         const b = document.createElement("button");
-                        b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;";
+                        b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;";
                         b.textContent = lbl;
                         b.addEventListener("click", fn);
                         return b;
@@ -29570,14 +29570,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     r.appendChild(addStepRow);
                     // Reaction section
                     const reactHdr = document.createElement("div");
-                    reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;";
+                    reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;";
                     reactHdr.textContent = "Emery reacts (on accept)";
                     r.appendChild(reactHdr);
                     // Expression picker
                     const exprRow = document.createElement("div");
                     exprRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const exprLbl = document.createElement("span");
-                    exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;";
+                    exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:56px;";
                     exprLbl.textContent = "Expression";
                     const exprSel = document.createElement("select");
                     exprSel.style.cssText = "flex:1;min-width:0;" + INP;
@@ -29611,7 +29611,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const poseRow2 = document.createElement("div");
                     poseRow2.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const poseLbl2 = document.createElement("span");
-                    poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;";
+                    poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:56px;";
                     poseLbl2.textContent = "Pose";
                     const poseSel2 = document.createElement("select");
                     poseSel2.style.cssText = "flex:1;min-width:0;" + INP;
@@ -29648,7 +29648,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newPunLbl.placeholder = "New action name";
                 newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnPun = document.createElement("button");
-                addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                 addBtnPun.textContent = t("core.add");
                 addBtnPun.addEventListener("click", () => {
                     if (!newPunLbl.value.trim())
@@ -29681,7 +29681,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newNameInp.placeholder = t("anims.newPresetName");
                 newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const createBtn = document.createElement("button");
-                createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                 createBtn.textContent = "+ Create";
                 createBtn.addEventListener("click", () => {
                     if (!newNameInp.value.trim())
@@ -29697,7 +29697,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 rpWrap.appendChild(createRow);
                 if (presets.length === 0) {
                     const em = document.createElement("div");
-                    em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                    em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:2px 0;";
                     em.textContent = "No restraint presets yet — create one above.";
                     rpWrap.appendChild(em);
                     return;
@@ -29720,11 +29720,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     presetSel.appendChild(o);
                 }
                 const applyBtn = document.createElement("button");
-                applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
+                applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
                 applyBtn.textContent = "Apply 🔒";
                 applyBtn.disabled = true;
                 const deleteBtn = document.createElement("button");
-                deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
+                deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
                 deleteBtn.textContent = "Delete";
                 deleteBtn.disabled = true;
                 selectRow.appendChild(presetSel);
@@ -29755,7 +29755,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             opt.textContent = `🔒 ${preset.label} (${liveItems.length})`;
                         if (liveItems.length === 0) {
                             const em2 = document.createElement("div");
-                            em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                            em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:1px 0;";
                             em2.textContent = "No items yet";
                             itemsWrap.appendChild(em2);
                         }
@@ -29764,11 +29764,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 const iRow = document.createElement("div");
                                 iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
                                 const nm = document.createElement("span");
-                                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
                                 nm.textContent = item.Name;
                                 nm.title = item.Name;
                                 const grp = document.createElement("span");
-                                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                                 grp.textContent = item.Group.replace("Item", "");
                                 const colInp = document.createElement("input");
                                 colInp.value = colorToStr(item.Color);
@@ -29785,7 +29785,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     }
                                 });
                                 const delI = document.createElement("button");
-                                delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                                delI.style.cssText = "font-size:11px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                                 delI.textContent = "×";
                                 delI.addEventListener("click", () => {
                                     const upd = getKittyRestraintSets();
@@ -29810,7 +29810,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const rpExprRow = document.createElement("div");
                     rpExprRow.style.cssText = "display:flex;align-items:center;gap:4px;padding-bottom:4px;border-bottom:1px solid #3a2010;margin-bottom:4px;";
                     const rpExprLbl = document.createElement("span");
-                    rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:56px;";
+                    rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:56px;";
                     rpExprLbl.textContent = "😊 Expression";
                     const rpExprSel = document.createElement("select");
                     rpExprSel.style.cssText = "flex:1;min-width:0;" + INP;
@@ -29905,7 +29905,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP;
                     colInp2.title = "Colour (optional)";
                     const addItemBtn = document.createElement("button");
-                    addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                     addItemBtn.textContent = t("core.add");
                     addItemBtn.addEventListener("click", () => {
                         if (!sl.value || !itemSel.value)
@@ -29936,7 +29936,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     codeInp.placeholder = "Paste BC outfit/craft code…";
                     codeInp.style.cssText = "flex:1;min-width:0;" + INP;
                     const codeBtn = document.createElement("button");
-                    codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
                     codeBtn.textContent = "Import";
                     codeBtn.addEventListener("click", () => {
                         var _a, _b;
@@ -30015,7 +30015,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 // Hint
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
                 hint.textContent = "Select a preset and Apply to send restraints to Emery";
                 rpWrap.appendChild(hint);
             };
@@ -30026,11 +30026,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const crDiv = divider();
             rpCBody.appendChild(crDiv);
             const crHdr = document.createElement("div");
-            crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
+            crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
             crHdr.textContent = t("dom.copyRestraints");
             rpCBody.appendChild(crHdr);
             const crHint = document.createElement("div");
-            crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+            crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
             crHint.textContent = "Pick a room member, load their restraints, then generate a BC outfit code to import via wardrobe.";
             rpCBody.appendChild(crHint);
             // Member picker row
@@ -30063,7 +30063,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const crMkBtn = (label) => {
                 const b = document.createElement("button");
                 b.textContent = label;
-                b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                 return b;
             };
             const crRefreshBtn = crMkBtn("↻");
@@ -30079,7 +30079,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const crCheckHdr = document.createElement("div");
             crCheckHdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
             const crCheckLbl = document.createElement("span");
-            crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+            crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex:1;";
             const crAllBtn = crMkBtn("All");
             const crNoneBtn = crMkBtn("None");
             crCheckHdr.appendChild(crCheckLbl);
@@ -30097,7 +30097,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const crTA = document.createElement("textarea");
             crTA.readOnly = true;
             crTA.rows = 2;
-            crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:8px;padding:3px 5px;";
+            crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:11px;padding:3px 5px;";
             const crCodeBtnRow = document.createElement("div");
             crCodeBtnRow.style.cssText = "display:flex;gap:4px;";
             const crGenBtn = crMkBtn("Generate Code");
@@ -30107,7 +30107,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             crCodeWrap.appendChild(crCodeBtnRow);
             crCodeWrap.appendChild(crTA);
             const crStatus = document.createElement("div");
-            crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;min-height:13px;";
+            crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:13px;";
             rpCBody.appendChild(crStatus);
             const crClear = () => {
                 crCheckItems.innerHTML = "";
@@ -30154,10 +30154,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     cb.checked = true;
                     cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
                     const nm = document.createElement("span");
-                    nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     nm.textContent = label;
                     const grp = document.createElement("span");
-                    grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;flex-shrink:0;";
                     grp.textContent = item.Asset.Group.Name.replace("Item", "");
                     row.appendChild(cb);
                     row.appendChild(nm);
@@ -30235,7 +30235,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             customInp.placeholder = "0–100";
             customInp.style.cssText = "width:55px;" + INP;
             const setBtn = document.createElement("button");
-            setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+            setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
             setBtn.textContent = "Set";
             setBtn.addEventListener("click", () => {
                 const v = parseInt(customInp.value, 10);
@@ -30251,11 +30251,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const { cBody: exprCBody, wrap: exprWrap2 } = makeCollapsible("EBC_kittyExpressionsOpen", "😊 Expressions", false);
             // ── Expression Presets (at top) ───────────────────────────────────────
             const epHdr = document.createElement("div");
-            epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+            epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
             epHdr.textContent = "Expression Presets";
             exprCBody.appendChild(epHdr);
             const epHint = document.createElement("div");
-            epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+            epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
             epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
             exprCBody.appendChild(epHint);
             const epWrap = document.createElement("div");
@@ -30279,7 +30279,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 exprWrap.appendChild(b);
             }
             const exprHint = document.createElement("div");
-            exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
+            exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:2px;";
             exprHint.textContent = "Sends a single facial expression command to Emery";
             const renderExprPresets = () => {
                 epWrap.innerHTML = "";
@@ -30292,7 +30292,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const fireBtn = document.createElement("button");
                         fireBtn.textContent = "★ " + ep.label;
                         fireBtn.title = ep.commands.join(", ") || "No commands";
-                        fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
+                        fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
                         fireBtn.addEventListener("mouseenter", () => { fireBtn.style.background = "rgba(80,30,80,0.6)"; });
                         fireBtn.addEventListener("mouseleave", () => { fireBtn.style.background = "rgba(50,20,50,0.5)"; });
                         fireBtn.addEventListener("click", () => { sendExprOrPreset("preset:" + ep.id); });
@@ -30306,7 +30306,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const epMkBtn = (label) => {
                     const b = document.createElement("button");
                     b.textContent = label;
-                    b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                    b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                     return b;
                 };
                 const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Fluids", "Emoticon"];
@@ -30339,11 +30339,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     cmdsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
                     ep.commands.forEach((cmd, cIdx) => {
                         const chip = document.createElement("span");
-                        chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:8px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
+                        chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:11px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
                         chip.textContent = cmd;
                         const removeChip = document.createElement("button");
                         removeChip.textContent = "×";
-                        removeChip.style.cssText = "font-size:9px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
+                        removeChip.style.cssText = "font-size:11px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
                         removeChip.addEventListener("click", () => {
                             const upd = getKittyExpressionPresets();
                             if (upd[pIdx]) {
@@ -30357,7 +30357,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     if (ep.commands.length === 0) {
                         const em = document.createElement("span");
-                        em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
+                        em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;";
                         em.textContent = "No expressions yet";
                         cmdsWrap.appendChild(em);
                     }
@@ -30448,25 +30448,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const F = "font-family:'Trebuchet MS',serif;font-size:";
             // ── How-to info ───────────────────────────────────────────────────────────
             const infoBox = document.createElement("div");
-            infoBox.style.cssText = `${F}9px;color:#9a7aaa;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
+            infoBox.style.cssText = `${F}11px;color:#d0a0d8;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
             infoBox.innerHTML =
                 "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
                     "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
                     "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
                     "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
-                    "<b style=\"color:#9a7aaa;\">action buttons</b> or <b style=\"color:#9a7aaa;\">scenes</b>, " +
-                    "or triggered when you <b style=\"color:#9a7aaa;\">send a matching chat message</b> (see Triggers below).";
+                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
+                    "or triggered when you <b style=\"color:#d0a0d8;\">send a matching chat message</b> (see Triggers below).";
             body.appendChild(infoBox);
             // ── Save & Clear ──────────────────────────────────────────────────────────
             const captureInput = Object.assign(document.createElement("input"), {
                 type: "text", maxLength: 30, placeholder: "Preset name…",
             });
             captureInput.className = "ebc-form-input";
-            captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;margin-bottom:4px;";
+            captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
             body.appendChild(captureInput);
             const savePresetBtn = document.createElement("button");
             savePresetBtn.className = "ebc-create-btn";
-            savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;padding:3px 8px;margin-bottom:5px;";
+            savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px;margin-bottom:5px;";
             savePresetBtn.textContent = "💾 Save face";
             savePresetBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
@@ -30477,7 +30477,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(savePresetBtn);
             const clearAllBtn = document.createElement("button");
             clearAllBtn.className = "ebc-btn-footer-btn";
-            clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+            clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
             clearAllBtn.textContent = "✕  Clear all expressions";
             clearAllBtn.addEventListener("click", () => {
                 for (const g of EXPR_GROUPS) {
@@ -30508,7 +30508,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const pRow = document.createElement("div");
                     pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
                     const applyBtn = document.createElement("button");
-                    applyBtn.style.cssText = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
+                    applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
                     applyBtn.textContent = "✓ Apply";
                     applyBtn.title = "Apply this preset";
                     applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
@@ -30517,7 +30517,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nameEl.value = preset.name;
                     nameEl.maxLength = 30;
                     nameEl.title = "Click to rename";
-                    nameEl.style.cssText = `${F}10px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
+                    nameEl.style.cssText = `${F}11px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
                     nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
                     nameEl.addEventListener("blur", () => {
                         nameEl.style.borderColor = "transparent";
@@ -30577,13 +30577,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const trigHdr = document.createElement("div");
                 trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
                 const trigChev = document.createElement("span");
-                trigChev.style.cssText = `${F}10px;color:#9a6ac8;min-width:10px;`;
+                trigChev.style.cssText = `${F}11px;color:#d0a0d8;min-width:10px;`;
                 const trigLbl = document.createElement("span");
                 trigLbl.className = "ebc-section-label";
-                trigLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;";
+                trigLbl.style.cssText = "margin:0;font-size:11px;color:#d0a0d8;";
                 trigLbl.textContent = "TRIGGERS";
                 const trigHint = document.createElement("span");
-                trigHint.style.cssText = `${F}8px;color:#5a3a6e;margin-left:4px;`;
+                trigHint.style.cssText = `${F}11px;color:#b090c0;margin-left:4px;`;
                 trigHint.textContent = "apply preset when you send a message";
                 trigHdr.appendChild(trigChev);
                 trigHdr.appendChild(trigLbl);
@@ -30613,7 +30613,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const allPresets = getExpressionPresets();
                     if (triggers.length === 0) {
                         const emptyNote = document.createElement("div");
-                        emptyNote.style.cssText = `${F}9px;color:#5a3a5a;padding:4px 0;`;
+                        emptyNote.style.cssText = `${F}11px;color:#b090c0;padding:4px 0;`;
                         emptyNote.textContent = "No triggers yet.";
                         trigBody.appendChild(emptyNote);
                     }
@@ -30626,7 +30626,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const tRow = document.createElement("div");
                             tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
                             const tInfo = document.createElement("span");
-                            tInfo.style.cssText = `${F}9px;color:#c0a0d8;flex:1;min-width:0;`;
+                            tInfo.style.cssText = `${F}11px;color:#c0a0d8;flex:1;min-width:0;`;
                             tInfo.innerHTML = "";
                             const namePart = document.createElement("b");
                             namePart.style.color = "#d0b0e8";
@@ -30650,10 +30650,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     // Add trigger form
                     const formLbl = document.createElement("div");
-                    formLbl.style.cssText = `${F}9px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
+                    formLbl.style.cssText = `${F}11px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
                     formLbl.textContent = "New trigger";
                     trigBody.appendChild(formLbl);
-                    const INP_CSS = `${F}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
+                    const INP_CSS = `${F}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
                     // Row 1: name + match text
                     const formRow1 = document.createElement("div");
                     formRow1.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
@@ -30707,7 +30707,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     trigBody.appendChild(formRow2);
                     const addTrigBtn = document.createElement("button");
                     addTrigBtn.className = "ebc-create-btn";
-                    addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+                    addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
                     addTrigBtn.textContent = "+ Add Trigger";
                     addTrigBtn.addEventListener("click", () => {
                         const match = matchInp.value.trim();
@@ -30806,7 +30806,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             intro.className = "ebc-thanks-intro";
             intro.textContent = t("credits.intro") + " ";
             const introSub = document.createElement("span");
-            introSub.style.cssText = "font-size:9px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
+            introSub.style.cssText = "font-size:11px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
             introSub.textContent = "EmeryBC";
             intro.appendChild(introSub);
             body.appendChild(intro);
@@ -30898,7 +30898,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
             antiTitle.textContent = "Auto-escape incoming restraints";
             const antiHint = document.createElement("span");
-            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-top:1px;";
             antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
             antiInfo.appendChild(antiTitle);
             antiInfo.appendChild(antiHint);
@@ -30908,7 +30908,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 antiToggle.textContent = on ? t("core.on") : t("core.off");
                 antiToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:10px",
+                    "font-size:11px",
                     "font-weight:bold",
                     "padding:2px 10px",
                     "border-radius:4px",
@@ -30938,7 +30938,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const whitelistSection = document.createElement("div");
             whitelistSection.style.cssText = "margin-bottom:10px;";
             const wlTitle = document.createElement("span");
-            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
+            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
             wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
             whitelistSection.appendChild(wlTitle);
             // Stored custom labels for whitelist chips: itemKey → display name override
@@ -30962,7 +30962,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const domMakeChip = (key, fallbackLabel, onRemove) => {
                 var _a;
                 const chip = document.createElement("div");
-                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;margin:2px 2px 2px 0;";
                 const txt = document.createElement("span");
                 const labels = getWlLabels();
                 txt.textContent = (_a = labels[key]) !== null && _a !== void 0 ? _a : fallbackLabel;
@@ -30995,7 +30995,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const whitelist = getAntiRestraintWhitelist();
                 if (whitelist.length === 0) {
                     const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
                     empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
                     wlChips.appendChild(empty);
                 }
@@ -31019,7 +31019,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (wornItems.length > 0) {
                         // Collapsible "add from worn" toggle
                         const wornToggle = document.createElement("button");
-                        wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
+                        wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
                         const wornList = document.createElement("div");
                         wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
                         let wornOpen = false;
@@ -31036,7 +31036,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const displayName = getItemDisplayName(item);
                             btn.textContent = "+ " + displayName;
                             btn.title = `Whitelist this item — auto-escape will keep it`;
-                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
                             btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
                             btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
                             btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
@@ -31111,7 +31111,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // ── Member picker + action buttons ────────────────────────────────
                 const memberSel = document.createElement("select");
                 memberSel.className = "ebc-form-input";
-                memberSel.style.cssText = "width:100%;font-size:10px;";
+                memberSel.style.cssText = "width:100%;font-size:11px;";
                 const ph = document.createElement("option");
                 ph.value = "";
                 ph.textContent = "— choose member —";
@@ -31141,7 +31141,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     btn.style.cssText = [
                         "flex:1",
                         "font-family:'Trebuchet MS',serif",
-                        "font-size:10px",
+                        "font-size:11px",
                         "font-weight:bold",
                         "padding:6px 4px",
                         "border-radius:6px",
@@ -31182,7 +31182,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 promBtn.addEventListener("click", () => sendAction("Promote"));
                 demBtn.addEventListener("click", () => sendAction("Demote"));
                 const refreshBtn2 = document.createElement("button");
-                refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+                refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
                 refreshBtn2.textContent = "↻";
                 refreshBtn2.title = "Refresh member list";
                 refreshBtn2.addEventListener("click", buildMemberOpts);
@@ -31226,14 +31226,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const row = document.createElement("div");
                 row.style.cssText = "margin-bottom:5px;";
                 const lbl = document.createElement("label");
-                lbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
+                lbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
                 lbl.textContent = label;
                 row.appendChild(lbl);
                 const wrap = document.createElement("div");
                 wrap.style.cssText = "display:flex;align-items:center;";
                 if (prefix) {
                     const pre = document.createElement("span");
-                    pre.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;background:#1b0d17;border:1px solid #4c2537;border-right:none;border-radius:4px 0 0 4px;padding:3px 5px;flex-shrink:0;";
+                    pre.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;background:#1b0d17;border:1px solid #4c2537;border-right:none;border-radius:4px 0 0 4px;padding:3px 5px;flex-shrink:0;";
                     pre.textContent = prefix;
                     wrap.appendChild(pre);
                 }
@@ -31242,7 +31242,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 input.value = value;
                 if (placeholder)
                     input.placeholder = placeholder;
-                input.style.cssText = `flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;${prefix ? "border-radius:0 4px 4px 0;" : "border-radius:4px;"}color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;outline:none;transition:border-color 0.14s;`;
+                input.style.cssText = `flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;${prefix ? "border-radius:0 4px 4px 0;" : "border-radius:4px;"}color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;outline:none;transition:border-color 0.14s;`;
                 input.addEventListener("focus", () => { input.style.borderColor = "#91405f"; });
                 input.addEventListener("blur", () => { input.style.borderColor = "#4c2537"; });
                 wrap.appendChild(input);
@@ -31277,7 +31277,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                     nameEl.textContent = t.name;
                     const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;";
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                     numEl.textContent = "#" + t.id;
                     const delBtn = document.createElement("button");
                     delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#9a7080;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
@@ -31301,20 +31301,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const addable = getRoomAddable();
                 if (addable.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                     hint.textContent = "No new people in room to add.";
                     addableWrap.appendChild(hint);
                     return;
                 }
                 const addLbl = document.createElement("div");
-                addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;margin-bottom:4px;";
+                addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;margin-bottom:4px;";
                 addLbl.textContent = "Add from room:";
                 addableWrap.appendChild(addLbl);
                 const chipRow = document.createElement("div");
                 chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
                 for (const p of addable) {
                     const chip = document.createElement("button");
-                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
+                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
                     chip.textContent = "+ " + p.name + " #" + p.id;
                     chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
                     chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
@@ -31338,10 +31338,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rescueHdrIcon.textContent = "⛑";
             rescueHdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
             const rescueHdrLbl = document.createElement("span");
-            rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
+            rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
             rescueHdrLbl.textContent = "ROOM RESCUE";
             const rescueArrow = document.createElement("span");
-            rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+            rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
             rescueArrow.textContent = "▼";
             rescueHdr.appendChild(rescueHdrIcon);
             rescueHdr.appendChild(rescueHdrLbl);
@@ -31362,7 +31362,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             // Hint
             const rescueHint = document.createElement("div");
-            rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.4;";
+            rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;";
             rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
             rescuePanel.appendChild(rescueHint);
             // Person picker row
@@ -31370,7 +31370,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rescueRow.style.cssText = "display:flex;gap:5px;align-items:center;";
             const rescueSel = document.createElement("select");
             rescueSel.className = "ebc-form-input";
-            rescueSel.style.cssText = "flex:1;font-size:10px;";
+            rescueSel.style.cssText = "flex:1;font-size:11px;";
             const rescuePh = document.createElement("option");
             rescuePh.value = "";
             rescuePh.textContent = "— choose person —";
@@ -31391,7 +31391,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 rescuePh.textContent = members.length === 0 ? "— no one else in room —" : "— choose person —";
             };
             const rescueRefreshBtn = document.createElement("button");
-            rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
             rescueRefreshBtn.textContent = "↻";
             rescueRefreshBtn.title = "Refresh room member list";
             rescueRefreshBtn.addEventListener("click", () => { populateRescueSel(); rebuildRescueItems(); });
@@ -31407,7 +31407,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             selAllChk.type = "checkbox";
             selAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
             const selAllLbl = document.createElement("span");
-            selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+            selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
             selAllLbl.textContent = "Select / deselect all";
             selAllRow.appendChild(selAllChk);
             selAllRow.appendChild(selAllLbl);
@@ -31416,13 +31416,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:150px;overflow-y:auto;";
             // 🔓 Unlock Selected button
             const unlockSelBtn = document.createElement("button");
-            unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+            unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
             unlockSelBtn.textContent = "🔓 Unlock Selected";
             unlockSelBtn.title = "Clear locks on selected items only (does not remove them)";
             unlockSelBtn.disabled = true;
             // 🗑 Remove Selected button
             const removeSelBtn = document.createElement("button");
-            removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+            removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
             removeSelBtn.textContent = "🗑 Remove Selected";
             removeSelBtn.title = "Remove selected items from this person (clears locks first)";
             removeSelBtn.disabled = true;
@@ -31438,7 +31438,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rescueBtn.title = "Strip all locks + remove all restraints from selected person";
             // Status line
             const rescueStatus = document.createElement("div");
-            rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+            rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
             // ── Helpers ────────────────────────────────────────────────────────────
             const updateActionBtns = () => {
                 const has = rescueSelected.size > 0;
@@ -31486,13 +31486,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         updateActionBtns();
                     });
                     const lockIco = document.createElement("span");
-                    lockIco.style.cssText = "font-size:9px;flex-shrink:0;width:13px;text-align:center;";
+                    lockIco.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
                     lockIco.textContent = it.locked ? "🔒" : "";
                     const nm = document.createElement("span");
-                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     nm.textContent = it.name;
                     const grp = document.createElement("span");
-                    grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                    grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                     grp.textContent = it.group.replace("Item", "");
                     row2.appendChild(chk);
                     row2.appendChild(lockIco);
@@ -31582,7 +31582,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
             const makeQuickBtn = (label, title) => {
                 const b = document.createElement("button");
-                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
                 b.textContent = label;
                 b.title = title;
                 b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
@@ -31595,7 +31595,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             quickRow.appendChild(unlockAllBtn);
             body.appendChild(quickRow);
             const releaseStatus = document.createElement("div");
-            releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
+            releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-bottom:4px;";
             body.appendChild(releaseStatus);
             const showReleaseStatus = (results) => {
                 const done = results.filter(r => r.inRoom && r.count > 0).map(r => r.name + " (" + r.count + ")");
@@ -31620,7 +31620,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             // ── "Pick items to remove" picker ─────────────────────────────────────
             const pickToggle = document.createElement("button");
-            pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+            pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
             pickToggle.textContent = "↓ Pick items to remove";
             body.appendChild(pickToggle);
             const pickPanel = document.createElement("div");
@@ -31635,7 +31635,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const sections = getTargetRestraints();
                 if (sections.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                     hint.textContent = "No targets are in the room right now.";
                     pickPanel.appendChild(hint);
                     return;
@@ -31643,12 +31643,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const { target, items } of sections) {
                     pendingRemove.set(target.id, new Set());
                     const targHdr = document.createElement("div");
-                    targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
+                    targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
                     targHdr.textContent = target.name;
                     pickPanel.appendChild(targHdr);
                     if (items.length === 0) {
                         const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:1px 4px 4px;";
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:1px 4px 4px;";
                         none.textContent = "No restraints worn.";
                         pickPanel.appendChild(none);
                         continue;
@@ -31671,10 +31671,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 sel.delete(item.group);
                         });
                         const cbN = document.createElement("span");
-                        cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                         cbN.textContent = item.name;
                         const cbG = document.createElement("span");
-                        cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                         cbG.textContent = item.group.replace("Item", "");
                         lbl3.appendChild(cb2);
                         lbl3.appendChild(cbN);
@@ -31685,7 +31685,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 // Remove selected button
                 const removeSelBtn = document.createElement("button");
-                removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+                removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
                 removeSelBtn.textContent = "Remove Selected";
                 removeSelBtn.addEventListener("click", () => {
                     var _a;
@@ -31729,7 +31729,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             setsLbl.style.margin = "0";
             setsLbl.textContent = t("kitty.restraintSets");
             const newSetBtn = document.createElement("button");
-            newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
             newSetBtn.textContent = t("dom.newSet");
             newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
             newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
@@ -31745,7 +31745,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const cfg = getDomConfig();
                 if (cfg.sets.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
                     hint.textContent = "No sets yet — create one with + New Set.";
                     setsContainer.appendChild(hint);
                 }
@@ -31759,18 +31759,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     setNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     setNameEl.textContent = set.name;
                     const setCmdEl = document.createElement("div");
-                    setCmdEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                    setCmdEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
                     setCmdEl.textContent = set.command ? ("/" + set.command) : (set.items.length + " item(s)");
                     setInfo.appendChild(setNameEl);
                     setInfo.appendChild(setCmdEl);
                     const applyBtn = document.createElement("button");
-                    applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #91405f;background:#6b3048;color:#f7e6ee;cursor:pointer;transition:background 0.14s;white-space:nowrap;flex-shrink:0;";
+                    applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #91405f;background:#6b3048;color:#f7e6ee;cursor:pointer;transition:background 0.14s;white-space:nowrap;flex-shrink:0;";
                     applyBtn.textContent = "▶ Apply";
                     applyBtn.title = "Apply to targets in room";
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
                     const editBtn = document.createElement("button");
-                    editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
+                    editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
                     editBtn.textContent = "✎";
                     editBtn.title = "Edit set";
                     editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#2a1421"; editBtn.style.color = "#cf6f98"; });
@@ -31781,7 +31781,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     setsContainer.appendChild(setRow);
                     // Apply status (shown briefly below the row)
                     const applyStatus = document.createElement("div");
-                    applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;padding:1px 7px 3px;display:none;";
+                    applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;padding:1px 7px 3px;display:none;";
                     setsContainer.appendChild(applyStatus);
                     applyBtn.addEventListener("click", () => {
                         applyBtn.disabled = true;
@@ -31807,11 +31807,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const { row: annRow, input: annInput } = makeField("Announce", set.announceTemplate, "", "{name} appears on {targets}~");
                     editor.appendChild(annRow);
                     const tokenHint = document.createElement("div");
-                    tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:0 0 6px;";
+                    tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:0 0 6px;";
                     tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
                     editor.appendChild(tokenHint);
                     const saveBtn = document.createElement("button");
-                    saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
+                    saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
                     saveBtn.textContent = "Save";
                     saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#3a1828"; });
                     saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#2a1421"; });
@@ -31825,7 +31825,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     editor.appendChild(saveBtn);
                     // Items sub-section
                     const itemsLbl = document.createElement("div");
-                    itemsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;font-weight:bold;margin-bottom:4px;letter-spacing:0.04em;text-transform:uppercase;";
+                    itemsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;font-weight:bold;margin-bottom:4px;letter-spacing:0.04em;text-transform:uppercase;";
                     editor.appendChild(itemsLbl);
                     const itemListEl = document.createElement("div");
                     itemListEl.style.cssText = "margin-bottom:6px;max-height:100px;overflow-y:auto;";
@@ -31839,7 +31839,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         itemsLbl.textContent = "Items (" + items.length + ")";
                         if (items.length === 0) {
                             const hint2 = document.createElement("div");
-                            hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
+                            hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
                             hint2.textContent = "No items yet — import from a BC code below.";
                             itemListEl.appendChild(hint2);
                             return;
@@ -31849,10 +31849,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const irow = document.createElement("div");
                             irow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;background:rgba(42,20,33,0.4);";
                             const iname = document.createElement("span");
-                            iname.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            iname.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                             iname.textContent = item.Name;
                             const igrp = document.createElement("span");
-                            igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
+                            igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;";
                             igrp.textContent = item.Group.replace("Item", "");
                             const iDel = document.createElement("button");
                             iDel.style.cssText = "background:transparent;border:none;color:#9a7080;cursor:pointer;font-size:12px;padding:0 3px;line-height:1;";
@@ -31875,21 +31875,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     rebuildEditorItems();
                     // Import sub-panel
                     const importToggle = document.createElement("button");
-                    importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+                    importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
                     importToggle.textContent = t("outfits.importFromBCCode");
                     editor.appendChild(importToggle);
                     const importPanel = document.createElement("div");
                     importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:5px;";
                     const importTA = document.createElement("textarea");
-                    importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
+                    importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
                     importTA.placeholder = t("outfits.importPlaceholder");
                     const importMsg = document.createElement("div");
-                    importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";
+                    importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;min-height:14px;";
                     const checklistEl = document.createElement("div");
                     checklistEl.style.cssText = "display:none;max-height:120px;overflow-y:auto;border:1px solid #3a1928;border-radius:5px;background:rgba(27,13,23,0.6);padding:4px;";
                     let parsedItems = [];
                     const parseBtn = document.createElement("button");
-                    parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                    parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
                     parseBtn.textContent = "Parse Code";
                     parseBtn.addEventListener("click", () => {
                         var _a;
@@ -31916,7 +31916,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const clothing = parsedItems.filter(p => !p.isRestraint);
                         const addSectionHeader = (text) => {
                             const sh = document.createElement("div");
-                            sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
+                            sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
                             sh.textContent = text;
                             checklistEl.appendChild(sh);
                         };
@@ -31930,10 +31930,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             cb.checked = defaultChecked;
                             cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
                             const cbName = document.createElement("span");
-                            cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
+                            cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
                             cbName.textContent = pItem.Name;
                             const cbGrp = document.createElement("span");
-                            cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                            cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                             cbGrp.textContent = pItem.Group.replace("Item", "");
                             lbl2.appendChild(cb);
                             lbl2.appendChild(cbName);
@@ -31955,7 +31955,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing — check what to add:";
                     });
                     const useSelectedBtn = document.createElement("button");
-                    useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                    useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
                     useSelectedBtn.textContent = "Use Selected";
                     useSelectedBtn.addEventListener("click", () => {
                         const checks = checklistEl.querySelectorAll("input[type=checkbox]");
@@ -32007,7 +32007,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     editor.appendChild(importPanel);
                     // Delete set
                     const delSetBtn = document.createElement("button");
-                    delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#9a7080;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
+                    delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#9a7080;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
                     delSetBtn.textContent = "Delete Set";
                     let delConfirm = false;
                     delSetBtn.addEventListener("click", () => {
@@ -32282,7 +32282,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.7";
+    const MOD_VERSION = "4.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32293,6 +32293,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.8",
+            changes: [
+                "Readability pass: all inline font sizes below 11px (8px, 9px, 10px) in the drawer panel are now 11px. Dim muted label colours (#5a3a5a, #5a3a6e, #9a6a98, #9a6ac8, #9a7aaa, and others) are brightened to readable pink/lavender values throughout all tabs.",
+            ],
+        },
         {
             version: "4.1.7",
             changes: [
