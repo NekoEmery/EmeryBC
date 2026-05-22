@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.3
+// @version      4.3.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -18683,9 +18683,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const b = document.createElement("button");
                 b.textContent = label;
                 b.title = title;
-                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                b.addEventListener("mouseenter", () => { b.style.color = "#cf6f98"; b.style.borderColor = "#cf6f98"; });
-                b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:#150a10;color:#7a5070;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s;";
+                b.addEventListener("mouseenter", () => { b.style.background = "#3a1928"; b.style.color = "#cf6f98"; });
+                b.addEventListener("mouseleave", () => { b.style.background = "#150a10"; b.style.color = "#7a5070"; b.style.borderColor = "#3a1928"; });
                 return b;
             };
             const exportTagBtn = mkShareBtn("⬆ Export", "Copy a code with your full badge layout (style, scale, position, opacity, toggles)");
@@ -32926,7 +32926,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.3";
+    const MOD_VERSION = "4.3.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32937,6 +32937,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.4",
+            changes: [
+                "EBC Tag Settings strip: Export and Import buttons now match the visual style of the Pin Text / Pin Cat position buttons (dark background, muted pink, bright hover).",
+            ],
+        },
         {
             version: "4.3.3",
             changes: [
