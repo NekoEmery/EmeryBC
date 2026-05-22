@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.4.1
+// @version      4.4.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -103,6 +103,376 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_b) { /* ignore */ }
         }, 300);
+    }
+
+    // Expression presets and sequences — live expression picker + animated sequences.
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
+    function uid$7() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function getStore$9() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Single-expression apply ---------------------------------------------------
+    // Uses CharacterSetFacialExpression (BC's proper API) if available,
+    // otherwise falls back to direct Appearance manipulation.
+    function applyExprGroup(group, exprName) {
+        try {
+            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
+            // uses its own defaults (no timer = keep expression; no colour override).
+            // Passing null for Timer can be treated as "0 ms" in some BC builds which
+            // would instantly clear the expression.
+            const setExpr = window.CharacterSetFacialExpression;
+            if (typeof setExpr === "function") {
+                setExpr(Player, group, exprName);
+            }
+            else {
+                // Fallback: direct Appearance manipulation.
+                // Also try BC's InventoryWear / InventoryRemove if available.
+                const wear = window.InventoryWear;
+                const remove = window.InventoryRemove;
+                if (typeof wear === "function" && typeof remove === "function") {
+                    if (exprName) {
+                        wear(Player, exprName, group, "Default", 0);
+                        // Ensure Property.Expression is set (some BC builds leave it unset)
+                        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+                        if (item) {
+                            if (!item.Property)
+                                item.Property = {};
+                            item.Property.Expression = exprName;
+                        }
+                    }
+                    else {
+                        remove(Player, group);
+                    }
+                }
+                else {
+                    // Last-resort: splice + push the variant asset
+                    const app = Player.Appearance;
+                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                    if (idx !== -1)
+                        app.splice(idx, 1);
+                    if (exprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, exprName);
+                        if (asset) {
+                            app.push({
+                                Asset: asset,
+                                Color: "Default",
+                                Difficulty: 0,
+                                Property: { Expression: exprName },
+                            });
+                        }
+                    }
+                }
+            }
+            callBC(() => CharacterRefresh(Player, false));
+            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
+    function getExpressionPresets() {
+        var _a;
+        try {
+            const list = (_a = getStore$9()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionPresets(presets) {
+        try {
+            const store = getStore$9();
+            if (!store)
+                return;
+            store.expressionPresets = presets;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function captureCurrentExpression(name) {
+        var _a;
+        const groups = {};
+        try {
+            for (const group of EXPR_GROUPS) {
+                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                if (item) {
+                    // BC stores the active expression variant in Asset.Name (always reliable).
+                    // Property.Expression mirrors it in most builds; use it as the primary source
+                    // and fall back to Asset.Name so capture works regardless of BC version.
+                    const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    const exprName = propExpr || item.Asset.Name || null;
+                    groups[group] = exprName
+                        ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
+                        : null;
+                }
+                else {
+                    groups[group] = null;
+                }
+            }
+        }
+        catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
+        return { id: uid$7(), name: name || "Preset", groups };
+    }
+    function applyExpressionPreset(preset) {
+        try {
+            for (const [group, entry] of Object.entries(preset.groups)) {
+                try {
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                }
+                catch ( /* skip group */_a) { /* skip group */ }
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // -- Sequences -----------------------------------------------------------------
+    function getExpressionSequences() {
+        var _a;
+        try {
+            const list = (_a = getStore$9()) === null || _a === void 0 ? void 0 : _a.expressionSequences;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionSequences(seqs) {
+        try {
+            const store = getStore$9();
+            if (!store)
+                return;
+            store.expressionSequences = seqs;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function createExpressionSequence(name, steps, command) {
+        const seq = { id: uid$7(), name: name, steps };
+        if (command === null || command === void 0 ? void 0 : command.trim())
+            seq.command = command.trim();
+        return seq;
+    }
+    function updateExpressionSequence(id, name, steps, command) {
+        const seqs = getExpressionSequences();
+        const i = seqs.findIndex(s => s.id === id);
+        if (i === -1)
+            return;
+        const trimCmd = command === null || command === void 0 ? void 0 : command.trim();
+        seqs[i] = Object.assign(Object.assign({}, seqs[i]), { name: name.trim() || seqs[i].name, steps, command: trimCmd || undefined });
+        if (!trimCmd)
+            delete seqs[i].command;
+        saveExpressionSequences(seqs);
+    }
+    function deleteExpressionSequence(id) {
+        saveExpressionSequences(getExpressionSequences().filter(s => s.id !== id));
+    }
+    // Returns true if a sequence command matched and playback was started.
+    function handleExprSequenceCommand(text) {
+        const lower = text.trim().toLowerCase().replace(/^\//, "");
+        for (const seq of getExpressionSequences()) {
+            if (seq.command && lower === seq.command.toLowerCase()) {
+                playExpressionSequence(seq);
+                return true;
+            }
+        }
+        return false;
+    }
+    // -- Default expression preset -------------------------------------------------
+    // The preset the user reverts to after a timed expression or trigger fires.
+    // null = clear all groups back to neutral.
+    function getDefaultExprPresetId() {
+        var _a;
+        try {
+            const v = (_a = getStore$9()) === null || _a === void 0 ? void 0 : _a.defaultExprPresetId;
+            return typeof v === "string" && v ? v : null;
+        }
+        catch (_b) {
+            return null;
+        }
+    }
+    function setDefaultExprPresetId(id) {
+        try {
+            const store = getStore$9();
+            if (!store)
+                return;
+            if (id) {
+                store.defaultExprPresetId = id;
+            }
+            else {
+                delete store.defaultExprPresetId;
+            }
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Auto-apply default face on room join --------------------------------------
+    // When enabled, the default ★ face preset is applied automatically each time
+    // the player enters a room (on ChatRoomSync hook in main.ts).
+    function getAutoApplyDefaultFace() {
+        var _a;
+        try {
+            const v = (_a = getStore$9()) === null || _a === void 0 ? void 0 : _a.autoApplyDefaultFace;
+            return v === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAutoApplyDefaultFace(on) {
+        try {
+            const store = getStore$9();
+            if (!store)
+                return;
+            if (on) {
+                store.autoApplyDefaultFace = true;
+            }
+            else {
+                delete store.autoApplyDefaultFace;
+            }
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getExpressionTriggers() {
+        var _a;
+        try {
+            const v = (_a = getStore$9()) === null || _a === void 0 ? void 0 : _a.expressionTriggers;
+            return Array.isArray(v) ? v : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionTriggers(triggers) {
+        try {
+            const store = getStore$9();
+            if (!store)
+                return;
+            store.expressionTriggers = triggers;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Timed expression revert ---------------------------------------------------
+    let _revertTimer = null;
+    function cancelExpressionRevert() {
+        if (_revertTimer !== null) {
+            clearTimeout(_revertTimer);
+            _revertTimer = null;
+        }
+    }
+    /** Apply a preset, then after revertMs ms revert to the default preset
+     *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
+    function applyExprPresetWithRevert(presetId, revertMs) {
+        const preset = getExpressionPresets().find(p => p.id === presetId);
+        if (!preset)
+            return;
+        cancelExpressionRevert();
+        applyExpressionPreset(preset);
+        if (revertMs > 0) {
+            _revertTimer = setTimeout(() => {
+                _revertTimer = null;
+                const defaultId = getDefaultExprPresetId();
+                if (defaultId) {
+                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                    if (defPreset) {
+                        applyExpressionPreset(defPreset);
+                        return;
+                    }
+                }
+                // No default — clear all expression groups back to neutral
+                for (const g of EXPR_GROUPS) {
+                    try {
+                        applyExprGroup(g, null);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }, revertMs);
+        }
+    }
+    // -- Trigger checker -----------------------------------------------------------
+    // Call once per outgoing chat message. First matching trigger fires.
+    function checkExpressionTriggers(message) {
+        const triggers = getExpressionTriggers();
+        if (!triggers.length)
+            return;
+        const lower = message.toLowerCase();
+        for (const trigger of triggers) {
+            if (!trigger.matchText || !trigger.presetId)
+                continue;
+            if (lower.includes(trigger.matchText.toLowerCase())) {
+                applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
+                break; // first match wins per message
+            }
+        }
+    }
+    let _seqRunning = false;
+    function isExprSeqRunning() { return _seqRunning; }
+    function playExpressionSequence(seq, onDone) {
+        if (_seqRunning)
+            return;
+        _seqRunning = true;
+        let i = 0;
+        const runStep = () => {
+            var _a, _b;
+            if (i >= seq.steps.length) {
+                _seqRunning = false;
+                onDone === null || onDone === void 0 ? void 0 : onDone();
+                return;
+            }
+            const step = seq.steps[i];
+            try {
+                if (step.reset) {
+                    // Apply the default face preset, or clear all groups if none is set
+                    const defaultId = getDefaultExprPresetId();
+                    if (defaultId) {
+                        const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                        if (defPreset) {
+                            applyExpressionPreset(defPreset);
+                        }
+                        else {
+                            for (const g of EXPR_GROUPS) {
+                                try {
+                                    applyExprGroup(g, null);
+                                }
+                                catch ( /* skip */_c) { /* skip */ }
+                            }
+                        }
+                    }
+                    else {
+                        for (const g of EXPR_GROUPS) {
+                            try {
+                                applyExprGroup(g, null);
+                            }
+                            catch ( /* skip */_d) { /* skip */ }
+                        }
+                    }
+                }
+                else {
+                    const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
+                    for (const [group, name] of Object.entries(groups)) {
+                        try {
+                            applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                        }
+                        catch ( /* skip */_e) { /* skip */ }
+                    }
+                }
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
+            i++;
+            window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
+        };
+        runStep();
     }
 
     const RESTRAINT_GROUPS = new Set([
@@ -279,6 +649,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
             // Default true — existing outfits always included the name
             nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
+            // null = no expression change; string = preset ID to apply when worn
+            expressionPresetId: typeof outfit.expressionPresetId === "string" && outfit.expressionPresetId ? outfit.expressionPresetId : null,
             items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
         };
     }
@@ -415,6 +787,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         sanitizeLiveAppearance();
         sendRoomAppearanceUpdate();
         scheduleAppearanceRefresh();
+        // Apply linked face expression preset if one is configured for this outfit
+        if (outfit.expressionPresetId) {
+            try {
+                const exprPreset = getExpressionPresets().find(p => p.id === outfit.expressionPresetId);
+                if (exprPreset)
+                    window.setTimeout(() => {
+                        try {
+                            applyExpressionPreset(exprPreset);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, 100);
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
         // Apply nickname — outfit-specific takes priority, falls back to default
         const nickToApply = outfit.nickname || getDefaultNickname();
         if (nickToApply) {
@@ -424,7 +810,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
                     updater.QueueData({ Nickname: nickToApply });
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         // Apply title — outfit-specific takes priority, falls back to default title
         // "__clear__" sentinel = explicitly remove the title (set to "")
@@ -438,7 +824,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
                     updater2.QueueData({ Title: bcTitle });
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
         }
         // Let the appearance update hit the send queue before we add the optional emote.
         window.setTimeout(() => {
@@ -478,7 +864,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "", expressionPresetId = null) {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -488,7 +874,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return null;
         }
         const outfit = {
-            id: uid$7(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -499,6 +885,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             preserveRestraints,
             preserveClothing,
             nameInAnnounce: true,
+            expressionPresetId: expressionPresetId || null,
             items: captureAppearance(includeRestraints),
         };
         saveOutfits([...getOutfits(), outfit]);
@@ -548,7 +935,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
     }
     function createOutfitTag(name, color) {
-        const tag = { id: uid$7(), name: name.trim() || "Tag", color: color || "#cf6f98" };
+        const tag = { id: uid$6(), name: name.trim() || "Tag", color: color || "#cf6f98" };
         saveOutfitTags([...getOutfitTags(), tag]);
         return tag;
     }
@@ -624,7 +1011,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
     }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "", expressionPresetId = null) {
         const outfits = getOutfits();
         const outfit = outfits.find(o => o.id === id);
         if (!outfit)
@@ -645,6 +1032,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         outfit.includeRestraints = includeRestraints;
         outfit.preserveRestraints = preserveRestraints;
         outfit.preserveClothing = preserveClothing;
+        outfit.expressionPresetId = expressionPresetId || null;
         saveOutfits(outfits);
         localNotice$2(`Updated "${outfit.displayName}" (/${outfit.command}).`);
         return true;
@@ -670,12 +1058,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$7(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
-    function uid$7() {
+    function uid$6() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
@@ -687,7 +1075,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
     }
     function addSchedule(outfitId, time) {
-        const schedule = { id: uid$7(), outfitId, time, enabled: true };
+        const schedule = { id: uid$6(), outfitId, time, enabled: true };
         saveSchedules([...getSchedules(), schedule]);
         return schedule;
     }
@@ -839,7 +1227,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return null;
         }
         const restraint = {
-            id: uid$7(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -850,6 +1238,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             preserveRestraints: false,
             preserveClothing: true,
             nameInAnnounce: true,
+            expressionPresetId: null,
             items: captureRestraints(),
         };
         saveRestraints([...getRestraints(), restraint]);
@@ -1013,7 +1402,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$7(),
+            id: uid$6(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -1024,6 +1413,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
             preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
             nameInAnnounce: true,
+            expressionPresetId: null,
             items,
         });
         saveOutfits([...existing, outfit]);
@@ -1033,23 +1423,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$9() {
+    function getStore$8() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$2() {
-        const list = getStore$9().palettes;
+        const list = getStore$8().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$9().palettes = list;
+        getStore$8().palettes = list;
         syncSettings();
     }
-    function uid$6() {
+    function uid$5() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getPalettesByType(type) {
@@ -1063,7 +1453,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$6(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        const palette = { id: uid$5(), name: name.trim() || "Palette", type: "outfit", colorMap };
         save([...load$2(), palette]);
         return palette;
     }
@@ -1075,7 +1465,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$6(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        const palette = { id: uid$5(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
         save([...load$2(), palette]);
         return palette;
     }
@@ -1132,11 +1522,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getStore$9().customColors = list;
+        getStore$8().customColors = list;
         syncSettings();
     }
     function getCustomColors() {
-        const v = getStore$9().customColors;
+        const v = getStore$8().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -1244,15 +1634,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
     }
     function saveRestraintPresets(list) {
-        getStore$9().restraintPresets = list;
+        getStore$8().restraintPresets = list;
         syncSettings();
     }
     function getRestraintPresets() {
-        const v = getStore$9().restraintPresets;
+        const v = getStore$8().restraintPresets;
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
-        const p = { id: uid$6(), name: name.trim() || "Preset", colors: [...colors] };
+        const p = { id: uid$5(), name: name.trim() || "Preset", colors: [...colors] };
         saveRestraintPresets([...getRestraintPresets(), p]);
         return p;
     }
@@ -1417,27 +1807,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$8() {
+    function getStore$7() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function uid$5() { return Math.random().toString(36).slice(2, 9); }
+    function uid$4() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getStore$8().poseCombos;
+        const list = getStore$7().poseCombos;
         if (!Array.isArray(list))
             return [];
         // Sanitize each combo — old data may have undefined/null poses array
         return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
     }
     function saveCombos(list) {
-        getStore$8().poseCombos = list;
+        getStore$7().poseCombos = list;
         syncSettings();
     }
     function getPoseCombos() { return load$1(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
         const combo = {
-            id: uid$5(),
+            id: uid$4(),
             name: name.trim() || "Combo",
             poses: poses.filter(p => p != null), // keep "" (Relaxed arms marker)
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
@@ -1500,7 +1890,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore$7() {
+    function getStore$6() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -1519,7 +1909,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -1527,7 +1917,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.badgeEnabled = value;
@@ -1541,7 +1931,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getShowOthersBadge() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
         }
         catch (_b) {
             return true;
@@ -1549,7 +1939,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setShowOthersBadge(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.showOthersBadge = value;
@@ -1563,7 +1953,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getShowVersionBadge() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -1571,7 +1961,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setShowVersionBadge(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.showVersionBadge = value;
@@ -1585,7 +1975,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getShowOthersVersionBadge() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -1593,7 +1983,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setShowOthersVersionBadge(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.showOthersVersionBadge = value;
@@ -1607,7 +1997,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAntiRestraintEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
         }
         catch (_b) {
             return false;
@@ -1615,7 +2005,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAntiRestraintEnabled(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.antiRestraint = value;
@@ -1629,7 +2019,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAntiRestraintWhitelist() {
         var _a;
         try {
-            const list = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            const list = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -1638,7 +2028,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAntiRestraintWhitelist(groups) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.antiRestraintWhitelist = groups;
@@ -1660,7 +2050,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getSpecialFriends() {
         var _a;
         try {
-            const list = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.specialFriends;
+            const list = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.specialFriends;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -1672,7 +2062,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function addSpecialFriend(memberNumber) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             const list = getSpecialFriends();
@@ -1685,7 +2075,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function removeSpecialFriend(memberNumber) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
@@ -1699,7 +2089,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAntiRestraintConfirm() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
         }
         catch (_b) {
             return false;
@@ -1707,7 +2097,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAntiRestraintConfirm(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.antiRestraintConfirm = value;
@@ -1721,7 +2111,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getSuppressNativeBeep() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
         }
         catch (_b) {
             return true;
@@ -1729,7 +2119,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setSuppressNativeBeep(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.suppressNativeBeep = value;
@@ -1744,7 +2134,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getUpdateNotify() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
         }
         catch (_b) {
             return true;
@@ -1752,7 +2142,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setUpdateNotify(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.updateNotify = value;
@@ -1766,7 +2156,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAfkEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -1774,7 +2164,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAfkEnabled(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.afkEnabled = v;
                 syncSettings();
@@ -1786,7 +2176,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAfkThreshold() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
             return typeof v === "number" && v >= 1 ? v : 300;
         }
         catch (_b) {
@@ -1795,7 +2185,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAfkThreshold(n) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
                 syncSettings();
@@ -1806,7 +2196,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getAfkMessage() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.afkMessage;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.afkMessage;
             return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
         }
         catch (_b) {
@@ -1815,7 +2205,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setAfkMessage(msg) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.afkMessage = msg.slice(0, 200).trim();
                 syncSettings();
@@ -1830,7 +2220,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getOocEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -1838,7 +2228,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setOocEnabled(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.oocEnabled = value;
@@ -1851,7 +2241,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getRoomHistoryEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -1859,7 +2249,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setRoomHistoryEnabled(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.roomHistoryEnabled = value;
@@ -1872,7 +2262,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getRestraintLogEnabled() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -1880,7 +2270,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setRestraintLogEnabled(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.restraintLogEnabled = value;
@@ -1892,7 +2282,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBeepMuted() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
         }
         catch (_b) {
             return false;
@@ -1900,7 +2290,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBeepMuted(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.beepMuted = value;
@@ -1912,7 +2302,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getActionButtonsVisible() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
         }
         catch (_b) {
             return true;
@@ -1920,7 +2310,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setActionButtonsVisible(value) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.actionButtonsVisible = value;
@@ -1942,7 +2332,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getPeopleMet() {
         var _a;
         try {
-            const raw = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.peopleMet;
+            const raw = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.peopleMet;
             return Array.isArray(raw) ? raw : [];
         }
         catch (_b) {
@@ -1951,7 +2341,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function recordPersonMet(memberNumber, name) {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             const list = getPeopleMet();
@@ -1973,7 +2363,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function clearPeopleMet() {
         try {
-            const store = getStore$7();
+            const store = getStore$6();
             if (!store)
                 return;
             store.peopleMet = [];
@@ -1984,7 +2374,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeStyle() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -1992,7 +2382,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeStyle(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.badgeStyle = v;
                 syncSettings();
@@ -2006,7 +2396,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getOthersBadgeStyle() {
         var _a;
         try {
-            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -2014,7 +2404,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setOthersBadgeStyle(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.othersBadgeStyle = v;
                 syncSettings();
@@ -2029,7 +2419,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeScale() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeScale;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
         }
         catch (_b) {
@@ -2040,7 +2430,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Both fall back to the legacy `badgeScale` value on first use (migration).
     function getTextBadgeScale() {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             const v = s === null || s === void 0 ? void 0 : s.textBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -2050,7 +2440,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setTextBadgeScale(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
                 syncSettings();
@@ -2060,7 +2450,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getCatBadgeScale() {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -2070,7 +2460,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setCatBadgeScale(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
                 syncSettings();
@@ -2084,7 +2474,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeBgOpacity() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -2093,7 +2483,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeBgOpacity(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.badgeBgOpacity = Math.max(0, Math.min(1, v));
                 syncSettings();
@@ -2107,7 +2497,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeTextOpacity() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -2116,7 +2506,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeTextOpacity(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.badgeTextOpacity = Math.max(0, Math.min(1, v));
                 syncSettings();
@@ -2132,7 +2522,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeOffsetX() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -2141,7 +2531,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeOffsetX(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.badgeOffsetX = Math.round(v);
                 syncSettings();
@@ -2152,7 +2542,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getBadgeOffsetY() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72;
         }
         catch (_b) {
@@ -2161,7 +2551,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setBadgeOffsetY(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
                 syncSettings();
@@ -2178,7 +2568,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Falls back to the shared badgeOffsetX/Y on first use (migration).
     function getCatBadgeOffsetX() {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
         }
@@ -2188,7 +2578,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setCatBadgeOffsetX(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.catBadgeOffsetX = Math.round(v);
                 syncSettings();
@@ -2198,7 +2588,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getCatBadgeOffsetY() {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
         }
@@ -2208,7 +2598,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setCatBadgeOffsetY(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
                 syncSettings();
@@ -2226,7 +2616,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getVersionTextOffsetX() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -2235,7 +2625,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setVersionTextOffsetX(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.versionTextOffsetX = Math.round(v);
                 syncSettings();
@@ -2246,7 +2636,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getVersionTextOffsetY() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
+            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95;
         }
         catch (_b) {
@@ -2255,7 +2645,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setVersionTextOffsetY(v) {
         try {
-            const s = getStore$7();
+            const s = getStore$6();
             if (s) {
                 s.versionTextOffsetY = Math.round(v);
                 syncSettings();
@@ -2419,348 +2809,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             escaping = false;
         }, 200);
-    }
-
-    // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
-    function uid$4() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getStore$6() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Single-expression apply ---------------------------------------------------
-    // Uses CharacterSetFacialExpression (BC's proper API) if available,
-    // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
-        try {
-            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
-            // uses its own defaults (no timer = keep expression; no colour override).
-            // Passing null for Timer can be treated as "0 ms" in some BC builds which
-            // would instantly clear the expression.
-            const setExpr = window.CharacterSetFacialExpression;
-            if (typeof setExpr === "function") {
-                setExpr(Player, group, exprName);
-            }
-            else {
-                // Fallback: direct Appearance manipulation.
-                // Also try BC's InventoryWear / InventoryRemove if available.
-                const wear = window.InventoryWear;
-                const remove = window.InventoryRemove;
-                if (typeof wear === "function" && typeof remove === "function") {
-                    if (exprName) {
-                        wear(Player, exprName, group, "Default", 0);
-                        // Ensure Property.Expression is set (some BC builds leave it unset)
-                        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-                        if (item) {
-                            if (!item.Property)
-                                item.Property = {};
-                            item.Property.Expression = exprName;
-                        }
-                    }
-                    else {
-                        remove(Player, group);
-                    }
-                }
-                else {
-                    // Last-resort: splice + push the variant asset
-                    const app = Player.Appearance;
-                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
-                    if (idx !== -1)
-                        app.splice(idx, 1);
-                    if (exprName) {
-                        const asset = AssetGet(Player.AssetFamily, group, exprName);
-                        if (asset) {
-                            app.push({
-                                Asset: asset,
-                                Color: "Default",
-                                Difficulty: 0,
-                                Property: { Expression: exprName },
-                            });
-                        }
-                    }
-                }
-            }
-            callBC(() => CharacterRefresh(Player, false));
-            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
-    function getExpressionPresets() {
-        var _a;
-        try {
-            const list = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionPresets(presets) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.expressionPresets = presets;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function captureCurrentExpression(name) {
-        var _a;
-        const groups = {};
-        try {
-            for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                if (item) {
-                    // BC stores the active expression variant in Asset.Name (always reliable).
-                    // Property.Expression mirrors it in most builds; use it as the primary source
-                    // and fall back to Asset.Name so capture works regardless of BC version.
-                    const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
-                    const exprName = propExpr || item.Asset.Name || null;
-                    groups[group] = exprName
-                        ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
-                        : null;
-                }
-                else {
-                    groups[group] = null;
-                }
-            }
-        }
-        catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
-        return { id: uid$4(), name: name || "Preset", groups };
-    }
-    function applyExpressionPreset(preset) {
-        try {
-            for (const [group, entry] of Object.entries(preset.groups)) {
-                try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
-                }
-                catch ( /* skip group */_a) { /* skip group */ }
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }
-    // -- Sequences -----------------------------------------------------------------
-    function getExpressionSequences() {
-        var _a;
-        try {
-            const list = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.expressionSequences;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionSequences(seqs) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.expressionSequences = seqs;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function createExpressionSequence(name, steps, command) {
-        const seq = { id: uid$4(), name: name, steps };
-        if (command === null || command === void 0 ? void 0 : command.trim())
-            seq.command = command.trim();
-        return seq;
-    }
-    function updateExpressionSequence(id, name, steps, command) {
-        const seqs = getExpressionSequences();
-        const i = seqs.findIndex(s => s.id === id);
-        if (i === -1)
-            return;
-        const trimCmd = command === null || command === void 0 ? void 0 : command.trim();
-        seqs[i] = Object.assign(Object.assign({}, seqs[i]), { name: name.trim() || seqs[i].name, steps, command: trimCmd || undefined });
-        if (!trimCmd)
-            delete seqs[i].command;
-        saveExpressionSequences(seqs);
-    }
-    function deleteExpressionSequence(id) {
-        saveExpressionSequences(getExpressionSequences().filter(s => s.id !== id));
-    }
-    // Returns true if a sequence command matched and playback was started.
-    function handleExprSequenceCommand(text) {
-        const lower = text.trim().toLowerCase().replace(/^\//, "");
-        for (const seq of getExpressionSequences()) {
-            if (seq.command && lower === seq.command.toLowerCase()) {
-                playExpressionSequence(seq);
-                return true;
-            }
-        }
-        return false;
-    }
-    // -- Default expression preset -------------------------------------------------
-    // The preset the user reverts to after a timed expression or trigger fires.
-    // null = clear all groups back to neutral.
-    function getDefaultExprPresetId() {
-        var _a;
-        try {
-            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.defaultExprPresetId;
-            return typeof v === "string" && v ? v : null;
-        }
-        catch (_b) {
-            return null;
-        }
-    }
-    function setDefaultExprPresetId(id) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            if (id) {
-                store.defaultExprPresetId = id;
-            }
-            else {
-                delete store.defaultExprPresetId;
-            }
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function getExpressionTriggers() {
-        var _a;
-        try {
-            const v = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.expressionTriggers;
-            return Array.isArray(v) ? v : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionTriggers(triggers) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.expressionTriggers = triggers;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Timed expression revert ---------------------------------------------------
-    let _revertTimer = null;
-    function cancelExpressionRevert() {
-        if (_revertTimer !== null) {
-            clearTimeout(_revertTimer);
-            _revertTimer = null;
-        }
-    }
-    /** Apply a preset, then after revertMs ms revert to the default preset
-     *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
-    function applyExprPresetWithRevert(presetId, revertMs) {
-        const preset = getExpressionPresets().find(p => p.id === presetId);
-        if (!preset)
-            return;
-        cancelExpressionRevert();
-        applyExpressionPreset(preset);
-        if (revertMs > 0) {
-            _revertTimer = setTimeout(() => {
-                _revertTimer = null;
-                const defaultId = getDefaultExprPresetId();
-                if (defaultId) {
-                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
-                    if (defPreset) {
-                        applyExpressionPreset(defPreset);
-                        return;
-                    }
-                }
-                // No default — clear all expression groups back to neutral
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        applyExprGroup(g, null);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
-            }, revertMs);
-        }
-    }
-    // -- Trigger checker -----------------------------------------------------------
-    // Call once per outgoing chat message. First matching trigger fires.
-    function checkExpressionTriggers(message) {
-        const triggers = getExpressionTriggers();
-        if (!triggers.length)
-            return;
-        const lower = message.toLowerCase();
-        for (const trigger of triggers) {
-            if (!trigger.matchText || !trigger.presetId)
-                continue;
-            if (lower.includes(trigger.matchText.toLowerCase())) {
-                applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
-                break; // first match wins per message
-            }
-        }
-    }
-    let _seqRunning = false;
-    function isExprSeqRunning() { return _seqRunning; }
-    function playExpressionSequence(seq, onDone) {
-        if (_seqRunning)
-            return;
-        _seqRunning = true;
-        let i = 0;
-        const runStep = () => {
-            var _a, _b;
-            if (i >= seq.steps.length) {
-                _seqRunning = false;
-                onDone === null || onDone === void 0 ? void 0 : onDone();
-                return;
-            }
-            const step = seq.steps[i];
-            try {
-                if (step.reset) {
-                    // Apply the default face preset, or clear all groups if none is set
-                    const defaultId = getDefaultExprPresetId();
-                    if (defaultId) {
-                        const defPreset = getExpressionPresets().find(p => p.id === defaultId);
-                        if (defPreset) {
-                            applyExpressionPreset(defPreset);
-                        }
-                        else {
-                            for (const g of EXPR_GROUPS) {
-                                try {
-                                    applyExprGroup(g, null);
-                                }
-                                catch ( /* skip */_c) { /* skip */ }
-                            }
-                        }
-                    }
-                    else {
-                        for (const g of EXPR_GROUPS) {
-                            try {
-                                applyExprGroup(g, null);
-                            }
-                            catch ( /* skip */_d) { /* skip */ }
-                        }
-                    }
-                }
-                else {
-                    const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
-                    for (const [group, name] of Object.entries(groups)) {
-                        try {
-                            applyExprGroup(group, name !== null && name !== void 0 ? name : null);
-                        }
-                        catch ( /* skip */_e) { /* skip */ }
-                    }
-                }
-            }
-            catch ( /* ignore */_f) { /* ignore */ }
-            i++;
-            window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
-        };
-        runStep();
     }
 
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
@@ -18888,6 +18936,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.clearInterval(this.timerPoller);
             this.timerPoller = null;
         }
+        // -- Expression preset select helper --------------------------------------
+        // Builds a <select> listing all saved expression presets.
+        // First option is "— None —" (empty value = no expression change on wear).
+        makeExprPresetSelect(currentId) {
+            const sel = document.createElement("select");
+            sel.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:11px",
+                "background:#1a0810", "color:#f0d8ec",
+                "border:1px solid #4c2537", "border-radius:4px",
+                "padding:3px 6px", "cursor:pointer", "outline:none",
+            ].join(";");
+            const noneOpt = document.createElement("option");
+            noneOpt.value = "";
+            noneOpt.textContent = "— None —";
+            sel.appendChild(noneOpt);
+            for (const p of getExpressionPresets()) {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.textContent = p.name;
+                if (p.id === currentId)
+                    opt.selected = true;
+                sel.appendChild(opt);
+            }
+            return sel;
+        }
         // -- Title select helper --------------------------------------------------
         // includeNoChange = true  → first option is "(No change)" stored as ""
         // includeNoChange = false → first option is "(No change)" stored as ""
@@ -20389,7 +20462,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(container);
         }
         buildOutfitRow(o, body) {
-            var _a, _b;
+            var _a, _b, _c;
             // Wrapper holds the visual row + collapsible diff panel
             const wrapper = document.createElement("div");
             wrapper.style.marginBottom = "4px";
@@ -20529,11 +20602,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 placeholder: "Optional — blank = no change",
             });
             const eTitleSel = this.makeTitleSelect((_b = o.title) !== null && _b !== void 0 ? _b : "");
+            const eExprSel = this.makeExprPresetSelect((_c = o.expressionPresetId) !== null && _c !== void 0 ? _c : null);
             editPanel.appendChild(makeEditRow("Command", eCmdInput));
             editPanel.appendChild(makeEditRow("Name", eNameInput));
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
             editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
             editPanel.appendChild(makeEditRow("Title", eTitleSel));
+            editPanel.appendChild(makeEditRow("Face preset", eExprSel));
             // Tag assignment
             const eTagsLbl = document.createElement("div");
             eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;margin:6px 0 3px;";
@@ -20689,7 +20764,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
                 if (!eCmdInput.value.trim() || !eNameInput.value.trim())
                     return;
-                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value);
+                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value, eExprSel.value || null);
                 if (ok)
                     this.rerender();
             });
@@ -20795,11 +20870,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
             });
             const newTitleSel = this.makeTitleSelect("");
+            const newExprSel = this.makeExprPresetSelect(null);
             form.appendChild(makeRow(t("outfits.commandLabel"), cmdInput));
             form.appendChild(makeRow(t("outfits.nameLabel"), nameInput));
             form.appendChild(makeRow("Announce", announceInput));
             form.appendChild(makeRow("Nickname", nicknameInput));
             form.appendChild(makeRow("Title", newTitleSel));
+            form.appendChild(makeRow("Face preset", newExprSel));
             const checkRow = document.createElement("label");
             checkRow.className = "ebc-form-check-row";
             const checkbox = document.createElement("input");
@@ -20839,7 +20916,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 createBtn.disabled = true;
                 createBtn.textContent = "Saving...";
-                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked, false, nicknameInput.value, newTitleSel.value);
+                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked, false, nicknameInput.value, newTitleSel.value, newExprSel.value || null);
                 if (result) {
                     cmdInput.value = "";
                     nameInput.value = "";
@@ -31267,6 +31344,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.rerender(150);
             });
             body.appendChild(clearAllBtn);
+            // Auto-apply default face on room join toggle
+            const autoApplyOn = getAutoApplyDefaultFace();
+            const autoApplyRow = document.createElement("div");
+            autoApplyRow.style.cssText = "display:flex;align-items:center;gap:7px;margin-bottom:6px;";
+            const autoApplyToggle = document.createElement("button");
+            autoApplyToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${autoApplyOn ? "#cf6f98" : "#3a1928"};background:${autoApplyOn ? "#3a1020" : "transparent"};color:${autoApplyOn ? "#cf6f98" : "#7a5070"};`;
+            autoApplyToggle.textContent = autoApplyOn ? "★ ON" : "★ OFF";
+            autoApplyToggle.title = "When ON, your default ★ face preset is applied automatically each time you enter a room";
+            autoApplyToggle.addEventListener("click", () => {
+                const next = !getAutoApplyDefaultFace();
+                setAutoApplyDefaultFace(next);
+                autoApplyToggle.style.border = `1px solid ${next ? "#cf6f98" : "#3a1928"}`;
+                autoApplyToggle.style.background = next ? "#3a1020" : "transparent";
+                autoApplyToggle.style.color = next ? "#cf6f98" : "#7a5070";
+                autoApplyToggle.textContent = next ? "★ ON" : "★ OFF";
+            });
+            const autoApplyLbl = document.createElement("span");
+            autoApplyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
+            autoApplyLbl.textContent = "Auto-apply default face on room join";
+            autoApplyRow.appendChild(autoApplyToggle);
+            autoApplyRow.appendChild(autoApplyLbl);
+            body.appendChild(autoApplyRow);
             // ── Presets ───────────────────────────────────────────────────────────────
             const presets = getExpressionPresets();
             if (presets.length > 0) {
@@ -33071,7 +33170,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.1";
+    const MOD_VERSION = "4.4.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33082,6 +33181,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.2",
+            changes: [
+                "Outfits: added Face preset field to both the new-outfit form and the edit panel. Pick an expression preset and it will be applied automatically whenever that outfit is worn (via button or /command).",
+                "Expressions: added '★ Auto-apply default face on room join' toggle. When ON, your default ★ preset is applied each time you enter a room.",
+            ],
+        },
         {
             version: "4.4.1",
             changes: [
@@ -38269,6 +38375,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
             catch ( /* ignore */_l) { /* ignore */ }
+            // Auto-apply default ★ face preset on room join if the toggle is enabled
+            try {
+                if (getAutoApplyDefaultFace()) {
+                    const defId = getDefaultExprPresetId();
+                    if (defId) {
+                        const defPreset = getExpressionPresets().find(p => p.id === defId);
+                        if (defPreset)
+                            window.setTimeout(() => {
+                                try {
+                                    applyExpressionPreset(defPreset);
+                                }
+                                catch ( /* ignore */_a) { /* ignore */ }
+                            }, 300);
+                    }
+                }
+            }
+            catch ( /* ignore */_m) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -38288,7 +38411,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
