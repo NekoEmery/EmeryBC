@@ -27858,10 +27858,11 @@
                                 exprLineSel.appendChild(exprLineOpt);
                             }
                             const EXPR_LINE_DUR = [
-                                ["♾", 0], ["3s", 3000], ["5s", 5000], ["10s", 10000], ["30s", 30000], ["1m", 60000],
+                                ["keep", 0], ["3s", 3000], ["5s", 5000], ["10s", 10000], ["30s", 30000], ["1m", 60000],
                             ];
                             const exprLineDurSel = document.createElement("select");
-                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex-shrink:0;max-width:44px;";
+                            exprLineDurSel.title = "How long to hold this face before reverting (keep = stay forever)";
+                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
                             for (const [lbl3, ms3] of EXPR_LINE_DUR) {
                                 const exprLineDurOpt = document.createElement("option");
                                 exprLineDurOpt.value = String(ms3);
@@ -32264,7 +32265,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.5";
+    const MOD_VERSION = "4.1.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32275,6 +32276,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.6",
+            changes: [
+                "Buttons tab: face revert duration dropdown — replaced unreadable ♾ symbol with plain 'keep' text, bumped font from 8px to 9px, widened selector from 44px to 52px.",
+            ],
+        },
         {
             version: "4.1.5",
             changes: [
