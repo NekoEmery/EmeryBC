@@ -12686,10 +12686,10 @@ export class EBCDrawer {
                     const isFull    = info.roomFull;
                     const roomName  = info.roomName;
                     const icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
-                    let bg = "#1e0d1a", color = "#9a6878", border = "#3a1928";
-                    if (isLocked)       { bg = "#1a100d"; color = "#c8905a"; border = "#5a3020"; }
-                    else if (isPrivate) { bg = "#1a0d20"; color = "#b07ab8"; border = "#4a2060"; }
-                    else if (roomName)  { bg = "#0d1a18"; color = "#60a898"; border = "#1e4038"; }
+                    let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
+                    if (isLocked)       { bg = "#1a100d"; color = "#daa070"; border = "#5a3020"; }
+                    else if (isPrivate) { bg = "#1a0d20"; color = "#c890d8"; border = "#4a2060"; }
+                    else if (roomName)  { bg = "#0d1a18"; color = "#7dcab8"; border = "#1e4038"; }
                     const label = roomName
                         ? (isFull ? "full · " : "") + roomName
                         : isLocked ? "locked room" : isPrivate ? "private room" : "online";
@@ -12698,7 +12698,7 @@ export class EBCDrawer {
                     roomTagEl.title = roomName
                         ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                         : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
-                    roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                    roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                 }
 
                 // Last-seen timestamp for away/offline friends
