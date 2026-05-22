@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.1
+// @version      4.3.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2640,6 +2640,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (_b) {
             return [];
         }
+    }
+    function saveExpressionTriggers(triggers) {
+        try {
+            const store = getStore$6();
+            if (!store)
+                return;
+            store.expressionTriggers = triggers;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Timed expression revert ---------------------------------------------------
     let _revertTimer = null;
@@ -31071,7 +31081,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(exprWrap2);
         }
         renderExpressions(container) {
-            var _a;
+            var _a, _b;
             const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -31087,8 +31097,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
                     "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
                     "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
-                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, or fired automatically from " +
-                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>.";
+                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired from " +
+                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
+                    "or triggered automatically when your <b style=\"color:#d0a0d8;\">outgoing chat message</b> contains a match phrase (see Chat Triggers below).";
             body.appendChild(infoBox);
             // ── Save & Clear ──────────────────────────────────────────────────────────
             const captureInput = Object.assign(document.createElement("input"), {
@@ -31204,6 +31215,168 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 body.appendChild(presetList);
             }
+            // ── Chat Triggers ─────────────────────────────────────────────────────────
+            const trigDiv = document.createElement("div");
+            trigDiv.className = "ebc-divider";
+            trigDiv.style.margin = "8px 0 5px";
+            body.appendChild(trigDiv);
+            const trigLbl = document.createElement("div");
+            trigLbl.className = "ebc-section-label";
+            trigLbl.style.marginBottom = "5px";
+            trigLbl.textContent = "CHAT TRIGGERS";
+            body.appendChild(trigLbl);
+            const trigHint = document.createElement("div");
+            trigHint.style.cssText = `${F}10px;color:#7a5070;margin-bottom:6px;line-height:1.5;`;
+            trigHint.textContent = "When your outgoing message contains the match text, the face preset fires automatically.";
+            body.appendChild(trigHint);
+            const triggers = getExpressionTriggers();
+            if (triggers.length === 0) {
+                const none = document.createElement("div");
+                none.className = "ebc-empty";
+                none.style.padding = "4px 0 6px";
+                none.textContent = "No triggers yet";
+                body.appendChild(none);
+            }
+            for (const trig of triggers) {
+                const tRow = document.createElement("div");
+                tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(20,8,18,0.7);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;margin-bottom:3px;";
+                // Match chip
+                const matchChip = document.createElement("span");
+                matchChip.style.cssText = `${F}11px;background:#2a0e1e;border:1px solid #5a2840;border-radius:4px;padding:1px 6px;color:#f0a0c0;flex-shrink:0;font-style:italic;`;
+                matchChip.textContent = `"${trig.matchText}"`;
+                matchChip.title = "Message contains this text (case-insensitive)";
+                const arrow = document.createElement("span");
+                arrow.style.cssText = `${F}10px;color:#5a3050;flex-shrink:0;`;
+                arrow.textContent = "→";
+                // Preset name
+                const presetName = document.createElement("span");
+                presetName.style.cssText = `${F}11px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                const livePreset = getExpressionPresets().find(p => p.id === trig.presetId);
+                presetName.textContent = (_b = livePreset === null || livePreset === void 0 ? void 0 : livePreset.name) !== null && _b !== void 0 ? _b : "(deleted preset)";
+                if (!livePreset)
+                    presetName.style.opacity = "0.45";
+                // Hold time chip
+                const holdMs = trig.durationMs;
+                const holdChip = document.createElement("span");
+                holdChip.style.cssText = `${F}10px;color:#7a5070;flex-shrink:0;`;
+                holdChip.textContent = holdMs === 0 ? "permanent" : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
+                holdChip.title = holdMs === 0 ? "Expression stays until manually changed" : `Reverts to default after ${holdMs}ms`;
+                const trigDelBtn = document.createElement("button");
+                trigDelBtn.className = "ebc-outfit-del";
+                trigDelBtn.textContent = "×";
+                trigDelBtn.title = "Delete trigger";
+                trigDelBtn.addEventListener("click", () => {
+                    saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
+                    this.rerender();
+                });
+                tRow.appendChild(matchChip);
+                tRow.appendChild(arrow);
+                tRow.appendChild(presetName);
+                tRow.appendChild(holdChip);
+                tRow.appendChild(trigDelBtn);
+                body.appendChild(tRow);
+            }
+            // ── New trigger form ──────────────────────────────────────────────────────
+            const newTrigToggle = document.createElement("button");
+            newTrigToggle.className = "ebc-create-btn";
+            newTrigToggle.style.cssText = "width:100%;margin-top:6px;";
+            newTrigToggle.textContent = "＋ New Trigger";
+            const newTrigForm = document.createElement("div");
+            newTrigForm.style.cssText = "display:none;flex-direction:column;gap:5px;padding:8px;background:rgba(15,5,12,0.7);border:1px solid #2a1421;border-radius:0 0 6px 6px;margin-top:-2px;";
+            // Match text
+            const ntMatchWrap = document.createElement("div");
+            ntMatchWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const ntMatchLbl = document.createElement("span");
+            ntMatchLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
+            ntMatchLbl.textContent = "Contains:";
+            const ntMatchInp = document.createElement("input");
+            ntMatchInp.type = "text";
+            ntMatchInp.maxLength = 60;
+            ntMatchInp.className = "ebc-form-input";
+            ntMatchInp.style.cssText = "flex:1;font-size:11px;";
+            ntMatchInp.placeholder = "e.g. >:3";
+            ntMatchInp.addEventListener("keydown", e => e.stopPropagation());
+            ntMatchWrap.appendChild(ntMatchLbl);
+            ntMatchWrap.appendChild(ntMatchInp);
+            newTrigForm.appendChild(ntMatchWrap);
+            // Preset picker
+            const ntPresetWrap = document.createElement("div");
+            ntPresetWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const ntPresetLbl = document.createElement("span");
+            ntPresetLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
+            ntPresetLbl.textContent = "Apply:";
+            const ntPresetSel = document.createElement("select");
+            ntPresetSel.style.cssText = "flex:1;min-width:0;font-size:11px;font-family:'Trebuchet MS',serif;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:2px 4px;";
+            const currentPresets = getExpressionPresets();
+            if (currentPresets.length === 0) {
+                const opt = document.createElement("option");
+                opt.textContent = "(save face presets first)";
+                opt.disabled = true;
+                ntPresetSel.appendChild(opt);
+            }
+            else {
+                for (const p of currentPresets) {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    ntPresetSel.appendChild(opt);
+                }
+            }
+            ntPresetWrap.appendChild(ntPresetLbl);
+            ntPresetWrap.appendChild(ntPresetSel);
+            newTrigForm.appendChild(ntPresetWrap);
+            // Hold time
+            const ntHoldWrap = document.createElement("div");
+            ntHoldWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const ntHoldLbl = document.createElement("span");
+            ntHoldLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
+            ntHoldLbl.textContent = "Hold:";
+            const ntHoldInp = document.createElement("input");
+            ntHoldInp.type = "number";
+            ntHoldInp.min = "0";
+            ntHoldInp.max = "30000";
+            ntHoldInp.value = "3000";
+            ntHoldInp.style.cssText = "width:70px;font-size:11px;font-family:'Trebuchet MS',serif;padding:2px 4px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;";
+            ntHoldInp.title = "How long (ms) before reverting to default face. 0 = permanent.";
+            ntHoldInp.addEventListener("keydown", e => e.stopPropagation());
+            const ntHoldUnit = document.createElement("span");
+            ntHoldUnit.style.cssText = `${F}10px;color:#5a3050;`;
+            ntHoldUnit.textContent = "ms  (0 = permanent)";
+            ntHoldWrap.appendChild(ntHoldLbl);
+            ntHoldWrap.appendChild(ntHoldInp);
+            ntHoldWrap.appendChild(ntHoldUnit);
+            newTrigForm.appendChild(ntHoldWrap);
+            // Create button
+            const ntCreateBtn = document.createElement("button");
+            ntCreateBtn.className = "ebc-create-btn";
+            ntCreateBtn.style.cssText = "width:100%;font-size:11px;margin-top:2px;";
+            ntCreateBtn.textContent = "Add Trigger";
+            ntCreateBtn.addEventListener("click", () => {
+                const matchText = ntMatchInp.value.trim();
+                if (!matchText) {
+                    ntMatchInp.style.borderColor = "#cf6f98";
+                    return;
+                }
+                const presetId = ntPresetSel.value;
+                if (!presetId)
+                    return;
+                const durationMs = Math.max(0, parseInt(ntHoldInp.value) || 0);
+                const all = getExpressionTriggers();
+                const uid = Math.random().toString(36).slice(2, 9);
+                all.push({ id: uid, name: matchText, matchText, presetId, durationMs });
+                saveExpressionTriggers(all);
+                this.rerender();
+            });
+            newTrigForm.appendChild(ntCreateBtn);
+            newTrigToggle.addEventListener("click", () => {
+                const open = newTrigForm.style.display !== "none";
+                newTrigForm.style.display = open ? "none" : "flex";
+                newTrigToggle.textContent = open ? "＋ New Trigger" : t("core.cancel");
+                if (!open)
+                    ntMatchInp.focus();
+            });
+            body.appendChild(newTrigToggle);
+            body.appendChild(newTrigForm);
         }
         renderThanks() {
             var _a;
@@ -32755,7 +32928,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.1";
+    const MOD_VERSION = "4.3.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32766,6 +32939,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.2",
+            changes: [
+                "Expressions → Chat Triggers: new section at the bottom of the Expressions panel. Add a trigger with a match phrase (e.g. >:3) and a face preset — whenever your outgoing chat message contains that text the preset fires automatically. Each trigger has an independent hold time (ms) before reverting to your default face, or 0 for permanent. The logic was already wired up but had no UI to configure it.",
+            ],
+        },
         {
             version: "4.3.1",
             changes: [
