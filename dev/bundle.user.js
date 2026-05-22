@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.8
+// @version      3.8.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -21910,7 +21910,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -21984,7 +21984,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 let equipHeightModifier = initStep.heightModifier;
                 let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
                 let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
-                let chatFormat = initStep.chatFormat === "(" ? "(" : "";
+                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 // Prevent BC's document-level keyboard handlers from stealing focus
@@ -22345,6 +22345,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         textInp.style.flex = "1";
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
                         stopKeys(textInp);
+                        row.appendChild(makeToggle("* *", "*"));
                         row.appendChild(makeToggle("( )", "("));
                         row.appendChild(textInp);
                         fieldsEl.appendChild(row);
@@ -22986,13 +22987,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
             closeBtn.addEventListener("click", () => {
-                const cleanup = win._closeEmoji;
-                if (cleanup) {
-                    try {
-                        document.removeEventListener("click", cleanup, true);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
                 win.remove();
                 this.beepWins.delete(memberNumber);
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
@@ -23269,55 +23263,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
-            // Emoji picker
-            const EMOJIS = [
-                // Faces — happy & expressive
-                "😊", "😄", "😂", "🥰", "😍", "😘", "😜", "😏", "🤔", "😳",
-                // Faces — sad, shy & silly
-                "😭", "😢", "🥹", "😇", "😋", "🤭", "🫠", "🤣", "😅", "🫣",
-                // Gestures & reactions
-                "👉", "👈", "👀", "🙌", "🫶", "🤗", "🙈", "🥺", "👋", "😬",
-                // Hearts
-                "💕", "💖", "❤️", "💗", "💜", "💙", "💚", "🧡", "💛", "💝",
-                // Sparkle & celebration
-                "✨", "🎉", "🎊", "💫", "🌟", "⭐", "🎀", "🎵", "👑", "🌈",
-                // Cute animals & nature
-                "🌸", "🍑", "🐾", "🐱", "🐰", "🦊", "🦋", "🌙", "💤", "🍭",
-            ];
-            const emojiPicker = document.createElement("div");
-            emojiPicker.className = "ebc-emoji-picker";
-            emojiPicker.style.display = "none";
-            for (const emoji of EMOJIS) {
-                const eb = document.createElement("button");
-                eb.textContent = emoji;
-                eb.addEventListener("click", (e) => {
-                    var _a, _b;
-                    e.stopPropagation();
-                    const start = (_a = input.selectionStart) !== null && _a !== void 0 ? _a : input.value.length;
-                    const end = (_b = input.selectionEnd) !== null && _b !== void 0 ? _b : input.value.length;
-                    input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-                    input.selectionStart = input.selectionEnd = start + [...emoji].length;
-                    input.focus();
-                    emojiPicker.style.display = "none";
-                });
-                emojiPicker.appendChild(eb);
-            }
-            const emojiBtn = document.createElement("button");
-            emojiBtn.className = "ebc-emoji-btn";
-            emojiBtn.textContent = "😊";
-            emojiBtn.title = "Insert emoji";
-            emojiBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const showing = emojiPicker.style.display !== "none";
-                emojiPicker.style.display = showing ? "none" : "flex";
-            });
-            const closeEmojiOnOutside = (e) => {
-                if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
-                    emojiPicker.style.display = "none";
-                }
-            };
-            document.addEventListener("click", closeEmojiOnOutside, true);
-            win._closeEmoji = closeEmojiOnOutside;
             const doSend = () => {
                 const msg = input.value.trim();
                 if (!msg)
@@ -23331,9 +23276,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             sendBtn.addEventListener("click", doSend);
             input.addEventListener("keydown", (e) => { if (e.key === "Enter")
                 doSend(); });
-            footer.appendChild(emojiPicker);
             footer.appendChild(input);
-            footer.appendChild(emojiBtn);
             footer.appendChild(sendBtn);
             win.appendChild(footer);
             document.body.appendChild(win);
@@ -32064,7 +32007,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.8";
+    const MOD_VERSION = "3.8.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32075,6 +32018,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.9",
+            changes: [
+                "Beep/chat windows: removed the 😊 emoji picker button from the message input bar.",
+                "Scene editor chat step: restored the '* *' emote format toggle (was incorrectly removed in v3.8.7). Both '* *' and '( )' toggles are now proper toggles — clicking the active one deactivates it back to plain text.",
+            ],
+        },
         {
             version: "3.8.8",
             changes: [
