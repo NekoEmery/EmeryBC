@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.6";
+const MOD_VERSION = "3.8.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.7",
+        changes: [
+            "Update notification now shows a '🔄 Reload now' button with a note that BC auto-reconnects to your room (~15 s) — no need to fully restart the game.",
+            "New command: /ebc reload — reloads the page with a short confirmation delay.",
+        ],
+    },
     {
         version: "3.8.6",
         changes: [
@@ -3649,6 +3656,54 @@ function appendLocalLogLine(text: string, color = UI.accent): void {
     }
 }
 
+// Appends a log line with an inline "Reload page" button.
+// BC auto-reconnects and rejoins the current room after a reload (~15 s),
+// so this is far less disruptive than a full game restart.
+function appendReloadButton(label = "🔄 Reload now"): void {
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        const row = document.createElement("div");
+        row.style.cssText = `
+            background: ${UI.cardMuted};
+            border-left: 3px solid ${UI.accent};
+            padding: 3px 8px;
+            margin: 1px 0;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+        const note = document.createElement("span");
+        note.style.cssText = `color:${UI.textMuted};font-style:italic;flex:1;font-size:11px;`;
+        note.textContent = "BC reconnects to your room automatically after reload (~15 s).";
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        btn.style.cssText = `
+            font-family: 'Trebuchet MS', serif;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid ${UI.accent};
+            background: transparent;
+            color: ${UI.accent};
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.12s, color 0.12s;
+        `;
+        btn.addEventListener("mouseenter", () => { btn.style.background = UI.accent; btn.style.color = "#1a0812"; });
+        btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.color = UI.accent; });
+        btn.addEventListener("click", () => { location.reload(); });
+        row.appendChild(note);
+        row.appendChild(btn);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    if (!doAppend()) window.setTimeout(() => doAppend(), 300);
+}
+
 // Appends a clickable command row to the chat log. Clicking fills the chat input
 // with the command text so the user only has to press Enter to run it.
 function appendClickableCmd(cmd: string, desc: string): void {
@@ -4233,6 +4288,12 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
+    if (subcommand === "reload") {
+        appendLocalLogLine("[EBC] Reloading page — BC will reconnect and rejoin your room automatically.", UI.gold);
+        window.setTimeout(() => location.reload(), 600);
+        return true;
+    }
+
     if (subcommand === "updates") {
         const arg = (parts[2] || "").toLowerCase();
         if (arg === "off") {
@@ -4262,6 +4323,7 @@ function handleMetaCommand(inputValue: string): boolean {
     appendClickableCmd("/ebc ameter",        "Toggle arousal meter on / off");
     appendClickableCmd("/ebc ameter 50",     "Set arousal to a specific % (0–100)");
     appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
+    appendClickableCmd("/ebc reload",        "Reload the page (BC auto-rejoins your room)");
     appendClickableCmd("/ebc updates on",    "Enable update notifications");
     appendClickableCmd("/ebc updates off",   "Disable update notifications");
     return true;
@@ -4309,7 +4371,7 @@ async function checkForUpdateFromGitHub(): Promise<void> {
         } catch { /* localStorage unavailable — notify anyway */ }
 
         appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
-        appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
+        appendReloadButton();
         appendLocalLogLine(`[EBC]    To silence these: /ebc updates off`, UI.textMuted);
     } catch { /* network error — ignore silently */ }
 }
@@ -4338,7 +4400,7 @@ async function checkUpdateManual(): Promise<void> {
         // Update available
         try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
         appendLocalLogLine(`[EBC] 🔔 Update available! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
-        appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
+        appendReloadButton();
         appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
     } catch {
         appendLocalLogLine(`[EBC] Network error while checking for updates.`, UI.danger);
