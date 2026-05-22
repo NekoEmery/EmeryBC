@@ -11070,7 +11070,7 @@ export class EBCDrawer {
         const chatSettingsLbl = document.createElement("div");
         chatSettingsLbl.className = "ebc-section-label";
         chatSettingsLbl.style.margin = "0";
-        chatSettingsLbl.textContent = "Chat & Notifications";
+        chatSettingsLbl.textContent = "Chat and notifications";
         const chatSettingsChevron = document.createElement("span");
         chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
         chatSettingsHeader.appendChild(chatSettingsLbl);
