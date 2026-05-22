@@ -18034,7 +18034,7 @@ export class EBCDrawer {
                 const updateExprBtn = document.createElement("button");
                 updateExprBtn.className = "ebc-update-btn";
                 updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
-                updateExprBtn.textContent = "↺";
+                updateExprBtn.textContent = "Override";
                 updateExprBtn.title = "Overwrite this preset with your current face expression";
                 updateExprBtn.addEventListener("click", () => {
                     showConfirmOverlay(
