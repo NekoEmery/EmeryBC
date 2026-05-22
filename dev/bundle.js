@@ -2406,11 +2406,6 @@
 
     // Expression presets and sequences — live expression picker + animated sequences.
     const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
-    // Friendly labels shown in the picker row headers
-    const EXPR_GROUP_LABELS = {
-        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Fluids: "Fluids", Mouth: "Mouth", Tears: "Tears",
-    };
     function uid$4() {
         return Math.random().toString(36).slice(2, 9);
     }
@@ -2425,63 +2420,6 @@
         catch (_a) {
             return null;
         }
-    }
-    // -- Expression option discovery -----------------------------------------------
-    // Query BC's runtime Asset array for all expression options in a group.
-    // Falls back to a hardcoded list if the global isn't available.
-    const EXPR_FALLBACK = {
-        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath"],
-        Emoticon: [
-            "Afk", "Brb", "SOS", "Whisper", "Sleep", "Hearts", "Tear", "Hearing",
-            "Confusion", "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator",
-            "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock",
-            "Wardrobe", "Gaming", "Work", "Shopping", "Coffee", "Fork", "Music",
-            "Car", "Hanger", "Call", "Lightbulb", "Warning", "BrokenHeart",
-            "Drawing", "Coding", "TV", "Bathing",
-        ],
-        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft"],
-        Eyes: [
-            "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
-            "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
-            "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
-        ],
-        Eyes2: [
-            "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
-            "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
-            "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
-        ],
-        Fluids: [
-            "DroolLow", "DroolMedium", "DroolHigh", "DroolSides", "DroolMessy",
-            "DroolTearsLow", "DroolTearsMedium", "DroolTearsHigh",
-            "DroolTearsMessy", "DroolTearsSides",
-            "TearsHigh", "TearsMedium", "TearsLow",
-        ],
-        Mouth: [
-            "Frown", "Sad", "Pained", "Angry", "HalfOpen", "Open",
-            "Ahegao", "Moan", "TonguePinch", "LipBite",
-            "Happy", "Devious", "Laughing", "Grin", "Smirk", "Pout",
-        ],
-        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
-    };
-    function getExprGroupOptions(group) {
-        var _a, _b;
-        try {
-            const bcAsset = window.Asset;
-            if (Array.isArray(bcAsset)) {
-                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                // Family lives on the Group in BC, not on the Asset itself.
-                // Accept any asset whose group name matches and whose group family
-                // is either the player's family or unset (shared assets).
-                const opts = bcAsset
-                    .filter(a => a.Group.Name === group &&
-                    (a.Group.Family === family || !a.Group.Family))
-                    .map(a => a.Name);
-                if (opts.length > 0)
-                    return opts;
-            }
-        }
-        catch ( /* fall through */_c) { /* fall through */ }
-        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
     }
     // -- Single-expression apply ---------------------------------------------------
     // Uses CharacterSetFacialExpression (BC's proper API) if available,
@@ -21428,6 +21366,28 @@
                 });
                 return cnt;
             };
+            // ── Panel utilities ───────────────────────────────────────────────────────
+            {
+                const panelUtilRow = document.createElement("div");
+                panelUtilRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;";
+                const resetPanelsBtn = document.createElement("button");
+                resetPanelsBtn.className = "ebc-btn-footer-btn";
+                resetPanelsBtn.style.cssText = "flex:1;font-size:9px;";
+                resetPanelsBtn.textContent = "📌 Reset all panel positions";
+                resetPanelsBtn.title = "Snap the action buttons sidebar and the EBC drawer back to their default on-screen positions";
+                resetPanelsBtn.addEventListener("click", () => {
+                    // Reset action buttons sidebar
+                    resetSidebarPos();
+                    // Reset EBC drawer to docked/anchored position
+                    this.panelPosition = null;
+                    this.savePanelPosition(null);
+                    this.exitFreeMode();
+                    resetPanelsBtn.textContent = "✓ Panels reset!";
+                    window.setTimeout(() => { resetPanelsBtn.textContent = "📌 Reset all panel positions"; }, 1800);
+                });
+                panelUtilRow.appendChild(resetPanelsBtn);
+                body.appendChild(panelUtilRow);
+            }
             // ── POSES ─────────────────────────────────────────────────────────────
             // Helper: true when a pose key is currently active
             const isPoseActive = (key) => currentPoses.includes(key);
@@ -30459,7 +30419,7 @@
             body.appendChild(exprWrap2);
         }
         renderExpressions(container) {
-            var _a, _b;
+            var _a;
             const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -30468,82 +30428,18 @@
                     body.removeChild(body.firstChild);
             }
             const F = "font-family:'Trebuchet MS',serif;font-size:";
-            // Helper: read currently active expression for a group
-            const getActiveExpr = (group) => {
-                var _a;
-                try {
-                    const it = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                    if (!it)
-                        return null;
-                    const pExpr = (_a = it.Property) === null || _a === void 0 ? void 0 : _a.Expression;
-                    return pExpr || it.Asset.Name || null;
-                }
-                catch (_b) {
-                    return null;
-                }
-            };
-            // ── FACE BUILDER ─────────────────────────────────────────────────────────
-            const builderLbl = document.createElement("div");
-            builderLbl.className = "ebc-section-label";
-            builderLbl.textContent = "FACE BUILDER";
-            builderLbl.style.marginBottom = "5px";
-            body.appendChild(builderLbl);
-            const hintEl = document.createElement("div");
-            hintEl.style.cssText = `${F}8px;color:#5a3a5a;margin-bottom:7px;`;
-            hintEl.textContent = "Click any button to apply live. — = clear that group.";
-            body.appendChild(hintEl);
-            for (const group of EXPR_GROUPS) {
-                const groupRow = document.createElement("div");
-                groupRow.style.cssText = "display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;";
-                const lbl = document.createElement("div");
-                lbl.style.cssText = `${F}8px;color:#9a6aaa;flex-shrink:0;width:44px;padding-top:3px;text-align:right;`;
-                lbl.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
-                groupRow.appendChild(lbl);
-                const btnGrid = document.createElement("div");
-                btnGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0;";
-                const currentExpr = getActiveExpr(group);
-                const allBtns = [];
-                const setHighlight = (active) => {
-                    for (const b of allBtns) {
-                        const on = b === active;
-                        b.style.background = on ? "#5a1e3a" : "#16081a";
-                        b.style.borderColor = on ? "#cf6f98" : "#361525";
-                        b.style.color = on ? "#f7c0d8" : "#7a4a6e";
-                    }
-                };
-                const mkExprBtn = (name) => {
-                    var _a;
-                    const btn = document.createElement("button");
-                    btn.textContent = name !== null && name !== void 0 ? name : "—";
-                    btn.title = name !== null && name !== void 0 ? name : `Clear ${(_a = EXPR_GROUP_LABELS[group]) !== null && _a !== void 0 ? _a : group}`;
-                    const isActive = name === null ? currentExpr === null : name === currentExpr;
-                    btn.style.cssText = `${F}8px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;font-family:'Trebuchet MS',serif;` +
-                        (isActive
-                            ? "background:#5a1e3a;border:1px solid #cf6f98;color:#f7c0d8;"
-                            : "background:#16081a;border:1px solid #361525;color:#7a4a6e;");
-                    btn.addEventListener("click", () => {
-                        applyExprGroup(group, name);
-                        setHighlight(btn);
-                    });
-                    return btn;
-                };
-                // "—" (clear) button first, then all expression options
-                const noneBtn = mkExprBtn(null);
-                allBtns.push(noneBtn);
-                btnGrid.appendChild(noneBtn);
-                for (const opt of getExprGroupOptions(group)) {
-                    const b = mkExprBtn(opt);
-                    allBtns.push(b);
-                    btnGrid.appendChild(b);
-                }
-                groupRow.appendChild(btnGrid);
-                body.appendChild(groupRow);
-            }
+            // ── How-to info ───────────────────────────────────────────────────────────
+            const infoBox = document.createElement("div");
+            infoBox.style.cssText = `${F}9px;color:#9a7aaa;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
+            infoBox.innerHTML =
+                "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
+                    "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
+                    "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
+                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
+                    "<b style=\"color:#9a7aaa;\">action buttons</b> or <b style=\"color:#9a7aaa;\">scenes</b>, " +
+                    "or triggered when you <b style=\"color:#9a7aaa;\">send a matching chat message</b> (see Triggers below).";
+            body.appendChild(infoBox);
             // ── Save & Clear ──────────────────────────────────────────────────────────
-            const saveDiv1 = document.createElement("div");
-            saveDiv1.className = "ebc-divider";
-            saveDiv1.style.margin = "8px 0 6px";
-            body.appendChild(saveDiv1);
             const captureInput = Object.assign(document.createElement("input"), {
                 type: "text", maxLength: 30, placeholder: "Preset name…",
             });
@@ -30659,7 +30555,7 @@
                     if (v !== null)
                         trigCollapsed = v === "1";
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
                 const trigHdr = document.createElement("div");
                 trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
                 const trigChev = document.createElement("span");
@@ -32368,7 +32264,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.4";
+    const MOD_VERSION = "4.1.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32379,6 +32275,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.5",
+            changes: [
+                "Anims tab — Expressions: removed the live face-builder button grid. Replaced with a clear how-to explanation: set your face using BC's own expression controls in-game, then use '💾 Save face' to capture it as a preset. Save, presets, triggers, and scene/button integration all remain.",
+                "Anims tab — top of tab: added '📌 Reset all panel positions' button that snaps both the action buttons sidebar and the EBC drawer back to their default on-screen positions in one click.",
+            ],
+        },
         {
             version: "4.1.4",
             changes: [
