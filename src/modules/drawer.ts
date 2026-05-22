@@ -13358,6 +13358,48 @@ export class EBCDrawer {
                     timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
                     c.appendChild(timeEl);
 
+                    // Shared helper: build a small "view profile" button for a member number
+                    const makeRoomProfBtn = (memberNumber: number): HTMLButtonElement => {
+                        const btn = document.createElement("button");
+                        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                        btn.title = "View profile";
+                        btn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:4px;cursor:pointer;line-height:0;padding:3px 5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        btn.addEventListener("mouseenter", () => { btn.style.background = "#2a0e1e"; btn.style.borderColor = "#cf6f98"; });
+                        btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.borderColor = "#3a1928"; });
+                        btn.addEventListener("click", async () => {
+                            const w          = window as unknown as Record<string, unknown>;
+                            const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+                            const hideEls    = w.ChatRoomHideElements           as (() => void) | undefined;
+                            const loadOnline = w.CharacterLoadOnline            as ((d: unknown, n: number) => unknown) | undefined;
+                            const roomChars  = w.ChatRoomCharacter              as Array<Record<string, unknown>> | undefined;
+                            if (!loadChar || !loadOnline) {
+                                try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+                                return;
+                            }
+                            const openProfile = (C: unknown): void => {
+                                this.close();
+                                if (w.CurrentScreen === "ChatRoom") {
+                                    try { hideEls?.(); } catch { /* ignore */ }
+                                    try {
+                                        const bgData = (w.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                                        if (bgData) w.ChatRoomBackground = bgData;
+                                    } catch { /* ignore */ }
+                                }
+                                loadChar(C);
+                            };
+                            const inRoom = Array.isArray(roomChars)
+                                ? roomChars.find(c => c.MemberNumber === memberNumber)
+                                : undefined;
+                            if (inRoom) { try { openProfile(inRoom); return; } catch { /* ignore */ } }
+                            const bundle = await getCharacterBundle(memberNumber);
+                            if (bundle) {
+                                try { const C = loadOnline(bundle, memberNumber); if (C) { openProfile(C); return; } } catch { /* ignore */ }
+                            }
+                            try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+                        });
+                        return btn;
+                    };
+
                     // Members on entry
                     if (visit.members.length > 0) {
                         const mLbl = document.createElement("div");
@@ -13372,7 +13414,7 @@ export class EBCDrawer {
                             const mid = document.createElement("span");
                             mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
                             mid.textContent = `#${m.memberNumber}`;
-                            mr.appendChild(mn); mr.appendChild(mid); c.appendChild(mr);
+                            mr.appendChild(mn); mr.appendChild(mid); mr.appendChild(makeRoomProfBtn(m.memberNumber)); c.appendChild(mr);
                         }
                         const spacer = document.createElement("div"); spacer.style.height = "8px"; c.appendChild(spacer);
                     }
@@ -13398,7 +13440,7 @@ export class EBCDrawer {
                             const jt = document.createElement("span");
                             jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
                             jt.textContent = fmtTs(j.at);
-                            row.appendChild(jn); row.appendChild(jid); row.appendChild(jt); c.appendChild(row);
+                            row.appendChild(jn); row.appendChild(jid); row.appendChild(jt); row.appendChild(makeRoomProfBtn(j.memberNumber)); c.appendChild(row);
                         }
                     }
                 };
