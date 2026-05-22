@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.9.0
+// @version      3.9.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -3486,13 +3486,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+    // Returns true if the DOGS mod (Devious Obligate Great Stuff) is loaded.
+    // DOGS intercepts InventoryUnlock and restores padlocked items via server hooks,
+    // so any item it controls must be treated as untouchable.
+    function isDogsActive() {
+        var _a, _b;
+        try {
+            const sdk = window.bcModSdk;
+            return (_b = (_a = sdk === null || sdk === void 0 ? void 0 : sdk.getModsInfo) === null || _a === void 0 ? void 0 : _a.call(sdk).some(m => m.name === "DOGS")) !== null && _b !== void 0 ? _b : false;
+        }
+        catch (_c) {
+            return false;
+        }
+    }
     // Locks that must never be touched regardless of the operation.
+    // ExclusivePadlock is included: it is the base lock used by DOGS (Devious Obligate
+    // Great Stuff) and also semantically should not be bulk-removed — the person who
+    // applied it intended it to be exclusive to them.
     function isProtectedLock(item) {
         var _a, _b;
         const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
         if (!lock)
             return false;
-        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
+            || lock.includes("exclusive");
     }
     // Returns true if this item's slot is in the user's outfit whitelist.
     function isWhitelisted(item) {
@@ -3530,16 +3547,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
         const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
         if (toRemove.length === 0) {
+            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
             localNotice(skipped.length > 0
-                ? "All restraints are locked or protected — none removed."
+                ? `All restraints are locked or protected — none removed.${dogsNote}`
                 : "No restraints found to remove.", UI.textMuted);
             return;
         }
         for (const item of toRemove) {
-            InventoryRemove(Player, item.Asset.Group.Name, false);
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore — mod hook may throw */_a) { /* ignore — mod hook may throw */ }
         }
         if (skipped.length > 0) {
-            localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+            localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -3624,13 +3646,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             unlocked++;
         }
         if (unlocked === 0) {
+            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
             localNotice(skipped > 0
-                ? "All locks are owner/lover/family protected - none removed."
+                ? `All locks are protected — none removed.${dogsNote}`
                 : "No locks found to remove.", UI.textMuted);
             return;
         }
         if (skipped > 0) {
-            localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+            localNotice(`Skipped ${skipped} protected lock(s).${dogsNote}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -32007,7 +32031,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.0";
+    const MOD_VERSION = "3.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32018,6 +32042,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.9.1",
+            changes: [
+                "Fix: Release Restraints and Remove Locks no longer fight with the DOGS mod (Devious Obligate Great Stuff). DOGS uses ExclusivePadlock as its base lock type — EBC was trying to remove those items, DOGS would instantly restore them via server hooks, leaving the UI in a broken/oscillating state. ExclusivePadlock is now treated as a protected lock (same as owner/lover/family), so EBC skips DOGS-padlocked items entirely. A chat notice explains what was skipped and why when DOGS is active.",
+                "Fix: InventoryRemove calls in Release Restraints are now individually try-caught so a throwing mod hook can no longer crash the whole operation.",
+            ],
+        },
         {
             version: "3.9.0",
             changes: [
