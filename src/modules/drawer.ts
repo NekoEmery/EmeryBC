@@ -9431,10 +9431,17 @@ export class EBCDrawer {
             let equipHeightModifier: number | undefined = initStep.heightModifier;
             let unequipGroup         = initStep.group ?? "";
             let emoteText            = initStep.text ?? "";
-            let chatFormat           = initStep.chatFormat ?? "";
+            let chatFormat: "" | "(" = initStep.chatFormat === "(" ? "(" : "";
 
             // Colour input reference for the capture button to update
             let colorInpRef: HTMLInputElement | null = null;
+
+            // Prevent BC's document-level keyboard handlers from stealing focus
+            // while the user is typing in a step card input field.
+            const stopKeys = (el: HTMLElement): void => {
+                el.addEventListener("keydown", (e) => { e.stopPropagation(); });
+            };
+            stopKeys(delayInp);
 
             const renderFields = (type: StepType): void => {
                 while (fieldsEl.firstChild) fieldsEl.removeChild(fieldsEl.firstChild);
@@ -9589,6 +9596,7 @@ export class EBCDrawer {
                         const n = Number(heightInp.value);
                         equipHeightModifier = isNaN(n) ? undefined : n;
                     });
+                    stopKeys(heightInp);
                     const heightRangeLbl = document.createElement("span");
                     heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
                     heightWrap.appendChild(heightLbl);
@@ -9604,6 +9612,7 @@ export class EBCDrawer {
                     typeTextInp.title = "Equip the item in BC, set the desired state, then hit 📷 to fill this automatically";
                     typeTextInp.value = equipPropertyType;
                     typeTextInp.addEventListener("input", () => { equipPropertyType = typeTextInp.value.trim(); });
+                    stopKeys(typeTextInp);
 
                     const updateStateRow = (): void => {
                         const info = getAssetExtInfo(groupSel.value, assetSel.value);
@@ -9721,6 +9730,7 @@ export class EBCDrawer {
                         value: equipColorRaw, maxLength: 200,
                     }) as HTMLInputElement;
                     colorInp.addEventListener("input", () => { equipColorRaw = colorInp.value; });
+                    stopKeys(colorInp);
                     colorInpRef = colorInp;
                     fieldsEl.appendChild(colorInp);
 
@@ -9753,13 +9763,14 @@ export class EBCDrawer {
                         value: emoteText, maxLength: 200,
                     }) as HTMLInputElement;
                     textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                    stopKeys(textInp);
                     fieldsEl.appendChild(textInp);
 
                 } else if (type === "chat") {
                     const row = document.createElement("div");
                     row.className = "ebc-scene-fields-row";
 
-                    const makeToggle = (label: string, val: "" | "*" | "("): HTMLButtonElement => {
+                    const makeToggle = (label: string, val: "" | "("): HTMLButtonElement => {
                         const btn = document.createElement("button");
                         btn.textContent = label;
                         btn.style.cssText = [
@@ -9773,11 +9784,12 @@ export class EBCDrawer {
                         };
                         setActive(chatFormat === val);
                         btn.addEventListener("click", () => {
-                            chatFormat = val;
+                            // Toggle: clicking the active format deactivates it (back to plain)
+                            chatFormat = (chatFormat === val) ? "" : val;
                             row.querySelectorAll<HTMLButtonElement>("[data-fmt]").forEach(b => {
-                                const bVal = b.dataset.fmt as "" | "*" | "(";
-                                b.style.background = bVal === val ? "#cf6f98" : "#1b0d17";
-                                b.style.color      = bVal === val ? "#fff"    : "#9a6878";
+                                const bVal = b.dataset.fmt as "" | "(";
+                                b.style.background = bVal === chatFormat ? "#cf6f98" : "#1b0d17";
+                                b.style.color      = bVal === chatFormat ? "#fff"    : "#9a6878";
                             });
                         });
                         btn.dataset.fmt = val;
@@ -9791,8 +9803,8 @@ export class EBCDrawer {
                     }) as HTMLInputElement;
                     textInp.style.flex = "1";
                     textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                    stopKeys(textInp);
 
-                    row.appendChild(makeToggle("* *", "*"));
                     row.appendChild(makeToggle("( )", "("));
                     row.appendChild(textInp);
                     fieldsEl.appendChild(row);

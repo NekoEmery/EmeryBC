@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.6";
+const MOD_VERSION = "3.8.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.7",
+        changes: [
+            "Scene editor: removed the 'emote' (★) chat format option from chat steps — emotes caused confusion with how BC sends them. The OOC toggle remains; plain text is the default.",
+            "Scene editor: typing in step text fields no longer loses focus due to BC's keyboard handler intercepting keystrokes. All step inputs now stop keydown propagation so BC cannot steal focus mid-type.",
+            "Scene editor: the OOC ( ) format toggle is now a proper toggle — clicking it again deactivates it (back to plain), matching expected button behaviour.",
+        ],
+    },
     {
         version: "3.8.6",
         changes: [

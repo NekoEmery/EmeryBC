@@ -17,7 +17,7 @@ export interface SceneStep {
     propertyType?: string;      // equip: item Property.Type (e.g. "Tight", "Wrist", "Double")
     heightModifier?: number;    // equip: item Property.HeightModifier for VariableHeight items
     text?: string;              // emote / chat: message text
-    chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "*" emote, "(" OOC
+    chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "(" OOC ("*" emote removed in UI, kept for old saved scenes)
 }
 
 export interface Scene {
