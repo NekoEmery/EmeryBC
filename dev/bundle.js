@@ -2534,6 +2534,58 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
+    // -- Sequences -----------------------------------------------------------------
+    function getExpressionSequences() {
+        var _a;
+        try {
+            const list = (_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.expressionSequences;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionSequences(seqs) {
+        try {
+            const store = getStore$6();
+            if (!store)
+                return;
+            store.expressionSequences = seqs;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function createExpressionSequence(name, steps, command) {
+        const seq = { id: uid$4(), name: name, steps };
+        if (command === null || command === void 0 ? void 0 : command.trim())
+            seq.command = command.trim();
+        return seq;
+    }
+    function updateExpressionSequence(id, name, steps, command) {
+        const seqs = getExpressionSequences();
+        const i = seqs.findIndex(s => s.id === id);
+        if (i === -1)
+            return;
+        const trimCmd = command === null || command === void 0 ? void 0 : command.trim();
+        seqs[i] = Object.assign(Object.assign({}, seqs[i]), { name: name.trim() || seqs[i].name, steps, command: trimCmd || undefined });
+        if (!trimCmd)
+            delete seqs[i].command;
+        saveExpressionSequences(seqs);
+    }
+    function deleteExpressionSequence(id) {
+        saveExpressionSequences(getExpressionSequences().filter(s => s.id !== id));
+    }
+    // Returns true if a sequence command matched and playback was started.
+    function handleExprSequenceCommand(text) {
+        const lower = text.trim().toLowerCase().replace(/^\//, "");
+        for (const seq of getExpressionSequences()) {
+            if (seq.command && lower === seq.command.toLowerCase()) {
+                playExpressionSequence(seq);
+                return true;
+            }
+        }
+        return false;
+    }
     // -- Default expression preset -------------------------------------------------
     // The preset the user reverts to after a timed expression or trigger fires.
     // null = clear all groups back to neutral.
@@ -2624,6 +2676,36 @@
                 break; // first match wins per message
             }
         }
+    }
+    let _seqRunning = false;
+    function isExprSeqRunning() { return _seqRunning; }
+    function playExpressionSequence(seq, onDone) {
+        if (_seqRunning)
+            return;
+        _seqRunning = true;
+        let i = 0;
+        const runStep = () => {
+            var _a, _b;
+            if (i >= seq.steps.length) {
+                _seqRunning = false;
+                onDone === null || onDone === void 0 ? void 0 : onDone();
+                return;
+            }
+            const step = seq.steps[i];
+            try {
+                const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
+                for (const [group, name] of Object.entries(groups)) {
+                    try {
+                        applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                    }
+                    catch ( /* skip */_c) { /* skip */ }
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            i++;
+            window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
+        };
+        runStep();
     }
 
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
@@ -21473,7 +21555,7 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e, _f, _g;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -22020,6 +22102,345 @@
             // ── SCENES (collapsible) ─────────────────────────────────────────────
             const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
             this.renderScenes(scenesCnt);
+            // ── EXPRESSION SEQUENCES (collapsible) ──────────────────────────────
+            const exprSeqCnt = makeCollapse("Expression Sequences", "EBC_exprSeqCollapsed", true);
+            // Helper — builds a draggable step list with per-step hold-time + an "add from preset" row.
+            const buildSeqStepEditor = (container, initial) => {
+                const steps = initial.map(s => (Object.assign({}, s)));
+                const listEl = document.createElement("div");
+                listEl.className = "ebc-step-list";
+                container.appendChild(listEl);
+                const renderStepList = () => {
+                    while (listEl.firstChild)
+                        listEl.removeChild(listEl.firstChild);
+                    if (steps.length === 0) {
+                        const empty = document.createElement("div");
+                        empty.className = "ebc-import-hint";
+                        empty.style.textAlign = "center";
+                        empty.textContent = "No steps yet — add a preset below";
+                        listEl.appendChild(empty);
+                        return;
+                    }
+                    steps.forEach((step, idx) => {
+                        var _a, _b, _c;
+                        const sRow = document.createElement("div");
+                        sRow.className = "ebc-step-row";
+                        const numEl = document.createElement("span");
+                        numEl.className = "ebc-step-num";
+                        numEl.textContent = `${idx + 1}.`;
+                        const lblEl = document.createElement("span");
+                        lblEl.className = "ebc-step-label";
+                        const liveName = (_a = getExpressionPresets().find(p => p.id === step.presetId)) === null || _a === void 0 ? void 0 : _a.name;
+                        lblEl.textContent = (_b = liveName !== null && liveName !== void 0 ? liveName : step.presetName) !== null && _b !== void 0 ? _b : "Unknown";
+                        if (!liveName && step.presetName)
+                            lblEl.style.opacity = "0.55";
+                        const holdInp = document.createElement("input");
+                        holdInp.type = "number";
+                        holdInp.min = "100";
+                        holdInp.max = "9999";
+                        holdInp.value = String(Math.max(100, (_c = step.delayMs) !== null && _c !== void 0 ? _c : 800));
+                        holdInp.title = "Hold duration (ms) — how long this face is shown before the next step";
+                        holdInp.style.cssText = "width:52px;font-size:10px;font-family:'Trebuchet MS',serif;padding:1px 3px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:3px;";
+                        holdInp.addEventListener("input", () => { steps[idx].delayMs = Math.max(100, parseInt(holdInp.value) || 800); });
+                        holdInp.addEventListener("keydown", e => e.stopPropagation());
+                        const msLbl = document.createElement("span");
+                        msLbl.style.cssText = "font-size:10px;color:#5a3050;font-family:'Trebuchet MS',serif;";
+                        msLbl.textContent = "ms";
+                        const upBtn = document.createElement("button");
+                        upBtn.className = "ebc-step-move";
+                        upBtn.textContent = "↑";
+                        upBtn.title = "Move earlier";
+                        upBtn.disabled = idx === 0;
+                        upBtn.addEventListener("click", () => {
+                            if (idx > 0) {
+                                [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
+                                renderStepList();
+                            }
+                        });
+                        const downBtn = document.createElement("button");
+                        downBtn.className = "ebc-step-move";
+                        downBtn.textContent = "↓";
+                        downBtn.title = "Move later";
+                        downBtn.disabled = idx === steps.length - 1;
+                        downBtn.addEventListener("click", () => {
+                            if (idx < steps.length - 1) {
+                                [steps[idx], steps[idx + 1]] = [steps[idx + 1], steps[idx]];
+                                renderStepList();
+                            }
+                        });
+                        const delBtn = document.createElement("button");
+                        delBtn.className = "ebc-step-del";
+                        delBtn.textContent = "×";
+                        delBtn.title = "Remove step";
+                        delBtn.addEventListener("click", () => { steps.splice(idx, 1); renderStepList(); });
+                        sRow.appendChild(numEl);
+                        sRow.appendChild(lblEl);
+                        sRow.appendChild(holdInp);
+                        sRow.appendChild(msLbl);
+                        sRow.appendChild(upBtn);
+                        sRow.appendChild(downBtn);
+                        sRow.appendChild(delBtn);
+                        listEl.appendChild(sRow);
+                    });
+                };
+                renderStepList();
+                // Add step from preset
+                const addHint = document.createElement("div");
+                addHint.className = "ebc-import-hint";
+                addHint.style.marginTop = "4px";
+                addHint.textContent = "Add step:";
+                container.appendChild(addHint);
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+                const presetSel = document.createElement("select");
+                presetSel.style.cssText = "flex:1;min-width:0;font-size:11px;font-family:'Trebuchet MS',serif;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:2px 4px;";
+                const addBtn = document.createElement("button");
+                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                addBtn.textContent = "＋ Add";
+                addBtn.addEventListener("mouseenter", () => { addBtn.style.color = "#cf6f98"; addBtn.style.borderColor = "#cf6f98"; });
+                addBtn.addEventListener("mouseleave", () => { addBtn.style.color = "#9a6878"; addBtn.style.borderColor = "#3a1928"; });
+                const refreshSel = () => {
+                    while (presetSel.firstChild)
+                        presetSel.removeChild(presetSel.firstChild);
+                    const presets = getExpressionPresets();
+                    if (presets.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.textContent = "(no presets — save faces in Expressions tab first)";
+                        opt.disabled = true;
+                        presetSel.appendChild(opt);
+                        addBtn.disabled = true;
+                    }
+                    else {
+                        addBtn.disabled = false;
+                        for (const p of presets) {
+                            const opt = document.createElement("option");
+                            opt.value = p.id;
+                            opt.textContent = p.name;
+                            presetSel.appendChild(opt);
+                        }
+                    }
+                };
+                refreshSel();
+                addBtn.addEventListener("click", () => {
+                    const preset = getExpressionPresets().find(p => p.id === presetSel.value);
+                    if (!preset)
+                        return;
+                    const groups = {};
+                    for (const [g, entry] of Object.entries(preset.groups)) {
+                        groups[g] = entry ? entry.Name : null;
+                    }
+                    steps.push({ groups, delayMs: 800, presetId: preset.id, presetName: preset.name });
+                    renderStepList();
+                });
+                addRow.appendChild(presetSel);
+                addRow.appendChild(addBtn);
+                container.appendChild(addRow);
+                return { getSteps: () => steps.map(s => (Object.assign({}, s))) };
+            };
+            // ── Existing sequences ────────────────────────────────────────────────
+            const exprSeqs = getExpressionSequences();
+            if (exprSeqs.length === 0) {
+                const none = document.createElement("div");
+                none.className = "ebc-empty";
+                none.style.padding = "4px 0 6px";
+                none.textContent = "No sequences yet";
+                exprSeqCnt.appendChild(none);
+            }
+            for (const seq of exprSeqs) {
+                const seqWrapper = document.createElement("div");
+                seqWrapper.style.marginBottom = "3px";
+                const seqRow = document.createElement("div");
+                seqRow.className = "ebc-combo-row";
+                seqRow.style.borderRadius = "6px";
+                seqRow.style.marginBottom = "0";
+                const seqNameEl = document.createElement("span");
+                seqNameEl.className = "ebc-combo-name";
+                seqNameEl.textContent = seq.name;
+                if (seq.command)
+                    seqNameEl.title = `/${seq.command}`;
+                const seqPreviewEl = document.createElement("span");
+                seqPreviewEl.className = "ebc-combo-poses";
+                const stepLabels = seq.steps.map(s => {
+                    var _a, _b;
+                    const live = (_a = getExpressionPresets().find(p => p.id === s.presetId)) === null || _a === void 0 ? void 0 : _a.name;
+                    return (_b = live !== null && live !== void 0 ? live : s.presetName) !== null && _b !== void 0 ? _b : "?";
+                });
+                seqPreviewEl.textContent = stepLabels.join(" → ") || "(empty)";
+                if (seq.command) {
+                    const cmdBadge = document.createElement("span");
+                    cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:11px;";
+                    cmdBadge.textContent = `/${seq.command}`;
+                    seqPreviewEl.appendChild(cmdBadge);
+                }
+                const seqPlayBtn = document.createElement("button");
+                seqPlayBtn.className = "ebc-combo-apply-btn";
+                seqPlayBtn.textContent = "▶";
+                seqPlayBtn.title = "Play sequence";
+                seqPlayBtn.disabled = seq.steps.length === 0;
+                seqPlayBtn.addEventListener("click", () => {
+                    if (isExprSeqRunning())
+                        return;
+                    seqPlayBtn.disabled = true;
+                    seqPlayBtn.textContent = "…";
+                    playExpressionSequence(seq, () => {
+                        seqPlayBtn.disabled = false;
+                        seqPlayBtn.textContent = "▶";
+                    });
+                });
+                const seqEditor = document.createElement("div");
+                seqEditor.className = "ebc-combo-editor";
+                const seqEditBtn = document.createElement("button");
+                seqEditBtn.className = "ebc-combo-edit-btn";
+                seqEditBtn.textContent = "✎";
+                seqEditBtn.title = "Edit sequence";
+                let seqDelPend = false;
+                const seqDelBtn = document.createElement("button");
+                seqDelBtn.className = "ebc-outfit-del";
+                seqDelBtn.textContent = "×";
+                seqDelBtn.title = "Delete sequence";
+                seqDelBtn.addEventListener("click", () => {
+                    if (!seqDelPend) {
+                        seqDelPend = true;
+                        seqDelBtn.textContent = "✓?";
+                        seqDelBtn.title = "Confirm delete";
+                        window.setTimeout(() => { if (seqDelPend) {
+                            seqDelPend = false;
+                            seqDelBtn.textContent = "×";
+                            seqDelBtn.title = "Delete sequence";
+                        } }, 2500);
+                    }
+                    else {
+                        deleteExpressionSequence(seq.id);
+                        this.rerender();
+                    }
+                });
+                seqRow.appendChild(seqNameEl);
+                seqRow.appendChild(seqPreviewEl);
+                seqRow.appendChild(seqPlayBtn);
+                seqRow.appendChild(seqEditBtn);
+                seqRow.appendChild(seqDelBtn);
+                // ── Inline editor ─────────────────────────────────────────────────
+                const seqTopSaveBar = document.createElement("div");
+                seqTopSaveBar.className = "ebc-editor-save-bar";
+                const seqTopSaveBtn = document.createElement("button");
+                seqTopSaveBtn.className = "ebc-create-btn";
+                seqTopSaveBtn.style.cssText = "font-size:11px;padding:2px 10px;";
+                seqTopSaveBtn.textContent = t("outfits.saveChanges");
+                seqTopSaveBar.appendChild(seqTopSaveBtn);
+                seqEditor.appendChild(seqTopSaveBar);
+                const seqNameInp = document.createElement("input");
+                seqNameInp.type = "text";
+                seqNameInp.maxLength = 40;
+                seqNameInp.value = seq.name;
+                seqNameInp.className = "ebc-form-input";
+                seqNameInp.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
+                seqNameInp.placeholder = "Sequence name…";
+                seqNameInp.addEventListener("keydown", e => e.stopPropagation());
+                seqEditor.appendChild(seqNameInp);
+                const seqCmdWrap = document.createElement("div");
+                seqCmdWrap.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
+                const seqCmdSlash = document.createElement("span");
+                seqCmdSlash.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;flex-shrink:0;";
+                seqCmdSlash.textContent = "/";
+                const seqCmdInp = document.createElement("input");
+                seqCmdInp.type = "text";
+                seqCmdInp.maxLength = 30;
+                seqCmdInp.value = (_g = seq.command) !== null && _g !== void 0 ? _g : "";
+                seqCmdInp.className = "ebc-form-input";
+                seqCmdInp.style.cssText = "flex:1;font-size:11px;";
+                seqCmdInp.placeholder = "command (optional)";
+                seqCmdInp.addEventListener("keydown", e => e.stopPropagation());
+                seqCmdWrap.appendChild(seqCmdSlash);
+                seqCmdWrap.appendChild(seqCmdInp);
+                seqEditor.appendChild(seqCmdWrap);
+                const { getSteps: seqGetSteps } = buildSeqStepEditor(seqEditor, seq.steps);
+                const doSaveSeq = () => {
+                    showConfirmOverlay(`Save changes to "${seq.name}"?`, "Cancel", "Save", () => {
+                        updateExpressionSequence(seq.id, seqNameInp.value, seqGetSteps(), seqCmdInp.value || undefined);
+                        this.rerender();
+                    });
+                };
+                seqTopSaveBtn.addEventListener("click", doSaveSeq);
+                const seqBotSaveBar = document.createElement("div");
+                seqBotSaveBar.className = "ebc-editor-save-bar";
+                seqBotSaveBar.style.marginTop = "2px";
+                const seqBotSaveBtn = document.createElement("button");
+                seqBotSaveBtn.className = "ebc-create-btn";
+                seqBotSaveBtn.textContent = t("outfits.saveChanges");
+                seqBotSaveBtn.addEventListener("click", doSaveSeq);
+                seqBotSaveBar.appendChild(seqBotSaveBtn);
+                seqEditor.appendChild(seqBotSaveBar);
+                seqEditBtn.addEventListener("click", () => {
+                    const open = seqEditor.classList.contains("open");
+                    seqEditor.classList.toggle("open", !open);
+                    seqEditBtn.classList.toggle("open", !open);
+                    seqRow.style.borderRadius = open ? "6px" : "6px 6px 0 0";
+                    if (!open)
+                        window.setTimeout(() => seqRow.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+                });
+                seqWrapper.appendChild(seqRow);
+                seqWrapper.appendChild(seqEditor);
+                exprSeqCnt.appendChild(seqWrapper);
+            }
+            // ── New sequence form ─────────────────────────────────────────────────
+            const newSeqToggle = document.createElement("button");
+            newSeqToggle.className = "ebc-create-btn";
+            newSeqToggle.style.cssText = "width:100%;margin-top:6px;";
+            newSeqToggle.setAttribute("data-guide-target", "btn-new-exprseq");
+            newSeqToggle.textContent = "＋ New Sequence";
+            const newSeqForm = document.createElement("div");
+            newSeqForm.style.cssText = "display:none;flex-direction:column;gap:0;padding:8px;background:rgba(15,5,12,0.7);border:1px solid #2a1421;border-radius:0 0 6px 6px;margin-top:-2px;";
+            const ncSeqNameInp = document.createElement("input");
+            ncSeqNameInp.type = "text";
+            ncSeqNameInp.maxLength = 40;
+            ncSeqNameInp.className = "ebc-form-input";
+            ncSeqNameInp.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
+            ncSeqNameInp.placeholder = "Sequence name…";
+            ncSeqNameInp.addEventListener("keydown", e => e.stopPropagation());
+            newSeqForm.appendChild(ncSeqNameInp);
+            const ncCmdWrap = document.createElement("div");
+            ncCmdWrap.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
+            const ncCmdSlash = document.createElement("span");
+            ncCmdSlash.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;flex-shrink:0;";
+            ncCmdSlash.textContent = "/";
+            const ncCmdInp = document.createElement("input");
+            ncCmdInp.type = "text";
+            ncCmdInp.maxLength = 30;
+            ncCmdInp.className = "ebc-form-input";
+            ncCmdInp.style.cssText = "flex:1;font-size:11px;";
+            ncCmdInp.placeholder = "command (optional)";
+            ncCmdInp.addEventListener("keydown", e => e.stopPropagation());
+            ncCmdWrap.appendChild(ncCmdSlash);
+            ncCmdWrap.appendChild(ncCmdInp);
+            newSeqForm.appendChild(ncCmdWrap);
+            const { getSteps: ncGetSteps } = buildSeqStepEditor(newSeqForm, []);
+            const nsCreateBar = document.createElement("div");
+            nsCreateBar.className = "ebc-editor-save-bar";
+            nsCreateBar.style.marginTop = "2px";
+            const nsCreateBtn = document.createElement("button");
+            nsCreateBtn.className = "ebc-create-btn";
+            nsCreateBtn.textContent = "Create Sequence";
+            nsCreateBtn.addEventListener("click", () => {
+                const steps = ncGetSteps();
+                const newSeq = createExpressionSequence(ncSeqNameInp.value.trim() || "Sequence", steps, ncCmdInp.value.trim() || undefined);
+                const all = getExpressionSequences();
+                all.push(newSeq);
+                saveExpressionSequences(all);
+                this.rerender();
+            });
+            nsCreateBar.appendChild(nsCreateBtn);
+            newSeqForm.appendChild(nsCreateBar);
+            newSeqToggle.addEventListener("click", () => {
+                const open = newSeqForm.style.display !== "none";
+                newSeqForm.style.display = open ? "none" : "flex";
+                newSeqToggle.textContent = open ? "＋ New Sequence" : t("core.cancel");
+                if (!open) {
+                    ncSeqNameInp.focus();
+                    window.setTimeout(() => newSeqToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+                }
+            });
+            exprSeqCnt.appendChild(newSeqToggle);
+            exprSeqCnt.appendChild(newSeqForm);
             // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
             const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
             this.renderExpressions(exprCnt);
@@ -32306,7 +32727,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.9";
+    const MOD_VERSION = "4.3.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32317,6 +32738,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.0",
+            changes: [
+                "Animations tab: new 'Expression Sequences' section. Build a named sequence of saved face presets — each step shows for a configurable hold time (ms) before advancing to the next. Play manually with ▶, or assign an optional /command to trigger from chat. Steps are reorderable with ↑/↓ and each hold time is independently adjustable. Sequences are self-contained snapshots so they survive preset renames/deletions.",
+            ],
+        },
         {
             version: "4.2.9",
             changes: [
@@ -37849,6 +38276,7 @@
                     || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handlePoseComboCommand(raw)
+                    || handleExprSequenceCommand(raw)
                     || handleSceneCommand(raw)
                     || handleDomCommand(raw)
                     || handleEmoteShortcut(raw)) {
@@ -37870,6 +38298,7 @@
                         || handleRestraintCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                         || handleOutfitCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                         || handlePoseComboCommand(input.value)
+                        || handleExprSequenceCommand(input.value)
                         || handleSceneCommand(input.value)
                         || handleDomCommand(input.value)
                         || handleEmoteShortcut(input.value))) {
@@ -37892,6 +38321,7 @@
                     || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handlePoseComboCommand(raw)
+                    || handleExprSequenceCommand(raw)
                     || handleSceneCommand(raw)
                     || handleDomCommand(raw)
                     || handleEmoteShortcut(raw))) {
