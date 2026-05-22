@@ -22382,14 +22382,6 @@
                 seqRow.appendChild(seqEditBtn);
                 seqRow.appendChild(seqDelBtn);
                 // ── Inline editor ─────────────────────────────────────────────────
-                const seqTopSaveBar = document.createElement("div");
-                seqTopSaveBar.className = "ebc-editor-save-bar";
-                const seqTopSaveBtn = document.createElement("button");
-                seqTopSaveBtn.className = "ebc-create-btn";
-                seqTopSaveBtn.style.cssText = "font-size:11px;padding:2px 10px;";
-                seqTopSaveBtn.textContent = t("outfits.saveChanges");
-                seqTopSaveBar.appendChild(seqTopSaveBtn);
-                seqEditor.appendChild(seqTopSaveBar);
                 const seqNameInp = document.createElement("input");
                 seqNameInp.type = "text";
                 seqNameInp.maxLength = 40;
@@ -22422,7 +22414,6 @@
                         this.rerender();
                     });
                 };
-                seqTopSaveBtn.addEventListener("click", doSaveSeq);
                 const seqBotSaveBar = document.createElement("div");
                 seqBotSaveBar.className = "ebc-editor-save-bar";
                 seqBotSaveBar.style.marginTop = "2px";
@@ -33003,7 +32994,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.7";
+    const MOD_VERSION = "4.3.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33014,6 +33005,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.8",
+            changes: [
+                "Expression Sequences: removed the redundant top 'Save Changes' bar — only the bottom one remains.",
+                "Default badge settings: on first load, if no badge settings have been configured yet, EBC now seeds the preferred defaults (cat style, correct offsets, show own badge, hide version labels).",
+            ],
+        },
         {
             version: "4.3.7",
             changes: [
@@ -38018,6 +38016,39 @@
             console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
         }
     }
+    // Seed default badge display settings on first run.
+    // Only applied if the player has never configured badge settings (badgeEnabled key absent).
+    function seedDefaultBadgeSettings() {
+        var _a;
+        try {
+            if (!((_a = Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings) === null || _a === void 0 ? void 0 : _a.EmeryBC))
+                return;
+            const store = Player.ExtensionSettings.EmeryBC;
+            if ("badgeEnabled" in store)
+                return; // already configured — do not overwrite
+            Object.assign(store, {
+                badgeEnabled: true,
+                showOthersBadge: true,
+                showVersionBadge: false,
+                showOthersVersionBadge: false,
+                badgeStyle: "cat",
+                othersBadgeStyle: "cat",
+                badgeScale: 1,
+                textBadgeScale: 0.95,
+                catBadgeScale: 1.45,
+                badgeBgOpacity: 1,
+                badgeTextOpacity: 1,
+                badgeOffsetX: 257,
+                badgeOffsetY: 953,
+                catBadgeOffsetX: 353,
+                catBadgeOffsetY: 21,
+                versionTextOffsetX: 353,
+                versionTextOffsetY: 55,
+            });
+            syncSettings();
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     function init() {
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
         // Seed the arousal restore-target with whatever the player has set right now
@@ -38085,6 +38116,11 @@
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
             migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => { });
+            // Seed default badge settings for first-time users.
+            window.setTimeout(() => { try {
+                seedDefaultBadgeSettings();
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 1500);
         }
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
