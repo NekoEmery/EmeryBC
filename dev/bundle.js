@@ -16172,6 +16172,10 @@
         }, { passive: false });
     }
     // Add move+end listeners to document for both mouse and touch, returning a cleanup fn.
+    // Touch listeners use the CAPTURE phase so they fire before any stopPropagation()
+    // calls lower in the tree (e.g. the slideContainer's stopTouch guard that prevents
+    // BC from calling preventDefault on scroll events — without capture, those guards
+    // eat the touchmove before it ever reaches our drag handler).
     function addPointerTracking(onMove, onEnd) {
         const moveH = (e) => {
             if (e.cancelable)
@@ -16185,13 +16189,13 @@
         const cleanup = () => {
             document.removeEventListener("mousemove", moveH);
             document.removeEventListener("mouseup", endH);
-            document.removeEventListener("touchmove", moveH);
-            document.removeEventListener("touchend", endH);
+            document.removeEventListener("touchmove", moveH, { capture: true });
+            document.removeEventListener("touchend", endH, { capture: true });
         };
         document.addEventListener("mousemove", moveH);
         document.addEventListener("mouseup", endH);
-        document.addEventListener("touchmove", moveH, { passive: false });
-        document.addEventListener("touchend", endH);
+        document.addEventListener("touchmove", moveH, { passive: false, capture: true });
+        document.addEventListener("touchend", endH, { capture: true });
         return cleanup;
     }
     // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
@@ -31895,7 +31899,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.2";
+    const MOD_VERSION = "3.8.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31906,6 +31910,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.3",
+            changes: [
+                "Fix: panel drag now works on tablet/touch. The stopPropagation guard on the panel container (which prevents BC from killing scroll events) was also swallowing touchmove before it reached the drag tracker. Drag tracking now uses capture-phase listeners which fire before any stopPropagation in the bubble phase.",
+            ],
+        },
         {
             version: "3.8.2",
             changes: [
