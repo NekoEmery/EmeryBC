@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.4.2
+// @version      4.4.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31323,7 +31323,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             clearAllBtn.className = "ebc-btn-footer-btn";
             clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
             clearAllBtn.textContent = "↺  Reset face expression";
-            clearAllBtn.title = "Apply your default face preset (★), or clear all expressions if none is set";
+            clearAllBtn.title = "Apply your default face preset, or clear all expressions if none is set";
             clearAllBtn.addEventListener("click", () => {
                 const defaultId = getDefaultExprPresetId();
                 if (defaultId) {
@@ -31350,15 +31350,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             autoApplyRow.style.cssText = "display:flex;align-items:center;gap:7px;margin-bottom:6px;";
             const autoApplyToggle = document.createElement("button");
             autoApplyToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${autoApplyOn ? "#cf6f98" : "#3a1928"};background:${autoApplyOn ? "#3a1020" : "transparent"};color:${autoApplyOn ? "#cf6f98" : "#7a5070"};`;
-            autoApplyToggle.textContent = autoApplyOn ? "★ ON" : "★ OFF";
-            autoApplyToggle.title = "When ON, your default ★ face preset is applied automatically each time you enter a room";
+            autoApplyToggle.textContent = autoApplyOn ? "ON" : "OFF";
+            autoApplyToggle.title = "When ON, your default face preset is applied automatically each time you enter a room";
             autoApplyToggle.addEventListener("click", () => {
                 const next = !getAutoApplyDefaultFace();
                 setAutoApplyDefaultFace(next);
                 autoApplyToggle.style.border = `1px solid ${next ? "#cf6f98" : "#3a1928"}`;
                 autoApplyToggle.style.background = next ? "#3a1020" : "transparent";
                 autoApplyToggle.style.color = next ? "#cf6f98" : "#7a5070";
-                autoApplyToggle.textContent = next ? "★ ON" : "★ OFF";
+                autoApplyToggle.textContent = next ? "ON" : "OFF";
             });
             const autoApplyLbl = document.createElement("span");
             autoApplyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
@@ -31429,9 +31429,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     const isDefault = preset.id === defaultId;
                     const defaultBtn = document.createElement("button");
-                    defaultBtn.style.cssText = `${F}12px;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;color:${isDefault ? "#f0c040" : "#4a3040"};`;
-                    defaultBtn.textContent = "★";
-                    defaultBtn.title = isDefault ? "Default face — click to unset" : "Set as default face";
+                    defaultBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isDefault ? "#b07820" : "#3a1928"};background:${isDefault ? "#1e1400" : "transparent"};color:${isDefault ? "#f0c040" : "#7a5070"};`;
+                    defaultBtn.textContent = "Default";
+                    defaultBtn.title = isDefault ? "This is your default face — click to unset" : "Set as default face (used by ↺ Reset and auto-apply on room join)";
                     defaultBtn.addEventListener("click", () => {
                         setDefaultExprPresetId(isDefault ? null : preset.id);
                         this.rerender();
@@ -33170,7 +33170,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.2";
+    const MOD_VERSION = "4.4.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33181,6 +33181,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.3",
+            changes: [
+                "Expressions: replaced the ★ symbol on presets with a proper 'Default' button styled to match the other row buttons (gold-tinted when active, muted when inactive).",
+            ],
+        },
         {
             version: "4.4.2",
             changes: [
