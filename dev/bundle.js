@@ -24180,12 +24180,27 @@
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
                 searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+                searchInput.dataset.ebcRole = "friend-search";
+                // Prevent BC's document-level key handler stealing focus while typing
+                searchInput.addEventListener("keydown", (e) => { e.stopPropagation(); });
                 searchInput.addEventListener("input", () => {
+                    var _a, _b;
                     this.friendSearch = searchInput.value;
+                    // Capture cursor position before the rebuild destroys this element
+                    const sel = [(_a = searchInput.selectionStart) !== null && _a !== void 0 ? _a : 0, (_b = searchInput.selectionEnd) !== null && _b !== void 0 ? _b : 0];
                     try {
                         this.renderFriendRows(body);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                    // Restore focus + cursor to the freshly-created search input
+                    const reborn = body.querySelector('[data-ebc-role="friend-search"]');
+                    if (reborn) {
+                        reborn.focus();
+                        try {
+                            reborn.setSelectionRange(sel[0], sel[1]);
+                        }
+                        catch ( /* ignore */_d) { /* ignore */ }
+                    }
                 });
                 const clearSearchBtn = document.createElement("button");
                 clearSearchBtn.textContent = "×";
@@ -24199,6 +24214,9 @@
                         this.renderFriendRows(body);
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    const reborn = body.querySelector('[data-ebc-role="friend-search"]');
+                    if (reborn)
+                        reborn.focus();
                 });
                 searchRow.appendChild(searchInput);
                 searchRow.appendChild(clearSearchBtn);
@@ -32090,7 +32108,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.7";
+    const MOD_VERSION = "3.9.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
