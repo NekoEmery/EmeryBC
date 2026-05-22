@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.8";
+const MOD_VERSION = "4.2.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.9",
+        changes: [
+            "Expressions tab: removed stale help text claiming presets can be triggered by a matching chat message — that feature doesn't exist. Info box now correctly states presets can be applied manually or fired from action buttons / scenes.",
+        ],
+    },
     {
         version: "4.2.8",
         changes: [

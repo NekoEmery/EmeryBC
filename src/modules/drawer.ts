@@ -17599,9 +17599,8 @@ export class EBCDrawer {
             "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
             "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
             "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
-            "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
-            "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
-            "or triggered when you <b style=\"color:#d0a0d8;\">send a matching chat message</b> (see Triggers below).";
+            "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, or fired automatically from " +
+            "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>.";
         body.appendChild(infoBox);
 
         // ── Save & Clear ──────────────────────────────────────────────────────────
