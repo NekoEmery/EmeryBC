@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.4
+// @version      4.3.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -22298,7 +22298,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     seqPreviewEl.appendChild(cmdBadge);
                 }
                 const seqPlayBtn = document.createElement("button");
-                seqPlayBtn.className = "ebc-combo-apply-btn";
+                seqPlayBtn.className = "ebc-wear-btn";
+                seqPlayBtn.style.padding = "3px 8px";
                 seqPlayBtn.textContent = "▶";
                 seqPlayBtn.title = "Play sequence";
                 seqPlayBtn.disabled = seq.steps.length === 0;
@@ -22315,8 +22316,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const seqEditor = document.createElement("div");
                 seqEditor.className = "ebc-combo-editor";
                 const seqEditBtn = document.createElement("button");
-                seqEditBtn.className = "ebc-combo-edit-btn";
-                seqEditBtn.textContent = "✎";
+                seqEditBtn.className = "ebc-edit-btn";
+                seqEditBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
                 seqEditBtn.title = "Edit sequence";
                 let seqDelPend = false;
                 const seqDelBtn = document.createElement("button");
@@ -31165,6 +31166,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     applyBtn.textContent = "✓ Apply";
                     applyBtn.title = "Apply this preset";
                     applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+                    const updateExprBtn = document.createElement("button");
+                    updateExprBtn.className = "ebc-update-btn";
+                    updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
+                    updateExprBtn.textContent = "↺";
+                    updateExprBtn.title = "Overwrite this preset with your current face expression";
+                    updateExprBtn.addEventListener("click", () => {
+                        showConfirmOverlay(`Overwrite "${preset.name}" with your current face?`, "Cancel", "Update", () => {
+                            const captured = captureCurrentExpression(preset.name);
+                            const all = getExpressionPresets();
+                            const pi = all.findIndex(p => p.id === preset.id);
+                            if (pi !== -1) {
+                                all[pi] = Object.assign(Object.assign({}, all[pi]), { groups: captured.groups });
+                                saveExpressionPresets(all);
+                            }
+                            this.rerender();
+                        });
+                    });
                     const nameEl = document.createElement("input");
                     nameEl.type = "text";
                     nameEl.value = preset.name;
@@ -31206,6 +31224,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this.rerender();
                     });
                     pRow.appendChild(applyBtn);
+                    pRow.appendChild(updateExprBtn);
                     pRow.appendChild(nameEl);
                     pRow.appendChild(defaultBtn);
                     pRow.appendChild(delBtn);
@@ -32926,7 +32945,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.4";
+    const MOD_VERSION = "4.3.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32937,6 +32956,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.5",
+            changes: [
+                "Expression Sequences: fixed ▶ and ✎ buttons — they were using undefined CSS classes and rendered unstyled. Now use the same styled button classes as pose combos (ebc-wear-btn / ebc-edit-btn).",
+                "Expression Presets: added ↺ button on each preset row to overwrite the preset with your current live face expression (with confirm dialog).",
+            ],
+        },
         {
             version: "4.3.4",
             changes: [
