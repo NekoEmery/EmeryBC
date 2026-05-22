@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.4.7
+// @version      4.4.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -3710,6 +3710,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         canvas.addEventListener("touchstart", onDown, { passive: false });
     }
     /**
+     * Draw a single action button with perfectly centred label text.
+     * Uses canvas directly so the label is always centred regardless of
+     * character type (ASCII, emoji, symbols, mixed case, etc.).
+     */
+    function drawActionButton(x, y, size, label, bgColor) {
+        // Background rectangle
+        DrawRect(x, y, size, size, bgColor);
+        DrawEmptyRect(x, y, size, size, "rgba(0,0,0,0.35)", 1);
+        const canvas = document.getElementById("MainCanvas");
+        const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+        if (!ctx)
+            return;
+        ctx.save();
+        // Try progressively smaller fonts until the text fits horizontally
+        const pad = 4;
+        const maxW = size - pad * 2;
+        let fontSize = 14;
+        ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
+        while (ctx.measureText(label).width > maxW && fontSize > 7) {
+            fontSize -= 1;
+            ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
+        }
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0,0,0,0.7)";
+        ctx.shadowBlur = 3;
+        ctx.fillText(label, x + size / 2, y + size / 2, maxW);
+        ctx.restore();
+    }
+    /**
      * Draw a cooldown button at (x, y) with a dimmed label, large countdown
      * number, and a fill-bar progress indicator along the bottom edge.
      */
@@ -3828,7 +3859,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
             }
             else {
-                DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90));
             }
         }
     }
@@ -33143,7 +33174,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.7";
+    const MOD_VERSION = "4.4.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33154,6 +33185,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.8",
+            changes: [
+                "Action buttons: replaced BC's DrawButton with a custom canvas draw that always centres the label text precisely — fixes off-centre rendering with short labels, symbols, and mixed-character strings like ':3', '=W=', '>:/'.",
+            ],
+        },
         {
             version: "4.4.7",
             changes: [
