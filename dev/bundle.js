@@ -14091,7 +14091,7 @@
 
 .ebc-slot-label {
     flex-shrink: 0;
-    width: 52px;
+    width: 65px;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -14101,7 +14101,6 @@
     padding: 2px 4px;
     outline: none;
     transition: border-color 0.14s;
-    text-transform: uppercase;
 }
 
 .ebc-slot-label:focus { border-color: #cf6f98; }
@@ -28867,7 +28866,7 @@
                     const cInp = row.querySelector(".ebc-slot-color");
                     const eInp = row.querySelector(".ebc-slot-emote");
                     if (lInp)
-                        btns[i].label = lInp.value.trim().slice(0, 6);
+                        btns[i].label = lInp.value.trim().slice(0, 16);
                     if (cInp)
                         btns[i].color = normalizeHex(cInp.value);
                     if (eInp && btns[i].style !== "seq")
@@ -33131,7 +33130,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.5";
+    const MOD_VERSION = "4.4.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33142,6 +33141,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.6",
+            changes: [
+                "Buttons tab: fixed capitalization mismatch — the label input was styled with CSS text-transform:uppercase so it appeared all-caps in the panel while the sidebar showed the real stored value. Removed the forced uppercase; labels now display exactly as typed in both places. Also widened the label input field slightly and fixed a missed slice(0,6) cap in the save-flush path.",
+            ],
+        },
         {
             version: "4.4.5",
             changes: [
