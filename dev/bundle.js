@@ -32108,7 +32108,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.8";
+    const MOD_VERSION = "3.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -36747,12 +36747,14 @@
                 // top + 975*zoom. Using gap = sz (= paw size) keeps a full paw-height of
                 // clearance at every zoom level (12px at min zoom, 20px at zoom=1) so the
                 // paw never sinks into the name regardless of how many players are in the room.
-                const sz = Math.max(12, Math.round(20 * zoom));
+                const sz = Math.max(16, Math.round(28 * zoom));
                 const gap = Math.max(8, sz); // gap = paw size → consistent clearance at all zoom levels
                 const px = Math.floor(left + 250 * zoom - sz / 2);
                 const py = Math.floor(top + 975 * zoom - sz - gap);
                 _pawCtx.save();
-                _pawCtx.globalAlpha = 0.9;
+                _pawCtx.globalAlpha = 0.92;
+                _pawCtx.shadowColor = "rgba(255, 185, 0, 0.85)";
+                _pawCtx.shadowBlur = Math.round(sz * 0.55);
                 _pawCtx.drawImage(_pawImg, px, py, sz, sz);
                 _pawCtx.restore();
             }
