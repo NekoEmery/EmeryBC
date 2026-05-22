@@ -23,6 +23,14 @@ class EBCDatabase extends Dexie {
 
 export const db = new EBCDatabase();
 
+// Eagerly open the database and silently swallow any failure.
+// On Android/mobile browsers IndexedDB can fail immediately (storage restrictions,
+// private-browsing mode, quota errors) and Dexie rejects its internal open promise
+// with a raw IDBRequest error Event — which shows up as "[object Event]" in BC's
+// unhandled-rejection reporter.  By calling open().catch() up-front we guarantee
+// that rejection is always handled before any table operation creates its own chain.
+db.open().catch(() => {});
+
 // Migrate existing localStorage bundles into IndexedDB (one-time, runs on startup).
 // Cleans up localStorage entries after a successful migration.
 export async function migrateLocalStorageBundles(): Promise<void> {
