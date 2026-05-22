@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.9.9
+// @version      4.1.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13151,6 +13151,59 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "🐱 All fours", poses: ["AllFours"] },
         { label: "🙌 Hands up", poses: ["OverTheHead"] },
     ];
+    /**
+     * Normalise a string for fuzzy search:
+     *  1. NFKD decomposition — collapses full-width/circled/squared compatibility
+     *     chars and splits diacritics into combining marks.
+     *  2. Strip combining diacritical marks → é→e, ñ→n, ü→u …
+     *  3. Map Mathematical Alphanumeric Symbol code-points (U+1D400-U+1D7C3) back
+     *     to their plain ASCII equivalents — covers every style BC players use:
+     *     Bold, Italic, Bold Italic, Script, Bold Script, Fraktur, Double-struck,
+     *     Sans-serif (regular / Bold / Italic / Bold Italic), and Monospace.
+     *
+     * Result is NOT lowercased — callers should chain .toLowerCase() as needed.
+     */
+    function normalizeForSearch(s) {
+        if (!s)
+            return s;
+        try {
+            s = s.normalize("NFKD");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        // Strip combining diacritical marks
+        s = s.replace(/[̀-ͯ᷀-᷿⃐-⃿]/g, "");
+        // Mathematical Alphanumeric Symbols: each style has a capital block (A-Z)
+        // followed (or preceded by 26 chars) by a lowercase block (a-z).
+        // Format: [capitalBlockStart, lowercaseBlockStart]
+        const MATH_STYLES = [
+            [0x1D400, 0x1D41A], // Bold
+            [0x1D434, 0x1D44E], // Italic
+            [0x1D468, 0x1D482], // Bold Italic
+            [0x1D49C, 0x1D4B6], // Script
+            [0x1D4D0, 0x1D4EA], // Bold Script   ← 𝓓𝓙 lives here
+            [0x1D504, 0x1D51E], // Fraktur
+            [0x1D538, 0x1D552], // Double-struck
+            [0x1D56C, 0x1D586], // Bold Fraktur
+            [0x1D5A0, 0x1D5BA], // Sans-serif
+            [0x1D5D4, 0x1D5EE], // Sans-serif Bold
+            [0x1D608, 0x1D622], // Sans-serif Italic
+            [0x1D63C, 0x1D656], // Sans-serif Bold Italic
+            [0x1D670, 0x1D68A], // Monospace
+        ];
+        return [...s].map(ch => {
+            var _a;
+            const cp = (_a = ch.codePointAt(0)) !== null && _a !== void 0 ? _a : 0;
+            if (cp < 0x1D400 || cp > 0x1D7C3)
+                return ch;
+            for (const [cap, low] of MATH_STYLES) {
+                if (cp >= cap && cp < cap + 26)
+                    return String.fromCharCode(65 + cp - cap); // → A-Z
+                if (cp >= low && cp < low + 26)
+                    return String.fromCharCode(97 + cp - low); // → a-z
+            }
+            return ch;
+        }).join("");
+    }
     function getGroupAssets(group) {
         try {
             const w = window;
@@ -24275,12 +24328,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                 });
-                // Build search filter — matches name or member number, case-insensitive
-                const query = this.friendSearch.trim().toLowerCase();
+                // Build search filter — matches name or member number, case-insensitive.
+                // normalizeForSearch strips diacritics and maps fancy Unicode letters
+                // (𝓓𝓙, 𝕯𝕵, 𝗗𝗝 …) to their plain ASCII equivalents so "dj" finds "𝓓𝓙".
+                const query = normalizeForSearch(this.friendSearch.trim()).toLowerCase();
                 const matchesSearch = (n) => {
                     if (!query)
                         return true;
-                    return resolveName(n).toLowerCase().includes(query) || String(n).includes(query);
+                    const normName = normalizeForSearch(resolveName(n)).toLowerCase();
+                    return normName.includes(query) || String(n).includes(this.friendSearch.trim());
                 };
                 // Split into always-visible (pinned or online/room) and offline.
                 // Within offline: named friends (real cached name) sort before number-only entries.
@@ -26603,9 +26659,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         while (listEl.firstChild)
                             listEl.removeChild(listEl.firstChild);
                         const all = getPeopleMet();
-                        const q = searchInp.value.trim().toLowerCase();
+                        const rawQ = searchInp.value.trim();
+                        const q = normalizeForSearch(rawQ).toLowerCase();
                         const filtered = q
-                            ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
+                            ? all.filter(p => normalizeForSearch(p.name).toLowerCase().includes(q) || String(p.n).includes(rawQ))
                             : all;
                         countLbl.textContent = `${filtered.length} / ${all.length} people`;
                         if (filtered.length === 0) {
@@ -32125,7 +32182,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.9";
+    const MOD_VERSION = "4.1.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
