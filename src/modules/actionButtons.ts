@@ -557,16 +557,16 @@ export function initDragListener(): void {
 
 /**
  * Draw a single action button with perfectly centred label text.
- * Uses canvas directly so the label is always centred regardless of
- * character type (ASCII, emoji, symbols, mixed case, etc.).
+ * Delegates to BC's DrawButton (empty label) so the background colour,
+ * border, and mouse-hover highlight all work exactly as before — then
+ * overlays our own canvas text centred both horizontally and vertically.
  */
 function drawActionButton(
     x: number, y: number, size: number,
     label: string, bgColor: string,
 ): void {
-    // Background rectangle
-    DrawRect(x, y, size, size, bgColor);
-    DrawEmptyRect(x, y, size, size, "rgba(0,0,0,0.35)", 1);
+    // BC handles background + hover effect; empty label so it draws no text
+    DrawButton(x, y, size, size, "", bgColor, "", "");
 
     const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
     const ctx = canvas?.getContext("2d");
@@ -586,8 +586,8 @@ function drawActionButton(
     ctx.textAlign    = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle    = "#ffffff";
-    ctx.shadowColor  = "rgba(0,0,0,0.7)";
-    ctx.shadowBlur   = 3;
+    ctx.shadowColor  = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur   = 2;
     ctx.fillText(label, x + size / 2, y + size / 2, maxW);
     ctx.restore();
 }

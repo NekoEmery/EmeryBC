@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.8";
+const MOD_VERSION = "4.4.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.9",
+        changes: [
+            "Action buttons: fixed v4.4.8 regression — button colours and hover effect are restored. Custom centring now overlays text on top of BC's own DrawButton (empty label) so hover highlight and colour both work correctly.",
+        ],
+    },
     {
         version: "4.4.8",
         changes: [
