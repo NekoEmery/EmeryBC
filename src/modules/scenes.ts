@@ -4,8 +4,9 @@
 import { applyPoses } from "./poses";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { callBC, getDisplayName, syncSettings } from "./bcUtils";
+import { applyExprPresetWithRevert } from "./expressions";
 
-export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait";
+export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait" | "expression";
 
 export interface SceneStep {
     type: StepType;
@@ -18,6 +19,8 @@ export interface SceneStep {
     heightModifier?: number;    // equip: item Property.HeightModifier for VariableHeight items
     text?: string;              // emote / chat: message text
     chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "*" emote, "(" OOC
+    exprPresetId?: string;      // expression: preset id to apply
+    exprDurationMs?: number;    // expression: ms before reverting (0 = keep forever)
 }
 
 export interface Scene {
@@ -166,6 +169,11 @@ function executeStep(step: SceneStep): void {
                         // Plain speech — goes through normal chat (gag effects apply)
                         ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
                     }
+                }
+                break;
+            case "expression":
+                if (step.exprPresetId) {
+                    applyExprPresetWithRevert(step.exprPresetId, step.exprDurationMs ?? 0);
                 }
                 break;
             case "wait":

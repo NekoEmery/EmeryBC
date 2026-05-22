@@ -1,6 +1,7 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC, syncSettings } from "./bcUtils";
+import { applyExprPresetWithRevert } from "./expressions";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -14,6 +15,8 @@ export interface ActionButton {
     enabled: boolean;
     style:   ActionStyle;
     includeNameInAnnounce?: boolean; // default true; only applies to "action" style
+    exprPresetId?: string;    // optional expression preset to apply on fire
+    exprDurationMs?: number;  // ms before reverting back (0 = keep forever)
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -764,6 +767,7 @@ export function handleActionButtonClick(): boolean {
             _btnLastFire.set(cdKey, now);
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
+            if (btn.exprPresetId) applyExprPresetWithRevert(btn.exprPresetId, btn.exprDurationMs ?? 0);
             return true;
         }
     }

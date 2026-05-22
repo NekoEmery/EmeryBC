@@ -9252,10 +9252,11 @@ export class EBCDrawer {
             "equip-restraint": "Equip Restraint",
             "equip-clothes":   "Equip Clothes",
             unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
+            expression: "Expression",
         };
         // New steps use the split types; "equip" is injected into the dropdown only when
         // an existing step was saved with the old type (see typeSelect construction below).
-        const ALL_STEP_TYPES: StepType[] = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait"];
+        const ALL_STEP_TYPES: StepType[] = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait", "expression"];
 
         const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
         const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
@@ -9492,6 +9493,8 @@ export class EBCDrawer {
             let unequipGroup         = initStep.group ?? "";
             let emoteText            = initStep.text ?? "";
             let chatFormat: "" | "*" | "(" = initStep.chatFormat ?? "";
+            let exprStepPresetId     = initStep.exprPresetId ?? "";
+            let exprStepDurationMs   = initStep.exprDurationMs ?? 5000;
 
             // Colour input reference for the capture button to update
             let colorInpRef: HTMLInputElement | null = null;
@@ -9867,6 +9870,61 @@ export class EBCDrawer {
 
                 }
                 // wait: no extra fields — delay IS the step
+
+                if (type === "expression") {
+                    const F2 = "font-family:'Trebuchet MS',serif;font-size:";
+                    const INP2 = `${F2}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;width:100%;box-sizing:border-box;`;
+                    const presets = getExpressionPresets();
+                    if (presets.length === 0) {
+                        const hint2 = document.createElement("div");
+                        hint2.style.cssText = `${F2}9px;color:#5a3a5a;padding:4px 0;`;
+                        hint2.textContent = "No face presets yet — create some in the Anims tab first.";
+                        fieldsEl.appendChild(hint2);
+                    } else {
+                        const exprRow1 = document.createElement("div");
+                        exprRow1.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:4px;";
+                        const exprFaceLbl = document.createElement("span");
+                        exprFaceLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                        exprFaceLbl.textContent = "Face:";
+                        const exprPresetSel = document.createElement("select");
+                        exprPresetSel.style.cssText = INP2;
+                        const exprEmptyOpt = document.createElement("option");
+                        exprEmptyOpt.value = ""; exprEmptyOpt.textContent = "— pick preset —";
+                        exprPresetSel.appendChild(exprEmptyOpt);
+                        for (const p of presets) {
+                            const exprOpt = document.createElement("option");
+                            exprOpt.value = p.id; exprOpt.textContent = p.name;
+                            exprOpt.selected = p.id === exprStepPresetId;
+                            exprPresetSel.appendChild(exprOpt);
+                        }
+                        exprPresetSel.addEventListener("change", () => { exprStepPresetId = exprPresetSel.value; });
+                        exprRow1.appendChild(exprFaceLbl);
+                        exprRow1.appendChild(exprPresetSel);
+                        fieldsEl.appendChild(exprRow1);
+
+                        const exprRow2 = document.createElement("div");
+                        exprRow2.style.cssText = "display:flex;gap:4px;align-items:center;";
+                        const exprDurLbl = document.createElement("span");
+                        exprDurLbl.style.cssText = `${F2}9px;color:#9a6a98;flex-shrink:0;`;
+                        exprDurLbl.textContent = "Revert:";
+                        const EXPR_DUR_OPTS2: [string, number][] = [
+                            ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
+                            ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
+                        ];
+                        const exprDurSel = document.createElement("select");
+                        exprDurSel.style.cssText = INP2;
+                        for (const [lbl2, ms2] of EXPR_DUR_OPTS2) {
+                            const exprDurOpt = document.createElement("option");
+                            exprDurOpt.value = String(ms2); exprDurOpt.textContent = lbl2;
+                            exprDurOpt.selected = ms2 === exprStepDurationMs;
+                            exprDurSel.appendChild(exprDurOpt);
+                        }
+                        exprDurSel.addEventListener("change", () => { exprStepDurationMs = parseInt(exprDurSel.value) || 0; });
+                        exprRow2.appendChild(exprDurLbl);
+                        exprRow2.appendChild(exprDurSel);
+                        fieldsEl.appendChild(exprRow2);
+                    }
+                }
             };
 
             let currentType = initStep.type;
@@ -9905,6 +9963,10 @@ export class EBCDrawer {
                     case "chat":
                         step.text = emoteText.trim();
                         step.chatFormat = chatFormat;
+                        break;
+                    case "expression":
+                        step.exprPresetId = exprStepPresetId;
+                        step.exprDurationMs = exprStepDurationMs;
                         break;
                 }
                 return step;
@@ -10013,7 +10075,7 @@ export class EBCDrawer {
                 syncFromEntries();
                 const defDelays: Record<StepType, number> = {
                     pose: 500, equip: 800, "equip-restraint": 800, "equip-clothes": 800,
-                    unequip: 600, emote: 100, chat: 100, wait: 1000,
+                    unequip: 600, emote: 100, chat: 100, wait: 1000, expression: 0,
                 };
                 steps.push({ type: addTypeSel.value as StepType, delayMs: defDelays[addTypeSel.value as StepType] });
                 fullRebuild();
@@ -15151,6 +15213,51 @@ export class EBCDrawer {
 
                 row.appendChild(topLine);
                 row.appendChild(botLine);
+
+                // -- Expression-on-fire row (shown when presets exist) --
+                {
+                    const exprLinePresets = getExpressionPresets();
+                    if (exprLinePresets.length > 0) {
+                        const exprLine = document.createElement("div");
+                        exprLine.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
+                        const exprLineLbl = document.createElement("span");
+                        exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a7a;flex-shrink:0;";
+                        exprLineLbl.textContent = "Face:";
+                        const exprLineSel = document.createElement("select");
+                        exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+                        const exprLineNone = document.createElement("option");
+                        exprLineNone.value = ""; exprLineNone.textContent = "— no face —";
+                        exprLineSel.appendChild(exprLineNone);
+                        for (const ep of exprLinePresets) {
+                            const exprLineOpt = document.createElement("option");
+                            exprLineOpt.value = ep.id; exprLineOpt.textContent = ep.name;
+                            exprLineOpt.selected = ep.id === (btn.exprPresetId ?? "");
+                            exprLineSel.appendChild(exprLineOpt);
+                        }
+                        const EXPR_LINE_DUR: [string, number][] = [
+                            ["♾", 0], ["3s", 3000], ["5s", 5000], ["10s", 10000], ["30s", 30000], ["1m", 60000],
+                        ];
+                        const exprLineDurSel = document.createElement("select");
+                        exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex-shrink:0;max-width:44px;";
+                        for (const [lbl3, ms3] of EXPR_LINE_DUR) {
+                            const exprLineDurOpt = document.createElement("option");
+                            exprLineDurOpt.value = String(ms3); exprLineDurOpt.textContent = lbl3;
+                            exprLineDurOpt.selected = ms3 === (btn.exprDurationMs ?? 5000);
+                            exprLineDurSel.appendChild(exprLineDurOpt);
+                        }
+                        exprLineSel.addEventListener("change", () => {
+                            btns[i].exprPresetId = exprLineSel.value || undefined;
+                        });
+                        exprLineDurSel.addEventListener("change", () => {
+                            btns[i].exprDurationMs = parseInt(exprLineDurSel.value) || 0;
+                        });
+                        exprLine.appendChild(exprLineLbl);
+                        exprLine.appendChild(exprLineSel);
+                        exprLine.appendChild(exprLineDurSel);
+                        row.appendChild(exprLine);
+                    }
+                }
+
                 slotList.appendChild(row);
 
                 // -- Seq step builder (only for seq style) --

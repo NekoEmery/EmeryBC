@@ -49,10 +49,12 @@ function getStore(): Record<string, unknown> | null {
 const EXPR_FALLBACK: Record<string, string[]> = {
     Blush:    ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath"],
     Emoticon: [
-        "Afk", "Whisper", "Sleep", "Hearts", "Tear", "Hearing", "Confusion",
-        "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator",
+        "Afk", "Brb", "SOS", "Whisper", "Sleep", "Hearts", "Tear", "Hearing",
+        "Confusion", "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator",
         "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock",
-        "Wardrobe", "Gaming",
+        "Wardrobe", "Gaming", "Work", "Shopping", "Coffee", "Fork", "Music",
+        "Car", "Hanger", "Call", "Lightbulb", "Warning", "BrokenHeart",
+        "Drawing", "Coding", "TV", "Bathing",
     ],
     Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft"],
     Eyes:     [
