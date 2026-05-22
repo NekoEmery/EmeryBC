@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.9.0";
+const MOD_VERSION = "3.9.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.9.1",
+        changes: [
+            "Fix: Release Restraints and Remove Locks no longer fight with the DOGS mod (Devious Obligate Great Stuff). DOGS uses ExclusivePadlock as its base lock type — EBC was trying to remove those items, DOGS would instantly restore them via server hooks, leaving the UI in a broken/oscillating state. ExclusivePadlock is now treated as a protected lock (same as owner/lover/family), so EBC skips DOGS-padlocked items entirely. A chat notice explains what was skipped and why when DOGS is active.",
+            "Fix: InventoryRemove calls in Release Restraints are now individually try-caught so a throwing mod hook can no longer crash the whole operation.",
+        ],
+    },
     {
         version: "3.9.0",
         changes: [

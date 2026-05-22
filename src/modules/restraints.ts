@@ -4,11 +4,26 @@ import { UI } from "./ui";
 import { callBC } from "./bcUtils";
 import { RESTRAINT_GROUPS, getOutfitWhitelist } from "./outfitManager";
 
+// Returns true if the DOGS mod (Devious Obligate Great Stuff) is loaded.
+// DOGS intercepts InventoryUnlock and restores padlocked items via server hooks,
+// so any item it controls must be treated as untouchable.
+function isDogsActive(): boolean {
+    try {
+        const sdk = (window as unknown as Record<string, unknown>).bcModSdk as
+            { getModsInfo?: () => Array<{ name: string }> } | undefined;
+        return sdk?.getModsInfo?.().some(m => m.name === "DOGS") ?? false;
+    } catch { return false; }
+}
+
 // Locks that must never be touched regardless of the operation.
+// ExclusivePadlock is included: it is the base lock used by DOGS (Devious Obligate
+// Great Stuff) and also semantically should not be bulk-removed — the person who
+// applied it intended it to be exclusive to them.
 function isProtectedLock(item: Item): boolean {
     const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
     if (!lock) return false;
-    return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+    return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
+        || lock.includes("exclusive");
 }
 
 // Returns true if this item's slot is in the user's outfit whitelist.
@@ -49,9 +64,10 @@ export function releaseRestraints(): void {
     );
 
     if (toRemove.length === 0) {
+        const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
         localNotice(
             skipped.length > 0
-                ? "All restraints are locked or protected — none removed."
+                ? `All restraints are locked or protected — none removed.${dogsNote}`
                 : "No restraints found to remove.",
             UI.textMuted
         );
@@ -59,10 +75,11 @@ export function releaseRestraints(): void {
     }
 
     for (const item of toRemove) {
-        InventoryRemove(Player, item.Asset.Group.Name, false);
+        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore — mod hook may throw */ }
     }
     if (skipped.length > 0) {
-        localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+        const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+        localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
     }
 
     callBC(() => CharacterRefresh(Player, false));
@@ -146,9 +163,10 @@ export function unlockItems(): void {
     }
 
     if (unlocked === 0) {
+        const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
         localNotice(
             skipped > 0
-                ? "All locks are owner/lover/family protected - none removed."
+                ? `All locks are protected — none removed.${dogsNote}`
                 : "No locks found to remove.",
             UI.textMuted
         );
@@ -156,7 +174,8 @@ export function unlockItems(): void {
     }
 
     if (skipped > 0) {
-        localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+        const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
+        localNotice(`Skipped ${skipped} protected lock(s).${dogsNote}`, UI.textMuted);
     }
 
     callBC(() => CharacterRefresh(Player, false));
