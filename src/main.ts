@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.4";
+const MOD_VERSION = "4.2.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.5",
+        changes: [
+            "Scenes — item search: fixed 'No items found' for props/hands items (Laptop, etc.). Newer BC versions store Group.Family as an array instead of a string, causing every family check to silently fail. Both getAllGroups and getGroupAssets now handle string and array family values.",
+            "Notes tab: new 'Tag settings' section above the friends list with ⬆ Export and ⬇ Import buttons. Export generates a shareable EBC-TAGS-v1:… code containing all your tag assignments. Import pastes the code and merges the tags into your own settings — useful for sharing a tagging setup with someone else.",
+        ],
+    },
     {
         version: "4.2.4",
         changes: [
