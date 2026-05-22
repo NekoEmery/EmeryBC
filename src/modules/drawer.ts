@@ -18183,9 +18183,11 @@ export class EBCDrawer {
                 delBtn.textContent = "×";
                 delBtn.title = "Delete preset";
                 delBtn.addEventListener("click", () => {
-                    if (preset.id === getDefaultExprPresetId()) setDefaultExprPresetId(null);
-                    saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
-                    this.rerender();
+                    showQuickConfirm(`Delete preset "${preset.name}"?`, () => {
+                        if (preset.id === getDefaultExprPresetId()) setDefaultExprPresetId(null);
+                        saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
+                        this.rerender();
+                    });
                 });
 
                 pRow.appendChild(applyBtn);
@@ -18258,8 +18260,10 @@ export class EBCDrawer {
             trigDelBtn.textContent = "×";
             trigDelBtn.title = "Delete trigger";
             trigDelBtn.addEventListener("click", () => {
-                saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
-                this.rerender();
+                showQuickConfirm(`Delete trigger for "${trig.matchText}"?`, () => {
+                    saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
+                    this.rerender();
+                });
             });
 
             tRow.appendChild(matchChip);
