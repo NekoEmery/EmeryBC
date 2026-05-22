@@ -2572,16 +2572,6 @@
             return [];
         }
     }
-    function saveExpressionTriggers(triggers) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.expressionTriggers = triggers;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     // -- Timed expression revert ---------------------------------------------------
     let _revertTimer = null;
     function cancelExpressionRevert() {
@@ -30543,177 +30533,6 @@
                 }
                 body.appendChild(presetList);
             }
-            // ── Triggers section ──────────────────────────────────────────────────
-            // Collapsible. Fires a preset when outgoing chat contains a match string.
-            {
-                const divEl = document.createElement("div");
-                divEl.className = "ebc-divider";
-                divEl.style.margin = "10px 0 6px";
-                body.appendChild(divEl);
-                let trigCollapsed = true;
-                try {
-                    const v = localStorage.getItem("EBC_exprTriggersCollapsed");
-                    if (v !== null)
-                        trigCollapsed = v === "1";
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-                const trigHdr = document.createElement("div");
-                trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
-                const trigChev = document.createElement("span");
-                trigChev.style.cssText = `${F}11px;color:#d0a0d8;min-width:10px;`;
-                const trigLbl = document.createElement("span");
-                trigLbl.className = "ebc-section-label";
-                trigLbl.style.cssText = "margin:0;font-size:11px;color:#d0a0d8;";
-                trigLbl.textContent = "TRIGGERS";
-                const trigHint = document.createElement("span");
-                trigHint.style.cssText = `${F}11px;color:#b090c0;margin-left:4px;`;
-                trigHint.textContent = "apply preset when you send a message";
-                trigHdr.appendChild(trigChev);
-                trigHdr.appendChild(trigLbl);
-                trigHdr.appendChild(trigHint);
-                body.appendChild(trigHdr);
-                const trigBody = document.createElement("div");
-                const updateTrigChev = () => {
-                    trigChev.textContent = trigCollapsed ? "▶" : "▼";
-                    trigBody.style.display = trigCollapsed ? "none" : "";
-                };
-                updateTrigChev();
-                trigHdr.addEventListener("click", () => {
-                    trigCollapsed = !trigCollapsed;
-                    try {
-                        localStorage.setItem("EBC_exprTriggersCollapsed", trigCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateTrigChev();
-                });
-                body.appendChild(trigBody);
-                // Render trigger list
-                const renderTrigList = () => {
-                    var _a, _b;
-                    while (trigBody.firstChild)
-                        trigBody.removeChild(trigBody.firstChild);
-                    const triggers = getExpressionTriggers();
-                    const allPresets = getExpressionPresets();
-                    if (triggers.length === 0) {
-                        const emptyNote = document.createElement("div");
-                        emptyNote.style.cssText = `${F}11px;color:#b090c0;padding:4px 0;`;
-                        emptyNote.textContent = "No triggers yet.";
-                        trigBody.appendChild(emptyNote);
-                    }
-                    else {
-                        const trigList = document.createElement("div");
-                        trigList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:8px;";
-                        for (const trig of triggers) {
-                            const presetName = (_b = (_a = allPresets.find(p => p.id === trig.presetId)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : "?";
-                            const durStr = trig.durationMs > 0 ? `${Math.round(trig.durationMs / 1000)} s` : "∞";
-                            const tRow = document.createElement("div");
-                            tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
-                            const tInfo = document.createElement("span");
-                            tInfo.style.cssText = `${F}11px;color:#c0a0d8;flex:1;min-width:0;`;
-                            tInfo.innerHTML = "";
-                            const namePart = document.createElement("b");
-                            namePart.style.color = "#d0b0e8";
-                            namePart.textContent = trig.name || "Trigger";
-                            const restPart = document.createTextNode(`: when msg contains "${trig.matchText}" → ${presetName} (${durStr})`);
-                            tInfo.appendChild(namePart);
-                            tInfo.appendChild(restPart);
-                            const tDel = document.createElement("button");
-                            tDel.className = "ebc-outfit-del";
-                            tDel.textContent = "×";
-                            tDel.title = "Delete trigger";
-                            tDel.addEventListener("click", () => {
-                                saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
-                                renderTrigList();
-                            });
-                            tRow.appendChild(tInfo);
-                            tRow.appendChild(tDel);
-                            trigList.appendChild(tRow);
-                        }
-                        trigBody.appendChild(trigList);
-                    }
-                    // Add trigger form
-                    const formLbl = document.createElement("div");
-                    formLbl.style.cssText = `${F}11px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
-                    formLbl.textContent = "New trigger";
-                    trigBody.appendChild(formLbl);
-                    const INP_CSS = `${F}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
-                    // Row 1: name + match text
-                    const formRow1 = document.createElement("div");
-                    formRow1.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
-                    const nameInp = document.createElement("input");
-                    nameInp.className = "ebc-form-input";
-                    nameInp.style.cssText = INP_CSS + "width:70px;flex-shrink:0;";
-                    nameInp.type = "text";
-                    nameInp.maxLength = 20;
-                    nameInp.placeholder = "Label…";
-                    const matchInp = document.createElement("input");
-                    matchInp.className = "ebc-form-input";
-                    matchInp.style.cssText = INP_CSS + "flex:1;min-width:0;";
-                    matchInp.type = "text";
-                    matchInp.maxLength = 60;
-                    matchInp.placeholder = "match text (e.g. whimpers)";
-                    formRow1.appendChild(nameInp);
-                    formRow1.appendChild(matchInp);
-                    trigBody.appendChild(formRow1);
-                    // Row 2: preset picker + duration
-                    const formRow2 = document.createElement("div");
-                    formRow2.style.cssText = "display:flex;gap:4px;margin-bottom:6px;align-items:center;";
-                    const presetSel = document.createElement("select");
-                    presetSel.style.cssText = INP_CSS + "flex:1;min-width:0;";
-                    const emptyOpt = document.createElement("option");
-                    emptyOpt.value = "";
-                    emptyOpt.textContent = "— pick preset —";
-                    presetSel.appendChild(emptyOpt);
-                    for (const p of getExpressionPresets()) {
-                        const opt = document.createElement("option");
-                        opt.value = p.id;
-                        opt.textContent = p.name;
-                        presetSel.appendChild(opt);
-                    }
-                    const TRIG_DUR_OPTS = [
-                        ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
-                        ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
-                    ];
-                    const durSel = document.createElement("select");
-                    durSel.style.cssText = INP_CSS + "flex-shrink:0;max-width:60px;cursor:pointer;";
-                    durSel.title = "How long to hold this face before reverting (♾ = keep forever)";
-                    for (const [label, ms] of TRIG_DUR_OPTS) {
-                        const o = document.createElement("option");
-                        o.value = String(ms);
-                        o.textContent = label;
-                        if (ms === 5000)
-                            o.selected = true;
-                        durSel.appendChild(o);
-                    }
-                    formRow2.appendChild(presetSel);
-                    formRow2.appendChild(durSel);
-                    trigBody.appendChild(formRow2);
-                    const addTrigBtn = document.createElement("button");
-                    addTrigBtn.className = "ebc-create-btn";
-                    addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-                    addTrigBtn.textContent = "+ Add Trigger";
-                    addTrigBtn.addEventListener("click", () => {
-                        const match = matchInp.value.trim();
-                        const presetId = presetSel.value;
-                        if (!match || !presetId) {
-                            addTrigBtn.textContent = "Fill in match text and preset!";
-                            window.setTimeout(() => { addTrigBtn.textContent = "+ Add Trigger"; }, 1500);
-                            return;
-                        }
-                        const newTrig = {
-                            id: Math.random().toString(36).slice(2, 9),
-                            name: nameInp.value.trim() || match.slice(0, 15),
-                            matchText: match,
-                            presetId,
-                            durationMs: parseInt(durSel.value) || 0,
-                        };
-                        saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
-                        renderTrigList();
-                    });
-                    trigBody.appendChild(addTrigBtn);
-                };
-                renderTrigList();
-            }
         }
         renderThanks() {
             var _a;
@@ -32265,7 +32084,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.8";
+    const MOD_VERSION = "4.1.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32276,6 +32095,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.9",
+            changes: [
+                "Expressions (Anims tab): removed the Triggers section entirely.",
+            ],
+        },
         {
             version: "4.1.8",
             changes: [
