@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.1.9";
+const MOD_VERSION = "4.2.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.0",
+        changes: [
+            "Chat windows: clicking the 💬 button beside a friend now snaps the beep window to the centre of the screen and restores it if minimised. New windows also open centred instead of anchored to the bottom-right corner. Session-restored windows still reload at their last saved position.",
+        ],
+    },
     {
         version: "4.1.9",
         changes: [

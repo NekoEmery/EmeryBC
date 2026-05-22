@@ -10512,12 +10512,23 @@ export class EBCDrawer {
     }
 
     public openBeepWindow(memberNumber: number, startMinimized = false): void {
-        // If window already open for this member, refresh history and focus
+        // If window already open for this member, snap it to center, restore it, refresh and focus
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
-            const refresh = (existing.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
+            const el = existing.el;
+            // Un-minimize first so we can measure real height
+            const restoreFn = (el as unknown as Record<string, unknown>)._restoreMin as (() => void) | undefined;
+            restoreFn?.();
+            // Snap to viewport center
+            const winW = el.offsetWidth  || 300;
+            const winH = el.offsetHeight || 400;
+            el.style.left   = `${Math.max(0, Math.round((window.innerWidth  - winW) / 2))}px`;
+            el.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+            el.style.right  = "";
+            el.style.top    = "";
+            const refresh = (el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
             refresh?.();
-            (existing.el.querySelector(".ebc-beep-win-input") as HTMLInputElement | null)?.focus();
+            (el.querySelector(".ebc-beep-win-input") as HTMLInputElement | null)?.focus();
             return;
         }
 
@@ -10636,6 +10647,17 @@ export class EBCDrawer {
             }
         });
 
+        // Store a restore helper so the re-open / center logic can un-minimize without needing
+        // a direct reference to minimizeBtn.
+        (win as unknown as Record<string, unknown>)._restoreMin = (): void => {
+            const entry = this.beepWins.get(memberNumber);
+            if (!entry || !entry.minimized) return;
+            entry.minimized = false;
+            win.classList.remove("minimized");
+            minimizeBtn.textContent = "–";
+            minimizeBtn.title = "Minimize";
+        };
+
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
         closeBtn.textContent = "×";
@@ -10715,16 +10737,20 @@ export class EBCDrawer {
                 bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
             };
         };
-        try {
-            const saved = localStorage.getItem(savedPosKey);
-            if (saved) {
-                const { left, bottom } = JSON.parse(saved) as { left: number; bottom: number };
-                const clamped = clampBeepPos(left, bottom);
-                win.style.left   = `${clamped.left}px`;
-                win.style.bottom = `${clamped.bottom}px`;
-                win.style.right  = "";
-            }
-        } catch { /* ignore — use default offset position */ }
+        // Only restore saved position when session-restoring minimized windows.
+        // Fresh user-initiated opens always appear centred (done after body.appendChild below).
+        if (startMinimized) {
+            try {
+                const saved = localStorage.getItem(savedPosKey);
+                if (saved) {
+                    const { left, bottom } = JSON.parse(saved) as { left: number; bottom: number };
+                    const clamped = clampBeepPos(left, bottom);
+                    win.style.left   = `${clamped.left}px`;
+                    win.style.bottom = `${clamped.bottom}px`;
+                    win.style.right  = "";
+                }
+            } catch { /* ignore — use default offset position */ }
+        }
 
         // Make header draggable — anchored by bottom so expanding grows upward.
         // Saves position to localStorage on drag release so it persists across relogins.
@@ -10935,6 +10961,17 @@ export class EBCDrawer {
         win.appendChild(footer);
 
         document.body.appendChild(win);
+        // Centre new user-initiated windows after layout so offsetWidth/Height are real.
+        if (!startMinimized) {
+            window.requestAnimationFrame(() => {
+                const winW = win.offsetWidth  || 300;
+                const winH = win.offsetHeight || 400;
+                win.style.left   = `${Math.max(0, Math.round((window.innerWidth  - winW) / 2))}px`;
+                win.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+                win.style.right  = "";
+                win.style.top    = "";
+            });
+        }
         input.focus();
 
         // Store renderHistory so incoming beeps can trigger a refresh
