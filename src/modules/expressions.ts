@@ -25,6 +25,7 @@ export interface ExprSequenceStep {
     label?: string;
     presetId?: string;   // source preset id (for display — not required at playback)
     presetName?: string; // cached preset name (shown when preset is later deleted)
+    reset?: boolean;     // if true, apply default preset (or clear all groups) at playback
 }
 
 export interface ExpressionSequence {
@@ -370,9 +371,21 @@ export function playExpressionSequence(seq: ExpressionSequence, onDone?: () => v
         }
         const step = seq.steps[i];
         try {
-            const groups = step.groups ?? {};
-            for (const [group, name] of Object.entries(groups)) {
-                try { applyExprGroup(group, name ?? null); } catch { /* skip */ }
+            if (step.reset) {
+                // Apply the default face preset, or clear all groups if none is set
+                const defaultId = getDefaultExprPresetId();
+                if (defaultId) {
+                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                    if (defPreset) { applyExpressionPreset(defPreset); }
+                    else { for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } } }
+                } else {
+                    for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
+                }
+            } else {
+                const groups = step.groups ?? {};
+                for (const [group, name] of Object.entries(groups)) {
+                    try { applyExprGroup(group, name ?? null); } catch { /* skip */ }
+                }
             }
         } catch { /* ignore */ }
         i++;

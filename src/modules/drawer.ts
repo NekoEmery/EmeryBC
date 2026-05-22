@@ -9516,9 +9516,14 @@ export class EBCDrawer {
 
                     const lblEl = document.createElement("span");
                     lblEl.className = "ebc-step-label";
-                    const liveName = getExpressionPresets().find(p => p.id === step.presetId)?.name;
-                    lblEl.textContent = liveName ?? step.presetName ?? "Unknown";
-                    if (!liveName && step.presetName) lblEl.style.opacity = "0.55";
+                    if (step.reset) {
+                        lblEl.textContent = "↺ Reset face";
+                        lblEl.style.cssText = "flex:1;font-size:11px;font-family:'Trebuchet MS',serif;color:#cf6f98;font-style:italic;";
+                    } else {
+                        const liveName = getExpressionPresets().find(p => p.id === step.presetId)?.name;
+                        lblEl.textContent = liveName ?? step.presetName ?? "Unknown";
+                        if (!liveName && step.presetName) lblEl.style.opacity = "0.55";
+                    }
 
                     const holdInp = document.createElement("input") as HTMLInputElement;
                     holdInp.type = "number"; holdInp.min = "100"; holdInp.max = "9999";
@@ -9619,8 +9624,20 @@ export class EBCDrawer {
                 renderStepList();
             });
 
+            const resetBtn = document.createElement("button");
+            resetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+            resetBtn.textContent = "↺ Reset";
+            resetBtn.title = "Add a reset step — applies your default face preset (or clears all expressions if none is set)";
+            resetBtn.addEventListener("mouseenter", () => { resetBtn.style.color = "#cf6f98"; resetBtn.style.borderColor = "#cf6f98"; });
+            resetBtn.addEventListener("mouseleave", () => { resetBtn.style.color = "#9a6878"; resetBtn.style.borderColor = "#3a1928"; });
+            resetBtn.addEventListener("click", () => {
+                steps.push({ groups: {}, delayMs: 800, reset: true });
+                renderStepList();
+            });
+
             addRow.appendChild(presetSel);
             addRow.appendChild(addBtn);
+            addRow.appendChild(resetBtn);
             container.appendChild(addRow);
 
             return { getSteps: () => steps.map(s => ({ ...s })) };
