@@ -9431,7 +9431,7 @@ export class EBCDrawer {
             let equipHeightModifier: number | undefined = initStep.heightModifier;
             let unequipGroup         = initStep.group ?? "";
             let emoteText            = initStep.text ?? "";
-            let chatFormat: "" | "(" = initStep.chatFormat === "(" ? "(" : "";
+            let chatFormat: "" | "*" | "(" = initStep.chatFormat ?? "";
 
             // Colour input reference for the capture button to update
             let colorInpRef: HTMLInputElement | null = null;
@@ -9770,7 +9770,7 @@ export class EBCDrawer {
                     const row = document.createElement("div");
                     row.className = "ebc-scene-fields-row";
 
-                    const makeToggle = (label: string, val: "" | "("): HTMLButtonElement => {
+                    const makeToggle = (label: string, val: "" | "*" | "("): HTMLButtonElement => {
                         const btn = document.createElement("button");
                         btn.textContent = label;
                         btn.style.cssText = [
@@ -9785,9 +9785,9 @@ export class EBCDrawer {
                         setActive(chatFormat === val);
                         btn.addEventListener("click", () => {
                             // Toggle: clicking the active format deactivates it (back to plain)
-                            chatFormat = (chatFormat === val) ? "" : val;
+                            chatFormat = (chatFormat === val) ? "" : val as "" | "*" | "(";
                             row.querySelectorAll<HTMLButtonElement>("[data-fmt]").forEach(b => {
-                                const bVal = b.dataset.fmt as "" | "(";
+                                const bVal = b.dataset.fmt as "" | "*" | "(";
                                 b.style.background = bVal === chatFormat ? "#cf6f98" : "#1b0d17";
                                 b.style.color      = bVal === chatFormat ? "#fff"    : "#9a6878";
                             });
@@ -9805,6 +9805,7 @@ export class EBCDrawer {
                     textInp.addEventListener("input", () => { emoteText = textInp.value; });
                     stopKeys(textInp);
 
+                    row.appendChild(makeToggle("* *", "*"));
                     row.appendChild(makeToggle("( )", "("));
                     row.appendChild(textInp);
                     fieldsEl.appendChild(row);
@@ -10497,8 +10498,6 @@ export class EBCDrawer {
         closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
         closeBtn.textContent = "×";
         closeBtn.addEventListener("click", () => {
-            const cleanup = (win as unknown as Record<string, unknown>)._closeEmoji as EventListener | undefined;
-            if (cleanup) { try { document.removeEventListener("click", cleanup, true); } catch { /* ignore */ } }
             win.remove();
             this.beepWins.delete(memberNumber);
             EBCDrawer.removeOpenBeepWindow(memberNumber);
@@ -10776,57 +10775,6 @@ export class EBCDrawer {
         sendBtn.className = "ebc-beep-win-send";
         sendBtn.textContent = "Send";
 
-        // Emoji picker
-        const EMOJIS = [
-            // Faces — happy & expressive
-            "😊","😄","😂","🥰","😍","😘","😜","😏","🤔","😳",
-            // Faces — sad, shy & silly
-            "😭","😢","🥹","😇","😋","🤭","🫠","🤣","😅","🫣",
-            // Gestures & reactions
-            "👉","👈","👀","🙌","🫶","🤗","🙈","🥺","👋","😬",
-            // Hearts
-            "💕","💖","❤️","💗","💜","💙","💚","🧡","💛","💝",
-            // Sparkle & celebration
-            "✨","🎉","🎊","💫","🌟","⭐","🎀","🎵","👑","🌈",
-            // Cute animals & nature
-            "🌸","🍑","🐾","🐱","🐰","🦊","🦋","🌙","💤","🍭",
-        ];
-        const emojiPicker = document.createElement("div");
-        emojiPicker.className = "ebc-emoji-picker";
-        emojiPicker.style.display = "none";
-        for (const emoji of EMOJIS) {
-            const eb = document.createElement("button");
-            eb.textContent = emoji;
-            eb.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const start = input.selectionStart ?? input.value.length;
-                const end   = input.selectionEnd   ?? input.value.length;
-                input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-                input.selectionStart = input.selectionEnd = start + [...emoji].length;
-                input.focus();
-                emojiPicker.style.display = "none";
-            });
-            emojiPicker.appendChild(eb);
-        }
-
-        const emojiBtn = document.createElement("button");
-        emojiBtn.className = "ebc-emoji-btn";
-        emojiBtn.textContent = "😊";
-        emojiBtn.title = "Insert emoji";
-        emojiBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const showing = emojiPicker.style.display !== "none";
-            emojiPicker.style.display = showing ? "none" : "flex";
-        });
-
-        const closeEmojiOnOutside = (e: MouseEvent): void => {
-            if (!emojiPicker.contains(e.target as Node) && e.target !== emojiBtn) {
-                emojiPicker.style.display = "none";
-            }
-        };
-        document.addEventListener("click", closeEmojiOnOutside, true);
-        (win as unknown as Record<string, unknown>)._closeEmoji = closeEmojiOnOutside;
-
         const doSend = (): void => {
             const msg = input.value.trim();
             if (!msg) return;
@@ -10840,9 +10788,7 @@ export class EBCDrawer {
         sendBtn.addEventListener("click", doSend);
         input.addEventListener("keydown", (e: KeyboardEvent) => { if (e.key === "Enter") doSend(); });
 
-        footer.appendChild(emojiPicker);
         footer.appendChild(input);
-        footer.appendChild(emojiBtn);
         footer.appendChild(sendBtn);
         win.appendChild(footer);
 

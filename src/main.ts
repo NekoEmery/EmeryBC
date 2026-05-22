@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.8";
+const MOD_VERSION = "3.8.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.9",
+        changes: [
+            "Beep/chat windows: removed the 😊 emoji picker button from the message input bar.",
+            "Scene editor chat step: restored the '* *' emote format toggle (was incorrectly removed in v3.8.7). Both '* *' and '( )' toggles are now proper toggles — clicking the active one deactivates it back to plain text.",
+        ],
+    },
     {
         version: "3.8.8",
         changes: [
