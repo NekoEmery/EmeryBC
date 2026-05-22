@@ -1,5 +1,6 @@
 ﻿import { UI } from "./ui";
 import { getDisplayName, syncSettings } from "./bcUtils";
+import { getExpressionPresets, applyExpressionPreset } from "./expressions";
 
 export interface SerializedItem {
     Group: string;
@@ -21,13 +22,14 @@ export interface ConfiguredOutfit {
     command: string;
     displayName: string;
     announceText: string;
-    nickname: string | null;     // optional nickname to set when outfit is worn (null = no change)
-    title:    string | null;     // optional title to set when outfit is worn (null = use default / no change)
+    nickname: string | null;          // optional nickname to set when outfit is worn (null = no change)
+    title:    string | null;          // optional title to set when outfit is worn (null = use default / no change)
     tagIds: string[];
     includeRestraints: boolean;
-    preserveRestraints: boolean; // keep existing restraints when applying (default: true)
-    preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
-    nameInAnnounce: boolean;     // whether to prepend the player name to the announce text (default: true)
+    preserveRestraints: boolean;      // keep existing restraints when applying (default: true)
+    preserveClothing: boolean;        // keep existing clothing (non-restraint) when applying (default: false)
+    nameInAnnounce: boolean;          // whether to prepend the player name to the announce text (default: true)
+    expressionPresetId: string | null; // optional face preset to apply when outfit is worn (null = no change)
     items: SerializedItem[];
 }
 
@@ -213,6 +215,8 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
         // Default true — existing outfits always included the name
         nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
+        // null = no expression change; string = preset ID to apply when worn
+        expressionPresetId: typeof outfit.expressionPresetId === "string" && outfit.expressionPresetId ? outfit.expressionPresetId : null,
         items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
     };
 }
@@ -349,6 +353,16 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     sendRoomAppearanceUpdate();
     scheduleAppearanceRefresh();
 
+    // Apply linked face expression preset if one is configured for this outfit
+    if (outfit.expressionPresetId) {
+        try {
+            const exprPreset = getExpressionPresets().find(p => p.id === outfit.expressionPresetId);
+            if (exprPreset) window.setTimeout(() => {
+                try { applyExpressionPreset(exprPreset); } catch { /* ignore */ }
+            }, 100);
+        } catch { /* ignore */ }
+    }
+
     // Apply nickname — outfit-specific takes priority, falls back to default
     const nickToApply = outfit.nickname || getDefaultNickname();
     if (nickToApply) {
@@ -422,6 +436,7 @@ export function createOutfitFromCurrent(
     preserveClothing = false,
     nickname = "",
     title = "",
+    expressionPresetId: string | null = null,
 ): ConfiguredOutfit | null {
     const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
     if (!cmd || !displayName.trim()) return null;
@@ -442,6 +457,7 @@ export function createOutfitFromCurrent(
         preserveRestraints,
         preserveClothing,
         nameInAnnounce: true,
+        expressionPresetId: expressionPresetId || null,
         items: captureAppearance(includeRestraints),
     };
     saveOutfits([...getOutfits(), outfit]);
@@ -592,6 +608,7 @@ export function editOutfit(
     preserveClothing = false,
     nickname = "",
     title = "",
+    expressionPresetId: string | null = null,
 ): boolean {
     const outfits = getOutfits();
     const outfit = outfits.find(o => o.id === id);
@@ -606,14 +623,15 @@ export function editOutfit(
         return false;
     }
 
-    outfit.command            = cmd;
-    outfit.displayName        = displayName.trim();
-    outfit.announceText       = announceText.trim();
-    outfit.nickname           = nickname.trim() || null;
-    outfit.title              = title.trim()    || null;
-    outfit.includeRestraints  = includeRestraints;
-    outfit.preserveRestraints = preserveRestraints;
-    outfit.preserveClothing   = preserveClothing;
+    outfit.command             = cmd;
+    outfit.displayName         = displayName.trim();
+    outfit.announceText        = announceText.trim();
+    outfit.nickname            = nickname.trim() || null;
+    outfit.title               = title.trim()    || null;
+    outfit.includeRestraints   = includeRestraints;
+    outfit.preserveRestraints  = preserveRestraints;
+    outfit.preserveClothing    = preserveClothing;
+    outfit.expressionPresetId  = expressionPresetId || null;
 
     saveOutfits(outfits);
     localNotice(`Updated "${outfit.displayName}" (/${outfit.command}).`);
@@ -848,6 +866,7 @@ export function createRestraintFromCurrent(
         preserveRestraints: false,
         preserveClothing: true,
         nameInAnnounce: true,
+        expressionPresetId: null,
         items: captureRestraints(),
     };
     saveRestraints([...getRestraints(), restraint]);
@@ -1026,6 +1045,7 @@ export function importOutfitFromBCCode(
         preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints
         preserveClothing:   mode === "restraints",  // restraints-only: keep existing clothing
         nameInAnnounce:    true,
+        expressionPresetId: null,
         items,
     });
     saveOutfits([...existing, outfit]);

@@ -3,7 +3,7 @@ import { drawActionButtons, handleActionButtonClick, initDragListener } from "./
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
-import { handleExprSequenceCommand } from "./modules/expressions";
+import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.1";
+const MOD_VERSION = "4.4.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.2",
+        changes: [
+            "Outfits: added Face preset field to both the new-outfit form and the edit panel. Pick an expression preset and it will be applied automatically whenever that outfit is worn (via button or /command).",
+            "Expressions: added '★ Auto-apply default face on room join' toggle. When ON, your default ★ preset is applied each time you enter a room.",
+        ],
+    },
     {
         version: "4.4.1",
         changes: [
@@ -5201,6 +5208,18 @@ function init(): void {
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
+        // Auto-apply default ★ face preset on room join if the toggle is enabled
+        try {
+            if (getAutoApplyDefaultFace()) {
+                const defId = getDefaultExprPresetId();
+                if (defId) {
+                    const defPreset = getExpressionPresets().find(p => p.id === defId);
+                    if (defPreset) window.setTimeout(() => {
+                        try { applyExpressionPreset(defPreset); } catch { /* ignore */ }
+                    }, 300);
+                }
+            }
+        } catch { /* ignore */ }
         // Cache names and EBC presence for everyone currently in the room.
         try {
             const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as

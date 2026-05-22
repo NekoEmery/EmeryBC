@@ -279,6 +279,26 @@ export function setDefaultExprPresetId(id: string | null): void {
     } catch { /* ignore */ }
 }
 
+// -- Auto-apply default face on room join --------------------------------------
+// When enabled, the default ★ face preset is applied automatically each time
+// the player enters a room (on ChatRoomSync hook in main.ts).
+
+export function getAutoApplyDefaultFace(): boolean {
+    try {
+        const v = getStore()?.autoApplyDefaultFace;
+        return v === true;
+    } catch { return false; }
+}
+
+export function setAutoApplyDefaultFace(on: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        if (on) { store.autoApplyDefaultFace = true; } else { delete store.autoApplyDefaultFace; }
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Expression triggers -------------------------------------------------------
 // When the player sends an outgoing chat message whose text contains matchText
 // (case-insensitive), the named preset is applied for durationMs ms, then the

@@ -139,6 +139,7 @@ import {
     getExpressionPresets, saveExpressionPresets,
     captureCurrentExpression, applyExpressionPreset,
     getDefaultExprPresetId, setDefaultExprPresetId,
+    getAutoApplyDefaultFace, setAutoApplyDefaultFace,
     getExpressionTriggers, saveExpressionTriggers,
     getExpressionSequences, saveExpressionSequences,
     createExpressionSequence, updateExpressionSequence, deleteExpressionSequence,
@@ -6067,6 +6068,31 @@ export class EBCDrawer {
         this.timerPoller = null;
     }
 
+    // -- Expression preset select helper --------------------------------------
+    // Builds a <select> listing all saved expression presets.
+    // First option is "— None —" (empty value = no expression change on wear).
+    private makeExprPresetSelect(currentId: string | null | undefined): HTMLSelectElement {
+        const sel = document.createElement("select");
+        sel.style.cssText = [
+            "font-family:'Trebuchet MS',serif", "font-size:11px",
+            "background:#1a0810", "color:#f0d8ec",
+            "border:1px solid #4c2537", "border-radius:4px",
+            "padding:3px 6px", "cursor:pointer", "outline:none",
+        ].join(";");
+        const noneOpt = document.createElement("option");
+        noneOpt.value = "";
+        noneOpt.textContent = "— None —";
+        sel.appendChild(noneOpt);
+        for (const p of getExpressionPresets()) {
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === currentId) opt.selected = true;
+            sel.appendChild(opt);
+        }
+        return sel;
+    }
+
     // -- Title select helper --------------------------------------------------
     // includeNoChange = true  → first option is "(No change)" stored as ""
     // includeNoChange = false → first option is "(No change)" stored as ""
@@ -7653,12 +7679,14 @@ export class EBCDrawer {
             placeholder: "Optional — blank = no change",
         });
         const eTitleSel = this.makeTitleSelect(o.title ?? "");
+        const eExprSel  = this.makeExprPresetSelect(o.expressionPresetId ?? null);
 
         editPanel.appendChild(makeEditRow("Command", eCmdInput));
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
         editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
         editPanel.appendChild(makeEditRow("Title", eTitleSel));
+        editPanel.appendChild(makeEditRow("Face preset", eExprSel));
 
         // Tag assignment
         const eTagsLbl = document.createElement("div");
@@ -7838,6 +7866,7 @@ export class EBCDrawer {
                 ePreserveClothingCheck.checked,
                 eNicknameInput.value,
                 eTitleSel.value,
+                eExprSel.value || null,
             );
             if (ok) this.rerender();
         });
@@ -7946,12 +7975,14 @@ export class EBCDrawer {
             className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
         });
         const newTitleSel = this.makeTitleSelect("");
+        const newExprSel  = this.makeExprPresetSelect(null);
 
         form.appendChild(makeRow(t("outfits.commandLabel"), cmdInput));
         form.appendChild(makeRow(t("outfits.nameLabel"), nameInput));
         form.appendChild(makeRow("Announce", announceInput));
         form.appendChild(makeRow("Nickname", nicknameInput));
         form.appendChild(makeRow("Title", newTitleSel));
+        form.appendChild(makeRow("Face preset", newExprSel));
 
         const checkRow = document.createElement("label");
         checkRow.className = "ebc-form-check-row";
@@ -8000,6 +8031,7 @@ export class EBCDrawer {
                 cmdInput.value, nameInput.value, announceInput.value,
                 checkbox.checked, preserveCheckbox.checked,
                 false, nicknameInput.value, newTitleSel.value,
+                newExprSel.value || null,
             );
             if (result) {
                 cmdInput.value = "";
@@ -18088,6 +18120,29 @@ export class EBCDrawer {
             this.rerender(150);
         });
         body.appendChild(clearAllBtn);
+
+        // Auto-apply default face on room join toggle
+        const autoApplyOn = getAutoApplyDefaultFace();
+        const autoApplyRow = document.createElement("div");
+        autoApplyRow.style.cssText = "display:flex;align-items:center;gap:7px;margin-bottom:6px;";
+        const autoApplyToggle = document.createElement("button");
+        autoApplyToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${autoApplyOn ? "#cf6f98" : "#3a1928"};background:${autoApplyOn ? "#3a1020" : "transparent"};color:${autoApplyOn ? "#cf6f98" : "#7a5070"};`;
+        autoApplyToggle.textContent = autoApplyOn ? "★ ON" : "★ OFF";
+        autoApplyToggle.title = "When ON, your default ★ face preset is applied automatically each time you enter a room";
+        autoApplyToggle.addEventListener("click", () => {
+            const next = !getAutoApplyDefaultFace();
+            setAutoApplyDefaultFace(next);
+            autoApplyToggle.style.border = `1px solid ${next ? "#cf6f98" : "#3a1928"}`;
+            autoApplyToggle.style.background = next ? "#3a1020" : "transparent";
+            autoApplyToggle.style.color = next ? "#cf6f98" : "#7a5070";
+            autoApplyToggle.textContent = next ? "★ ON" : "★ OFF";
+        });
+        const autoApplyLbl = document.createElement("span");
+        autoApplyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
+        autoApplyLbl.textContent = "Auto-apply default face on room join";
+        autoApplyRow.appendChild(autoApplyToggle);
+        autoApplyRow.appendChild(autoApplyLbl);
+        body.appendChild(autoApplyRow);
 
         // ── Presets ───────────────────────────────────────────────────────────────
         const presets = getExpressionPresets();
