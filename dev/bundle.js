@@ -25871,6 +25871,72 @@
                         timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:8px;";
                         timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
                         c.appendChild(timeEl);
+                        // Shared helper: build a small "view profile" button for a member number
+                        const makeRoomProfBtn = (memberNumber) => {
+                            const btn = document.createElement("button");
+                            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                            btn.title = "View profile";
+                            btn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:4px;cursor:pointer;line-height:0;padding:3px 5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                            btn.addEventListener("mouseenter", () => { btn.style.background = "#2a0e1e"; btn.style.borderColor = "#cf6f98"; });
+                            btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.borderColor = "#3a1928"; });
+                            btn.addEventListener("click", async () => {
+                                const w = window;
+                                const loadChar = w.InformationSheetLoadCharacter;
+                                const hideEls = w.ChatRoomHideElements;
+                                const loadOnline = w.CharacterLoadOnline;
+                                const roomChars = w.ChatRoomCharacter;
+                                if (!loadChar || !loadOnline) {
+                                    try {
+                                        navigator.clipboard.writeText(String(memberNumber));
+                                    }
+                                    catch ( /* ignore */_a) { /* ignore */ }
+                                    return;
+                                }
+                                const openProfile = (C) => {
+                                    var _a;
+                                    this.close();
+                                    if (w.CurrentScreen === "ChatRoom") {
+                                        try {
+                                            hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                        }
+                                        catch ( /* ignore */_b) { /* ignore */ }
+                                        try {
+                                            const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
+                                            if (bgData)
+                                                w.ChatRoomBackground = bgData;
+                                        }
+                                        catch ( /* ignore */_c) { /* ignore */ }
+                                    }
+                                    loadChar(C);
+                                };
+                                const inRoom = Array.isArray(roomChars)
+                                    ? roomChars.find(c => c.MemberNumber === memberNumber)
+                                    : undefined;
+                                if (inRoom) {
+                                    try {
+                                        openProfile(inRoom);
+                                        return;
+                                    }
+                                    catch ( /* ignore */_b) { /* ignore */ }
+                                }
+                                const bundle = await getCharacterBundle(memberNumber);
+                                if (bundle) {
+                                    try {
+                                        const C = loadOnline(bundle, memberNumber);
+                                        if (C) {
+                                            openProfile(C);
+                                            return;
+                                        }
+                                    }
+                                    catch ( /* ignore */_c) { /* ignore */ }
+                                }
+                                try {
+                                    navigator.clipboard.writeText(String(memberNumber));
+                                }
+                                catch ( /* ignore */_d) { /* ignore */ }
+                            });
+                            return btn;
+                        };
                         // Members on entry
                         if (visit.members.length > 0) {
                             const mLbl = document.createElement("div");
@@ -25888,6 +25954,7 @@
                                 mid.textContent = `#${m.memberNumber}`;
                                 mr.appendChild(mn);
                                 mr.appendChild(mid);
+                                mr.appendChild(makeRoomProfBtn(m.memberNumber));
                                 c.appendChild(mr);
                             }
                             const spacer = document.createElement("div");
@@ -25921,6 +25988,7 @@
                                 row.appendChild(jn);
                                 row.appendChild(jid);
                                 row.appendChild(jt);
+                                row.appendChild(makeRoomProfBtn(j.memberNumber));
                                 c.appendChild(row);
                             }
                         }
@@ -31906,7 +31974,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.4";
+    const MOD_VERSION = "3.8.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31917,6 +31985,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.5",
+            changes: [
+                "DEV tab → Current Room: profile button added to every entry in both the 'On entry' and 'Joined after you' lists.",
+            ],
+        },
         {
             version: "3.8.4",
             changes: [
