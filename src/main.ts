@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.7";
+const MOD_VERSION = "4.4.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.8",
+        changes: [
+            "Action buttons: replaced BC's DrawButton with a custom canvas draw that always centres the label text precisely — fixes off-centre rendering with short labels, symbols, and mixed-character strings like ':3', '=W=', '>:/'.",
+        ],
+    },
     {
         version: "4.4.7",
         changes: [
