@@ -23033,12 +23033,23 @@
         }
         openBeepWindow(memberNumber, startMinimized = false) {
             var _a;
-            // If window already open for this member, refresh history and focus
+            // If window already open for this member, snap it to center, restore it, refresh and focus
             const existing = this.beepWins.get(memberNumber);
             if (existing) {
-                const refresh = existing.el._refresh;
+                const el = existing.el;
+                // Un-minimize first so we can measure real height
+                const restoreFn = el._restoreMin;
+                restoreFn === null || restoreFn === void 0 ? void 0 : restoreFn();
+                // Snap to viewport center
+                const winW = el.offsetWidth || 300;
+                const winH = el.offsetHeight || 400;
+                el.style.left = `${Math.max(0, Math.round((window.innerWidth - winW) / 2))}px`;
+                el.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+                el.style.right = "";
+                el.style.top = "";
+                const refresh = el._refresh;
                 refresh === null || refresh === void 0 ? void 0 : refresh();
-                (_a = existing.el.querySelector(".ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
+                (_a = el.querySelector(".ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
                 return;
             }
             this.beepUnread.delete(memberNumber);
@@ -23151,6 +23162,17 @@
                     catch ( /* ignore */_a) { /* ignore */ }
                 }
             });
+            // Store a restore helper so the re-open / center logic can un-minimize without needing
+            // a direct reference to minimizeBtn.
+            win._restoreMin = () => {
+                const entry = this.beepWins.get(memberNumber);
+                if (!entry || !entry.minimized)
+                    return;
+                entry.minimized = false;
+                win.classList.remove("minimized");
+                minimizeBtn.textContent = "–";
+                minimizeBtn.title = "Minimize";
+            };
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
@@ -23247,17 +23269,21 @@
                     bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
                 };
             };
-            try {
-                const saved = localStorage.getItem(savedPosKey);
-                if (saved) {
-                    const { left, bottom } = JSON.parse(saved);
-                    const clamped = clampBeepPos(left, bottom);
-                    win.style.left = `${clamped.left}px`;
-                    win.style.bottom = `${clamped.bottom}px`;
-                    win.style.right = "";
+            // Only restore saved position when session-restoring minimized windows.
+            // Fresh user-initiated opens always appear centred (done after body.appendChild below).
+            if (startMinimized) {
+                try {
+                    const saved = localStorage.getItem(savedPosKey);
+                    if (saved) {
+                        const { left, bottom } = JSON.parse(saved);
+                        const clamped = clampBeepPos(left, bottom);
+                        win.style.left = `${clamped.left}px`;
+                        win.style.bottom = `${clamped.bottom}px`;
+                        win.style.right = "";
+                    }
                 }
+                catch ( /* ignore — use default offset position */_b) { /* ignore — use default offset position */ }
             }
-            catch ( /* ignore — use default offset position */_b) { /* ignore — use default offset position */ }
             // Make header draggable — anchored by bottom so expanding grows upward.
             // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
@@ -23448,6 +23474,17 @@
             footer.appendChild(sendBtn);
             win.appendChild(footer);
             document.body.appendChild(win);
+            // Centre new user-initiated windows after layout so offsetWidth/Height are real.
+            if (!startMinimized) {
+                window.requestAnimationFrame(() => {
+                    const winW = win.offsetWidth || 300;
+                    const winH = win.offsetHeight || 400;
+                    win.style.left = `${Math.max(0, Math.round((window.innerWidth - winW) / 2))}px`;
+                    win.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+                    win.style.right = "";
+                    win.style.top = "";
+                });
+            }
             input.focus();
             // Store renderHistory so incoming beeps can trigger a refresh
             win._refresh = renderHistory;
@@ -32084,7 +32121,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.9";
+    const MOD_VERSION = "4.2.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32095,6 +32132,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.0",
+            changes: [
+                "Chat windows: clicking the 💬 button beside a friend now snaps the beep window to the centre of the screen and restores it if minimised. New windows also open centred instead of anchored to the bottom-right corner. Session-restored windows still reload at their last saved position.",
+            ],
+        },
         {
             version: "4.1.9",
             changes: [
