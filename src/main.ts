@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.6";
+const MOD_VERSION = "4.3.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.7",
+        changes: [
+            "Replaced all ↑↓ arrow text on reorder/move buttons with clean SVG chevrons across the whole panel (expression sequences, pose combos, action button steps, outfit reorder, restraint reorder, action slot reorder).",
+            "Added − and + step buttons next to every hold/delay ms input for easy ±100 ms adjustment without typing.",
+            "Removed native browser number-input spinners from all inputs inside the EBC panel.",
+        ],
+    },
     {
         version: "4.3.6",
         changes: [
