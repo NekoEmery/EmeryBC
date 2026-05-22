@@ -3694,13 +3694,13 @@
     }
     /**
      * Draw a single action button with perfectly centred label text.
-     * Uses canvas directly so the label is always centred regardless of
-     * character type (ASCII, emoji, symbols, mixed case, etc.).
+     * Delegates to BC's DrawButton (empty label) so the background colour,
+     * border, and mouse-hover highlight all work exactly as before — then
+     * overlays our own canvas text centred both horizontally and vertically.
      */
     function drawActionButton(x, y, size, label, bgColor) {
-        // Background rectangle
-        DrawRect(x, y, size, size, bgColor);
-        DrawEmptyRect(x, y, size, size, "rgba(0,0,0,0.35)", 1);
+        // BC handles background + hover effect; empty label so it draws no text
+        DrawButton(x, y, size, size, "", bgColor, "", "");
         const canvas = document.getElementById("MainCanvas");
         const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
         if (!ctx)
@@ -3718,8 +3718,8 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#ffffff";
-        ctx.shadowColor = "rgba(0,0,0,0.7)";
-        ctx.shadowBlur = 3;
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = 2;
         ctx.fillText(label, x + size / 2, y + size / 2, maxW);
         ctx.restore();
     }
@@ -33157,7 +33157,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.4.8";
+    const MOD_VERSION = "4.4.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33168,6 +33168,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.4.9",
+            changes: [
+                "Action buttons: fixed v4.4.8 regression — button colours and hover effect are restored. Custom centring now overlays text on top of BC's own DrawButton (empty label) so hover highlight and colour both work correctly.",
+            ],
+        },
         {
             version: "4.4.8",
             changes: [
