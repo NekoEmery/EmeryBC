@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.2.0
+// @version      4.2.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -21884,7 +21884,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 pose: "Pose",
                 equip: "Equip", // legacy — kept for backward compat
                 "equip-restraint": "Equip Restraint",
-                "equip-clothes": "Equip Clothes",
+                "equip-clothes": "Equip Item (clothes, props…)",
                 unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
                 expression: "Expression",
             };
@@ -22213,7 +22213,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const groupSel = document.createElement("select");
                         groupSel.className = "ebc-scene-type-sel";
                         groupSel.style.cssText = "flex:1;width:auto;max-width:130px;";
-                        groupSel.title = "Item slot";
+                        groupSel.title = type === "equip-clothes"
+                            ? "Slot — includes all non-restraint items: clothes, accessories, props, laptops, etc."
+                            : type === "equip-restraint"
+                                ? "Slot — restraint items only (cuffs, gags, collars…)"
+                                : "Item slot";
                         {
                             const ph = document.createElement("option");
                             ph.value = "";
@@ -32138,7 +32142,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.0";
+    const MOD_VERSION = "4.2.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32149,6 +32153,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.1",
+            changes: [
+                "Scenes: renamed 'Equip Clothes' step type to 'Equip Item (clothes, props…)' to make it clear this step covers ALL non-restraint items — clothing, accessories, props, laptops, and any other new BC items. Slot dropdown now shows a tooltip describing what each equip type includes.",
+            ],
+        },
         {
             version: "4.2.0",
             changes: [
