@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.4
+// @version      4.5.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11192,19 +11192,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         store.friendNames[String(memberNumber)] = name;
         // Sync is deferred — name cache is saved alongside the next real operation
     }
+    // -- Account name cache --------------------------------------------------------
+    // Stores the raw BC account name (.Name) separately from the display name
+    // (.Nickname). When a person uses a nickname, both are preserved so the
+    // friends list can show "Nickname (AccountName)" for easy identification.
+    function getCachedAccountNames() {
+        const v = getStore$2().friendAccountNames;
+        return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+    }
+    function cacheAccountName(memberNumber, accountName) {
+        const store = getStore$2();
+        if (!store.friendAccountNames || typeof store.friendAccountNames !== "object")
+            store.friendAccountNames = {};
+        store.friendAccountNames[String(memberNumber)] = accountName;
+    }
+    /** Returns the cached BC account name for this member, or null if unknown. */
+    function getAccountName(memberNumber) {
+        var _a;
+        return (_a = getCachedAccountNames()[String(memberNumber)]) !== null && _a !== void 0 ? _a : null;
+    }
     function resolveName(memberNumber) {
-        var _a, _b;
+        var _a, _b, _c, _d;
         try {
             const room = window.ChatRoomCharacter;
             const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === memberNumber);
             if (char) {
-                const name = ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || char.Name || String(memberNumber);
+                const accountName = (_a = char.Name) !== null && _a !== void 0 ? _a : "";
+                const nickname = (_c = (_b = char.Nickname) === null || _b === void 0 ? void 0 : _b.trim()) !== null && _c !== void 0 ? _c : "";
+                // Always cache the raw account name so we can show it alongside nicknames
+                if (accountName)
+                    cacheAccountName(memberNumber, accountName);
+                const name = nickname || accountName || String(memberNumber);
                 cacheName(memberNumber, name);
                 return name;
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
-        return (_b = getCachedNames()[String(memberNumber)]) !== null && _b !== void 0 ? _b : `#${memberNumber}`;
+        catch ( /* ignore */_e) { /* ignore */ }
+        return (_d = getCachedNames()[String(memberNumber)]) !== null && _d !== void 0 ? _d : `#${memberNumber}`;
     }
     // -- Friend list ---------------------------------------------------------------
     function getFriendList() {
@@ -24838,7 +24862,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     catch ( /* ignore */_b) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
-                        var _a;
+                        var _a, _b, _c;
                         const num = char.MemberNumber;
                         const nameRaw = char.Nickname || char.Name || "Unknown";
                         const name = resolveName(num) || nameRaw;
@@ -24906,6 +24930,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                         // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                         nameRow.appendChild(nameEl);
+                        // Show account name in muted text when they use a different nickname
+                        const acctNameRoom = char.Name;
+                        const nickNameRoom = (_b = (_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
+                        if (acctNameRoom && nickNameRoom && nickNameRoom !== acctNameRoom) {
+                            const acctEl = document.createElement("span");
+                            acctEl.textContent = "(" + acctNameRoom + ")";
+                            acctEl.title = "BC account name: " + acctNameRoom;
+                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                            nameRow.appendChild(acctEl);
+                        }
                         nameRow.appendChild(numEl);
                         if (relBadge) {
                             const badge = document.createElement("span");
@@ -25008,7 +25042,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         btnCol.appendChild(profBtn);
                         // Beep button — only for friends
                         if (friendList.includes(num)) {
-                            const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
+                            const unread = (_c = this.beepUnread.get(num)) !== null && _c !== void 0 ? _c : 0;
                             const beepBtn = document.createElement("button");
                             beepBtn.className = "ebc-friend-btn";
                             beepBtn.style.cssText = "position:relative;flex-shrink:0;";
@@ -25507,11 +25541,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     tagArea.addEventListener("mouseleave", hideTooltip);
                     // ── Two-line layout assembly ───────────────────────────────
-                    // nameRow: nameEl + numEl + relBadge
+                    // nameRow: nameEl + acctEl? + numEl + relBadge
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                     nameRow.appendChild(nameEl);
+                    // If this person has a nickname, show their account name in muted text
+                    // so you can tell "Lucy" is actually "Lucas" on their account.
+                    const acctName = getAccountName(num);
+                    if (acctName && acctName !== name) {
+                        const acctEl = document.createElement("span");
+                        acctEl.textContent = "(" + acctName + ")";
+                        acctEl.title = "BC account name: " + acctName;
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        nameRow.appendChild(acctEl);
+                    }
                     nameRow.appendChild(numEl);
                     if (relBadge) {
                         const relBadgeEl = document.createElement("span");
@@ -33192,7 +33236,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.4";
+    const MOD_VERSION = "4.5.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33203,6 +33247,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.5",
+            changes: [
+                "Friends list & People in Room: account name now shown in muted text next to the nickname when they differ — e.g. 'Lucy (Lucas)' — so you can always identify who someone is by their BC account name.",
+            ],
+        },
         {
             version: "4.5.4",
             changes: [
