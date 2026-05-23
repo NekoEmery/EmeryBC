@@ -17,7 +17,10 @@ export function initSettings(): void {
     if (_initialized) return;
     _initialized = true;
 
-    const raw = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+    // Player.ExtensionSettings may be undefined if BC hasn't finished
+    // initialising the Player object yet (e.g. addon loaded very early).
+    const ext = (Player.ExtensionSettings as Record<string, unknown> | undefined) ?? {};
+    const raw = ((ext.EmeryBC) ?? {}) as Record<string, unknown>;
     const compressed = raw[COMPRESSED_KEY];
 
     if (typeof compressed === "string" && compressed.length > 0) {
@@ -73,6 +76,8 @@ export function getSettings(): Record<string, unknown> {
 export function flushToExtensionSettings(): void {
     try {
         const compressed = LZString.compressToBase64(JSON.stringify(_mem));
+        // Guard: ExtensionSettings may be undefined if Player isn't fully ready yet.
+        if (!Player.ExtensionSettings) return;
         if (!Player.ExtensionSettings.EmeryBC ||
             typeof Player.ExtensionSettings.EmeryBC !== "object") {
             Player.ExtensionSettings.EmeryBC = {};

@@ -562,11 +562,14 @@
     let _mem = {};
     let _initialized = false;
     function initSettings() {
-        var _a;
+        var _a, _b;
         if (_initialized)
             return;
         _initialized = true;
-        const raw = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+        // Player.ExtensionSettings may be undefined if BC hasn't finished
+        // initialising the Player object yet (e.g. addon loaded very early).
+        const ext = (_a = Player.ExtensionSettings) !== null && _a !== void 0 ? _a : {};
+        const raw = ((_b = (ext.EmeryBC)) !== null && _b !== void 0 ? _b : {});
         const compressed = raw[COMPRESSED_KEY];
         if (typeof compressed === "string" && compressed.length > 0) {
             try {
@@ -580,7 +583,7 @@
                     }
                 }
             }
-            catch ( /* fall through to legacy migration */_b) { /* fall through to legacy migration */ }
+            catch ( /* fall through to legacy migration */_c) { /* fall through to legacy migration */ }
         }
         // Legacy format: copy all real data keys into _mem, skip _d itself
         _mem = {};
@@ -622,6 +625,9 @@
     function flushToExtensionSettings() {
         try {
             const compressed = LZString.compressToBase64(JSON.stringify(_mem));
+            // Guard: ExtensionSettings may be undefined if Player isn't fully ready yet.
+            if (!Player.ExtensionSettings)
+                return;
             if (!Player.ExtensionSettings.EmeryBC ||
                 typeof Player.ExtensionSettings.EmeryBC !== "object") {
                 Player.ExtensionSettings.EmeryBC = {};
@@ -33673,7 +33679,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.3";
+    const MOD_VERSION = "4.6.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33684,6 +33690,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.4",
+            changes: [
+                "Fix: initSettings no longer crashes with 'Cannot read properties of undefined (reading EmeryBC)' when BC hasn't finished building the Player object yet — Player.ExtensionSettings is now safely guarded in both initSettings and flushToExtensionSettings.",
+            ],
+        },
         {
             version: "4.6.3",
             changes: [
