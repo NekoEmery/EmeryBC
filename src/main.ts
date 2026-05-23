@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.5.9";
+const MOD_VERSION = "4.6.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.6.0",
+        changes: [
+            "i18n: Expressions section fully translated — section title, presets header, save/reset/override/default buttons, auto-apply toggle, chat triggers header/hint, new-trigger form labels, and how-to info box all now respect the selected language.",
+        ],
+    },
     {
         version: "4.5.9",
         changes: [
@@ -4765,7 +4771,7 @@ function syncPresenceMarker(): void {
     // your tag. The toggle only controls whether YOU see it above your own head.
 
     const presence: EmeryPresence = {
-        version: "4.5.9",
+        version: "4.6.0",
         marker:  "EBC",
         ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
         ...(IS_DEV_BUILD ? { isDev: true } : {}),

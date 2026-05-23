@@ -9502,7 +9502,7 @@ export class EBCDrawer {
         this.renderScenes(scenesCnt);
 
         // ── EXPRESSION SEQUENCES (collapsible) ──────────────────────────────
-        const exprSeqCnt = makeCollapse("Expression Sequences", "EBC_exprSeqCollapsed", true);
+        const exprSeqCnt = makeCollapse(t("expr.sequences"), "EBC_exprSeqCollapsed", true);
 
         // Helper — builds a draggable step list with per-step hold-time + an "add from preset" row.
         const buildSeqStepEditor = (
@@ -9876,7 +9876,7 @@ export class EBCDrawer {
         exprSeqCnt.appendChild(newSeqForm);
 
         // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
-        const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
+        const exprCnt = makeCollapse(t("anims.expressions"), "EBC_animsExprsCollapsed", true);
         this.renderExpressions(exprCnt);
     }
 
@@ -18074,18 +18074,25 @@ export class EBCDrawer {
         // ── How-to info ───────────────────────────────────────────────────────────
         const infoBox = document.createElement("div");
         infoBox.style.cssText = `${F}11px;color:#d0a0d8;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
-        infoBox.innerHTML =
-            "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
-            "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
-            "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
-            "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired from " +
-            "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
-            "or triggered automatically when your <b style=\"color:#d0a0d8;\">outgoing chat message</b> contains a match phrase (see Chat Triggers below).";
+        const infoTitle = document.createElement("b");
+        infoTitle.style.color = "#cf6f98";
+        infoTitle.textContent = t("expr.howToTitle");
+        const infoBr1 = document.createElement("br");
+        const infoP1 = document.createTextNode(t("expr.howToBody1"));
+        const infoBr2 = document.createElement("br");
+        const infoBr3 = document.createElement("br");
+        const infoP2 = document.createTextNode(t("expr.howToBody2"));
+        infoBox.appendChild(infoTitle);
+        infoBox.appendChild(infoBr1);
+        infoBox.appendChild(infoP1);
+        infoBox.appendChild(infoBr2);
+        infoBox.appendChild(infoBr3);
+        infoBox.appendChild(infoP2);
         body.appendChild(infoBox);
 
         // ── Save & Clear ──────────────────────────────────────────────────────────
         const captureInput = Object.assign(document.createElement("input"), {
-            type: "text", maxLength: 30, placeholder: "Preset name…",
+            type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
         }) as HTMLInputElement;
         captureInput.className = "ebc-form-input";
         captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
@@ -18094,7 +18101,7 @@ export class EBCDrawer {
         const savePresetBtn = document.createElement("button");
         savePresetBtn.className = "ebc-create-btn";
         savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px;margin-bottom:5px;";
-        savePresetBtn.textContent = "💾 Save face";
+        savePresetBtn.textContent = t("expr.saveFace");
         savePresetBtn.setAttribute("data-guide-target", "btn-save-face");
         savePresetBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
@@ -18107,8 +18114,8 @@ export class EBCDrawer {
         const clearAllBtn = document.createElement("button");
         clearAllBtn.className = "ebc-btn-footer-btn";
         clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-        clearAllBtn.textContent = "↺  Reset face expression";
-        clearAllBtn.title = "Apply your default face preset, or clear all expressions if none is set";
+        clearAllBtn.textContent = t("expr.resetFace");
+        clearAllBtn.title = t("expr.resetFaceTitle");
         clearAllBtn.addEventListener("click", () => {
             const defaultId = getDefaultExprPresetId();
             if (defaultId) {
@@ -18127,19 +18134,19 @@ export class EBCDrawer {
         autoApplyRow.style.cssText = "display:flex;align-items:center;gap:7px;margin-bottom:6px;";
         const autoApplyToggle = document.createElement("button");
         autoApplyToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${autoApplyOn ? "#cf6f98" : "#3a1928"};background:${autoApplyOn ? "#3a1020" : "transparent"};color:${autoApplyOn ? "#cf6f98" : "#7a5070"};`;
-        autoApplyToggle.textContent = autoApplyOn ? "ON" : "OFF";
-        autoApplyToggle.title = "When ON, your default face preset is applied automatically each time you enter a room";
+        autoApplyToggle.textContent = autoApplyOn ? t("core.on") : t("core.off");
+        autoApplyToggle.title = t("expr.autoApplyTitle");
         autoApplyToggle.addEventListener("click", () => {
             const next = !getAutoApplyDefaultFace();
             setAutoApplyDefaultFace(next);
             autoApplyToggle.style.border = `1px solid ${next ? "#cf6f98" : "#3a1928"}`;
             autoApplyToggle.style.background = next ? "#3a1020" : "transparent";
             autoApplyToggle.style.color = next ? "#cf6f98" : "#7a5070";
-            autoApplyToggle.textContent = next ? "ON" : "OFF";
+            autoApplyToggle.textContent = next ? t("core.on") : t("core.off");
         });
         const autoApplyLbl = document.createElement("span");
         autoApplyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
-        autoApplyLbl.textContent = "Auto-apply default face on room join";
+        autoApplyLbl.textContent = t("expr.autoApply");
         autoApplyRow.appendChild(autoApplyToggle);
         autoApplyRow.appendChild(autoApplyLbl);
         body.appendChild(autoApplyRow);
@@ -18154,7 +18161,7 @@ export class EBCDrawer {
 
             const presetsLbl = document.createElement("div");
             presetsLbl.className = "ebc-section-label";
-            presetsLbl.textContent = "PRESETS";
+            presetsLbl.textContent = t("expr.presetsHeader");
             presetsLbl.style.marginBottom = "5px";
             body.appendChild(presetsLbl);
 
@@ -18168,19 +18175,19 @@ export class EBCDrawer {
 
                 const applyBtn = document.createElement("button");
                 applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
-                applyBtn.textContent = "✓ Apply";
-                applyBtn.title = "Apply this preset";
+                applyBtn.textContent = t("expr.applyBtn");
+                applyBtn.title = t("expr.applyBtnTitle");
                 applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
 
                 const updateExprBtn = document.createElement("button");
                 updateExprBtn.className = "ebc-update-btn";
                 updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
-                updateExprBtn.textContent = "Override";
-                updateExprBtn.title = "Overwrite this preset with your current face expression";
+                updateExprBtn.textContent = t("expr.overrideBtn");
+                updateExprBtn.title = t("expr.overrideBtnTitle");
                 updateExprBtn.addEventListener("click", () => {
                     showConfirmOverlay(
                         `Overwrite "${preset.name}" with your current face?`,
-                        "Cancel", "Update",
+                        t("core.cancel"), t("core.update"),
                         () => {
                             const captured = captureCurrentExpression(preset.name);
                             const all = getExpressionPresets();
@@ -18195,7 +18202,7 @@ export class EBCDrawer {
                 nameEl.type = "text";
                 nameEl.value = preset.name;
                 nameEl.maxLength = 30;
-                nameEl.title = "Click to rename";
+                nameEl.title = t("expr.clickToRename");
                 nameEl.style.cssText = `${F}11px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
                 nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
                 nameEl.addEventListener("blur", () => {
@@ -18210,8 +18217,8 @@ export class EBCDrawer {
                 const isDefault = preset.id === defaultId;
                 const defaultBtn = document.createElement("button");
                 defaultBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isDefault ? "#b07820" : "#3a1928"};background:${isDefault ? "#1e1400" : "transparent"};color:${isDefault ? "#f0c040" : "#7a5070"};`;
-                defaultBtn.textContent = "Default";
-                defaultBtn.title = isDefault ? "This is your default face — click to unset" : "Set as default face (used by ↺ Reset and auto-apply on room join)";
+                defaultBtn.textContent = t("expr.defaultBtn");
+                defaultBtn.title = isDefault ? t("expr.defaultBtnActive") : t("expr.defaultBtnInactive");
                 defaultBtn.addEventListener("click", () => {
                     setDefaultExprPresetId(isDefault ? null : preset.id);
                     this.rerender();
@@ -18220,7 +18227,7 @@ export class EBCDrawer {
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-outfit-del";
                 delBtn.textContent = "×";
-                delBtn.title = "Delete preset";
+                delBtn.title = t("expr.deletePreset");
                 delBtn.addEventListener("click", () => {
                     showQuickConfirm(`Delete preset "${preset.name}"?`, () => {
                         if (preset.id === getDefaultExprPresetId()) setDefaultExprPresetId(null);
@@ -18248,12 +18255,12 @@ export class EBCDrawer {
         const trigLbl = document.createElement("div");
         trigLbl.className = "ebc-section-label";
         trigLbl.style.marginBottom = "5px";
-        trigLbl.textContent = "CHAT TRIGGERS";
+        trigLbl.textContent = t("expr.chatTriggers");
         body.appendChild(trigLbl);
 
         const trigHint = document.createElement("div");
         trigHint.style.cssText = `${F}10px;color:#7a5070;margin-bottom:6px;line-height:1.5;`;
-        trigHint.textContent = "When your outgoing message contains the match text, the face preset fires automatically.";
+        trigHint.textContent = t("expr.triggerHint");
         body.appendChild(trigHint);
 
         const triggers = getExpressionTriggers();
@@ -18262,7 +18269,7 @@ export class EBCDrawer {
             const none = document.createElement("div");
             none.className = "ebc-empty";
             none.style.padding = "4px 0 6px";
-            none.textContent = "No triggers yet";
+            none.textContent = t("expr.noTriggers");
             body.appendChild(none);
         }
 
@@ -18274,7 +18281,7 @@ export class EBCDrawer {
             const matchChip = document.createElement("span");
             matchChip.style.cssText = `${F}11px;background:#2a0e1e;border:1px solid #5a2840;border-radius:4px;padding:1px 6px;color:#f0a0c0;flex-shrink:0;font-style:italic;`;
             matchChip.textContent = `"${trig.matchText}"`;
-            matchChip.title = "Message contains this text (case-insensitive)";
+            matchChip.title = t("expr.matchTitle");
 
             const arrow = document.createElement("span");
             arrow.style.cssText = `${F}10px;color:#5a3050;flex-shrink:0;`;
@@ -18284,20 +18291,20 @@ export class EBCDrawer {
             const presetName = document.createElement("span");
             presetName.style.cssText = `${F}11px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
             const livePreset = getExpressionPresets().find(p => p.id === trig.presetId);
-            presetName.textContent = livePreset?.name ?? "(deleted preset)";
+            presetName.textContent = livePreset?.name ?? t("expr.deletedPreset");
             if (!livePreset) presetName.style.opacity = "0.45";
 
             // Hold time chip
             const holdMs = trig.durationMs;
             const holdChip = document.createElement("span");
             holdChip.style.cssText = `${F}10px;color:#7a5070;flex-shrink:0;`;
-            holdChip.textContent = holdMs === 0 ? "permanent" : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
+            holdChip.textContent = holdMs === 0 ? t("expr.permanent") : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
             holdChip.title = holdMs === 0 ? "Expression stays until manually changed" : `Reverts to default after ${holdMs}ms`;
 
             const trigDelBtn = document.createElement("button");
             trigDelBtn.className = "ebc-outfit-del";
             trigDelBtn.textContent = "×";
-            trigDelBtn.title = "Delete trigger";
+            trigDelBtn.title = t("expr.deleteTrigger");
             trigDelBtn.addEventListener("click", () => {
                 showQuickConfirm(`Delete trigger for "${trig.matchText}"?`, () => {
                     saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
@@ -18317,7 +18324,7 @@ export class EBCDrawer {
         const newTrigToggle = document.createElement("button");
         newTrigToggle.className = "ebc-create-btn";
         newTrigToggle.style.cssText = "width:100%;margin-top:6px;";
-        newTrigToggle.textContent = "＋ New Trigger";
+        newTrigToggle.textContent = t("expr.newTrigger");
         newTrigToggle.setAttribute("data-guide-target", "btn-new-trigger");
 
         const newTrigForm = document.createElement("div");
@@ -18328,7 +18335,7 @@ export class EBCDrawer {
         ntMatchWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
         const ntMatchLbl = document.createElement("span");
         ntMatchLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-        ntMatchLbl.textContent = "Contains:";
+        ntMatchLbl.textContent = t("expr.contains");
         const ntMatchInp = document.createElement("input") as HTMLInputElement;
         ntMatchInp.type = "text"; ntMatchInp.maxLength = 60;
         ntMatchInp.className = "ebc-form-input";
@@ -18343,13 +18350,13 @@ export class EBCDrawer {
         ntPresetWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
         const ntPresetLbl = document.createElement("span");
         ntPresetLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-        ntPresetLbl.textContent = "Apply:";
+        ntPresetLbl.textContent = t("expr.applyLabel");
         const ntPresetSel = document.createElement("select");
         ntPresetSel.style.cssText = "flex:1;min-width:0;font-size:11px;font-family:'Trebuchet MS',serif;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:2px 4px;";
         const currentPresets = getExpressionPresets();
         if (currentPresets.length === 0) {
             const opt = document.createElement("option");
-            opt.textContent = "(save face presets first)";
+            opt.textContent = t("expr.noPresetsYet");
             opt.disabled = true; ntPresetSel.appendChild(opt);
         } else {
             for (const p of currentPresets) {
@@ -18366,15 +18373,15 @@ export class EBCDrawer {
         ntHoldWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
         const ntHoldLbl = document.createElement("span");
         ntHoldLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-        ntHoldLbl.textContent = "Hold:";
+        ntHoldLbl.textContent = t("expr.hold");
         const ntHoldInp = document.createElement("input") as HTMLInputElement;
         ntHoldInp.type = "number"; ntHoldInp.min = "0"; ntHoldInp.max = "30000"; ntHoldInp.value = "3000";
         ntHoldInp.style.cssText = "width:70px;font-size:11px;font-family:'Trebuchet MS',serif;padding:2px 4px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;";
-        ntHoldInp.title = "How long (ms) before reverting to default face. 0 = permanent.";
+        ntHoldInp.title = t("expr.holdTitle");
         ntHoldInp.addEventListener("keydown", e => e.stopPropagation());
         const ntHoldUnit = document.createElement("span");
         ntHoldUnit.style.cssText = `${F}10px;color:#5a3050;`;
-        ntHoldUnit.textContent = "ms  (0 = permanent)";
+        ntHoldUnit.textContent = t("expr.holdUnit");
         ntHoldWrap.appendChild(ntHoldLbl); ntHoldWrap.appendChild(ntHoldInp); ntHoldWrap.appendChild(ntHoldUnit);
         newTrigForm.appendChild(ntHoldWrap);
 
@@ -18382,7 +18389,7 @@ export class EBCDrawer {
         const ntCreateBtn = document.createElement("button");
         ntCreateBtn.className = "ebc-create-btn";
         ntCreateBtn.style.cssText = "width:100%;font-size:11px;margin-top:2px;";
-        ntCreateBtn.textContent = "Add Trigger";
+        ntCreateBtn.textContent = t("expr.addTrigger");
         ntCreateBtn.addEventListener("click", () => {
             const matchText = ntMatchInp.value.trim();
             if (!matchText) { ntMatchInp.style.borderColor = "#cf6f98"; return; }
@@ -18400,7 +18407,7 @@ export class EBCDrawer {
         newTrigToggle.addEventListener("click", () => {
             const open = newTrigForm.style.display !== "none";
             newTrigForm.style.display = open ? "none" : "flex";
-            newTrigToggle.textContent = open ? "＋ New Trigger" : t("core.cancel");
+            newTrigToggle.textContent = open ? t("expr.newTrigger") : t("core.cancel");
             if (!open) ntMatchInp.focus();
         });
 
