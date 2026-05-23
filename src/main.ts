@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.7.1";
+const MOD_VERSION = "4.7.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -5408,7 +5408,8 @@ function init(): void {
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
         // Re-capture paw position after BC finishes repositioning characters.
-        window.setTimeout(() => { _pawCapturing = true; }, 500);
+        // 1200ms gives BC time to fully settle even after large row removals.
+        window.setTimeout(() => { _pawCapturing = true; }, 1200);
         try { syncPresenceMarker();         } catch { /* ignore */ }
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
@@ -5629,7 +5630,7 @@ function init(): void {
     // handle both shapes to be safe across BC versions.
     tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
         const result = next(args);
-        window.setTimeout(() => { _pawCapturing = true; }, 500);
+        window.setTimeout(() => { _pawCapturing = true; }, 1200);
         try {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
@@ -5641,7 +5642,7 @@ function init(): void {
 
     tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
         const result = next(args);
-        window.setTimeout(() => { _pawCapturing = true; }, 500);
+        window.setTimeout(() => { _pawCapturing = true; }, 1200);
         return result;
     });
 
