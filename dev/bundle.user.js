@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.9
+// @version      4.6.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13028,6 +13028,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "anims.poseHint": { en: "Pick one Body pose and one Arm pose — they stack!", de: "Eine Körperpose und eine Armpose wählen — sie stapeln sich!", zh: "选择一个身体姿势和一个手臂姿势——可叠加！", fr: "Choisir une pose de corps et une de bras — elles se combinent !", es: "Elige una pose de cuerpo y una de brazos — ¡se combinan!", ru: "Выберите позу тела и позу рук — они сочетаются!", ja: "ボディポーズと腕ポーズを1つずつ選択 — 重ね合わせができます！" },
         "anims.scenes": { en: "SCENES", de: "SZENEN", zh: "场景", fr: "SCÈNES", es: "ESCENAS", ru: "СЦЕНЫ", ja: "シーン" },
         "anims.scenesHint": { en: "Chain poses, item changes, emotes and pauses into a timed sequence.", de: "Posen, Kleidungsänderungen, Emotes und Pausen zu einer zeitgesteuerten Sequenz verbinden.", zh: "将姿势、物品更换、表情和暂停串成一个定时序列。", fr: "Enchaîner poses, changements d'objet, émotes et pauses en une séquence minutée.", es: "Encadena poses, cambios de objeto, emotes y pausas en una secuencia cronometrada.", ru: "Объедините позы, смену предметов, эмоуты и паузы в последовательность.", ja: "ポーズ、アイテム変更、エモート、ポーズを組み合わせてタイムドシーケンスを作成します。" },
+        "anims.expressions": { en: "EXPRESSIONS", de: "AUSDRÜCKE", zh: "表情", fr: "EXPRESSIONS", es: "EXPRESIONES", ru: "ВЫРАЖЕНИЯ", ja: "表情" },
         // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
         "users.peopleInRoom": { en: "People in Room", de: "Personen im Raum", zh: "房间中的人", fr: "Personnes dans la salle", es: "Personas en la sala", ru: "Люди в комнате", ja: "ルーム内のユーザー" },
         "users.friends": { en: "Friends", de: "Freunde", zh: "好友", fr: "Amis", es: "Amigos", ru: "Друзья", ja: "フレンド" },
@@ -13129,6 +13130,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "expr.newSeq": { en: "+ New Sequence", de: "+ Neue Sequenz", zh: "+ 新建序列", fr: "+ Nouvelle séquence", es: "+ Nueva secuencia", ru: "+ Новая последовательность", ja: "+ 新規シーケンス" },
         "expr.play": { en: "▶ Play", de: "▶ Abspielen", zh: "▶ 播放", fr: "▶ Jouer", es: "▶ Reproducir", ru: "▶ Воспроизвести", ja: "▶ 再生" },
         "expr.stopSeq": { en: "■ Stop", de: "■ Stopp", zh: "■ 停止", fr: "■ Arrêter", es: "■ Detener", ru: "■ Стоп", ja: "■ 停止" },
+        "expr.howToTitle": { en: "How to make a face:", de: "Gesichtsausdruck erstellen:", zh: "如何设置表情：", fr: "Comment créer une expression :", es: "Cómo crear una expresión:", ru: "Как создать выражение лица:", ja: "表情の作り方：" },
+        "expr.howToBody1": { en: "Use BC's own expression controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click 💾 Save face to capture it as a named preset.", de: "Nutze BCs Ausdruckssteuerung (Gesicht-Symbol oben) zum Einstellen von Röte, Augen, Mund usw., dann klicke 💾 Gesicht speichern, um es als Preset zu sichern.", zh: "使用BC自带的表情控制（顶部菜单的脸部图标）设置脸红、眼睛、嘴巴等，然后点击 💾 保存面部 将其保存为命名预设。", fr: "Utilise les contrôles d'expression de BC (icône de visage dans le menu supérieur) pour régler teint, yeux, bouche etc., puis clique 💾 Sauvegarder le visage pour le capturer comme preset.", es: "Usa los controles de expresión de BC (icono de cara en el menú superior) para ajustar rubor, ojos, boca etc., luego haz clic en 💾 Guardar cara para guardarlo como preset.", ru: "Используй элементы управления выражением (значок лица в верхнем меню), чтобы настроить румянец, глаза, рот и т.д., затем нажми 💾 Сохранить лицо для сохранения пресета.", ja: "BC表情コントロール（上部メニューの顔アイコン）で頬・目・口などを設定し、💾 表情を保存 をクリックして名前付きプリセットとして保存します。" },
+        "expr.howToBody2": { en: "Presets can be applied manually, fired from action buttons or scenes, or triggered automatically when your outgoing chat message contains a match phrase (see Chat Triggers below).", de: "Presets können manuell angewendet, über Aktions-Tasten oder Szenen ausgelöst oder automatisch aktiviert werden, wenn die Chatnachricht eine Phrase enthält (siehe Chat-Auslöser).", zh: "预设可以手动应用、通过动作按钮或场景触发，或在发送消息包含匹配短语时自动触发（见下方聊天触发器）。", fr: "Les presets peuvent être appliqués manuellement, déclenchés via des boutons d'action ou des scènes, ou activés automatiquement quand ton message sortant contient une phrase correspondante (voir Déclencheurs ci-dessous).", es: "Los presets pueden aplicarse manualmente, activarse desde botones de acción o escenas, o dispararse automáticamente cuando tu mensaje contiene una frase de coincidencia (ver Disparadores abajo).", ru: "Пресеты можно применять вручную, запускать из кнопок действий или сцен, или активировать автоматически, когда исходящее сообщение содержит фразу-триггер (см. Триггеры ниже).", ja: "プリセットは手動で適用したり、アクションボタンやシーンから発動したり、送信メッセージにマッチフレーズが含まれると自動発動します（下のチャットトリガーを参照）。" },
+        "expr.presetsHeader": { en: "PRESETS", de: "PRESETS", zh: "预设", fr: "PRÉSETS", es: "PRESETS", ru: "ПРЕСЕТЫ", ja: "プリセット" },
+        "expr.resetFace": { en: "↺  Reset face", de: "↺  Gesicht zurücksetzen", zh: "↺  重置表情", fr: "↺  Réinitialiser le visage", es: "↺  Restablecer cara", ru: "↺  Сбросить лицо", ja: "↺  表情リセット" },
+        "expr.resetFaceTitle": { en: "Apply your default face preset, or clear all expressions if none is set", de: "Standard-Gesichts-Preset anwenden oder alle Ausdrücke löschen, falls keins gesetzt ist", zh: "应用默认面部预设，如果没有设置则清除所有表情", fr: "Applique ton preset de visage par défaut, ou efface toutes les expressions si aucun n'est défini", es: "Aplica tu preset de cara por defecto, o borra todas las expresiones si ninguno está definido", ru: "Применить пресет лица по умолчанию или очистить все выражения, если ничего не задано", ja: "デフォルトの表情プリセットを適用するか、未設定の場合はすべての表情をクリアします" },
+        "expr.autoApply": { en: "Auto-apply default face on room join", de: "Standard-Gesicht beim Raumbetreten automatisch anwenden", zh: "进入房间时自动应用默认表情", fr: "Appliquer auto le visage par défaut à l'entrée dans un salon", es: "Aplicar cara por defecto automáticamente al entrar en sala", ru: "Авто-применять лицо по умолчанию при входе в комнату", ja: "ルーム参加時にデフォルト表情を自動適用" },
+        "expr.autoApplyTitle": { en: "When ON, your default face preset is applied automatically each time you enter a room", de: "Wenn AN, wird dein Standard-Gesichts-Preset automatisch angewendet, wenn du einen Raum betrittst", zh: "开启时，每次进入房间时自动应用默认面部预设", fr: "Quand activé, ton preset de visage par défaut est appliqué automatiquement chaque fois que tu entres dans un salon", es: "Cuando está ON, tu preset de cara por defecto se aplica automáticamente cada vez que entras en una sala", ru: "Когда ВКЛ, пресет лица по умолчанию применяется автоматически при каждом входе в комнату", ja: "ONのとき、ルーム参加のたびにデフォルト表情プリセットが自動的に適用されます" },
+        "expr.applyBtn": { en: "✓ Apply", de: "✓ Anwenden", zh: "✓ 应用", fr: "✓ Appliquer", es: "✓ Aplicar", ru: "✓ Применить", ja: "✓ 適用" },
+        "expr.applyBtnTitle": { en: "Apply this preset", de: "Dieses Preset anwenden", zh: "应用此预设", fr: "Appliquer ce preset", es: "Aplicar este preset", ru: "Применить этот пресет", ja: "このプリセットを適用" },
+        "expr.overrideBtn": { en: "Override", de: "Überschreiben", zh: "覆盖", fr: "Remplacer", es: "Reemplazar", ru: "Перезаписать", ja: "上書き" },
+        "expr.overrideBtnTitle": { en: "Overwrite this preset with your current face expression", de: "Dieses Preset mit deinem aktuellen Gesichtsausdruck überschreiben", zh: "用当前面部表情覆盖此预设", fr: "Écraser ce preset avec ton expression faciale actuelle", es: "Sobreescribir este preset con tu expresión facial actual", ru: "Перезаписать этот пресет текущим выражением лица", ja: "現在の表情でこのプリセットを上書き" },
+        "expr.defaultBtn": { en: "Default", de: "Standard", zh: "默认", fr: "Défaut", es: "Predeterminado", ru: "По умолчанию", ja: "デフォルト" },
+        "expr.defaultBtnActive": { en: "This is your default face — click to unset", de: "Das ist dein Standard-Gesicht — klicken zum Aufheben", zh: "这是你的默认表情 — 点击取消设置", fr: "C'est ton visage par défaut — cliquer pour désactiver", es: "Esta es tu cara por defecto — clic para desactivar", ru: "Это твоё лицо по умолчанию — нажми чтобы сбросить", ja: "これがデフォルト表情です — クリックで解除" },
+        "expr.defaultBtnInactive": { en: "Set as default face (used by ↺ Reset and auto-apply on room join)", de: "Als Standard-Gesicht setzen (genutzt von ↺ Zurücksetzen und Auto-Anwenden)", zh: "设为默认表情（↺ 重置和进入房间自动应用时使用）", fr: "Définir comme visage par défaut (utilisé par ↺ Réinitialiser et l'auto-application)", es: "Establecer como cara por defecto (usada por ↺ Restablecer y auto-aplicar)", ru: "Установить как лицо по умолчанию (используется ↺ Сбросить и авто-применением)", ja: "デフォルト表情に設定（↺ リセットとルーム参加時の自動適用で使用）" },
+        "expr.chatTriggers": { en: "CHAT TRIGGERS", de: "CHAT-AUSLÖSER", zh: "聊天触发器", fr: "DÉCLENCHEURS CHAT", es: "DISPARADORES CHAT", ru: "ТРИГГЕРЫ ЧАТА", ja: "チャットトリガー" },
+        "expr.triggerHint": { en: "When your outgoing message contains the match text, the face preset fires automatically.", de: "Wenn deine ausgehende Nachricht den Übereinstimmungstext enthält, wird das Gesichts-Preset automatisch ausgelöst.", zh: "当你的发送消息包含匹配文字时，面部预设会自动触发。", fr: "Quand ton message sortant contient le texte correspondant, le preset de visage se déclenche automatiquement.", es: "Cuando tu mensaje saliente contiene el texto de coincidencia, el preset de cara se activa automáticamente.", ru: "Когда исходящее сообщение содержит текст совпадения, пресет лица срабатывает автоматически.", ja: "送信メッセージにマッチテキストが含まれると、表情プリセットが自動的に発動します。" },
+        "expr.noTriggers": { en: "No triggers yet", de: "Noch keine Auslöser", zh: "暂无触发器", fr: "Aucun déclencheur pour l'instant", es: "Sin disparadores aún", ru: "Триггеров пока нет", ja: "トリガーなし" },
+        "expr.matchTitle": { en: "Message contains this text (case-insensitive)", de: "Nachricht enthält diesen Text (Groß-/Kleinschreibung egal)", zh: "消息包含此文字（不区分大小写）", fr: "Le message contient ce texte (insensible à la casse)", es: "El mensaje contiene este texto (sin distinción de mayúsculas)", ru: "Сообщение содержит этот текст (без учёта регистра)", ja: "メッセージにこのテキストが含まれる（大文字小文字を区別しない）" },
+        "expr.deletedPreset": { en: "(deleted preset)", de: "(gelöschtes Preset)", zh: "（已删除预设）", fr: "(preset supprimé)", es: "(preset eliminado)", ru: "(пресет удалён)", ja: "（削除済みプリセット）" },
+        "expr.permanent": { en: "permanent", de: "dauerhaft", zh: "永久", fr: "permanent", es: "permanente", ru: "навсегда", ja: "永続" },
+        "expr.deleteTrigger": { en: "Delete trigger", de: "Auslöser löschen", zh: "删除触发器", fr: "Supprimer le déclencheur", es: "Eliminar disparador", ru: "Удалить триггер", ja: "トリガーを削除" },
+        "expr.contains": { en: "Contains:", de: "Enthält:", zh: "包含：", fr: "Contient :", es: "Contiene:", ru: "Содержит:", ja: "含むテキスト：" },
+        "expr.applyLabel": { en: "Apply:", de: "Anwenden:", zh: "应用：", fr: "Appliquer :", es: "Aplicar:", ru: "Применить:", ja: "適用：" },
+        "expr.noPresetsYet": { en: "(save face presets first)", de: "(zuerst Gesichts-Presets speichern)", zh: "（请先保存面部预设）", fr: "(enregistre d'abord des presets de visage)", es: "(guarda presets de cara primero)", ru: "(сначала сохрани пресеты лица)", ja: "（先に表情プリセットを保存してください）" },
+        "expr.hold": { en: "Hold:", de: "Halten:", zh: "保持：", fr: "Maintenir :", es: "Mantener:", ru: "Удержать:", ja: "保持：" },
+        "expr.holdUnit": { en: "ms (0 = permanent)", de: "ms (0 = dauerhaft)", zh: "毫秒（0 = 永久）", fr: "ms (0 = permanent)", es: "ms (0 = permanente)", ru: "мс (0 = навсегда)", ja: "ms（0 = 永続）" },
+        "expr.holdTitle": { en: "How long (ms) before reverting to default face. 0 = permanent.", de: "Wie lange (ms) bis zum Zurücksetzen. 0 = dauerhaft.", zh: "恢复默认表情前等待时间（毫秒）。0 = 永久。", fr: "Durée (ms) avant de revenir au visage par défaut. 0 = permanent.", es: "Cuánto tiempo (ms) antes de volver a la cara por defecto. 0 = permanente.", ru: "Как долго (мс) до возврата к лицу по умолчанию. 0 = навсегда.", ja: "デフォルト表情に戻るまでの時間（ms）。0 = 永続。" },
+        "expr.addTrigger": { en: "Add Trigger", de: "Auslöser hinzufügen", zh: "添加触发器", fr: "Ajouter un déclencheur", es: "Añadir disparador", ru: "Добавить триггер", ja: "トリガーを追加" },
+        "expr.clickToRename": { en: "Click to rename", de: "Klicken zum Umbenennen", zh: "点击重命名", fr: "Cliquer pour renommer", es: "Clic para renombrar", ru: "Нажмите чтобы переименовать", ja: "クリックして名前変更" },
+        "expr.deletePreset": { en: "Delete preset", de: "Preset löschen", zh: "删除预设", fr: "Supprimer le preset", es: "Eliminar preset", ru: "Удалить пресет", ja: "プリセットを削除" },
         // ─── SETTINGS ──────────────────────────────────────────────────────────
         "settings.defaultNickname": { en: "Default Nickname", de: "Standard-Spitzname", zh: "默认昵称", fr: "Surnom par défaut", es: "Apodo predeterminado", ru: "Псевдоним по умолчанию", ja: "デフォルトニックネーム" },
         "settings.defaultTitle": { en: "Default Title", de: "Standard-Titel", zh: "默认头衔", fr: "Titre par défaut", es: "Título predeterminado", ru: "Титул по умолчанию", ja: "デフォルト称号" },
@@ -22326,7 +22358,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
             this.renderScenes(scenesCnt);
             // ── EXPRESSION SEQUENCES (collapsible) ──────────────────────────────
-            const exprSeqCnt = makeCollapse("Expression Sequences", "EBC_exprSeqCollapsed", true);
+            const exprSeqCnt = makeCollapse(t("expr.sequences"), "EBC_exprSeqCollapsed", true);
             // Helper — builds a draggable step list with per-step hold-time + an "add from preset" row.
             const buildSeqStepEditor = (container, initial) => {
                 const steps = initial.map(s => (Object.assign({}, s)));
@@ -22694,7 +22726,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             exprSeqCnt.appendChild(newSeqToggle);
             exprSeqCnt.appendChild(newSeqForm);
             // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
-            const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
+            const exprCnt = makeCollapse(t("anims.expressions"), "EBC_animsExprsCollapsed", true);
             this.renderExpressions(exprCnt);
         }
         renderScenes(body) {
@@ -31343,17 +31375,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // ── How-to info ───────────────────────────────────────────────────────────
             const infoBox = document.createElement("div");
             infoBox.style.cssText = `${F}11px;color:#d0a0d8;background:rgba(30,10,30,0.5);border:1px solid #2e1535;border-radius:5px;padding:7px 10px;margin-bottom:8px;line-height:1.6;`;
-            infoBox.innerHTML =
-                "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
-                    "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
-                    "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
-                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired from " +
-                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
-                    "or triggered automatically when your <b style=\"color:#d0a0d8;\">outgoing chat message</b> contains a match phrase (see Chat Triggers below).";
+            const infoTitle = document.createElement("b");
+            infoTitle.style.color = "#cf6f98";
+            infoTitle.textContent = t("expr.howToTitle");
+            const infoBr1 = document.createElement("br");
+            const infoP1 = document.createTextNode(t("expr.howToBody1"));
+            const infoBr2 = document.createElement("br");
+            const infoBr3 = document.createElement("br");
+            const infoP2 = document.createTextNode(t("expr.howToBody2"));
+            infoBox.appendChild(infoTitle);
+            infoBox.appendChild(infoBr1);
+            infoBox.appendChild(infoP1);
+            infoBox.appendChild(infoBr2);
+            infoBox.appendChild(infoBr3);
+            infoBox.appendChild(infoP2);
             body.appendChild(infoBox);
             // ── Save & Clear ──────────────────────────────────────────────────────────
             const captureInput = Object.assign(document.createElement("input"), {
-                type: "text", maxLength: 30, placeholder: "Preset name…",
+                type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
             });
             captureInput.className = "ebc-form-input";
             captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;margin-bottom:4px;";
@@ -31361,7 +31400,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const savePresetBtn = document.createElement("button");
             savePresetBtn.className = "ebc-create-btn";
             savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px;margin-bottom:5px;";
-            savePresetBtn.textContent = "💾 Save face";
+            savePresetBtn.textContent = t("expr.saveFace");
             savePresetBtn.setAttribute("data-guide-target", "btn-save-face");
             savePresetBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
@@ -31373,8 +31412,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const clearAllBtn = document.createElement("button");
             clearAllBtn.className = "ebc-btn-footer-btn";
             clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-            clearAllBtn.textContent = "↺  Reset face expression";
-            clearAllBtn.title = "Apply your default face preset, or clear all expressions if none is set";
+            clearAllBtn.textContent = t("expr.resetFace");
+            clearAllBtn.title = t("expr.resetFaceTitle");
             clearAllBtn.addEventListener("click", () => {
                 const defaultId = getDefaultExprPresetId();
                 if (defaultId) {
@@ -31401,19 +31440,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             autoApplyRow.style.cssText = "display:flex;align-items:center;gap:7px;margin-bottom:6px;";
             const autoApplyToggle = document.createElement("button");
             autoApplyToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${autoApplyOn ? "#cf6f98" : "#3a1928"};background:${autoApplyOn ? "#3a1020" : "transparent"};color:${autoApplyOn ? "#cf6f98" : "#7a5070"};`;
-            autoApplyToggle.textContent = autoApplyOn ? "ON" : "OFF";
-            autoApplyToggle.title = "When ON, your default face preset is applied automatically each time you enter a room";
+            autoApplyToggle.textContent = autoApplyOn ? t("core.on") : t("core.off");
+            autoApplyToggle.title = t("expr.autoApplyTitle");
             autoApplyToggle.addEventListener("click", () => {
                 const next = !getAutoApplyDefaultFace();
                 setAutoApplyDefaultFace(next);
                 autoApplyToggle.style.border = `1px solid ${next ? "#cf6f98" : "#3a1928"}`;
                 autoApplyToggle.style.background = next ? "#3a1020" : "transparent";
                 autoApplyToggle.style.color = next ? "#cf6f98" : "#7a5070";
-                autoApplyToggle.textContent = next ? "ON" : "OFF";
+                autoApplyToggle.textContent = next ? t("core.on") : t("core.off");
             });
             const autoApplyLbl = document.createElement("span");
             autoApplyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
-            autoApplyLbl.textContent = "Auto-apply default face on room join";
+            autoApplyLbl.textContent = t("expr.autoApply");
             autoApplyRow.appendChild(autoApplyToggle);
             autoApplyRow.appendChild(autoApplyLbl);
             body.appendChild(autoApplyRow);
@@ -31426,7 +31465,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(presetDiv);
                 const presetsLbl = document.createElement("div");
                 presetsLbl.className = "ebc-section-label";
-                presetsLbl.textContent = "PRESETS";
+                presetsLbl.textContent = t("expr.presetsHeader");
                 presetsLbl.style.marginBottom = "5px";
                 body.appendChild(presetsLbl);
                 const defaultId = getDefaultExprPresetId();
@@ -31437,16 +31476,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
                     const applyBtn = document.createElement("button");
                     applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
-                    applyBtn.textContent = "✓ Apply";
-                    applyBtn.title = "Apply this preset";
+                    applyBtn.textContent = t("expr.applyBtn");
+                    applyBtn.title = t("expr.applyBtnTitle");
                     applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
                     const updateExprBtn = document.createElement("button");
                     updateExprBtn.className = "ebc-update-btn";
                     updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
-                    updateExprBtn.textContent = "Override";
-                    updateExprBtn.title = "Overwrite this preset with your current face expression";
+                    updateExprBtn.textContent = t("expr.overrideBtn");
+                    updateExprBtn.title = t("expr.overrideBtnTitle");
                     updateExprBtn.addEventListener("click", () => {
-                        showConfirmOverlay(`Overwrite "${preset.name}" with your current face?`, "Cancel", "Update", () => {
+                        showConfirmOverlay(`Overwrite "${preset.name}" with your current face?`, t("core.cancel"), t("core.update"), () => {
                             const captured = captureCurrentExpression(preset.name);
                             const all = getExpressionPresets();
                             const pi = all.findIndex(p => p.id === preset.id);
@@ -31461,7 +31500,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nameEl.type = "text";
                     nameEl.value = preset.name;
                     nameEl.maxLength = 30;
-                    nameEl.title = "Click to rename";
+                    nameEl.title = t("expr.clickToRename");
                     nameEl.style.cssText = `${F}11px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
                     nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
                     nameEl.addEventListener("blur", () => {
@@ -31481,8 +31520,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const isDefault = preset.id === defaultId;
                     const defaultBtn = document.createElement("button");
                     defaultBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isDefault ? "#b07820" : "#3a1928"};background:${isDefault ? "#1e1400" : "transparent"};color:${isDefault ? "#f0c040" : "#7a5070"};`;
-                    defaultBtn.textContent = "Default";
-                    defaultBtn.title = isDefault ? "This is your default face — click to unset" : "Set as default face (used by ↺ Reset and auto-apply on room join)";
+                    defaultBtn.textContent = t("expr.defaultBtn");
+                    defaultBtn.title = isDefault ? t("expr.defaultBtnActive") : t("expr.defaultBtnInactive");
                     defaultBtn.addEventListener("click", () => {
                         setDefaultExprPresetId(isDefault ? null : preset.id);
                         this.rerender();
@@ -31490,7 +31529,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-outfit-del";
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete preset";
+                    delBtn.title = t("expr.deletePreset");
                     delBtn.addEventListener("click", () => {
                         showQuickConfirm(`Delete preset "${preset.name}"?`, () => {
                             if (preset.id === getDefaultExprPresetId())
@@ -31516,18 +31555,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const trigLbl = document.createElement("div");
             trigLbl.className = "ebc-section-label";
             trigLbl.style.marginBottom = "5px";
-            trigLbl.textContent = "CHAT TRIGGERS";
+            trigLbl.textContent = t("expr.chatTriggers");
             body.appendChild(trigLbl);
             const trigHint = document.createElement("div");
             trigHint.style.cssText = `${F}10px;color:#7a5070;margin-bottom:6px;line-height:1.5;`;
-            trigHint.textContent = "When your outgoing message contains the match text, the face preset fires automatically.";
+            trigHint.textContent = t("expr.triggerHint");
             body.appendChild(trigHint);
             const triggers = getExpressionTriggers();
             if (triggers.length === 0) {
                 const none = document.createElement("div");
                 none.className = "ebc-empty";
                 none.style.padding = "4px 0 6px";
-                none.textContent = "No triggers yet";
+                none.textContent = t("expr.noTriggers");
                 body.appendChild(none);
             }
             for (const trig of triggers) {
@@ -31537,7 +31576,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const matchChip = document.createElement("span");
                 matchChip.style.cssText = `${F}11px;background:#2a0e1e;border:1px solid #5a2840;border-radius:4px;padding:1px 6px;color:#f0a0c0;flex-shrink:0;font-style:italic;`;
                 matchChip.textContent = `"${trig.matchText}"`;
-                matchChip.title = "Message contains this text (case-insensitive)";
+                matchChip.title = t("expr.matchTitle");
                 const arrow = document.createElement("span");
                 arrow.style.cssText = `${F}10px;color:#5a3050;flex-shrink:0;`;
                 arrow.textContent = "→";
@@ -31545,19 +31584,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const presetName = document.createElement("span");
                 presetName.style.cssText = `${F}11px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
                 const livePreset = getExpressionPresets().find(p => p.id === trig.presetId);
-                presetName.textContent = (_b = livePreset === null || livePreset === void 0 ? void 0 : livePreset.name) !== null && _b !== void 0 ? _b : "(deleted preset)";
+                presetName.textContent = (_b = livePreset === null || livePreset === void 0 ? void 0 : livePreset.name) !== null && _b !== void 0 ? _b : t("expr.deletedPreset");
                 if (!livePreset)
                     presetName.style.opacity = "0.45";
                 // Hold time chip
                 const holdMs = trig.durationMs;
                 const holdChip = document.createElement("span");
                 holdChip.style.cssText = `${F}10px;color:#7a5070;flex-shrink:0;`;
-                holdChip.textContent = holdMs === 0 ? "permanent" : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
+                holdChip.textContent = holdMs === 0 ? t("expr.permanent") : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
                 holdChip.title = holdMs === 0 ? "Expression stays until manually changed" : `Reverts to default after ${holdMs}ms`;
                 const trigDelBtn = document.createElement("button");
                 trigDelBtn.className = "ebc-outfit-del";
                 trigDelBtn.textContent = "×";
-                trigDelBtn.title = "Delete trigger";
+                trigDelBtn.title = t("expr.deleteTrigger");
                 trigDelBtn.addEventListener("click", () => {
                     showQuickConfirm(`Delete trigger for "${trig.matchText}"?`, () => {
                         saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
@@ -31575,7 +31614,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const newTrigToggle = document.createElement("button");
             newTrigToggle.className = "ebc-create-btn";
             newTrigToggle.style.cssText = "width:100%;margin-top:6px;";
-            newTrigToggle.textContent = "＋ New Trigger";
+            newTrigToggle.textContent = t("expr.newTrigger");
             newTrigToggle.setAttribute("data-guide-target", "btn-new-trigger");
             const newTrigForm = document.createElement("div");
             newTrigForm.style.cssText = "display:none;flex-direction:column;gap:5px;padding:8px;background:rgba(15,5,12,0.7);border:1px solid #2a1421;border-radius:0 0 6px 6px;margin-top:-2px;";
@@ -31584,7 +31623,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ntMatchWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
             const ntMatchLbl = document.createElement("span");
             ntMatchLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-            ntMatchLbl.textContent = "Contains:";
+            ntMatchLbl.textContent = t("expr.contains");
             const ntMatchInp = document.createElement("input");
             ntMatchInp.type = "text";
             ntMatchInp.maxLength = 60;
@@ -31600,13 +31639,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ntPresetWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
             const ntPresetLbl = document.createElement("span");
             ntPresetLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-            ntPresetLbl.textContent = "Apply:";
+            ntPresetLbl.textContent = t("expr.applyLabel");
             const ntPresetSel = document.createElement("select");
             ntPresetSel.style.cssText = "flex:1;min-width:0;font-size:11px;font-family:'Trebuchet MS',serif;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:2px 4px;";
             const currentPresets = getExpressionPresets();
             if (currentPresets.length === 0) {
                 const opt = document.createElement("option");
-                opt.textContent = "(save face presets first)";
+                opt.textContent = t("expr.noPresetsYet");
                 opt.disabled = true;
                 ntPresetSel.appendChild(opt);
             }
@@ -31626,18 +31665,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ntHoldWrap.style.cssText = "display:flex;align-items:center;gap:5px;";
             const ntHoldLbl = document.createElement("span");
             ntHoldLbl.style.cssText = `${F}11px;color:#7a5070;flex-shrink:0;`;
-            ntHoldLbl.textContent = "Hold:";
+            ntHoldLbl.textContent = t("expr.hold");
             const ntHoldInp = document.createElement("input");
             ntHoldInp.type = "number";
             ntHoldInp.min = "0";
             ntHoldInp.max = "30000";
             ntHoldInp.value = "3000";
             ntHoldInp.style.cssText = "width:70px;font-size:11px;font-family:'Trebuchet MS',serif;padding:2px 4px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;";
-            ntHoldInp.title = "How long (ms) before reverting to default face. 0 = permanent.";
+            ntHoldInp.title = t("expr.holdTitle");
             ntHoldInp.addEventListener("keydown", e => e.stopPropagation());
             const ntHoldUnit = document.createElement("span");
             ntHoldUnit.style.cssText = `${F}10px;color:#5a3050;`;
-            ntHoldUnit.textContent = "ms  (0 = permanent)";
+            ntHoldUnit.textContent = t("expr.holdUnit");
             ntHoldWrap.appendChild(ntHoldLbl);
             ntHoldWrap.appendChild(ntHoldInp);
             ntHoldWrap.appendChild(ntHoldUnit);
@@ -31646,7 +31685,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const ntCreateBtn = document.createElement("button");
             ntCreateBtn.className = "ebc-create-btn";
             ntCreateBtn.style.cssText = "width:100%;font-size:11px;margin-top:2px;";
-            ntCreateBtn.textContent = "Add Trigger";
+            ntCreateBtn.textContent = t("expr.addTrigger");
             ntCreateBtn.addEventListener("click", () => {
                 const matchText = ntMatchInp.value.trim();
                 if (!matchText) {
@@ -31667,7 +31706,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             newTrigToggle.addEventListener("click", () => {
                 const open = newTrigForm.style.display !== "none";
                 newTrigForm.style.display = open ? "none" : "flex";
-                newTrigToggle.textContent = open ? "＋ New Trigger" : t("core.cancel");
+                newTrigToggle.textContent = open ? t("expr.newTrigger") : t("core.cancel");
                 if (!open)
                     ntMatchInp.focus();
             });
@@ -33238,7 +33277,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.9";
+    const MOD_VERSION = "4.6.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33249,6 +33288,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.0",
+            changes: [
+                "i18n: Expressions section fully translated — section title, presets header, save/reset/override/default buttons, auto-apply toggle, chat triggers header/hint, new-trigger form labels, and how-to info box all now respect the selected language.",
+            ],
+        },
         {
             version: "4.5.9",
             changes: [
@@ -37963,7 +38008,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: "4.5.9", marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
+        const presence = Object.assign({ version: "4.6.0", marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
