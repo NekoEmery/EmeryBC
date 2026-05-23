@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.7.7
+// @version      4.7.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33162,7 +33162,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.7";
+    const MOD_VERSION = "4.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -37994,16 +37994,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — live per-frame tracking outside freeze windows.
-    // After any room sync event we freeze for _PAW_FREEZE_MS so the paw
-    // holds its last good position while BC finishes repositioning.
-    // Once the window expires we resume reading every frame, so the paw
-    // correctly follows BC's idle animation without any permanent drift.
+    // Paw position — 60-frame sliding-window mean with spread gating.
+    //
+    // We accumulate the last _PAW_WIN DrawCharacter frames for member 130267.
+    // Every frame we compute the position spread (max−min) across the window.
+    // If the spread is below _PAW_SPREAD_PX the window only contains idle-
+    // animation variance, so we commit the MEAN — which averages out the
+    // oscillation to produce a perfectly static drawn position.
+    // If the spread exceeds the threshold BC is mid-repositioning and we keep
+    // the last committed position unchanged.
+    //
+    // On any sync event the buffer is cleared, forcing a fresh 60-frame
+    // collection before the next commit.  This guarantees the paw only updates
+    // after BC has fully settled into the new layout.
     let _pawFixedLeft = null;
     let _pawFixedTop = null;
     let _pawFixedZoom = 1;
-    let _pawFrozenUntil = 0; // epoch ms; block live reads until this time
-    const _PAW_FREEZE_MS = 1500; // ms to freeze after a sync event
+    const _PAW_WIN = 60; // history window (frames)
+    const _PAW_SPREAD_PX = 150; // max position spread to be considered "settled"
+    const _PAW_SPREAD_Z = 0.05; // max zoom spread (zoom only changes on layout change)
+    let _pawBufL = [];
+    let _pawBufT = [];
+    let _pawBufZ = [];
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38183,15 +38195,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Stability-detection with force-commit fallback.
-                // Outside the freeze window: read the live position every frame so
-                // the paw correctly tracks BC's idle animation.  Inside the window
-                // (set by sync events) we hold the last good position so the paw
-                // doesn't jump while BC is mid-repositioning.
-                if (_pawFixedLeft === null || Date.now() >= _pawFrozenUntil) {
+                // Accumulate position history for this frame.
+                _pawBufL.push(left);
+                _pawBufT.push(top);
+                _pawBufZ.push(zoom);
+                if (_pawBufL.length > _PAW_WIN) {
+                    _pawBufL.shift();
+                    _pawBufT.shift();
+                    _pawBufZ.shift();
+                }
+                if (_pawFixedLeft === null) {
+                    // No position yet — snap immediately so the paw appears at once.
                     _pawFixedLeft = Math.round(left);
                     _pawFixedTop = Math.round(top);
                     _pawFixedZoom = zoom;
+                }
+                else if (_pawBufL.length === _PAW_WIN) {
+                    // Full window: only commit when the position spread is small
+                    // (BC is settled; only idle-animation variance remains).
+                    const sL = Math.max(..._pawBufL) - Math.min(..._pawBufL);
+                    const sT = Math.max(..._pawBufT) - Math.min(..._pawBufT);
+                    const sZ = Math.max(..._pawBufZ) - Math.min(..._pawBufZ);
+                    if (sL <= _PAW_SPREAD_PX && sT <= _PAW_SPREAD_PX && sZ <= _PAW_SPREAD_Z) {
+                        const n = _PAW_WIN;
+                        const rL = _pawBufL.reduce((s, v) => s + v, 0) / n;
+                        const rT = _pawBufT.reduce((s, v) => s + v, 0) / n;
+                        const rZ = _pawBufZ.reduce((s, v) => s + v, 0) / n;
+                        _pawFixedLeft = Math.round(rL);
+                        _pawFixedTop = Math.round(rT);
+                        _pawFixedZoom = rZ;
+                    }
                 }
                 // BC bottom-aligns characters on a 500×1000 unit canvas; the name
                 // is drawn at roughly top + 975*zoom. Sit the paw just above it.
@@ -38533,9 +38566,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
-            // Freeze paw for 1.5 s so it holds its last good position while BC
-            // finishes repositioning characters after the sync.
-            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+            // Clear the position buffer — forces a fresh 60-frame collection
+            // before the paw commits to any new position after this sync.
+            _pawBufL = [];
+            _pawBufT = [];
+            _pawBufZ = [];
             try {
                 syncPresenceMarker();
             }
@@ -38828,7 +38863,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
-            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+            _pawBufL = [];
+            _pawBufT = [];
+            _pawBufZ = [];
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38844,7 +38881,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
             const result = next(args);
-            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+            _pawBufL = [];
+            _pawBufT = [];
+            _pawBufZ = [];
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
