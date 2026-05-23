@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.5.8";
+const MOD_VERSION = "4.5.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.5.9",
+        changes: [
+            "Fix: EBC overhead badges (paw mark, text/cat badge) now hide correctly when BC's 'Show/hide character icons' button is toggled — they previously stayed visible and overlapped character images.",
+        ],
+    },
     {
         version: "4.5.8",
         changes: [
@@ -4759,7 +4765,7 @@ function syncPresenceMarker(): void {
     // your tag. The toggle only controls whether YOU see it above your own head.
 
     const presence: EmeryPresence = {
-        version: MOD_VERSION,
+        version: "4.5.9",
         marker:  "EBC",
         ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
         ...(IS_DEV_BUILD ? { isDev: true } : {}),
@@ -4969,6 +4975,9 @@ function drawPresenceMarker(args: unknown[]): void {
 
     // Skip map / bird's-eye view
     if (zoom < 0.3) return;
+
+    // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
+    if (((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState) ?? 0) return;
 
     // ── Creator mark — golden paw just above the name, visible to all EBC users ──
     // Drawn for member 130267 only, regardless of badge visibility toggles.
