@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.7.9
+// @version      4.8.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -23912,6 +23912,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const existing = this.beepWins.get(memberNumber);
             if (existing) {
                 const el = existing.el;
+                // Ensure visible — may have been hidden while outside a chatroom
+                el.style.display = "";
                 // Un-minimize first so we can measure real height
                 const restoreFn = el._restoreMin;
                 restoreFn === null || restoreFn === void 0 ? void 0 : restoreFn();
@@ -24852,9 +24854,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const nickNameRoom = (_b = (_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
                         if (acctNameRoom && nickNameRoom && nickNameRoom !== acctNameRoom) {
                             const acctEl = document.createElement("span");
-                            acctEl.textContent = "(" + acctNameRoom + ")";
+                            acctEl.textContent = acctNameRoom;
                             acctEl.title = "BC account name: " + acctNameRoom;
-                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7090;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
@@ -25468,9 +25470,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const acctName = getAccountName(num);
                     if (acctName && acctName !== name) {
                         const acctEl = document.createElement("span");
-                        acctEl.textContent = "(" + acctName + ")";
+                        acctEl.textContent = acctName;
                         acctEl.title = "BC account name: " + acctName;
-                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7090;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                         nameRow.appendChild(acctEl);
                     }
                     nameRow.appendChild(numEl);
@@ -33162,7 +33164,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.9";
+    const MOD_VERSION = "4.8.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33173,6 +33175,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.0",
+            changes: [
+                "Fix: beep window could not be reopened after leaving and re-entering a chatroom — clicking 💬 a second time found the hidden window entry but never restored display, so it stayed invisible. Now always shown on re-open.",
+                "UI: secondary account name beside a nickname in room/friend rows no longer uses parentheses — shown as plain dimmed text so the layout reads 'Nickname  username' more naturally.",
+            ],
+        },
         {
             version: "4.7.9",
             changes: [
