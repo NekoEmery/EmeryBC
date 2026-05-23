@@ -336,32 +336,6 @@ Outfit, restraint set, pose combo, and scene commands are defined per-item in th
 
 ---
 
-## Building from source
-
-```bash
-npm install
-npm run build       # dev build
-npm run build:prod  # production build (minified)
-npm run dev         # watch mode
-```
-
-Requires Node.js. Built with TypeScript + Rollup. `dist/` is gitignored — builds are handled by CI.
-
-### Deploying
-
-Use the included `deploy.sh` script:
-
-```bash
-./deploy.sh                              # bump patch, no changelog entry
-./deploy.sh patch "Fixed the thing"     # bump patch + add changelog message
-./deploy.sh minor "New feature"         # bump minor
-./deploy.sh major "Breaking change"     # bump major
-```
-
-The script bumps the version in all files, builds locally to catch errors, commits to `dev`, pushes, then prompts whether to also release to `stable`. GitHub Actions handles the actual deployment to GitHub Pages automatically on push.
-
----
-
 ## Credits
 
 The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design! ♥
