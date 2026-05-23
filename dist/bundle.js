@@ -33673,7 +33673,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.2";
+    const MOD_VERSION = "4.6.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33684,6 +33684,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.3",
+            changes: [
+                "Fix: golden paw no longer shakes when a member joins or leaves the room — snap position is now frozen for 600 ms after any ChatRoomSyncMemberJoin/Leave so the paw holds still while BC repositions characters, then snaps once to the new stable position.",
+                "Fix: EBC version badge now always broadcasts the actual running version to room members (was hardcoded to 4.6.0).",
+            ],
+        },
         {
             version: "4.6.2",
             changes: [
@@ -38416,7 +38423,7 @@
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: "4.6.0", marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
+        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
@@ -38453,9 +38460,13 @@
     // Snapped paw position for member 130267 — only updates when the character
     // moves by more than PAW_SNAP_THRESHOLD canvas units so BC's 1-2 unit idle
     // animation jitter doesn't shake the paw every frame.
+    // On member join/leave, _pawSnapFrozenUntil is set so the paw holds its last
+    // stable position while BC repositions characters, then snaps once afterward.
     const PAW_SNAP_THRESHOLD = 5;
+    const PAW_SNAP_FREEZE_MS = 600;
     let _pawSnapLeft = null;
     let _pawSnapTop = null;
+    let _pawSnapFrozenUntil = 0; // ms epoch; snap position won't update while < Date.now()
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38638,9 +38649,15 @@
                 // Snap the draw position: only update stored coordinates when the character
                 // moves by more than PAW_SNAP_THRESHOLD canvas units. This absorbs BC's
                 // 1-2 unit idle-animation jitter so the paw stays visually static.
-                if (_pawSnapLeft === null || _pawSnapTop === null ||
-                    Math.abs(left - _pawSnapLeft) > PAW_SNAP_THRESHOLD ||
-                    Math.abs(top - _pawSnapTop) > PAW_SNAP_THRESHOLD) {
+                // While frozen (after a member join/leave), the snap holds its last value
+                // so the paw doesn't animate through BC's character-repositioning transition.
+                if (_pawSnapLeft === null || _pawSnapTop === null) {
+                    // First-ever frame — initialise regardless of freeze state.
+                    _pawSnapLeft = left;
+                    _pawSnapTop = top;
+                }
+                else if (Date.now() >= _pawSnapFrozenUntil && (Math.abs(left - _pawSnapLeft) > PAW_SNAP_THRESHOLD ||
+                    Math.abs(top - _pawSnapTop) > PAW_SNAP_THRESHOLD)) {
                     _pawSnapLeft = left;
                     _pawSnapTop = top;
                 }
@@ -39280,6 +39297,8 @@
         // handle both shapes to be safe across BC versions.
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
+            // Freeze paw snap so it doesn't shake while BC repositions characters.
+            _pawSnapFrozenUntil = Date.now() + PAW_SNAP_FREEZE_MS;
             const result = next(args);
             try {
                 const [data] = args;
@@ -39293,6 +39312,11 @@
             }
             catch ( /* ignore */_c) { /* ignore */ }
             return result;
+        });
+        tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
+            // Freeze paw snap so it doesn't shake while BC repositions characters.
+            _pawSnapFrozenUntil = Date.now() + PAW_SNAP_FREEZE_MS;
+            return next(args);
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
