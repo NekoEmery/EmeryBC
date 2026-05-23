@@ -1,16 +1,7 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings } from "./bcUtils";
 
-function getStore(): Record<string, unknown> | null {
-    try {
-        if (!Player?.ExtensionSettings) return null;
-        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-    } catch {
-        return null;
-    }
-}
 
 // -- Badge visibility (local/client-side only) --------------------------------
 // Controls whether YOUR OWN EBC tag is drawn above your head on YOUR screen.
@@ -19,7 +10,7 @@ function getStore(): Record<string, unknown> | null {
 
 export function getBadgeEnabled(): boolean {
     try {
-        return getStore()?.badgeEnabled !== false;
+        return getSettings()?.badgeEnabled !== false;
     } catch {
         return true; // safe default
     }
@@ -27,8 +18,7 @@ export function getBadgeEnabled(): boolean {
 
 export function setBadgeEnabled(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.badgeEnabled = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -39,13 +29,12 @@ export function setBadgeEnabled(value: boolean): void {
 // Does NOT affect broadcasting your own tag. Defaults to true (show all tags).
 
 export function getShowOthersBadge(): boolean {
-    try { return getStore()?.showOthersBadge !== false; } catch { return true; }
+    try { return getSettings()?.showOthersBadge !== false; } catch { return true; }
 }
 
 export function setShowOthersBadge(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.showOthersBadge = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -56,13 +45,12 @@ export function setShowOthersBadge(value: boolean): void {
 // Defaults to false (badge shows just "EBC").
 
 export function getShowVersionBadge(): boolean {
-    try { return getStore()?.showVersionBadge === true; } catch { return false; }
+    try { return getSettings()?.showVersionBadge === true; } catch { return false; }
 }
 
 export function setShowVersionBadge(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.showVersionBadge = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -73,13 +61,12 @@ export function setShowVersionBadge(value: boolean): void {
 // Defaults to false (badge shows just "EBC" for others).
 
 export function getShowOthersVersionBadge(): boolean {
-    try { return getStore()?.showOthersVersionBadge === true; } catch { return false; }
+    try { return getSettings()?.showOthersVersionBadge === true; } catch { return false; }
 }
 
 export function setShowOthersVersionBadge(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.showOthersVersionBadge = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -90,13 +77,12 @@ export function setShowOthersVersionBadge(value: boolean): void {
 // immediately removed and a playful emote is sent to the room.
 
 export function getAntiRestraintEnabled(): boolean {
-    try { return getStore()?.antiRestraint === true; } catch { return false; }
+    try { return getSettings()?.antiRestraint === true; } catch { return false; }
 }
 
 export function setAntiRestraintEnabled(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.antiRestraint = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -108,15 +94,14 @@ export function setAntiRestraintEnabled(value: boolean): void {
 
 export function getAntiRestraintWhitelist(): string[] {
     try {
-        const list = getStore()?.antiRestraintWhitelist;
+        const list = getSettings()?.antiRestraintWhitelist;
         return Array.isArray(list) ? (list as string[]) : [];
     } catch { return []; }
 }
 
 export function setAntiRestraintWhitelist(groups: string[]): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.antiRestraintWhitelist = groups;
         syncSettings();
     } catch { /* ignore */ }
@@ -137,7 +122,7 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
 
 export function getSpecialFriends(): number[] {
     try {
-        const list = getStore()?.specialFriends;
+        const list = getSettings()?.specialFriends;
         return Array.isArray(list) ? (list as number[]) : [];
     } catch { return []; }
 }
@@ -148,8 +133,7 @@ export function isSpecialFriend(memberNumber: number): boolean {
 
 export function addSpecialFriend(memberNumber: number): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         const list = getSpecialFriends();
         if (!list.includes(memberNumber)) {
             store.specialFriends = [...list, memberNumber];
@@ -160,8 +144,7 @@ export function addSpecialFriend(memberNumber: number): void {
 
 export function removeSpecialFriend(memberNumber: number): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
         syncSettings();
     } catch { /* ignore */ }
@@ -172,13 +155,12 @@ export function removeSpecialFriend(memberNumber: number): void {
 // can choose to accept the restraint instead. Off by default.
 
 export function getAntiRestraintConfirm(): boolean {
-    try { return getStore()?.antiRestraintConfirm === true; } catch { return false; }
+    try { return getSettings()?.antiRestraintConfirm === true; } catch { return false; }
 }
 
 export function setAntiRestraintConfirm(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.antiRestraintConfirm = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -189,13 +171,12 @@ export function setAntiRestraintConfirm(value: boolean): void {
 // main chat log. Game beeps (friend requests etc.) always pass through.
 
 export function getSuppressNativeBeep(): boolean {
-    try { return getStore()?.suppressNativeBeep !== false; } catch { return true; }
+    try { return getSettings()?.suppressNativeBeep !== false; } catch { return true; }
 }
 
 export function setSuppressNativeBeep(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.suppressNativeBeep = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -207,13 +188,12 @@ export function setSuppressNativeBeep(value: boolean): void {
 // silence it permanently with /ebc updates off.
 
 export function getUpdateNotify(): boolean {
-    try { return getStore()?.updateNotify !== false; } catch { return true; }
+    try { return getSettings()?.updateNotify !== false; } catch { return true; }
 }
 
 export function setUpdateNotify(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.updateNotify = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -224,37 +204,37 @@ export function setUpdateNotify(value: boolean): void {
 // while the player has been inactive for more than the threshold.
 
 export function getAfkEnabled(): boolean {
-    try { return getStore()?.afkEnabled === true; } catch { return false; }
+    try { return getSettings()?.afkEnabled === true; } catch { return false; }
 }
 export function setAfkEnabled(v: boolean): void {
-    try { const s = getStore(); if (s) { s.afkEnabled = v; syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.afkEnabled = v; syncSettings(); } catch { /* ignore */ }
 }
 
 // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
 export function getAfkThreshold(): number {
-    try { const v = getStore()?.afkThresholdSec; return typeof v === "number" && v >= 1 ? v : 300; } catch { return 300; }
+    try { const v = getSettings()?.afkThresholdSec; return typeof v === "number" && v >= 1 ? v : 300; } catch { return 300; }
 }
 export function setAfkThreshold(n: number): void {
-    try { const s = getStore(); if (s) { s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n))); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n))); syncSettings(); } catch { /* ignore */ }
 }
 
 export function getAfkMessage(): string {
     try {
-        const v = getStore()?.afkMessage;
+        const v = getSettings()?.afkMessage;
         return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
     } catch { return "I'm currently AFK — I'll reply when I'm back!"; }
 }
 export function setAfkMessage(msg: string): void {
-    try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.afkMessage = msg.slice(0, 200).trim(); syncSettings(); } catch { /* ignore */ }
 }
 
 // When enabled, EBC also whispers the AFK message to anyone who mentions the
 // player's name in room chat while AFK (same cooldown as beep replies).
 export function getAfkMentionReply(): boolean {
-    try { return getStore()?.afkMentionReply !== false; } catch { return true; }
+    try { return getSettings()?.afkMentionReply !== false; } catch { return true; }
 }
 export function setAfkMentionReply(v: boolean): void {
-    try { const s = getStore(); if (s) { s.afkMentionReply = v; syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.afkMentionReply = v; syncSettings(); } catch { /* ignore */ }
 }
 
 // -- OOC mode ------------------------------------------------------------------
@@ -263,13 +243,12 @@ export function setAfkMentionReply(v: boolean): void {
 // messages (() are never modified.
 
 export function getOocEnabled(): boolean {
-    try { return getStore()?.oocEnabled === true; } catch { return false; }
+    try { return getSettings()?.oocEnabled === true; } catch { return false; }
 }
 
 export function setOocEnabled(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.oocEnabled = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -279,13 +258,12 @@ export function setOocEnabled(value: boolean): void {
 // When off (default), no room visits are recorded. User must opt in.
 
 export function getRoomHistoryEnabled(): boolean {
-    try { return getStore()?.roomHistoryEnabled === true; } catch { return false; }
+    try { return getSettings()?.roomHistoryEnabled === true; } catch { return false; }
 }
 
 export function setRoomHistoryEnabled(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.roomHistoryEnabled = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -295,13 +273,12 @@ export function setRoomHistoryEnabled(value: boolean): void {
 // When off (default), no restraint changes are recorded. User must opt in.
 
 export function getRestraintLogEnabled(): boolean {
-    try { return getStore()?.restraintLogEnabled === true; } catch { return false; }
+    try { return getSettings()?.restraintLogEnabled === true; } catch { return false; }
 }
 
 export function setRestraintLogEnabled(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.restraintLogEnabled = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -310,13 +287,12 @@ export function setRestraintLogEnabled(value: boolean): void {
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {
-    try { return getStore()?.beepMuted === true; } catch { return false; }
+    try { return getSettings()?.beepMuted === true; } catch { return false; }
 }
 
 export function setBeepMuted(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.beepMuted = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -325,13 +301,12 @@ export function setBeepMuted(value: boolean): void {
 // -- Action buttons sidebar visibility ----------------------------------------
 
 export function getActionButtonsVisible(): boolean {
-    try { return getStore()?.actionButtonsVisible !== false; } catch { return true; }
+    try { return getSettings()?.actionButtonsVisible !== false; } catch { return true; }
 }
 
 export function setActionButtonsVisible(value: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.actionButtonsVisible = value;
         syncSettings();
     } catch { /* ignore */ }
@@ -361,15 +336,14 @@ function schedulePeopleMetSync(): void {
 
 export function getPeopleMet(): PersonMet[] {
     try {
-        const raw = getStore()?.peopleMet;
+        const raw = getSettings()?.peopleMet;
         return Array.isArray(raw) ? (raw as PersonMet[]) : [];
     } catch { return []; }
 }
 
 export function recordPersonMet(memberNumber: number, name: string): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         const list = getPeopleMet();
         const existing = list.find(p => p.n === memberNumber);
         if (existing) {
@@ -386,8 +360,7 @@ export function recordPersonMet(memberNumber: number, name: string): void {
 
 export function clearPeopleMet(): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.peopleMet = [];
         syncSettings();
     } catch { /* ignore */ }
@@ -400,10 +373,10 @@ export function clearPeopleMet(): void {
 export type BadgeStyle = "text" | "cat";
 
 export function getBadgeStyle(): BadgeStyle {
-    try { return getStore()?.badgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
+    try { return getSettings()?.badgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
 }
 export function setBadgeStyle(v: BadgeStyle): void {
-    try { const s = getStore(); if (s) { s.badgeStyle = v; syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeStyle = v; syncSettings(); } catch { /* ignore */ }
 }
 
 // -- Others' badge style -------------------------------------------------------
@@ -411,10 +384,10 @@ export function setBadgeStyle(v: BadgeStyle): void {
 // on your screen. Independent from your own badge style. Defaults to "text".
 
 export function getOthersBadgeStyle(): BadgeStyle {
-    try { return getStore()?.othersBadgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
+    try { return getSettings()?.othersBadgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
 }
 export function setOthersBadgeStyle(v: BadgeStyle): void {
-    try { const s = getStore(); if (s) { s.othersBadgeStyle = v; syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.othersBadgeStyle = v; syncSettings(); } catch { /* ignore */ }
 }
 
 // -- Badge scale ---------------------------------------------------------------
@@ -424,36 +397,36 @@ export function setOthersBadgeStyle(v: BadgeStyle): void {
 
 export function getBadgeScale(): number {
     try {
-        const v = getStore()?.badgeScale;
+        const v = getSettings()?.badgeScale;
         return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
     } catch { return 1.0; }
 }
 export function setBadgeScale(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } catch { /* ignore */ }
 }
 
 // Per-style scales — Text and Cat can be sized independently.
 // Both fall back to the legacy `badgeScale` value on first use (migration).
 export function getTextBadgeScale(): number {
     try {
-        const s = getStore();
+        const s = getSettings();
         const v = (s as Record<string, unknown>)?.textBadgeScale;
         return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
     } catch { return 1.0; }
 }
 export function setTextBadgeScale(v: number): void {
-    try { const s = getStore(); if (s) { (s as Record<string, unknown>).textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); (s as Record<string, unknown>).textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } catch { /* ignore */ }
 }
 
 export function getCatBadgeScale(): number {
     try {
-        const s = getStore();
+        const s = getSettings();
         const v = (s as Record<string, unknown>)?.catBadgeScale;
         return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
     } catch { return 1.0; }
 }
 export function setCatBadgeScale(v: number): void {
-    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); (s as Record<string, unknown>).catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } catch { /* ignore */ }
 }
 
 // -- Badge background opacity --------------------------------------------------
@@ -462,12 +435,12 @@ export function setCatBadgeScale(v: number): void {
 
 export function getBadgeBgOpacity(): number {
     try {
-        const v = getStore()?.badgeBgOpacity;
+        const v = getSettings()?.badgeBgOpacity;
         return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
     } catch { return 1.0; }
 }
 export function setBadgeBgOpacity(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeBgOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeBgOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } catch { /* ignore */ }
 }
 
 // -- Badge text opacity --------------------------------------------------------
@@ -476,12 +449,12 @@ export function setBadgeBgOpacity(v: number): void {
 
 export function getBadgeTextOpacity(): number {
     try {
-        const v = getStore()?.badgeTextOpacity;
+        const v = getSettings()?.badgeTextOpacity;
         return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
     } catch { return 1.0; }
 }
 export function setBadgeTextOpacity(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeTextOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeTextOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } catch { /* ignore */ }
 }
 
 // -- Badge position offset (character-relative) --------------------------------
@@ -491,17 +464,17 @@ export function setBadgeTextOpacity(v: number): void {
 // Y=72  = just below the WCE name line.
 
 export function getBadgeOffsetX(): number {
-    try { const v = getStore()?.badgeOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
+    try { const v = getSettings()?.badgeOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
 }
 export function setBadgeOffsetX(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeOffsetX = Math.round(v); syncSettings(); } catch { /* ignore */ }
 }
 
 export function getBadgeOffsetY(): number {
-    try { const v = getStore()?.badgeOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72; } catch { return 72; }
+    try { const v = getSettings()?.badgeOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72; } catch { return 72; }
 }
 export function setBadgeOffsetY(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } catch { /* ignore */ }
 }
 
 export function resetBadgePosition(): void {
@@ -515,23 +488,23 @@ export function resetBadgePosition(): void {
 
 export function getCatBadgeOffsetX(): number {
     try {
-        const s = getStore();
+        const s = getSettings();
         const v = (s as Record<string, unknown>)?.catBadgeOffsetX;
         return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
     } catch { return 250; }
 }
 export function setCatBadgeOffsetX(v: number): void {
-    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); (s as Record<string, unknown>).catBadgeOffsetX = Math.round(v); syncSettings(); } catch { /* ignore */ }
 }
 export function getCatBadgeOffsetY(): number {
     try {
-        const s = getStore();
+        const s = getSettings();
         const v = (s as Record<string, unknown>)?.catBadgeOffsetY;
         return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
     } catch { return 72; }
 }
 export function setCatBadgeOffsetY(v: number): void {
-    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); (s as Record<string, unknown>).catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } catch { /* ignore */ }
 }
 export function resetCatBadgePosition(): void {
     setCatBadgeOffsetX(250);
@@ -543,16 +516,16 @@ export function resetCatBadgePosition(): void {
 // "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
 
 export function getVersionTextOffsetX(): number {
-    try { const v = getStore()?.versionTextOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
+    try { const v = getSettings()?.versionTextOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
 }
 export function setVersionTextOffsetX(v: number): void {
-    try { const s = getStore(); if (s) { s.versionTextOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.versionTextOffsetX = Math.round(v); syncSettings(); } catch { /* ignore */ }
 }
 export function getVersionTextOffsetY(): number {
-    try { const v = getStore()?.versionTextOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95; } catch { return 95; }
+    try { const v = getSettings()?.versionTextOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95; } catch { return 95; }
 }
 export function setVersionTextOffsetY(v: number): void {
-    try { const s = getStore(); if (s) { s.versionTextOffsetY = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getSettings(); s.versionTextOffsetY = Math.round(v); syncSettings(); } catch { /* ignore */ }
 }
 export function resetVersionTextPosition(): void {
     setVersionTextOffsetX(250);

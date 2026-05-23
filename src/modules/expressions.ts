@@ -1,6 +1,6 @@
 // Expression presets and sequences — live expression picker + animated sequences.
 
-import { callBC, syncSettings, syncAppearance } from "./bcUtils";
+import { callBC, getSettings, syncSettings, syncAppearance } from "./bcUtils";
 
 export const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"] as const;
 export type ExprGroup = typeof EXPR_GROUPS[number];
@@ -39,13 +39,6 @@ function uid(): string {
     return Math.random().toString(36).slice(2, 9);
 }
 
-function getStore(): Record<string, unknown> | null {
-    try {
-        if (!Player?.ExtensionSettings) return null;
-        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-    } catch { return null; }
-}
 
 // -- Expression option discovery -----------------------------------------------
 // Query BC's runtime Asset array for all expression options in a group.
@@ -163,15 +156,14 @@ export function applyExprGroup(group: string, exprName: string | null): void {
 
 export function getExpressionPresets(): ExpressionPreset[] {
     try {
-        const list = getStore()?.expressionPresets;
+        const list = getSettings().expressionPresets;
         return Array.isArray(list) ? (list as ExpressionPreset[]) : [];
     } catch { return []; }
 }
 
 export function saveExpressionPresets(presets: ExpressionPreset[]): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.expressionPresets = presets;
         syncSettings();
     } catch { /* ignore */ }
@@ -213,15 +205,14 @@ export function applyExpressionPreset(preset: ExpressionPreset): void {
 
 export function getExpressionSequences(): ExpressionSequence[] {
     try {
-        const list = getStore()?.expressionSequences;
+        const list = getSettings().expressionSequences;
         return Array.isArray(list) ? (list as ExpressionSequence[]) : [];
     } catch { return []; }
 }
 
 export function saveExpressionSequences(seqs: ExpressionSequence[]): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.expressionSequences = seqs;
         syncSettings();
     } catch { /* ignore */ }
@@ -265,15 +256,14 @@ export function handleExprSequenceCommand(text: string): boolean {
 
 export function getDefaultExprPresetId(): string | null {
     try {
-        const v = getStore()?.defaultExprPresetId;
+        const v = getSettings().defaultExprPresetId;
         return typeof v === "string" && v ? v : null;
     } catch { return null; }
 }
 
 export function setDefaultExprPresetId(id: string | null): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         if (id) { store.defaultExprPresetId = id; } else { delete store.defaultExprPresetId; }
         syncSettings();
     } catch { /* ignore */ }
@@ -285,15 +275,14 @@ export function setDefaultExprPresetId(id: string | null): void {
 
 export function getAutoApplyDefaultFace(): boolean {
     try {
-        const v = getStore()?.autoApplyDefaultFace;
+        const v = getSettings().autoApplyDefaultFace;
         return v === true;
     } catch { return false; }
 }
 
 export function setAutoApplyDefaultFace(on: boolean): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         if (on) { store.autoApplyDefaultFace = true; } else { delete store.autoApplyDefaultFace; }
         syncSettings();
     } catch { /* ignore */ }
@@ -314,15 +303,14 @@ export interface ExpressionTrigger {
 
 export function getExpressionTriggers(): ExpressionTrigger[] {
     try {
-        const v = getStore()?.expressionTriggers;
+        const v = getSettings().expressionTriggers;
         return Array.isArray(v) ? (v as ExpressionTrigger[]) : [];
     } catch { return []; }
 }
 
 export function saveExpressionTriggers(triggers: ExpressionTrigger[]): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.expressionTriggers = triggers;
         syncSettings();
     } catch { /* ignore */ }

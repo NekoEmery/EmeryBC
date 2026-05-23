@@ -3,7 +3,7 @@
 // chat command, and announce text template.
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
-import { callBC, getDisplayName, syncSettings } from "./bcUtils";
+import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
 
 export const DOM_CREATOR_ID = 130267;
 
@@ -36,14 +36,10 @@ const DEFAULT_ANNOUNCE = "snaps her fingers as {name} appears on {targets}~";
 
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 function loadConfig(): DomConfig {
     try {
-        const v = getStore().domConfig as Partial<DomConfig> | undefined;
+        const v = getSettings().domConfig as Partial<DomConfig> | undefined;
         if (v && Array.isArray(v.targets)) {
             return {
                 targets: v.targets as DomTarget[],
@@ -56,7 +52,7 @@ function loadConfig(): DomConfig {
 
 function saveConfig(cfg: DomConfig): void {
     try {
-        getStore().domConfig = cfg;
+        getSettings().domConfig = cfg;
         syncSettings();
     } catch { /* ignore */ }
 }

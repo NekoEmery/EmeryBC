@@ -4,7 +4,7 @@
 // offline sessions and page reloads.
 
 import { RESTRAINT_GROUPS } from "./outfitManager";
-import { syncSettings } from "./bcUtils";
+import { getSettings, syncSettings } from "./bcUtils";
 
 // Collar/leash/neck items are tracked per-slot but do NOT count toward the
 // overall "Bound" timer — wearing a collar alone should not say you are bound.
@@ -19,24 +19,18 @@ let restraintStartTime: number | null = null; // overall "am I restrained" timer
 let savePending = false;
 let lastTimerCheckTs = 0; // throttle — only run once per 500 ms
 
-function getAddon(): Record<string, unknown> {
-    try {
-        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-    } catch { return {}; }
-}
 
 // Per-restraint-group timestamps (ms since epoch), keyed by group name (e.g. "ItemArms").
 function loadRestraintTimers(): Record<string, number> {
     try {
-        const v = getAddon().restraintTimers;
+        const v = getSettings().restraintTimers;
         return (v && typeof v === "object" && !Array.isArray(v)) ? { ...(v as Record<string, number>) } : {};
     } catch { return {}; }
 }
 
 function saveRestraintTimers(timers: Record<string, number>): void {
     try {
-        getAddon().restraintTimers = timers;
+        getSettings().restraintTimers = timers;
     } catch { /* ignore */ }
     if (!savePending) {
         savePending = true;

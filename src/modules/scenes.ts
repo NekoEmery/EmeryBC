@@ -3,7 +3,7 @@
 
 import { applyPoses } from "./poses";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { callBC, getDisplayName, syncSettings } from "./bcUtils";
+import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
 import { applyExprPresetWithRevert } from "./expressions";
 
 export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait" | "expression";
@@ -30,20 +30,16 @@ export interface Scene {
     command?: string;
 }
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
 function load(): Scene[] {
-    const raw = getStore().scenes;
+    const raw = getSettings().scenes;
     return Array.isArray(raw) ? (raw as Scene[]) : [];
 }
 
 function saveScenes(list: Scene[]): void {
-    getStore().scenes = list;
+    getSettings().scenes = list;
     syncSettings();
 }
 

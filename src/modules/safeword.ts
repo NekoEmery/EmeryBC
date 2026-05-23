@@ -6,7 +6,7 @@
 
 import { applyOutfit, getOutfits, RESTRAINT_GROUPS } from "./outfitManager";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings } from "./bcUtils";
 
 export interface SafewordConfig {
     enabled: boolean;
@@ -43,16 +43,8 @@ const DEFAULTS: SafewordConfig = {
     redLeave:       true,
 };
 
-function getStore(): Record<string, unknown> | null {
-    try {
-        if (!Player?.ExtensionSettings) return null;
-        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-    } catch { return null; }
-}
-
 export function getSafewordConfig(): SafewordConfig {
-    const raw = getStore()?.safeword;
+    const raw = getSettings().safeword;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULTS };
     const r = raw as Record<string, unknown>;
     const b = (key: keyof SafewordConfig, def: boolean): boolean =>
@@ -77,8 +69,7 @@ export function getSafewordConfig(): SafewordConfig {
 
 export function setSafewordConfig(cfg: SafewordConfig): void {
     try {
-        const store = getStore();
-        if (!store) return;
+        const store = getSettings();
         store.safeword = cfg;
         // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
         // may return a rejecting Promise that a bare call would silently swallow.

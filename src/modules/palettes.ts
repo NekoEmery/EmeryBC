@@ -1,7 +1,7 @@
 ﻿// Color palette manager — capture the full color map of your current
 // appearance as a named palette and re-apply it later (or to a different outfit).
 
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings } from "./bcUtils";
 
 export type PaletteType = "outfit" | "restraint";
 
@@ -13,20 +13,16 @@ export interface ColorPalette {
     colorMap: Record<string, string | string[]>;
 }
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 function load(): ColorPalette[] {
-    const list = getStore().palettes;
+    const list = getSettings().palettes;
     if (!Array.isArray(list)) return [];
     // Backfill `type` for palettes saved before this field existed
     return (list as ColorPalette[]).map(p => ({ ...p, type: (p.type ?? "outfit") as PaletteType }));
 }
 
 function save(list: ColorPalette[]): void {
-    getStore().palettes = list;
+    getSettings().palettes = list;
     syncSettings();
 }
 
@@ -119,12 +115,12 @@ export function renamePalette(id: string, name: string): void {
 // A flat list of user-saved hex colors for the direct picker workflow.
 
 function saveCustomColors(list: string[]): void {
-    getStore().customColors = list;
+    getSettings().customColors = list;
     syncSettings();
 }
 
 export function getCustomColors(): string[] {
-    const v = getStore().customColors;
+    const v = getSettings().customColors;
     return Array.isArray(v) ? v as string[] : [];
 }
 
@@ -229,12 +225,12 @@ export interface RestraintColorPreset {
 }
 
 function saveRestraintPresets(list: RestraintColorPreset[]): void {
-    getStore().restraintPresets = list;
+    getSettings().restraintPresets = list;
     syncSettings();
 }
 
 export function getRestraintPresets(): RestraintColorPreset[] {
-    const v = getStore().restraintPresets;
+    const v = getSettings().restraintPresets;
     return Array.isArray(v) ? (v as RestraintColorPreset[]) : [];
 }
 

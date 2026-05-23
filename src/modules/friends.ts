@@ -3,7 +3,7 @@
 // so it's available across devices on next login.
 
 import { db } from "./db";
-import { syncSettings } from "./bcUtils";
+import { getSettings, syncSettings } from "./bcUtils";
 
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
@@ -40,10 +40,6 @@ export interface BeepEntry {
     ts: number;         // unix ms timestamp
 }
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 function sync(): void {
@@ -57,12 +53,12 @@ function sync(): void {
 // -- Name cache ----------------------------------------------------------------
 
 export function getCachedNames(): Record<string, string> {
-    const v = getStore().friendNames;
+    const v = getSettings().friendNames;
     return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
 }
 
 export function cacheName(memberNumber: number, name: string): void {
-    const store = getStore();
+    const store = getSettings();
     if (!store.friendNames || typeof store.friendNames !== "object") store.friendNames = {};
     (store.friendNames as Record<string, string>)[String(memberNumber)] = name;
     // Sync is deferred — name cache is saved alongside the next real operation
@@ -74,12 +70,12 @@ export function cacheName(memberNumber: number, name: string): void {
 // friends list can show "Nickname (AccountName)" for easy identification.
 
 export function getCachedAccountNames(): Record<string, string> {
-    const v = getStore().friendAccountNames;
+    const v = getSettings().friendAccountNames;
     return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
 }
 
 export function cacheAccountName(memberNumber: number, accountName: string): void {
-    const store = getStore();
+    const store = getSettings();
     if (!store.friendAccountNames || typeof store.friendAccountNames !== "object") store.friendAccountNames = {};
     (store.friendAccountNames as Record<string, string>)[String(memberNumber)] = accountName;
 }
@@ -175,7 +171,7 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
     const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
     if (nowOffline.length > 0) {
         try {
-            const store = getStore();
+            const store = getSettings();
             const data = getLastSeenMap();
             const now = Date.now();
             for (const num of nowOffline) data[String(num)] = now;
@@ -226,7 +222,7 @@ const LAST_SEEN_CAP = 300;
 
 function getLastSeenMap(): Record<string, number> {
     try {
-        const store = getStore();
+        const store = getSettings();
         // One-time migration from localStorage → ExtensionSettings
         if (!store.lastSeenMigrated) {
             try {
@@ -266,7 +262,7 @@ function evictLastSeen(data: Record<string, number>): void {
 
 export function recordLastSeen(memberNumber: number): void {
     try {
-        const store = getStore();
+        const store = getSettings();
         const data = getLastSeenMap();
         data[String(memberNumber)] = Date.now();
         evictLastSeen(data);
@@ -291,7 +287,7 @@ export function getLastSeen(memberNumber: number): number | null {
 
 export function syncFriendsSince(): void {
     try {
-        const store = getStore();
+        const store = getSettings();
         if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
             store.friendSince = {};
         }
@@ -312,7 +308,7 @@ export function syncFriendsSince(): void {
 
 export function getFriendSince(memberNumber: number): number | null {
     try {
-        const store = getStore();
+        const store = getSettings();
         if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
             store.friendSince = {};
         }
@@ -348,7 +344,7 @@ export function formatLastSeen(ts: number): string {
 // -- Pinned friends ------------------------------------------------------------
 
 export function getPinnedFriends(): number[] {
-    const v = getStore().pinnedFriends;
+    const v = getSettings().pinnedFriends;
     return Array.isArray(v) ? (v as number[]) : [];
 }
 
@@ -357,7 +353,7 @@ export function isFriendPinned(memberNumber: number): boolean {
 }
 
 export function togglePinFriend(memberNumber: number): boolean {
-    const store = getStore();
+    const store = getSettings();
     const list = getPinnedFriends();
     const idx = list.indexOf(memberNumber);
     if (idx >= 0) list.splice(idx, 1);
@@ -431,7 +427,7 @@ function migrateTagValue(v: unknown): FriendTag[] {
 }
 
 export function getFriendTagList(memberNumber: number): FriendTag[] {
-    const store = getStore();
+    const store = getSettings();
     const raw = store.friendTags;
     const userTags: FriendTag[] = (!raw || typeof raw !== "object" || Array.isArray(raw))
         ? []
@@ -445,7 +441,7 @@ export function getFriendTagList(memberNumber: number): FriendTag[] {
 export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): void {
     // Strip any locked tags before saving — they must never enter storage
     const toSave = tagList.filter(t => !t.locked);
-    const store = getStore();
+    const store = getSettings();
     if (!store.friendTags || typeof store.friendTags !== "object") store.friendTags = {};
     const tags = store.friendTags as Record<string, unknown>;
     if (toSave.length > 0) tags[String(memberNumber)] = toSave;
@@ -458,12 +454,12 @@ export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): vo
 const MAX_ENTRIES = 300;
 
 export function getBeepHistory(): BeepEntry[] {
-    const v = getStore().beepHistory;
+    const v = getSettings().beepHistory;
     return Array.isArray(v) ? (v as BeepEntry[]) : [];
 }
 
 export function addBeepEntry(entry: BeepEntry): void {
-    const store = getStore();
+    const store = getSettings();
     const history = getBeepHistory();
     history.push(entry);
     if (history.length > MAX_ENTRIES) history.splice(0, history.length - MAX_ENTRIES);

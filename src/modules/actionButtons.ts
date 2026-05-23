@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings } from "./bcUtils";
 import { applyExprPresetWithRevert } from "./expressions";
 
 export type ActionStyle = "action" | "emote" | "seq";
@@ -42,14 +42,10 @@ export interface ButtonCategory {
 
 // --- Storage -----------------------------------------------------------------
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 /** Returns all categories, migrating from old flat format if needed. */
 export function getCategories(): ButtonCategory[] {
-    const store = getStore();
+    const store = getSettings();
     // Migrate old flat actionButtons → first category "Default"
     if (!store.buttonCategories && store.actionButtons) {
         const migrated: ButtonCategory[] = [{
@@ -89,7 +85,7 @@ export function getCategories(): ButtonCategory[] {
 }
 
 export function getActiveCategoryIndex(): number {
-    const store = getStore();
+    const store = getSettings();
     const cats  = getCategories();
     const idx   = store.activeCategoryIndex;
     if (typeof idx === "number" && idx >= 0 && idx < cats.length) return idx;
@@ -97,7 +93,7 @@ export function getActiveCategoryIndex(): number {
 }
 
 export function setActiveCategoryIndex(idx: number): void {
-    const store = getStore();
+    const store = getSettings();
     store.activeCategoryIndex = idx;
     syncSettings();
 }
@@ -119,7 +115,7 @@ export function getSlotCount(): number {
 }
 
 export function saveButtons(buttons: ActionButton[], slotCount: number): void {
-    const store = getStore();
+    const store = getSettings();
     const cats  = getCategories();
     const idx   = getActiveCategoryIndex();
     cats[idx].buttons   = buttons;
@@ -129,7 +125,7 @@ export function saveButtons(buttons: ActionButton[], slotCount: number): void {
 }
 
 export function saveCategories(categories: ButtonCategory[], activeIndex: number): void {
-    const store = getStore();
+    const store = getSettings();
     store.buttonCategories    = categories;
     store.activeCategoryIndex = activeIndex;
     syncSettings();

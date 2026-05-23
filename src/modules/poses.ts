@@ -2,7 +2,7 @@
 // Poses require matching equipped items to visually render — BC handles
 // validation server-side and silently ignores inapplicable poses.
 
-import { callBC, getDisplayName, syncSettings } from "./bcUtils";
+import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
 
 export interface PoseCombo {
     id: string;
@@ -156,15 +156,11 @@ export function getCurrentPoses(): string[] {
 
 // -- Combo storage -------------------------------------------------------
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
 function load(): PoseCombo[] {
-    const list = getStore().poseCombos;
+    const list = getSettings().poseCombos;
     if (!Array.isArray(list)) return [];
     // Sanitize each combo — old data may have undefined/null poses array
     return (list as PoseCombo[]).map(c => ({
@@ -174,7 +170,7 @@ function load(): PoseCombo[] {
 }
 
 function saveCombos(list: PoseCombo[]): void {
-    getStore().poseCombos = list;
+    getSettings().poseCombos = list;
     syncSettings();
 }
 

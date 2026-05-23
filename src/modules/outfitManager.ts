@@ -1,5 +1,5 @@
 ﻿import { UI } from "./ui";
-import { getDisplayName, syncSettings } from "./bcUtils";
+import { getDisplayName, getSettings, syncSettings } from "./bcUtils";
 import { getExpressionPresets, applyExpressionPreset } from "./expressions";
 
 export interface SerializedItem {
@@ -82,15 +82,9 @@ let outfitApplyPending = false;
 let refreshScheduled = false;
 let cachedOutfits: ConfiguredOutfit[] | null = null;
 
-function getAddon(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) {
-        Player.ExtensionSettings.EmeryBC = {};
-    }
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-}
 
 function loadOutfitsFromSettings(): ConfiguredOutfit[] {
-    const list = getAddon().outfits;
+    const list = getSettings().outfits;
     const outfits = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
     cachedOutfits = outfits;
     return outfits;
@@ -101,29 +95,29 @@ export function getOutfits(): ConfiguredOutfit[] {
 }
 
 export function getDefaultNickname(): string {
-    const raw = getAddon().defaultNickname;
+    const raw = getSettings().defaultNickname;
     return typeof raw === "string" ? raw : "";
 }
 
 export function setDefaultNickname(nick: string): void {
-    getAddon().defaultNickname = nick.trim();
+    getSettings().defaultNickname = nick.trim();
     syncSettings();
 }
 
 export function getDefaultTitle(): string {
-    const raw = getAddon().defaultTitle;
+    const raw = getSettings().defaultTitle;
     return typeof raw === "string" ? raw : "";
 }
 
 export function setDefaultTitle(title: string): void {
-    getAddon().defaultTitle = title;
+    getSettings().defaultTitle = title;
     syncSettings();
 }
 
 function saveOutfits(list: ConfiguredOutfit[]): void {
     const sanitized = list.map(sanitizeOutfit);
     cachedOutfits = sanitized;
-    getAddon().outfits = sanitized;
+    getSettings().outfits = sanitized;
     syncSettings();
 }
 
@@ -502,12 +496,12 @@ export function setOutfitNameInAnnounce(id: string, value: boolean): void {
 
 
 export function getOutfitTags(): OutfitTag[] {
-    const raw = getAddon().outfitTags;
+    const raw = getSettings().outfitTags;
     return Array.isArray(raw) ? (raw as OutfitTag[]) : [];
 }
 
 function saveOutfitTags(tags: OutfitTag[]): void {
-    getAddon().outfitTags = tags;
+    getSettings().outfitTags = tags;
     syncSettings();
 }
 
@@ -679,12 +673,12 @@ function uid(): string {
 }
 
 export function getSchedules(): OutfitSchedule[] {
-    const list = getAddon().outfitSchedules;
+    const list = getSettings().outfitSchedules;
     return Array.isArray(list) ? (list as OutfitSchedule[]) : [];
 }
 
 function saveSchedules(schedules: OutfitSchedule[]): void {
-    getAddon().outfitSchedules = schedules;
+    getSettings().outfitSchedules = schedules;
     syncSettings();
 }
 
@@ -739,7 +733,7 @@ export type BCImportMode = "restraints" | "outfit" | "both";
 let cachedRestraints: ConfiguredOutfit[] | null = null;
 
 function loadRestraintsFromSettings(): ConfiguredOutfit[] {
-    const list = getAddon().restraints;
+    const list = getSettings().restraints;
     const restraints = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
     cachedRestraints = restraints;
     return restraints;
@@ -752,7 +746,7 @@ export function getRestraints(): ConfiguredOutfit[] {
 function saveRestraints(list: ConfiguredOutfit[]): void {
     const sanitized = list.map(sanitizeOutfit);
     cachedRestraints = sanitized;
-    getAddon().restraints = sanitized;
+    getSettings().restraints = sanitized;
     syncSettings();
 }
 
@@ -946,12 +940,12 @@ export function applyColorPresetToRestraint(restraintId: string, fullGroup: stri
 // outfit or restraint-set apply. Stored in ExtensionSettings server-side.
 
 export function getOutfitWhitelist(): string[] {
-    const raw = getAddon().outfitWhitelist;
+    const raw = getSettings().outfitWhitelist;
     return Array.isArray(raw) ? (raw as string[]) : [];
 }
 
 export function setOutfitWhitelist(groups: string[]): void {
-    getAddon().outfitWhitelist = groups;
+    getSettings().outfitWhitelist = groups;
     syncSettings();
 }
 
