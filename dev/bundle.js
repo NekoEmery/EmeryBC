@@ -33145,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.6";
+    const MOD_VERSION = "4.7.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -37977,22 +37977,16 @@
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — stability-detection with force-commit safety net.
-    // _pawFixed* is what gets drawn; only updates after _PAW_STABLE_MS of
-    // the candidate being within jitter, OR after _PAW_FORCE_MS without any
-    // commit (so the paw never permanently drifts off Emery in an active room).
+    // Paw position — live per-frame tracking outside freeze windows.
+    // After any room sync event we freeze for _PAW_FREEZE_MS so the paw
+    // holds its last good position while BC finishes repositioning.
+    // Once the window expires we resume reading every frame, so the paw
+    // correctly follows BC's idle animation without any permanent drift.
     let _pawFixedLeft = null;
     let _pawFixedTop = null;
     let _pawFixedZoom = 1;
-    let _pawPendLeft = 0;
-    let _pawPendTop = 0;
-    let _pawPendZoom = 1;
-    let _pawPendSince = 0; // Date.now() when candidate last reset
-    let _pawLastCommit = 0; // Date.now() of last commit
-    const _PAW_STABLE_MS = 200; // ms of stability needed to commit
-    const _PAW_FORCE_MS = 2000; // force-commit if stuck this long
-    const _PAW_JITTER_PX = 15; // px tolerance — wide enough to swallow BC idle anim
-    const _PAW_JITTER_ZOOM = 0.02; // zoom tolerance
+    let _pawFrozenUntil = 0; // epoch ms; block live reads until this time
+    const _PAW_FREEZE_MS = 1500; // ms to freeze after a sync event
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38173,41 +38167,14 @@
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
                 // Stability-detection with force-commit fallback.
-                // The jitter window is wide enough to absorb BC's idle animation;
-                // the stability clock only resets on genuine large movements.
-                // If commits are blocked for _PAW_FORCE_MS (busy room / long
-                // transition), we force-commit to the current frame's position so
-                // the paw is never permanently wrong.
-                const _pawNow = Date.now();
-                if (Math.abs(left - _pawPendLeft) <= _PAW_JITTER_PX &&
-                    Math.abs(top - _pawPendTop) <= _PAW_JITTER_PX &&
-                    Math.abs(zoom - _pawPendZoom) <= _PAW_JITTER_ZOOM) ;
-                else {
-                    // Beyond jitter — new candidate, restart clock
-                    _pawPendLeft = left;
-                    _pawPendTop = top;
-                    _pawPendZoom = zoom;
-                    _pawPendSince = _pawNow;
-                }
-                const _pawStable = (_pawNow - _pawPendSince) >= _PAW_STABLE_MS;
-                const _pawForced = (_pawNow - _pawLastCommit) >= _PAW_FORCE_MS;
-                if (_pawFixedLeft === null || _pawStable || _pawForced) {
-                    // Force-commit uses current frame's live position; normal
-                    // commit uses the candidate (last position that moved > jitter).
-                    const cL = _pawForced ? left : _pawPendLeft;
-                    const cT = _pawForced ? top : _pawPendTop;
-                    const cZ = _pawForced ? zoom : _pawPendZoom;
-                    _pawFixedLeft = Math.round(cL);
-                    _pawFixedTop = Math.round(cT);
-                    _pawFixedZoom = cZ;
-                    _pawLastCommit = _pawNow;
-                    if (_pawForced) {
-                        // Re-anchor candidate so jitter check starts fresh
-                        _pawPendLeft = left;
-                        _pawPendTop = top;
-                        _pawPendZoom = zoom;
-                        _pawPendSince = _pawNow;
-                    }
+                // Outside the freeze window: read the live position every frame so
+                // the paw correctly tracks BC's idle animation.  Inside the window
+                // (set by sync events) we hold the last good position so the paw
+                // doesn't jump while BC is mid-repositioning.
+                if (_pawFixedLeft === null || Date.now() >= _pawFrozenUntil) {
+                    _pawFixedLeft = Math.round(left);
+                    _pawFixedTop = Math.round(top);
+                    _pawFixedZoom = zoom;
                 }
                 // BC bottom-aligns characters on a 500×1000 unit canvas; the name
                 // is drawn at roughly top + 975*zoom. Sit the paw just above it.
@@ -38549,7 +38516,9 @@
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
-            // Paw position is now self-stabilising via frame counter — no timer needed.
+            // Freeze paw for 1.5 s so it holds its last good position while BC
+            // finishes repositioning characters after the sync.
+            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
             try {
                 syncPresenceMarker();
             }
@@ -38842,6 +38811,7 @@
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
+            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38856,7 +38826,9 @@
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            return next(args);
+            const result = next(args);
+            _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+            return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
