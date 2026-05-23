@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.6.4
+// @version      4.6.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -568,50 +568,63 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var LZString = /*@__PURE__*/getDefaultExportFromCjs(lzStringExports);
 
     // ---------------------------------------------------------------------------
-    // Compressed ExtensionSettings — single in-memory object, flushed as a
-    // Base64-compressed JSON blob under Player.ExtensionSettings.EmeryBC._d.
+    // In-memory settings store — all EBC modules read/write through getSettings().
     //
-    // Migration path: if _d doesn't exist, all existing raw keys are copied into
-    // _mem and immediately re-flushed in compressed form. Old keys are NOT deleted
-    // (safe fallback for one session if an older EBC build is loaded).
+    // Storage format: plain key/value pairs written directly under
+    // Player.ExtensionSettings.EmeryBC (no compression).
+    //
+    // One-time recovery migration: v4.6.2–v4.6.4 stored everything in a
+    // compressed _d blob.  If _d exists and decompresses to a non-empty object,
+    // its contents are restored to plain keys and the blob is removed.
+    // If _d was corrupted by v4.6.4 (empty object), the pre-v4.6.2 raw keys
+    // that were never deleted are used instead — recovering data from there.
     // ---------------------------------------------------------------------------
+    // Only used to decompress the legacy _d blob during the one-time migration.
+    // Never written again after this.
     const COMPRESSED_KEY = "_d";
     let _mem = {};
     let _initialized = false;
     function initSettings() {
-        var _a, _b;
+        var _a;
         if (_initialized)
             return;
+        // Do not initialise until BC has fully built Player.ExtensionSettings.
+        // getSettings() will retry on the next call — nothing is lost.
+        if (!Player.ExtensionSettings)
+            return;
         _initialized = true;
-        // Player.ExtensionSettings may be undefined if BC hasn't finished
-        // initialising the Player object yet (e.g. addon loaded very early).
-        const ext = (_a = Player.ExtensionSettings) !== null && _a !== void 0 ? _a : {};
-        const raw = ((_b = (ext.EmeryBC)) !== null && _b !== void 0 ? _b : {});
-        const compressed = raw[COMPRESSED_KEY];
-        if (typeof compressed === "string" && compressed.length > 0) {
+        const raw = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+        // ── Recovery: try to decompress legacy _d blob (v4.6.2–v4.6.4) ──────────
+        // Only accept it if it contains at least one key.  An empty object means
+        // v4.6.4 corrupted it with an empty sync; in that case fall through to the
+        // raw keys below which were never overwritten and still hold the real data.
+        const blob = raw[COMPRESSED_KEY];
+        if (typeof blob === "string" && blob.length > 0) {
             try {
-                const json = LZString.decompressFromBase64(compressed);
+                const json = LZString.decompressFromBase64(blob);
                 if (json) {
                     const parsed = JSON.parse(json);
-                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed) &&
+                        Object.keys(parsed).length > 0) {
                         _mem = parsed;
                         _migrateKittyFromLocalStorage();
+                        flushToExtensionSettings(); // rewrite as plain keys, removes _d
                         return;
                     }
                 }
             }
-            catch ( /* fall through to legacy migration */_c) { /* fall through to legacy migration */ }
+            catch ( /* fall through to raw keys */_b) { /* fall through to raw keys */ }
         }
-        // Legacy format: copy all real data keys into _mem, skip _d itself
+        // ── Plain raw keys (pre-v4.6.2 format or recovery from corrupted _d) ────
         _mem = {};
         for (const [k, v] of Object.entries(raw)) {
             if (k !== COMPRESSED_KEY)
                 _mem[k] = v;
         }
         _migrateKittyFromLocalStorage();
-        flushToExtensionSettings(); // immediately rewrite in compressed form
+        flushToExtensionSettings(); // write back immediately so _d is cleared
     }
-    /** Migrate Kitty data from localStorage into the compressed settings blob. */
+    /** Migrate Kitty data from localStorage into the settings store. */
     function _migrateKittyFromLocalStorage() {
         const KITTY_LS_KEYS = [
             "EBC_kittyMood", "EBC_kittyEmotes", "EBC_kittyPoses",
@@ -623,9 +636,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (_mem[settingKey] !== undefined)
                 continue;
             try {
-                const raw = localStorage.getItem(lsKey);
-                if (raw) {
-                    _mem[settingKey] = JSON.parse(raw);
+                const val = localStorage.getItem(lsKey);
+                if (val) {
+                    _mem[settingKey] = JSON.parse(val);
                     localStorage.removeItem(lsKey);
                 }
             }
@@ -638,18 +651,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             initSettings();
         return _mem;
     }
-    /** Serialise _mem, compress, and write to Player.ExtensionSettings.EmeryBC._d. */
+    /** Write _mem as plain keys directly to Player.ExtensionSettings.EmeryBC. */
     function flushToExtensionSettings() {
         try {
-            const compressed = LZString.compressToBase64(JSON.stringify(_mem));
-            // Guard: ExtensionSettings may be undefined if Player isn't fully ready yet.
             if (!Player.ExtensionSettings)
                 return;
             if (!Player.ExtensionSettings.EmeryBC ||
                 typeof Player.ExtensionSettings.EmeryBC !== "object") {
                 Player.ExtensionSettings.EmeryBC = {};
             }
-            Player.ExtensionSettings.EmeryBC[COMPRESSED_KEY] = compressed;
+            const target = Player.ExtensionSettings.EmeryBC;
+            // Remove the legacy compressed blob — never written back.
+            delete target[COMPRESSED_KEY];
+            // Sync every in-memory key as a plain value.
+            for (const [k, v] of Object.entries(_mem)) {
+                target[k] = v;
+            }
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -33696,7 +33713,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.4";
+    const MOD_VERSION = "4.6.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33707,6 +33724,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.5",
+            changes: [
+                "Fix: settings storage reverted to plain keys (no compression) — removes the data-loss risk introduced in v4.6.2–v4.6.4. One-time recovery migration: if v4.6.4 corrupted the compressed blob with an empty sync, the pre-v4.6.2 raw keys (which were never overwritten) are used to restore your outfits, scenes, and other saved data automatically on first load.",
+            ],
+        },
         {
             version: "4.6.4",
             changes: [
