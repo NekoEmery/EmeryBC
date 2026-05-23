@@ -33145,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.8";
+    const MOD_VERSION = "4.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33156,6 +33156,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.7.9",
+            changes: [
+                "Fix: golden paw now draws directly from live DrawArousalMeter args every frame (MPA-style) — zero caching, zero buffering. BC's args are perfectly stable during idle animation so the paw locks on without any smoothing machinery.",
+            ],
+        },
         {
             version: "4.7.1",
             changes: [
@@ -37977,28 +37983,8 @@
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — 60-frame sliding-window mean with spread gating.
-    //
-    // We accumulate the last _PAW_WIN DrawCharacter frames for member 130267.
-    // Every frame we compute the position spread (max−min) across the window.
-    // If the spread is below _PAW_SPREAD_PX the window only contains idle-
-    // animation variance, so we commit the MEAN — which averages out the
-    // oscillation to produce a perfectly static drawn position.
-    // If the spread exceeds the threshold BC is mid-repositioning and we keep
-    // the last committed position unchanged.
-    //
-    // On any sync event the buffer is cleared, forcing a fresh 60-frame
-    // collection before the next commit.  This guarantees the paw only updates
-    // after BC has fully settled into the new layout.
-    let _pawFixedLeft = null;
-    let _pawFixedTop = null;
-    let _pawFixedZoom = 1;
-    const _PAW_WIN = 60; // history window (frames)
-    const _PAW_SPREAD_PX = 150; // max position spread to be considered "settled"
-    const _PAW_SPREAD_Z = 0.05; // max zoom spread (zoom only changes on layout change)
-    let _pawBufL = [];
-    let _pawBufT = [];
-    let _pawBufZ = [];
+    // Paw position — read directly from DrawArousalMeter args every frame (MPA approach).
+    // No caching, no buffering — BC's args are stable during idle animation.
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38171,67 +38157,6 @@
         // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
         if ((_a = (window.ChatRoomHideIconState)) !== null && _a !== void 0 ? _a : 0)
             return;
-        // ── Creator mark — golden paw just above the name, visible to all EBC users ──
-        // Drawn for member 130267 only, regardless of badge visibility toggles.
-        if (character.MemberNumber === 130267) {
-            const _pawCanvas = getBCCanvas();
-            const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
-            const _pawImg = getEbcPawImg();
-            if (_pawCtx && _pawImg) {
-                // Accumulate position history for this frame.
-                _pawBufL.push(left);
-                _pawBufT.push(top);
-                _pawBufZ.push(zoom);
-                if (_pawBufL.length > _PAW_WIN) {
-                    _pawBufL.shift();
-                    _pawBufT.shift();
-                    _pawBufZ.shift();
-                }
-                if (_pawFixedLeft === null) {
-                    // No position yet — snap immediately so the paw appears at once.
-                    _pawFixedLeft = Math.round(left);
-                    _pawFixedTop = Math.round(top);
-                    _pawFixedZoom = zoom;
-                }
-                else if (_pawBufL.length === _PAW_WIN) {
-                    // Full window: only commit when the position spread is small
-                    // (BC is settled; only idle-animation variance remains).
-                    const sL = Math.max(..._pawBufL) - Math.min(..._pawBufL);
-                    const sT = Math.max(..._pawBufT) - Math.min(..._pawBufT);
-                    const sZ = Math.max(..._pawBufZ) - Math.min(..._pawBufZ);
-                    if (sL <= _PAW_SPREAD_PX && sT <= _PAW_SPREAD_PX && sZ <= _PAW_SPREAD_Z) {
-                        const n = _PAW_WIN;
-                        const rL = _pawBufL.reduce((s, v) => s + v, 0) / n;
-                        const rT = _pawBufT.reduce((s, v) => s + v, 0) / n;
-                        const rZ = _pawBufZ.reduce((s, v) => s + v, 0) / n;
-                        _pawFixedLeft = Math.round(rL);
-                        _pawFixedTop = Math.round(rT);
-                        _pawFixedZoom = rZ;
-                    }
-                }
-                // BC bottom-aligns characters on a 500×1000 unit canvas; the name
-                // is drawn at roughly top + 975*zoom. Sit the paw just above it.
-                const sz = Math.max(16, Math.round(28 * _pawFixedZoom));
-                const px = Math.floor(_pawFixedLeft + 250 * _pawFixedZoom - sz / 2);
-                const py = Math.floor(_pawFixedTop + 940 * _pawFixedZoom - sz);
-                // Dark backing disc so the paw is legible on any room background
-                const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
-                _pawCtx.save();
-                _pawCtx.globalAlpha = 0.62;
-                _pawCtx.fillStyle = "rgba(0, 0, 0, 0.82)";
-                _pawCtx.beginPath();
-                _pawCtx.arc(px + sz / 2, py + sz / 2, cr, 0, Math.PI * 2);
-                _pawCtx.fill();
-                _pawCtx.restore();
-                // Gold glow + paw image on top
-                _pawCtx.save();
-                _pawCtx.globalAlpha = 0.95;
-                _pawCtx.shadowColor = "rgba(255, 195, 0, 0.9)";
-                _pawCtx.shadowBlur = Math.round(sz * 0.5);
-                _pawCtx.drawImage(_pawImg, px, py, sz, sz);
-                _pawCtx.restore();
-            }
-        }
         // Visibility toggles for the EBC badge
         if (isSelf && !getBadgeEnabled())
             return;
@@ -38546,14 +38471,54 @@
             }
             return result;
         });
+        // ── Creator paw mark — drawn directly from live DrawArousalMeter args (MPA approach) ──
+        // DrawArousalMeter fires after DrawCharacter with the same x/y/zoom, which are
+        // perfectly stable during idle animation — no caching or smoothing needed.
+        tryHookFunction(modAPI, "DrawArousalMeter", 1, (args, next) => {
+            const result = next(args);
+            try {
+                if (CurrentScreen !== "ChatRoom")
+                    return result;
+                const character = args[0];
+                if ((character === null || character === void 0 ? void 0 : character.MemberNumber) !== 130267)
+                    return result;
+                const left = typeof args[1] === "number" ? args[1] : null;
+                const top = typeof args[2] === "number" ? args[2] : null;
+                const zoom = typeof args[3] === "number" ? args[3] : 1;
+                if (left === null || top === null || zoom < 0.3)
+                    return result;
+                const pawCanvas = getBCCanvas();
+                const pawCtx = pawCanvas === null || pawCanvas === void 0 ? void 0 : pawCanvas.getContext("2d");
+                const pawImg = getEbcPawImg();
+                if (!pawCtx || !pawImg)
+                    return result;
+                // BC bottom-aligns characters on a 500×1000 unit canvas; name is at ~top+975*zoom.
+                const sz = Math.max(16, Math.round(28 * zoom));
+                const px = Math.floor(left + 250 * zoom - sz / 2);
+                const py = Math.floor(top + 940 * zoom - sz);
+                // Dark backing disc so the paw is legible on any room background
+                const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
+                pawCtx.save();
+                pawCtx.globalAlpha = 0.62;
+                pawCtx.fillStyle = "rgba(0, 0, 0, 0.82)";
+                pawCtx.beginPath();
+                pawCtx.arc(px + sz / 2, py + sz / 2, cr, 0, Math.PI * 2);
+                pawCtx.fill();
+                pawCtx.restore();
+                // Gold glow + paw image on top
+                pawCtx.save();
+                pawCtx.globalAlpha = 0.95;
+                pawCtx.shadowColor = "rgba(255, 195, 0, 0.9)";
+                pawCtx.shadowBlur = Math.round(sz * 0.5);
+                pawCtx.drawImage(pawImg, px, py, sz, sz);
+                pawCtx.restore();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return result;
+        });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
-            // Clear the position buffer — forces a fresh 60-frame collection
-            // before the paw commits to any new position after this sync.
-            _pawBufL = [];
-            _pawBufT = [];
-            _pawBufZ = [];
             try {
                 syncPresenceMarker();
             }
@@ -38846,9 +38811,6 @@
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
-            _pawBufL = [];
-            _pawBufT = [];
-            _pawBufZ = [];
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38863,11 +38825,7 @@
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            const result = next(args);
-            _pawBufL = [];
-            _pawBufT = [];
-            _pawBufZ = [];
-            return result;
+            return next(args);
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
