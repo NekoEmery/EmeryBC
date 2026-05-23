@@ -13870,11 +13870,13 @@ export class EBCDrawer {
                     const getModsInfo = sdk?.getModsInfo as ((...a: unknown[]) => unknown) | undefined;
                     const mods = getModsInfo ? (getModsInfo.call(sdk) as unknown[]) : [];
                     if (!Array.isArray(mods) || mods.length === 0) {
+                        hookLbl.textContent = t("dev.addonsLoaded");
                         const hint = document.createElement("div");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;";
                         hint.textContent = t("dev.noModsdk");
                         hookList.appendChild(hint); return;
                     }
+                    hookLbl.textContent = t("dev.addonsLoaded") + " (" + mods.length + ")";
                     for (const mod of mods) {
                         const m = mod as Record<string, unknown>;
                         const hooks = Array.isArray(m.hooks) ? m.hooks as string[] : [];
