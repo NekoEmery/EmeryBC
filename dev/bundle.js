@@ -13137,8 +13137,8 @@
         "sw.endGrace": { en: "End grace", de: "Schonfrist beenden", zh: "结束宽限期", fr: "Terminer la grâce", es: "Terminar la gracia", ru: "Завершить льготу", ja: "猶予を終了" },
         // ─── DEV PREFERENCES ───────────────────────────────────────────────────
         "dev.touchMode": { en: "Phone / touch mode", de: "Handy / Touch-Modus", zh: "手机 / 触屏模式", fr: "Mode téléphone / tactile", es: "Modo teléfono / táctil", ru: "Режим телефона/касания", ja: "スマホ / タッチモード" },
-        "dev.touchAutoOn": { en: "(auto: on)", de: "(auto: an)", zh: "（自动：开）", fr: "(auto : oui)", es: "(auto: sí)", ru: "(авто: вкл)", ja: "（自動：ON）" },
-        "dev.touchAutoOff": { en: "(auto: off)", de: "(auto: aus)", zh: "（自动：关）", fr: "(auto : non)", es: "(auto: no)", ru: "(авто: выкл)", ja: "（自動：OFF）" },
+        "dev.touchAutoOn": { en: "(auto — phone detected)", de: "(auto — Handy erkannt)", zh: "（自动 — 检测到手机）", fr: "(auto — téléphone détecté)", es: "(auto — teléfono detectado)", ru: "(авто — телефон обнаружен)", ja: "（自動 — スマホ検出）" },
+        "dev.touchAutoOff": { en: "(auto — desktop)", de: "(auto — Desktop)", zh: "（自动 — 桌面设备）", fr: "(auto — ordinateur)", es: "(auto — escritorio)", ru: "(авто — десктоп)", ja: "（自動 — デスクトップ）" },
         "dev.touchForceOn": { en: "Force ON", de: "Erzwingen AN", zh: "强制开启", fr: "Forcer OUI", es: "Forzar SÍ", ru: "Принуд. ВКЛ", ja: "強制ON" },
         "dev.touchForceOff": { en: "Force OFF", de: "Erzwingen AUS", zh: "强制关闭", fr: "Forcer NON", es: "Forzar NO", ru: "Принуд. ВЫКЛ", ja: "強制OFF" },
         "dev.panelOpacity": { en: "Panel opacity", de: "Panel-Transparenz", zh: "面板透明度", fr: "Opacité du panneau", es: "Opacidad del panel", ru: "Прозрачность панели", ja: "パネルの不透明度" },
@@ -33219,7 +33219,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.6";
+    const MOD_VERSION = "4.5.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33230,6 +33230,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.7",
+            changes: [
+                "UI: touch mode status label changed from '(auto: on/off)' to '(auto — phone detected)' / '(auto — desktop)' so it's clear what the auto-detection means.",
+            ],
+        },
         {
             version: "4.5.6",
             changes: [
