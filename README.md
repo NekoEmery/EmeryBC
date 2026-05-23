@@ -374,6 +374,10 @@ The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRAB
 
 ---
 
+## 🐾 Stamps of Approval
+
+*Want your stamp here? Find Emery in-game at the **EmeryBC HQ** room and ask her! ♥*
+
 <p align="center">
-  <img src="assets/stamp.png" alt="Vei Stamp of Approval — Good Addon" width="480">
+  <img src="assets/stamp.png" alt="Vei — Good Addon · >w7" width="420">
 </p>
