@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.6.1
+// @version      4.6.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12886,6 +12886,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     // Kitty menu — only visible to Lucy (#230466).
     // Actions target Emery (#130267).
+    // Data is stored in the shared compressed ExtensionSettings blob (cross-device).
     const LUCY_MEMBER = 230466;
     const EMERY_MEMBER = 130267;
     const KITTY_CMD_PREFIX = "[EBC-KITTY:";
@@ -13020,26 +13021,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         },
     ];
     // ── Storage helpers ───────────────────────────────────────────────────────────
-    function lsGet(key, fallback) {
-        try {
-            const raw = localStorage.getItem(key);
-            if (raw)
-                return JSON.parse(raw);
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-        return fallback;
+    function kGet(key, fallback) {
+        const v = getSettings()[key];
+        return v !== undefined ? v : fallback;
     }
-    function lsSet(key, val) {
-        try {
-            localStorage.setItem(key, JSON.stringify(val));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
+    function kSet(key, val) {
+        getSettings()[key] = val;
+        syncSettings();
     }
     function getKittyMood() {
-        const v = lsGet("EBC_kittyMood", "kind");
+        const v = kGet("kittyMood", "kind");
         return v === "rough" ? "rough" : "kind";
     }
-    function setKittyMood(m) { lsSet("EBC_kittyMood", m); }
+    function setKittyMood(m) { kSet("kittyMood", m); }
     // Seed values for existing stored emotes that predate the roughText / expression fields.
     // Only applied if the field is currently undefined (user hasn't touched it yet).
     const ROUGH_TEXT_SEEDS = {
@@ -13092,7 +13086,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         },
     ];
     function getKittyEmotes() {
-        const raw = lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
+        const raw = kGet("kittyEmotes", DEFAULT_EMOTES);
         const emotes = raw
             // Migration: remove leash emote (replaced by standalone leash button)
             .filter(e => e.id !== "leash")
@@ -13122,20 +13116,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         return emotes;
     }
-    function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
+    function saveKittyEmotes(v) { kSet("kittyEmotes", v); }
     function getKittyRestraintSets() {
         // Migrate old sets that lack emote fields
-        const raw = lsGet("EBC_kittyRestraintSets", []);
+        const raw = kGet("kittyRestraintSets", []);
         return raw.map(s => {
             var _a, _b;
             return (Object.assign(Object.assign({}, s), { kindEmote: (_a = s.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = s.roughEmote) !== null && _b !== void 0 ? _b : "" }));
         });
     }
-    function saveKittyRestraintSets(v) { lsSet("EBC_kittyRestraintSets", v); }
+    function saveKittyRestraintSets(v) { kSet("kittyRestraintSets", v); }
     // New poses seeded into existing stored lists that predate them.
     const NEW_POSE_SEEDS = DEFAULT_POSES.filter(p => !["allfours", "kneel", "handsup", "neutral"].includes(p.id));
     function getKittyPoses() {
-        const raw = lsGet("EBC_kittyPoses", DEFAULT_POSES);
+        const raw = kGet("kittyPoses", DEFAULT_POSES);
         const poses = raw
             // Migration: remove elbow tie (BackElbowTouch conflicts in BC)
             .filter(p => p.id !== "elbowTie")
@@ -13154,7 +13148,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         return poses;
     }
-    function saveKittyPoses(v) { lsSet("EBC_kittyPoses", v); }
+    function saveKittyPoses(v) { kSet("kittyPoses", v); }
     const DEFAULT_REACTIONS = [
         { id: "pu1", text: "eeep~", category: "punishment" },
         { id: "pu2", text: "lets out a small startled squeak, ears pinning back~ >_<", category: "punishment" },
@@ -13166,11 +13160,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "rw4", text: "rumbles with a deep pleased purr, going all soft~", category: "reward" },
     ];
     function getKittyReactions() {
-        return lsGet("EBC_kittyReactions", DEFAULT_REACTIONS);
+        return kGet("kittyReactions", DEFAULT_REACTIONS);
     }
-    function saveKittyReactions(v) { lsSet("EBC_kittyReactions", v); }
+    function saveKittyReactions(v) { kSet("kittyReactions", v); }
     function getKittyPunishments() {
-        const raw = lsGet("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
+        const raw = kGet("kittyPunishments", DEFAULT_PUNISHMENTS);
         return raw.map(p => {
             var _a, _b;
             if (p.steps)
@@ -13183,12 +13177,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return { id: p.id, label: p.label, steps };
         });
     }
-    function saveKittyPunishments(v) { lsSet("EBC_kittyPunishments", v); }
+    function saveKittyPunishments(v) { kSet("kittyPunishments", v); }
     function getKittyExpressionPresets() {
-        return lsGet("EBC_kittyExprPresets", []);
+        return kGet("kittyExprPresets", []);
     }
     function saveKittyExpressionPresets(v) {
-        lsSet("EBC_kittyExprPresets", v);
+        kSet("kittyExprPresets", v);
     }
     // ── Command protocol ──────────────────────────────────────────────────────────
     // Format: [EBC-KITTY:cmd:arg]  or  [EBC-KITTY:cmd]
@@ -33696,7 +33690,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.1";
+    const MOD_VERSION = "4.6.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33707,6 +33701,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.2",
+            changes: [
+                "Storage: all ExtensionSettings data is now LZ-string compressed before syncing to BC's servers — effective capacity is ~4× larger, so power users with many outfits/scenes/presets no longer risk hitting the server limit. Kitty menu data also moved from browser-local localStorage into the compressed blob, making it cross-device for the first time.",
+            ],
+        },
         {
             version: "4.6.1",
             changes: [
@@ -38916,6 +38916,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }
     function init() {
+        // Initialise compressed ExtensionSettings first — all modules read from here
+        initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
         // Seed the arousal restore-target with whatever the player has set right now
         try {

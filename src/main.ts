@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.6.1";
+const MOD_VERSION = "4.6.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.6.2",
+        changes: [
+            "Storage: all ExtensionSettings data is now LZ-string compressed before syncing to BC's servers — effective capacity is ~4× larger, so power users with many outfits/scenes/presets no longer risk hitting the server limit. Kitty menu data also moved from browser-local localStorage into the compressed blob, making it cross-device for the first time.",
+        ],
+    },
     {
         version: "4.6.1",
         changes: [
@@ -5272,6 +5278,9 @@ function seedDefaultBadgeSettings(): void {
 }
 
 function init(): void {
+    // Initialise compressed ExtensionSettings first — all modules read from here
+    initSettings();
+
     const modAPI = bcModSdk.registerMod(
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
         { allowReplace: true }

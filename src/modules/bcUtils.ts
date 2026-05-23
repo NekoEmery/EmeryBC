@@ -1,3 +1,88 @@
+import LZString from "lz-string";
+
+// ---------------------------------------------------------------------------
+// Compressed ExtensionSettings — single in-memory object, flushed as a
+// Base64-compressed JSON blob under Player.ExtensionSettings.EmeryBC._d.
+//
+// Migration path: if _d doesn't exist, all existing raw keys are copied into
+// _mem and immediately re-flushed in compressed form. Old keys are NOT deleted
+// (safe fallback for one session if an older EBC build is loaded).
+// ---------------------------------------------------------------------------
+
+const COMPRESSED_KEY = "_d";
+let _mem: Record<string, unknown> = {};
+let _initialized = false;
+
+export function initSettings(): void {
+    if (_initialized) return;
+    _initialized = true;
+
+    const raw = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+    const compressed = raw[COMPRESSED_KEY];
+
+    if (typeof compressed === "string" && compressed.length > 0) {
+        try {
+            const json = LZString.decompressFromBase64(compressed);
+            if (json) {
+                const parsed = JSON.parse(json) as unknown;
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    _mem = parsed as Record<string, unknown>;
+                    _migrateKittyFromLocalStorage();
+                    return;
+                }
+            }
+        } catch { /* fall through to legacy migration */ }
+    }
+
+    // Legacy format: copy all real data keys into _mem, skip _d itself
+    _mem = {};
+    for (const [k, v] of Object.entries(raw)) {
+        if (k !== COMPRESSED_KEY) _mem[k] = v;
+    }
+    _migrateKittyFromLocalStorage();
+    flushToExtensionSettings(); // immediately rewrite in compressed form
+}
+
+/** Migrate Kitty data from localStorage into the compressed settings blob. */
+function _migrateKittyFromLocalStorage(): void {
+    const KITTY_LS_KEYS = [
+        "EBC_kittyMood", "EBC_kittyEmotes", "EBC_kittyPoses",
+        "EBC_kittyRestraintSets", "EBC_kittyReactions",
+        "EBC_kittyExprPresets", "EBC_kittyPunishments",
+    ] as const;
+    for (const lsKey of KITTY_LS_KEYS) {
+        const settingKey = lsKey.slice(4); // strip "EBC_" → e.g. "kittyMood"
+        if (_mem[settingKey] !== undefined) continue;
+        try {
+            const raw = localStorage.getItem(lsKey);
+            if (raw) {
+                _mem[settingKey] = JSON.parse(raw) as unknown;
+                localStorage.removeItem(lsKey);
+            }
+        } catch { /* ignore */ }
+    }
+}
+
+/** Returns the live in-memory settings object shared by all EBC modules. */
+export function getSettings(): Record<string, unknown> {
+    if (!_initialized) initSettings();
+    return _mem;
+}
+
+/** Serialise _mem, compress, and write to Player.ExtensionSettings.EmeryBC._d. */
+export function flushToExtensionSettings(): void {
+    try {
+        const compressed = LZString.compressToBase64(JSON.stringify(_mem));
+        if (!Player.ExtensionSettings.EmeryBC ||
+            typeof Player.ExtensionSettings.EmeryBC !== "object") {
+            Player.ExtensionSettings.EmeryBC = {};
+        }
+        (Player.ExtensionSettings.EmeryBC as Record<string, unknown>)[COMPRESSED_KEY] = compressed;
+    } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * Call a BC function, swallowing both synchronous throws AND async rejections.
  *
@@ -40,6 +125,7 @@ export function syncSettings(): void {
     if (_syncTimer !== null) clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => {
         _syncTimer = null;
+        flushToExtensionSettings();
         try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
     }, 400);
 }

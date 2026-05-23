@@ -1,5 +1,8 @@
 // Kitty menu — only visible to Lucy (#230466).
 // Actions target Emery (#130267).
+// Data is stored in the shared compressed ExtensionSettings blob (cross-device).
+
+import { getSettings, syncSettings } from "./bcUtils";
 
 export const LUCY_MEMBER   = 230466;
 export const EMERY_MEMBER  = 130267;
@@ -208,22 +211,20 @@ const DEFAULT_PUNISHMENTS: KittyPunishment[] = [
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
-function lsGet<T>(key: string, fallback: T): T {
-    try {
-        const raw = localStorage.getItem(key);
-        if (raw) return JSON.parse(raw) as T;
-    } catch { /* ignore */ }
-    return fallback;
+function kGet<T>(key: string, fallback: T): T {
+    const v = getSettings()[key];
+    return v !== undefined ? (v as T) : fallback;
 }
-function lsSet(key: string, val: unknown): void {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore */ }
+function kSet(key: string, val: unknown): void {
+    getSettings()[key] = val;
+    syncSettings();
 }
 
 export function getKittyMood(): KittyMood {
-    const v = lsGet<string>("EBC_kittyMood", "kind");
+    const v = kGet<string>("kittyMood", "kind");
     return v === "rough" ? "rough" : "kind";
 }
-export function setKittyMood(m: KittyMood): void { lsSet("EBC_kittyMood", m); }
+export function setKittyMood(m: KittyMood): void { kSet("kittyMood", m); }
 
 // Seed values for existing stored emotes that predate the roughText / expression fields.
 // Only applied if the field is currently undefined (user hasn't touched it yet).
@@ -278,7 +279,7 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
 ];
 
 export function getKittyEmotes(): KittyEmote[] {
-    const raw = lsGet<KittyEmote[]>("EBC_kittyEmotes", DEFAULT_EMOTES);
+    const raw = kGet<KittyEmote[]>("kittyEmotes", DEFAULT_EMOTES);
     const emotes: KittyEmote[] = raw
         // Migration: remove leash emote (replaced by standalone leash button)
         .filter(e => e.id !== "leash")
@@ -309,18 +310,18 @@ export function getKittyEmotes(): KittyEmote[] {
     }
     return emotes;
 }
-export function saveKittyEmotes(v: KittyEmote[]): void { lsSet("EBC_kittyEmotes", v); }
+export function saveKittyEmotes(v: KittyEmote[]): void { kSet("kittyEmotes", v); }
 
 export function getKittyRestraintSets(): KittyRestraintSet[] {
     // Migrate old sets that lack emote fields
-    const raw = lsGet<KittyRestraintSet[]>("EBC_kittyRestraintSets", []);
+    const raw = kGet<KittyRestraintSet[]>("kittyRestraintSets", []);
     return raw.map(s => ({
         ...s,
         kindEmote:  s.kindEmote  ?? "",
         roughEmote: s.roughEmote ?? "",
     }));
 }
-export function saveKittyRestraintSets(v: KittyRestraintSet[]): void { lsSet("EBC_kittyRestraintSets", v); }
+export function saveKittyRestraintSets(v: KittyRestraintSet[]): void { kSet("kittyRestraintSets", v); }
 
 // New poses seeded into existing stored lists that predate them.
 const NEW_POSE_SEEDS: KittyPose[] = DEFAULT_POSES.filter(p =>
@@ -328,7 +329,7 @@ const NEW_POSE_SEEDS: KittyPose[] = DEFAULT_POSES.filter(p =>
 );
 
 export function getKittyPoses(): KittyPose[] {
-    const raw = lsGet<KittyPose[]>("EBC_kittyPoses", DEFAULT_POSES);
+    const raw = kGet<KittyPose[]>("kittyPoses", DEFAULT_POSES);
     const poses: KittyPose[] = raw
         // Migration: remove elbow tie (BackElbowTouch conflicts in BC)
         .filter(p => p.id !== "elbowTie")
@@ -347,7 +348,7 @@ export function getKittyPoses(): KittyPose[] {
     }
     return poses;
 }
-export function saveKittyPoses(v: KittyPose[]): void { lsSet("EBC_kittyPoses", v); }
+export function saveKittyPoses(v: KittyPose[]): void { kSet("kittyPoses", v); }
 
 // ── Pet Reactions ─────────────────────────────────────────────────────────────
 // Categorised one-click emotes Emery sends on Lucy's behalf.
@@ -370,12 +371,12 @@ const DEFAULT_REACTIONS: KittyReactionEntry[] = [
 ];
 
 export function getKittyReactions(): KittyReactionEntry[] {
-    return lsGet<KittyReactionEntry[]>("EBC_kittyReactions", DEFAULT_REACTIONS);
+    return kGet<KittyReactionEntry[]>("kittyReactions", DEFAULT_REACTIONS);
 }
-export function saveKittyReactions(v: KittyReactionEntry[]): void { lsSet("EBC_kittyReactions", v); }
+export function saveKittyReactions(v: KittyReactionEntry[]): void { kSet("kittyReactions", v); }
 
 export function getKittyPunishments(): KittyPunishment[] {
-    const raw = lsGet<KittyPunishment[]>("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
+    const raw = kGet<KittyPunishment[]>("kittyPunishments", DEFAULT_PUNISHMENTS);
     return raw.map(p => {
         if (p.steps) return p; // already new format
         // Migrate legacy kindEmote/roughEmote to an emote step
@@ -386,7 +387,7 @@ export function getKittyPunishments(): KittyPunishment[] {
         return { id: p.id, label: p.label, steps };
     });
 }
-export function saveKittyPunishments(v: KittyPunishment[]): void { lsSet("EBC_kittyPunishments", v); }
+export function saveKittyPunishments(v: KittyPunishment[]): void { kSet("kittyPunishments", v); }
 
 // ── Expression Presets ────────────────────────────────────────────────────────
 // Named multi-expression combos (e.g. "Shy" = Blush:Low + Eyes:Shy + Mouth:Pout)
@@ -398,10 +399,10 @@ export interface KittyExpressionPreset {
 }
 
 export function getKittyExpressionPresets(): KittyExpressionPreset[] {
-    return lsGet<KittyExpressionPreset[]>("EBC_kittyExprPresets", []);
+    return kGet<KittyExpressionPreset[]>("kittyExprPresets", []);
 }
 export function saveKittyExpressionPresets(v: KittyExpressionPreset[]): void {
-    lsSet("EBC_kittyExprPresets", v);
+    kSet("kittyExprPresets", v);
 }
 
 // ── Command protocol ──────────────────────────────────────────────────────────
