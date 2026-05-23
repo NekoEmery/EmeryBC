@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.7.2
+// @version      4.7.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24854,7 +24854,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const acctEl = document.createElement("span");
                             acctEl.textContent = "(" + acctNameRoom + ")";
                             acctEl.title = "BC account name: " + acctNameRoom;
-                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
@@ -25470,7 +25470,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const acctEl = document.createElement("span");
                         acctEl.textContent = "(" + acctName + ")";
                         acctEl.title = "BC account name: " + acctName;
-                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                         nameRow.appendChild(acctEl);
                     }
                     nameRow.appendChild(numEl);
@@ -33162,7 +33162,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.2";
+    const MOD_VERSION = "4.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33173,6 +33173,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.7.9",
+            changes: [
+                "Fix: golden paw now draws directly from live DrawArousalMeter args every frame (MPA-style) — zero caching, zero buffering. BC's args are perfectly stable during idle animation so the paw locks on without any smoothing machinery.",
+            ],
+        },
         {
             version: "4.7.1",
             changes: [
@@ -37994,17 +38000,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — captured ONCE per room-sync event, then held frozen.
-    // BC's idle animation runs every draw frame and fluctuates left/top/zoom
-    // continuously; reading those values per-frame inevitably shakes the paw
-    // no matter how tight the filter.  Instead we capture a single stable
-    // snapshot after each ChatRoomSync/MemberJoin/MemberLeave (with a short
-    // delay so BC finishes repositioning first) and use that frozen value until
-    // the next sync.
-    let _pawFixedLeft = null;
-    let _pawFixedTop = null;
-    let _pawFixedZoom = 1;
-    let _pawCapturing = true; // true → update snapshot on next DrawCharacter
+    // Paw position — read directly from DrawArousalMeter args every frame (MPA approach).
+    // No caching, no buffering — BC's args are stable during idle animation.
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38177,46 +38174,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
         if ((_a = (window.ChatRoomHideIconState)) !== null && _a !== void 0 ? _a : 0)
             return;
-        // ── Creator mark — golden paw just above the name, visible to all EBC users ──
-        // Drawn for member 130267 only, regardless of badge visibility toggles.
-        if (character.MemberNumber === 130267) {
-            const _pawCanvas = getBCCanvas();
-            const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
-            const _pawImg = getEbcPawImg();
-            if (_pawCtx && _pawImg) {
-                // Capture a frozen snapshot when _pawCapturing is true (first draw
-                // ever, or shortly after a room sync), then hold it static.
-                // The idle animation runs every frame — we simply never read those
-                // per-frame values again until the next explicit capture trigger.
-                if (_pawCapturing || _pawFixedLeft === null) {
-                    _pawFixedLeft = left;
-                    _pawFixedTop = top;
-                    _pawFixedZoom = zoom;
-                    _pawCapturing = false;
-                }
-                // BC bottom-aligns characters on a 500×1000 unit canvas; the name
-                // is drawn at roughly top + 975*zoom. Sit the paw just above it.
-                const sz = Math.max(16, Math.round(28 * _pawFixedZoom));
-                const px = Math.floor(_pawFixedLeft + 250 * _pawFixedZoom - sz / 2);
-                const py = Math.floor(_pawFixedTop + 940 * _pawFixedZoom - sz);
-                // Dark backing disc so the paw is legible on any room background
-                const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
-                _pawCtx.save();
-                _pawCtx.globalAlpha = 0.62;
-                _pawCtx.fillStyle = "rgba(0, 0, 0, 0.82)";
-                _pawCtx.beginPath();
-                _pawCtx.arc(px + sz / 2, py + sz / 2, cr, 0, Math.PI * 2);
-                _pawCtx.fill();
-                _pawCtx.restore();
-                // Gold glow + paw image on top
-                _pawCtx.save();
-                _pawCtx.globalAlpha = 0.95;
-                _pawCtx.shadowColor = "rgba(255, 195, 0, 0.9)";
-                _pawCtx.shadowBlur = Math.round(sz * 0.5);
-                _pawCtx.drawImage(_pawImg, px, py, sz, sz);
-                _pawCtx.restore();
-            }
-        }
         // Visibility toggles for the EBC badge
         if (isSelf && !getBadgeEnabled())
             return;
@@ -38531,12 +38488,54 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             return result;
         });
+        // ── Creator paw mark — drawn directly from live DrawArousalMeter args (MPA approach) ──
+        // DrawArousalMeter fires after DrawCharacter with the same x/y/zoom, which are
+        // perfectly stable during idle animation — no caching or smoothing needed.
+        tryHookFunction(modAPI, "DrawArousalMeter", 1, (args, next) => {
+            const result = next(args);
+            try {
+                if (CurrentScreen !== "ChatRoom")
+                    return result;
+                const character = args[0];
+                if ((character === null || character === void 0 ? void 0 : character.MemberNumber) !== 130267)
+                    return result;
+                const left = typeof args[1] === "number" ? args[1] : null;
+                const top = typeof args[2] === "number" ? args[2] : null;
+                const zoom = typeof args[3] === "number" ? args[3] : 1;
+                if (left === null || top === null || zoom < 0.3)
+                    return result;
+                const pawCanvas = getBCCanvas();
+                const pawCtx = pawCanvas === null || pawCanvas === void 0 ? void 0 : pawCanvas.getContext("2d");
+                const pawImg = getEbcPawImg();
+                if (!pawCtx || !pawImg)
+                    return result;
+                // BC bottom-aligns characters on a 500×1000 unit canvas; name is at ~top+975*zoom.
+                const sz = Math.max(16, Math.round(28 * zoom));
+                const px = Math.floor(left + 250 * zoom - sz / 2);
+                const py = Math.floor(top + 940 * zoom - sz);
+                // Dark backing disc so the paw is legible on any room background
+                const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
+                pawCtx.save();
+                pawCtx.globalAlpha = 0.62;
+                pawCtx.fillStyle = "rgba(0, 0, 0, 0.82)";
+                pawCtx.beginPath();
+                pawCtx.arc(px + sz / 2, py + sz / 2, cr, 0, Math.PI * 2);
+                pawCtx.fill();
+                pawCtx.restore();
+                // Gold glow + paw image on top
+                pawCtx.save();
+                pawCtx.globalAlpha = 0.95;
+                pawCtx.shadowColor = "rgba(255, 195, 0, 0.9)";
+                pawCtx.shadowBlur = Math.round(sz * 0.5);
+                pawCtx.drawImage(pawImg, px, py, sz, sz);
+                pawCtx.restore();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return result;
+        });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
-            // Re-capture paw position after BC finishes repositioning characters.
-            // 1200ms gives BC time to fully settle even after large row removals.
-            window.setTimeout(() => { _pawCapturing = true; }, 1200);
             try {
                 syncPresenceMarker();
             }
@@ -38829,7 +38828,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
-            window.setTimeout(() => { _pawCapturing = true; }, 1200);
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38844,9 +38842,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            const result = next(args);
-            window.setTimeout(() => { _pawCapturing = true; }, 1200);
-            return result;
+            return next(args);
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
