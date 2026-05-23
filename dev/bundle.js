@@ -33145,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.0";
+    const MOD_VERSION = "4.7.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33156,6 +33156,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.7.1",
+            changes: [
+                "Fix: golden paw is now completely static — position is captured once per room-sync event (with a 500ms delay so BC finishes repositioning first) and frozen until the next sync. BC's idle animation never touches the stored value, so there is nothing left to shake.",
+            ],
+        },
         {
             version: "4.7.0",
             changes: [
@@ -37971,15 +37977,17 @@
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — left, top AND zoom are all snapped together so that BC's
-    // idle-animation breathing (which nudges both position and zoom each frame)
-    // can't move the paw.  All three must stay within their thresholds to hold;
-    // any one exceeding its threshold triggers an immediate update of all three.
-    const PAW_POS_THRESHOLD = 6; // canvas units  — filters position jitter
-    const PAW_ZOOM_THRESHOLD = 0.008; // zoom units    — filters zoom jitter (0.008 × 940 ≈ 7 px)
-    let _pawSnapLeft = null;
-    let _pawSnapTop = null;
-    let _pawSnapZoom = 1;
+    // Paw position — captured ONCE per room-sync event, then held frozen.
+    // BC's idle animation runs every draw frame and fluctuates left/top/zoom
+    // continuously; reading those values per-frame inevitably shakes the paw
+    // no matter how tight the filter.  Instead we capture a single stable
+    // snapshot after each ChatRoomSync/MemberJoin/MemberLeave (with a short
+    // delay so BC finishes repositioning first) and use that frozen value until
+    // the next sync.
+    let _pawFixedLeft = null;
+    let _pawFixedTop = null;
+    let _pawFixedZoom = 1;
+    let _pawCapturing = true; // true → update snapshot on next DrawCharacter
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38159,27 +38167,21 @@
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Snap left, top, and zoom together.  BC's breathing animation nudges
-                // all three slightly each frame; multiplying a jittery zoom by 940
-                // amplifies it into visible paw movement even when position is held.
-                // Any single value exceeding its threshold updates all three at once.
-                if (_pawSnapLeft === null || _pawSnapTop === null) {
-                    _pawSnapLeft = left;
-                    _pawSnapTop = top;
-                    _pawSnapZoom = zoom;
-                }
-                else if (Math.abs(left - _pawSnapLeft) > PAW_POS_THRESHOLD ||
-                    Math.abs(top - _pawSnapTop) > PAW_POS_THRESHOLD ||
-                    Math.abs(zoom - _pawSnapZoom) > PAW_ZOOM_THRESHOLD) {
-                    _pawSnapLeft = left;
-                    _pawSnapTop = top;
-                    _pawSnapZoom = zoom;
+                // Capture a frozen snapshot when _pawCapturing is true (first draw
+                // ever, or shortly after a room sync), then hold it static.
+                // The idle animation runs every frame — we simply never read those
+                // per-frame values again until the next explicit capture trigger.
+                if (_pawCapturing || _pawFixedLeft === null) {
+                    _pawFixedLeft = left;
+                    _pawFixedTop = top;
+                    _pawFixedZoom = zoom;
+                    _pawCapturing = false;
                 }
                 // BC bottom-aligns characters on a 500×1000 unit canvas; the name
                 // is drawn at roughly top + 975*zoom. Sit the paw just above it.
-                const sz = Math.max(16, Math.round(28 * _pawSnapZoom));
-                const px = Math.floor(_pawSnapLeft + 250 * _pawSnapZoom - sz / 2);
-                const py = Math.floor(_pawSnapTop + 940 * _pawSnapZoom - sz);
+                const sz = Math.max(16, Math.round(28 * _pawFixedZoom));
+                const px = Math.floor(_pawFixedLeft + 250 * _pawFixedZoom - sz / 2);
+                const py = Math.floor(_pawFixedTop + 940 * _pawFixedZoom - sz);
                 // Dark backing disc so the paw is legible on any room background
                 const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
                 _pawCtx.save();
@@ -38515,6 +38517,8 @@
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
+            // Re-capture paw position after BC finishes repositioning characters.
+            window.setTimeout(() => { _pawCapturing = true; }, 500);
             try {
                 syncPresenceMarker();
             }
@@ -38807,6 +38811,7 @@
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
+            window.setTimeout(() => { _pawCapturing = true; }, 500);
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38821,7 +38826,9 @@
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            return next(args);
+            const result = next(args);
+            window.setTimeout(() => { _pawCapturing = true; }, 500);
+            return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
