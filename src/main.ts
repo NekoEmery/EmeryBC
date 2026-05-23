@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.6.8";
+const MOD_VERSION = "4.6.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.6.9",
+        changes: [
+            "Fix: golden paw jitter filter restored — BC's idle-animation nudges left/top by ±1-2 units per frame which was visible on a large glowing icon. Movements under 4 units are now held; anything larger (join/leave repositioning, zoom) updates immediately with no lag.",
+        ],
+    },
     {
         version: "4.6.8",
         changes: [
@@ -4862,8 +4868,12 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _dragTarget: "icon" | "version" | null = null;
 
-// No position tracking needed — the paw is computed directly from the
-// DrawCharacter arguments every frame, so it is always glued to the name tag.
+// Paw position — snapped to filter BC's idle-animation jitter (±1-2 units/frame).
+// Any movement larger than PAW_JITTER_THRESHOLD updates the snap immediately
+// (join/leave repositioning, zoom changes) so there is never any lag or delay.
+const PAW_JITTER_THRESHOLD = 4;
+let _pawSnapLeft: number | null = null;
+let _pawSnapTop:  number | null = null;
 
 // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
 // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
@@ -5037,14 +5047,26 @@ function drawPresenceMarker(args: unknown[]): void {
         const _pawCtx    = _pawCanvas?.getContext("2d");
         const _pawImg    = getEbcPawImg();
         if (_pawCtx && _pawImg) {
-            // Anchor directly to the name-tag position BC reports every frame.
-            // No snap, no settle counter — the paw is glued to the name label
-            // and moves with it perfectly whenever BC repositions characters.
+            // Filter BC's ±1-2 unit idle-animation jitter: only update the snap
+            // when the character moves more than PAW_JITTER_THRESHOLD units.
+            // Larger moves (join/leave reposition, zoom) update immediately — no
+            // settle counter, no timer, no lag.
+            if (_pawSnapLeft === null || _pawSnapTop === null) {
+                _pawSnapLeft = left;
+                _pawSnapTop  = top;
+            } else if (
+                Math.abs(left - _pawSnapLeft) > PAW_JITTER_THRESHOLD ||
+                Math.abs(top  - _pawSnapTop)  > PAW_JITTER_THRESHOLD
+            ) {
+                _pawSnapLeft = left;
+                _pawSnapTop  = top;
+            }
+
             // BC bottom-aligns characters on a 500×1000 unit canvas; the name
-            // is drawn at roughly top + 975*zoom.  We sit the paw just above it.
+            // is drawn at roughly top + 975*zoom. Sit the paw just above it.
             const sz = Math.max(16, Math.round(28 * zoom));
-            const px = Math.floor(left + 250 * zoom - sz / 2);
-            const py = Math.floor(top  + 940 * zoom - sz);
+            const px = Math.floor(_pawSnapLeft + 250 * zoom - sz / 2);
+            const py = Math.floor(_pawSnapTop  + 940 * zoom - sz);
 
             // Dark backing disc so the paw is legible on any room background
             const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
