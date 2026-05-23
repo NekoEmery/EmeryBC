@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.6.9
+// @version      4.7.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33162,7 +33162,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.9";
+    const MOD_VERSION = "4.7.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33173,6 +33173,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.7.0",
+            changes: [
+                "Fix: golden paw now snaps left, top, and zoom together — BC's breathing animation nudges all three each frame, and multiplying a jittery zoom by 940 was enough to visibly shake the paw even when position was held. All three values must exceed their thresholds before any update fires.",
+            ],
+        },
         {
             version: "4.6.9",
             changes: [
@@ -37982,12 +37988,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — snapped to filter BC's idle-animation jitter (±1-2 units/frame).
-    // Any movement larger than PAW_JITTER_THRESHOLD updates the snap immediately
-    // (join/leave repositioning, zoom changes) so there is never any lag or delay.
-    const PAW_JITTER_THRESHOLD = 4;
+    // Paw position — left, top AND zoom are all snapped together so that BC's
+    // idle-animation breathing (which nudges both position and zoom each frame)
+    // can't move the paw.  All three must stay within their thresholds to hold;
+    // any one exceeding its threshold triggers an immediate update of all three.
+    const PAW_POS_THRESHOLD = 6; // canvas units  — filters position jitter
+    const PAW_ZOOM_THRESHOLD = 0.008; // zoom units    — filters zoom jitter (0.008 × 940 ≈ 7 px)
     let _pawSnapLeft = null;
     let _pawSnapTop = null;
+    let _pawSnapZoom = 1;
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38167,24 +38176,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Filter BC's ±1-2 unit idle-animation jitter: only update the snap
-                // when the character moves more than PAW_JITTER_THRESHOLD units.
-                // Larger moves (join/leave reposition, zoom) update immediately — no
-                // settle counter, no timer, no lag.
+                // Snap left, top, and zoom together.  BC's breathing animation nudges
+                // all three slightly each frame; multiplying a jittery zoom by 940
+                // amplifies it into visible paw movement even when position is held.
+                // Any single value exceeding its threshold updates all three at once.
                 if (_pawSnapLeft === null || _pawSnapTop === null) {
                     _pawSnapLeft = left;
                     _pawSnapTop = top;
+                    _pawSnapZoom = zoom;
                 }
-                else if (Math.abs(left - _pawSnapLeft) > PAW_JITTER_THRESHOLD ||
-                    Math.abs(top - _pawSnapTop) > PAW_JITTER_THRESHOLD) {
+                else if (Math.abs(left - _pawSnapLeft) > PAW_POS_THRESHOLD ||
+                    Math.abs(top - _pawSnapTop) > PAW_POS_THRESHOLD ||
+                    Math.abs(zoom - _pawSnapZoom) > PAW_ZOOM_THRESHOLD) {
                     _pawSnapLeft = left;
                     _pawSnapTop = top;
+                    _pawSnapZoom = zoom;
                 }
                 // BC bottom-aligns characters on a 500×1000 unit canvas; the name
                 // is drawn at roughly top + 975*zoom. Sit the paw just above it.
-                const sz = Math.max(16, Math.round(28 * zoom));
-                const px = Math.floor(_pawSnapLeft + 250 * zoom - sz / 2);
-                const py = Math.floor(_pawSnapTop + 940 * zoom - sz);
+                const sz = Math.max(16, Math.round(28 * _pawSnapZoom));
+                const px = Math.floor(_pawSnapLeft + 250 * _pawSnapZoom - sz / 2);
+                const py = Math.floor(_pawSnapTop + 940 * _pawSnapZoom - sz);
                 // Dark backing disc so the paw is legible on any room background
                 const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
                 _pawCtx.save();
