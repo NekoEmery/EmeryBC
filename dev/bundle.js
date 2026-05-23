@@ -33159,7 +33159,7 @@
         {
             version: "4.7.9",
             changes: [
-                "Fix: golden paw now draws directly from live DrawArousalMeter args every frame (MPA-style) — zero caching, zero buffering. BC's args are perfectly stable during idle animation so the paw locks on without any smoothing machinery.",
+                "Fix: golden paw now draws directly from live DrawArousalMeter args every frame — zero caching, zero buffering. BC's draw args are stable during idle animation so the paw locks on without any smoothing machinery.",
             ],
         },
         {
@@ -37983,8 +37983,8 @@
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — read directly from DrawArousalMeter args every frame (MPA approach).
-    // No caching, no buffering — BC's args are stable during idle animation.
+    // Paw position — read directly from DrawArousalMeter args every frame.
+    // No caching, no buffering — BC's draw args are stable during idle animation.
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38471,7 +38471,7 @@
             }
             return result;
         });
-        // ── Creator paw mark — drawn directly from live DrawArousalMeter args (MPA approach) ──
+        // ── Creator paw mark — drawn directly from live DrawArousalMeter args ──
         // DrawArousalMeter fires after DrawCharacter with the same x/y/zoom, which are
         // perfectly stable during idle animation — no caching or smoothing needed.
         tryHookFunction(modAPI, "DrawArousalMeter", 1, (args, next) => {
