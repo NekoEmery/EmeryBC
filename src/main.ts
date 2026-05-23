@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.7.4";
+const MOD_VERSION = "4.7.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -4880,23 +4880,22 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _dragTarget: "icon" | "version" | null = null;
 
-// Paw position — committed only after the candidate position has been stable
-// for _PAW_STABLE_MS real milliseconds (frame-rate independent).  BC's idle
-// animation fluctuates left/top/zoom every frame; we absorb it with the
-// jitter thresholds and only reset the stability clock on genuine movements.
-// During any BC row-transition the paw stays frozen at the last committed
-// position rather than jumping to an intermediate location.
-let _pawFixedLeft: number | null = null;
-let _pawFixedTop:  number | null = null;
-let _pawFixedZoom: number        = 1;
-// Candidate position — reset to current frame whenever position exceeds jitter
-let _pawPendLeft:   number       = 0;
-let _pawPendTop:    number       = 0;
-let _pawPendZoom:   number       = 1;
-let _pawPendSince:  number       = 0;     // Date.now() when candidate started
-const _PAW_STABLE_MS             = 500;   // ms of stability required to commit
-const _PAW_JITTER_PX             = 5;     // pixel tolerance (idle breathing)
-const _PAW_JITTER_ZOOM           = 0.012; // zoom tolerance
+// Paw position — stability-detection with force-commit safety net.
+// _pawFixed* is what gets drawn; only updates after _PAW_STABLE_MS of
+// the candidate being within jitter, OR after _PAW_FORCE_MS without any
+// commit (so the paw never permanently drifts off Emery in an active room).
+let _pawFixedLeft:  number | null = null;
+let _pawFixedTop:   number | null = null;
+let _pawFixedZoom:  number        = 1;
+let _pawPendLeft:   number        = 0;
+let _pawPendTop:    number        = 0;
+let _pawPendZoom:   number        = 1;
+let _pawPendSince:  number        = 0;   // Date.now() when candidate last reset
+let _pawLastCommit: number        = 0;   // Date.now() of last commit
+const _PAW_STABLE_MS              = 200; // ms of stability needed to commit
+const _PAW_FORCE_MS               = 2000; // force-commit if stuck this long
+const _PAW_JITTER_PX              = 15;  // px tolerance — wide enough to swallow BC idle anim
+const _PAW_JITTER_ZOOM            = 0.02; // zoom tolerance
 
 // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
 // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
@@ -5070,35 +5069,44 @@ function drawPresenceMarker(args: unknown[]): void {
         const _pawCtx    = _pawCanvas?.getContext("2d");
         const _pawImg    = getEbcPawImg();
         if (_pawCtx && _pawImg) {
-            // Stability detection: reset the clock whenever position moves
-            // outside jitter.  Only commit to the drawn position once the
-            // candidate has been unchanged for _PAW_STABLE_MS (frame-rate
-            // independent).  This keeps the paw frozen during BC transitions
-            // regardless of how long they take or how active the room is.
+            // Stability-detection with force-commit fallback.
+            // The jitter window is wide enough to absorb BC's idle animation;
+            // the stability clock only resets on genuine large movements.
+            // If commits are blocked for _PAW_FORCE_MS (busy room / long
+            // transition), we force-commit to the current frame's position so
+            // the paw is never permanently wrong.
             const _pawNow = Date.now();
             if (
                 Math.abs(left - _pawPendLeft)  <= _PAW_JITTER_PX &&
                 Math.abs(top  - _pawPendTop)   <= _PAW_JITTER_PX &&
                 Math.abs(zoom - _pawPendZoom)  <= _PAW_JITTER_ZOOM
             ) {
-                // Still within jitter of candidate — clock keeps ticking
+                // Within jitter — candidate unchanged, clock ticking
             } else {
-                // Moved beyond jitter — reset candidate and restart clock
+                // Beyond jitter — new candidate, restart clock
                 _pawPendLeft  = left;
                 _pawPendTop   = top;
                 _pawPendZoom  = zoom;
                 _pawPendSince = _pawNow;
             }
-            // Commit once stable, or immediately on first-ever draw
-            const _pawStable = (_pawNow - _pawPendSince) >= _PAW_STABLE_MS;
-            if (_pawFixedLeft === null || _pawStable) {
-                const dl = Math.abs(_pawPendLeft - (_pawFixedLeft ?? _pawPendLeft + 9999));
-                const dt = Math.abs(_pawPendTop  - (_pawFixedTop  ?? _pawPendTop  + 9999));
-                const dz = Math.abs(_pawPendZoom - _pawFixedZoom);
-                if (_pawFixedLeft === null || dl > _PAW_JITTER_PX || dt > _PAW_JITTER_PX || dz > _PAW_JITTER_ZOOM) {
-                    _pawFixedLeft = Math.round(_pawPendLeft);
-                    _pawFixedTop  = Math.round(_pawPendTop);
-                    _pawFixedZoom = _pawPendZoom;
+            const _pawStable = (_pawNow - _pawPendSince)  >= _PAW_STABLE_MS;
+            const _pawForced = (_pawNow - _pawLastCommit) >= _PAW_FORCE_MS;
+            if (_pawFixedLeft === null || _pawStable || _pawForced) {
+                // Force-commit uses current frame's live position; normal
+                // commit uses the candidate (last position that moved > jitter).
+                const cL = _pawForced ? left : _pawPendLeft;
+                const cT = _pawForced ? top  : _pawPendTop;
+                const cZ = _pawForced ? zoom : _pawPendZoom;
+                _pawFixedLeft  = Math.round(cL);
+                _pawFixedTop   = Math.round(cT);
+                _pawFixedZoom  = cZ;
+                _pawLastCommit = _pawNow;
+                if (_pawForced) {
+                    // Re-anchor candidate so jitter check starts fresh
+                    _pawPendLeft  = left;
+                    _pawPendTop   = top;
+                    _pawPendZoom  = zoom;
+                    _pawPendSince = _pawNow;
                 }
             }
 
