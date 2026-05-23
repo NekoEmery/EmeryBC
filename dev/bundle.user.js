@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.6.6
+// @version      4.6.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33162,7 +33162,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.6";
+    const MOD_VERSION = "4.6.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33173,6 +33173,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.7",
+            changes: [
+                "Fix: golden paw no longer shakes when players join or leave — replaced the timer-based freeze with a settle-counter: the paw only moves to a new canvas position after the character has been stable there for 10 consecutive draw frames, so BC's repositioning animation plays out completely before the paw follows.",
+            ],
+        },
         {
             version: "4.6.6",
             changes: [
@@ -37964,16 +37970,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Snapped paw position for member 130267 — only updates when the character
-    // moves by more than PAW_SNAP_THRESHOLD canvas units so BC's 1-2 unit idle
-    // animation jitter doesn't shake the paw every frame.
-    // On member join/leave, _pawSnapFrozenUntil is set so the paw holds its last
-    // stable position while BC repositions characters, then snaps once afterward.
-    const PAW_SNAP_THRESHOLD = 5;
-    const PAW_SNAP_FREEZE_MS = 600;
+    // Snapped paw position for member 130267.
+    // The paw only moves to a new position after the character has been stable
+    // there for PAW_SETTLE_FRAMES consecutive draw frames.  This absorbs both the
+    // 1-2 unit idle-animation jitter AND the multi-frame character repositioning
+    // that BC plays when someone joins or leaves the room — without needing any
+    // timers or event hooks.
+    const PAW_SNAP_THRESHOLD = 5; // within this range of snap → hold (idle jitter)
+    const PAW_SETTLE_FRAMES = 10; // frames of stability required before snapping to new pos
     let _pawSnapLeft = null;
     let _pawSnapTop = null;
-    let _pawSnapFrozenUntil = 0; // ms epoch; snap position won't update while < Date.now()
+    let _pawLastLeft = 0; // character position on the previous draw frame
+    let _pawLastTop = 0;
+    let _pawStableFor = 0; // consecutive frames the position has been stable
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -38153,20 +38162,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Snap the draw position: only update stored coordinates when the character
-                // moves by more than PAW_SNAP_THRESHOLD canvas units. This absorbs BC's
-                // 1-2 unit idle-animation jitter so the paw stays visually static.
-                // While frozen (after a member join/leave), the snap holds its last value
-                // so the paw doesn't animate through BC's character-repositioning transition.
+                // Settle-counter snap: the paw only moves to a new position after
+                // the character has been stable there for PAW_SETTLE_FRAMES consecutive
+                // frames.  Movements within PAW_SNAP_THRESHOLD of the current snap are
+                // treated as idle jitter and ignored.  Larger movements (join/leave
+                // repositioning or zoom changes) require the character to stop moving
+                // before the snap updates — eliminating shake entirely.
                 if (_pawSnapLeft === null || _pawSnapTop === null) {
-                    // First-ever frame — initialise regardless of freeze state.
-                    _pawSnapLeft = left;
-                    _pawSnapTop = top;
+                    // First-ever frame — initialise immediately.
+                    _pawSnapLeft = _pawLastLeft = left;
+                    _pawSnapTop = _pawLastTop = top;
+                    _pawStableFor = 0;
                 }
-                else if (Date.now() >= _pawSnapFrozenUntil && (Math.abs(left - _pawSnapLeft) > PAW_SNAP_THRESHOLD ||
-                    Math.abs(top - _pawSnapTop) > PAW_SNAP_THRESHOLD)) {
-                    _pawSnapLeft = left;
-                    _pawSnapTop = top;
+                else {
+                    const farFromSnap = Math.abs(left - _pawSnapLeft) > PAW_SNAP_THRESHOLD ||
+                        Math.abs(top - _pawSnapTop) > PAW_SNAP_THRESHOLD;
+                    const stableThisFrame = Math.abs(left - _pawLastLeft) <= PAW_SNAP_THRESHOLD &&
+                        Math.abs(top - _pawLastTop) <= PAW_SNAP_THRESHOLD;
+                    _pawLastLeft = left;
+                    _pawLastTop = top;
+                    if (!farFromSnap) {
+                        // Within jitter range of current snap — hold, reset counter.
+                        _pawStableFor = 0;
+                    }
+                    else if (stableThisFrame) {
+                        // Away from snap but not moving this frame — count stable frames.
+                        if (++_pawStableFor >= PAW_SETTLE_FRAMES) {
+                            _pawSnapLeft = left;
+                            _pawSnapTop = top;
+                            _pawStableFor = 0;
+                        }
+                    }
+                    else {
+                        // Still in motion — reset counter.
+                        _pawStableFor = 0;
+                    }
                 }
                 const sLeft = _pawSnapLeft;
                 const sTop = _pawSnapTop;
@@ -38804,8 +38834,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // handle both shapes to be safe across BC versions.
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
-            // Freeze paw snap so it doesn't shake while BC repositions characters.
-            _pawSnapFrozenUntil = Date.now() + PAW_SNAP_FREEZE_MS;
             const result = next(args);
             try {
                 const [data] = args;
@@ -38821,8 +38849,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            // Freeze paw snap so it doesn't shake while BC repositions characters.
-            _pawSnapFrozenUntil = Date.now() + PAW_SNAP_FREEZE_MS;
             return next(args);
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
