@@ -33145,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.1";
+    const MOD_VERSION = "4.7.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -38518,7 +38518,8 @@
             var _a, _b;
             const result = next(args);
             // Re-capture paw position after BC finishes repositioning characters.
-            window.setTimeout(() => { _pawCapturing = true; }, 500);
+            // 1200ms gives BC time to fully settle even after large row removals.
+            window.setTimeout(() => { _pawCapturing = true; }, 1200);
             try {
                 syncPresenceMarker();
             }
@@ -38811,7 +38812,7 @@
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
             var _a;
             const result = next(args);
-            window.setTimeout(() => { _pawCapturing = true; }, 500);
+            window.setTimeout(() => { _pawCapturing = true; }, 1200);
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
@@ -38827,7 +38828,7 @@
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
             const result = next(args);
-            window.setTimeout(() => { _pawCapturing = true; }, 500);
+            window.setTimeout(() => { _pawCapturing = true; }, 1200);
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
