@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.7.7";
+const MOD_VERSION = "4.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -4880,16 +4880,28 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _dragTarget: "icon" | "version" | null = null;
 
-// Paw position — live per-frame tracking outside freeze windows.
-// After any room sync event we freeze for _PAW_FREEZE_MS so the paw
-// holds its last good position while BC finishes repositioning.
-// Once the window expires we resume reading every frame, so the paw
-// correctly follows BC's idle animation without any permanent drift.
-let _pawFixedLeft:   number | null = null;
-let _pawFixedTop:    number | null = null;
-let _pawFixedZoom:   number        = 1;
-let _pawFrozenUntil: number        = 0;   // epoch ms; block live reads until this time
-const _PAW_FREEZE_MS               = 1500; // ms to freeze after a sync event
+// Paw position — 60-frame sliding-window mean with spread gating.
+//
+// We accumulate the last _PAW_WIN DrawCharacter frames for member 130267.
+// Every frame we compute the position spread (max−min) across the window.
+// If the spread is below _PAW_SPREAD_PX the window only contains idle-
+// animation variance, so we commit the MEAN — which averages out the
+// oscillation to produce a perfectly static drawn position.
+// If the spread exceeds the threshold BC is mid-repositioning and we keep
+// the last committed position unchanged.
+//
+// On any sync event the buffer is cleared, forcing a fresh 60-frame
+// collection before the next commit.  This guarantees the paw only updates
+// after BC has fully settled into the new layout.
+let _pawFixedLeft: number | null = null;
+let _pawFixedTop:  number | null = null;
+let _pawFixedZoom: number        = 1;
+const _PAW_WIN       = 60;   // history window (frames)
+const _PAW_SPREAD_PX = 150;  // max position spread to be considered "settled"
+const _PAW_SPREAD_Z  = 0.05; // max zoom spread (zoom only changes on layout change)
+let _pawBufL: number[] = [];
+let _pawBufT: number[] = [];
+let _pawBufZ: number[] = [];
 
 // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
 // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
@@ -5063,15 +5075,32 @@ function drawPresenceMarker(args: unknown[]): void {
         const _pawCtx    = _pawCanvas?.getContext("2d");
         const _pawImg    = getEbcPawImg();
         if (_pawCtx && _pawImg) {
-            // Stability-detection with force-commit fallback.
-            // Outside the freeze window: read the live position every frame so
-            // the paw correctly tracks BC's idle animation.  Inside the window
-            // (set by sync events) we hold the last good position so the paw
-            // doesn't jump while BC is mid-repositioning.
-            if (_pawFixedLeft === null || Date.now() >= _pawFrozenUntil) {
+            // Accumulate position history for this frame.
+            _pawBufL.push(left); _pawBufT.push(top); _pawBufZ.push(zoom);
+            if (_pawBufL.length > _PAW_WIN) {
+                _pawBufL.shift(); _pawBufT.shift(); _pawBufZ.shift();
+            }
+
+            if (_pawFixedLeft === null) {
+                // No position yet — snap immediately so the paw appears at once.
                 _pawFixedLeft = Math.round(left);
                 _pawFixedTop  = Math.round(top);
                 _pawFixedZoom = zoom;
+            } else if (_pawBufL.length === _PAW_WIN) {
+                // Full window: only commit when the position spread is small
+                // (BC is settled; only idle-animation variance remains).
+                const sL = Math.max(..._pawBufL) - Math.min(..._pawBufL);
+                const sT = Math.max(..._pawBufT) - Math.min(..._pawBufT);
+                const sZ = Math.max(..._pawBufZ) - Math.min(..._pawBufZ);
+                if (sL <= _PAW_SPREAD_PX && sT <= _PAW_SPREAD_PX && sZ <= _PAW_SPREAD_Z) {
+                    const n  = _PAW_WIN;
+                    const rL = _pawBufL.reduce((s, v) => s + v, 0) / n;
+                    const rT = _pawBufT.reduce((s, v) => s + v, 0) / n;
+                    const rZ = _pawBufZ.reduce((s, v) => s + v, 0) / n;
+                    _pawFixedLeft = Math.round(rL);
+                    _pawFixedTop  = Math.round(rT);
+                    _pawFixedZoom = rZ;
+                }
             }
 
             // BC bottom-aligns characters on a 500×1000 unit canvas; the name
@@ -5406,9 +5435,9 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        // Freeze paw for 1.5 s so it holds its last good position while BC
-        // finishes repositioning characters after the sync.
-        _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+        // Clear the position buffer — forces a fresh 60-frame collection
+        // before the paw commits to any new position after this sync.
+        _pawBufL = []; _pawBufT = []; _pawBufZ = [];
         try { syncPresenceMarker();         } catch { /* ignore */ }
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
@@ -5629,7 +5658,7 @@ function init(): void {
     // handle both shapes to be safe across BC versions.
     tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
         const result = next(args);
-        _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+        _pawBufL = []; _pawBufT = []; _pawBufZ = [];
         try {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
@@ -5641,7 +5670,7 @@ function init(): void {
 
     tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
         const result = next(args);
-        _pawFrozenUntil = Date.now() + _PAW_FREEZE_MS;
+        _pawBufL = []; _pawBufT = []; _pawBufZ = [];
         return result;
     });
 
