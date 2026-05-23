@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.6.4";
+const MOD_VERSION = "4.6.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.6.5",
+        changes: [
+            "Fix: settings storage reverted to plain keys (no compression) — removes the data-loss risk introduced in v4.6.2–v4.6.4. One-time recovery migration: if v4.6.4 corrupted the compressed blob with an empty sync, the pre-v4.6.2 raw keys (which were never overwritten) are used to restore your outfits, scenes, and other saved data automatically on first load.",
+        ],
+    },
     {
         version: "4.6.4",
         changes: [
