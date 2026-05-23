@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.8
+// @version      4.5.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33238,7 +33238,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.8";
+    const MOD_VERSION = "4.5.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33249,6 +33249,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.9",
+            changes: [
+                "Fix: EBC overhead badges (paw mark, text/cat badge) now hide correctly when BC's 'Show/hide character icons' button is toggled — they previously stayed visible and overlapped character images.",
+            ],
+        },
         {
             version: "4.5.8",
             changes: [
@@ -37957,7 +37963,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
+        const presence = Object.assign({ version: "4.5.9", marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
@@ -38147,7 +38153,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         canvas.addEventListener("touchend", () => onUp());
     }
     function drawPresenceMarker(args) {
-        var _a;
+        var _a, _b;
         if (CurrentScreen !== "ChatRoom")
             return;
         const character = args[0];
@@ -38165,6 +38171,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         // Skip map / bird's-eye view
         if (zoom < 0.3)
+            return;
+        // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
+        if ((_a = (window.ChatRoomHideIconState)) !== null && _a !== void 0 ? _a : 0)
             return;
         // ── Creator mark — golden paw just above the name, visible to all EBC users ──
         // Drawn for member 130267 only, regardless of badge visibility toggles.
@@ -38219,7 +38228,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         const presence = getSharedPresence(character);
         const showVer = isSelf ? getShowVersionBadge() : getShowOthersVersionBadge();
-        const verStr = isSelf ? MOD_VERSION : ((_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : "?");
+        const verStr = isSelf ? MOD_VERSION : ((_b = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _b !== void 0 ? _b : "?");
         const isDevUser = isSelf ? IS_DEV_BUILD : ((presence === null || presence === void 0 ? void 0 : presence.isDev) === true);
         const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
