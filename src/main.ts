@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.7.2";
+const MOD_VERSION = "4.7.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -4880,17 +4880,23 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _dragTarget: "icon" | "version" | null = null;
 
-// Paw position — captured ONCE per room-sync event, then held frozen.
-// BC's idle animation runs every draw frame and fluctuates left/top/zoom
-// continuously; reading those values per-frame inevitably shakes the paw
-// no matter how tight the filter.  Instead we capture a single stable
-// snapshot after each ChatRoomSync/MemberJoin/MemberLeave (with a short
-// delay so BC finishes repositioning first) and use that frozen value until
-// the next sync.
+// Paw position — committed only after 90 consecutive stable frames (~1.5s at
+// 60 fps).  BC's idle animation and row-collapse transitions both move
+// left/top/zoom every frame; a fixed timer can't guarantee BC has settled.
+// Instead we track a "pending" position and only promote it to "fixed"
+// (what we actually draw) once it stops changing.  During any transition the
+// paw stays frozen at the last committed position rather than jumping around.
 let _pawFixedLeft: number | null = null;
 let _pawFixedTop:  number | null = null;
 let _pawFixedZoom: number        = 1;
-let _pawCapturing: boolean       = true;  // true → update snapshot on next DrawCharacter
+// Pending (candidate) position — reset whenever BC moves more than jitter
+let _pawPendLeft:   number       = 0;
+let _pawPendTop:    number       = 0;
+let _pawPendZoom:   number       = 1;
+let _pawPendFrames: number       = 0;
+const _PAW_STABLE_FRAMES         = 90;    // frames of stability before committing
+const _PAW_JITTER_PX             = 5;     // pixel tolerance (idle breathing)
+const _PAW_JITTER_ZOOM           = 0.012; // zoom tolerance
 
 // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
 // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
@@ -5064,15 +5070,34 @@ function drawPresenceMarker(args: unknown[]): void {
         const _pawCtx    = _pawCanvas?.getContext("2d");
         const _pawImg    = getEbcPawImg();
         if (_pawCtx && _pawImg) {
-            // Capture a frozen snapshot when _pawCapturing is true (first draw
-            // ever, or shortly after a room sync), then hold it static.
-            // The idle animation runs every frame — we simply never read those
-            // per-frame values again until the next explicit capture trigger.
-            if (_pawCapturing || _pawFixedLeft === null) {
-                _pawFixedLeft = left;
-                _pawFixedTop  = top;
-                _pawFixedZoom = zoom;
-                _pawCapturing = false;
+            // Stability detection: accumulate frames where (left,top,zoom)
+            // stays within jitter of the pending candidate.  Only commit to
+            // the fixed (drawn) position after _PAW_STABLE_FRAMES stable
+            // frames — this keeps the paw frozen during BC row-transitions.
+            if (
+                Math.abs(left - _pawPendLeft)  <= _PAW_JITTER_PX &&
+                Math.abs(top  - _pawPendTop)   <= _PAW_JITTER_PX &&
+                Math.abs(zoom - _pawPendZoom)  <= _PAW_JITTER_ZOOM
+            ) {
+                if (_pawPendFrames < _PAW_STABLE_FRAMES)
+                    _pawPendFrames++;
+            } else {
+                // Position changed beyond jitter — reset candidate
+                _pawPendLeft   = left;
+                _pawPendTop    = top;
+                _pawPendZoom   = zoom;
+                _pawPendFrames = 1;
+            }
+            // Promote candidate to fixed once stable (or on very first draw)
+            if (_pawFixedLeft === null || _pawPendFrames >= _PAW_STABLE_FRAMES) {
+                const dl = Math.abs(_pawPendLeft - (_pawFixedLeft ?? _pawPendLeft + 9999));
+                const dt = Math.abs(_pawPendTop  - (_pawFixedTop  ?? _pawPendTop  + 9999));
+                const dz = Math.abs(_pawPendZoom - _pawFixedZoom);
+                if (_pawFixedLeft === null || dl > _PAW_JITTER_PX || dt > _PAW_JITTER_PX || dz > _PAW_JITTER_ZOOM) {
+                    _pawFixedLeft = Math.round(_pawPendLeft);
+                    _pawFixedTop  = Math.round(_pawPendTop);
+                    _pawFixedZoom = _pawPendZoom;
+                }
             }
 
             // BC bottom-aligns characters on a 500×1000 unit canvas; the name
@@ -5407,9 +5432,7 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        // Re-capture paw position after BC finishes repositioning characters.
-        // 1200ms gives BC time to fully settle even after large row removals.
-        window.setTimeout(() => { _pawCapturing = true; }, 1200);
+        // Paw position is now self-stabilising via frame counter — no timer needed.
         try { syncPresenceMarker();         } catch { /* ignore */ }
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
@@ -5630,7 +5653,6 @@ function init(): void {
     // handle both shapes to be safe across BC versions.
     tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
         const result = next(args);
-        window.setTimeout(() => { _pawCapturing = true; }, 1200);
         try {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
@@ -5641,9 +5663,7 @@ function init(): void {
     });
 
     tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-        const result = next(args);
-        window.setTimeout(() => { _pawCapturing = true; }, 1200);
-        return result;
+        return next(args);
     });
 
     // Keep restraint timer up to date on every draw tick (lightweight check)
