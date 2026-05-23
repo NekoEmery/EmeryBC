@@ -11251,6 +11251,8 @@ export class EBCDrawer {
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
             const el = existing.el;
+            // Ensure visible — may have been hidden while outside a chatroom
+            el.style.display = "";
             // Un-minimize first so we can measure real height
             const restoreFn = (el as unknown as Record<string, unknown>)._restoreMin as (() => void) | undefined;
             restoreFn?.();
@@ -12260,9 +12262,9 @@ export class EBCDrawer {
                     const nickNameRoom = (char.Nickname as string | undefined)?.trim() ?? "";
                     if (acctNameRoom && nickNameRoom && nickNameRoom !== acctNameRoom) {
                         const acctEl = document.createElement("span");
-                        acctEl.textContent = "(" + acctNameRoom + ")";
+                        acctEl.textContent = acctNameRoom;
                         acctEl.title = "BC account name: " + acctNameRoom;
-                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7090;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                         nameRow.appendChild(acctEl);
                     }
 
@@ -12838,9 +12840,9 @@ export class EBCDrawer {
                 const acctName = getAccountName(num);
                 if (acctName && acctName !== name) {
                     const acctEl = document.createElement("span");
-                    acctEl.textContent = "(" + acctName + ")";
+                    acctEl.textContent = acctName;
                     acctEl.title = "BC account name: " + acctName;
-                    acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                    acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7090;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                     nameRow.appendChild(acctEl);
                 }
 
