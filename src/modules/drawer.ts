@@ -12262,7 +12262,7 @@ export class EBCDrawer {
                         const acctEl = document.createElement("span");
                         acctEl.textContent = "(" + acctNameRoom + ")";
                         acctEl.title = "BC account name: " + acctNameRoom;
-                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                         nameRow.appendChild(acctEl);
                     }
 
@@ -12840,7 +12840,7 @@ export class EBCDrawer {
                     const acctEl = document.createElement("span");
                     acctEl.textContent = "(" + acctName + ")";
                     acctEl.title = "BC account name: " + acctName;
-                    acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                    acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                     nameRow.appendChild(acctEl);
                 }
 
