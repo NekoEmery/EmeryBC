@@ -26,596 +26,40 @@
         swatchBorder: "#f8dce8",
     };
 
-    var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
-    function getDefaultExportFromCjs (x) {
-    	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-    }
-
-    var lzString = {exports: {}};
-
-    var hasRequiredLzString;
-
-    function requireLzString () {
-    	if (hasRequiredLzString) return lzString.exports;
-    	hasRequiredLzString = 1;
-    	(function (module) {
-    		// Copyright (c) 2013 Pieroxy <pieroxy@pieroxy.net>
-    		// This work is free. You can redistribute it and/or modify it
-    		// under the terms of the WTFPL, Version 2
-    		// For more information see LICENSE.txt or http://www.wtfpl.net/
-    		//
-    		// For more information, the home page:
-    		// http://pieroxy.net/blog/pages/lz-string/testing.html
-    		//
-    		// LZ-based compression algorithm, version 1.4.5
-    		var LZString = (function() {
-
-    		// private property
-    		var f = String.fromCharCode;
-    		var keyStrBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-    		var keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
-    		var baseReverseDic = {};
-
-    		function getBaseValue(alphabet, character) {
-    		  if (!baseReverseDic[alphabet]) {
-    		    baseReverseDic[alphabet] = {};
-    		    for (var i=0 ; i<alphabet.length ; i++) {
-    		      baseReverseDic[alphabet][alphabet.charAt(i)] = i;
-    		    }
-    		  }
-    		  return baseReverseDic[alphabet][character];
-    		}
-
-    		var LZString = {
-    		  compressToBase64 : function (input) {
-    		    if (input == null) return "";
-    		    var res = LZString._compress(input, 6, function(a){return keyStrBase64.charAt(a);});
-    		    switch (res.length % 4) { // To produce valid Base64
-    		    default: // When could this happen ?
-    		    case 0 : return res;
-    		    case 1 : return res+"===";
-    		    case 2 : return res+"==";
-    		    case 3 : return res+"=";
-    		    }
-    		  },
-
-    		  decompressFromBase64 : function (input) {
-    		    if (input == null) return "";
-    		    if (input == "") return null;
-    		    return LZString._decompress(input.length, 32, function(index) { return getBaseValue(keyStrBase64, input.charAt(index)); });
-    		  },
-
-    		  compressToUTF16 : function (input) {
-    		    if (input == null) return "";
-    		    return LZString._compress(input, 15, function(a){return f(a+32);}) + " ";
-    		  },
-
-    		  decompressFromUTF16: function (compressed) {
-    		    if (compressed == null) return "";
-    		    if (compressed == "") return null;
-    		    return LZString._decompress(compressed.length, 16384, function(index) { return compressed.charCodeAt(index) - 32; });
-    		  },
-
-    		  //compress into uint8array (UCS-2 big endian format)
-    		  compressToUint8Array: function (uncompressed) {
-    		    var compressed = LZString.compress(uncompressed);
-    		    var buf=new Uint8Array(compressed.length*2); // 2 bytes per character
-
-    		    for (var i=0, TotalLen=compressed.length; i<TotalLen; i++) {
-    		      var current_value = compressed.charCodeAt(i);
-    		      buf[i*2] = current_value >>> 8;
-    		      buf[i*2+1] = current_value % 256;
-    		    }
-    		    return buf;
-    		  },
-
-    		  //decompress from uint8array (UCS-2 big endian format)
-    		  decompressFromUint8Array:function (compressed) {
-    		    if (compressed===null || compressed===undefined){
-    		        return LZString.decompress(compressed);
-    		    } else {
-    		        var buf=new Array(compressed.length/2); // 2 bytes per character
-    		        for (var i=0, TotalLen=buf.length; i<TotalLen; i++) {
-    		          buf[i]=compressed[i*2]*256+compressed[i*2+1];
-    		        }
-
-    		        var result = [];
-    		        buf.forEach(function (c) {
-    		          result.push(f(c));
-    		        });
-    		        return LZString.decompress(result.join(''));
-
-    		    }
-
-    		  },
-
-
-    		  //compress into a string that is already URI encoded
-    		  compressToEncodedURIComponent: function (input) {
-    		    if (input == null) return "";
-    		    return LZString._compress(input, 6, function(a){return keyStrUriSafe.charAt(a);});
-    		  },
-
-    		  //decompress from an output of compressToEncodedURIComponent
-    		  decompressFromEncodedURIComponent:function (input) {
-    		    if (input == null) return "";
-    		    if (input == "") return null;
-    		    input = input.replace(/ /g, "+");
-    		    return LZString._decompress(input.length, 32, function(index) { return getBaseValue(keyStrUriSafe, input.charAt(index)); });
-    		  },
-
-    		  compress: function (uncompressed) {
-    		    return LZString._compress(uncompressed, 16, function(a){return f(a);});
-    		  },
-    		  _compress: function (uncompressed, bitsPerChar, getCharFromInt) {
-    		    if (uncompressed == null) return "";
-    		    var i, value,
-    		        context_dictionary= {},
-    		        context_dictionaryToCreate= {},
-    		        context_c="",
-    		        context_wc="",
-    		        context_w="",
-    		        context_enlargeIn= 2, // Compensate for the first entry which should not count
-    		        context_dictSize= 3,
-    		        context_numBits= 2,
-    		        context_data=[],
-    		        context_data_val=0,
-    		        context_data_position=0,
-    		        ii;
-
-    		    for (ii = 0; ii < uncompressed.length; ii += 1) {
-    		      context_c = uncompressed.charAt(ii);
-    		      if (!Object.prototype.hasOwnProperty.call(context_dictionary,context_c)) {
-    		        context_dictionary[context_c] = context_dictSize++;
-    		        context_dictionaryToCreate[context_c] = true;
-    		      }
-
-    		      context_wc = context_w + context_c;
-    		      if (Object.prototype.hasOwnProperty.call(context_dictionary,context_wc)) {
-    		        context_w = context_wc;
-    		      } else {
-    		        if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {
-    		          if (context_w.charCodeAt(0)<256) {
-    		            for (i=0 ; i<context_numBits ; i++) {
-    		              context_data_val = (context_data_val << 1);
-    		              if (context_data_position == bitsPerChar-1) {
-    		                context_data_position = 0;
-    		                context_data.push(getCharFromInt(context_data_val));
-    		                context_data_val = 0;
-    		              } else {
-    		                context_data_position++;
-    		              }
-    		            }
-    		            value = context_w.charCodeAt(0);
-    		            for (i=0 ; i<8 ; i++) {
-    		              context_data_val = (context_data_val << 1) | (value&1);
-    		              if (context_data_position == bitsPerChar-1) {
-    		                context_data_position = 0;
-    		                context_data.push(getCharFromInt(context_data_val));
-    		                context_data_val = 0;
-    		              } else {
-    		                context_data_position++;
-    		              }
-    		              value = value >> 1;
-    		            }
-    		          } else {
-    		            value = 1;
-    		            for (i=0 ; i<context_numBits ; i++) {
-    		              context_data_val = (context_data_val << 1) | value;
-    		              if (context_data_position ==bitsPerChar-1) {
-    		                context_data_position = 0;
-    		                context_data.push(getCharFromInt(context_data_val));
-    		                context_data_val = 0;
-    		              } else {
-    		                context_data_position++;
-    		              }
-    		              value = 0;
-    		            }
-    		            value = context_w.charCodeAt(0);
-    		            for (i=0 ; i<16 ; i++) {
-    		              context_data_val = (context_data_val << 1) | (value&1);
-    		              if (context_data_position == bitsPerChar-1) {
-    		                context_data_position = 0;
-    		                context_data.push(getCharFromInt(context_data_val));
-    		                context_data_val = 0;
-    		              } else {
-    		                context_data_position++;
-    		              }
-    		              value = value >> 1;
-    		            }
-    		          }
-    		          context_enlargeIn--;
-    		          if (context_enlargeIn == 0) {
-    		            context_enlargeIn = Math.pow(2, context_numBits);
-    		            context_numBits++;
-    		          }
-    		          delete context_dictionaryToCreate[context_w];
-    		        } else {
-    		          value = context_dictionary[context_w];
-    		          for (i=0 ; i<context_numBits ; i++) {
-    		            context_data_val = (context_data_val << 1) | (value&1);
-    		            if (context_data_position == bitsPerChar-1) {
-    		              context_data_position = 0;
-    		              context_data.push(getCharFromInt(context_data_val));
-    		              context_data_val = 0;
-    		            } else {
-    		              context_data_position++;
-    		            }
-    		            value = value >> 1;
-    		          }
-
-
-    		        }
-    		        context_enlargeIn--;
-    		        if (context_enlargeIn == 0) {
-    		          context_enlargeIn = Math.pow(2, context_numBits);
-    		          context_numBits++;
-    		        }
-    		        // Add wc to the dictionary.
-    		        context_dictionary[context_wc] = context_dictSize++;
-    		        context_w = String(context_c);
-    		      }
-    		    }
-
-    		    // Output the code for w.
-    		    if (context_w !== "") {
-    		      if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate,context_w)) {
-    		        if (context_w.charCodeAt(0)<256) {
-    		          for (i=0 ; i<context_numBits ; i++) {
-    		            context_data_val = (context_data_val << 1);
-    		            if (context_data_position == bitsPerChar-1) {
-    		              context_data_position = 0;
-    		              context_data.push(getCharFromInt(context_data_val));
-    		              context_data_val = 0;
-    		            } else {
-    		              context_data_position++;
-    		            }
-    		          }
-    		          value = context_w.charCodeAt(0);
-    		          for (i=0 ; i<8 ; i++) {
-    		            context_data_val = (context_data_val << 1) | (value&1);
-    		            if (context_data_position == bitsPerChar-1) {
-    		              context_data_position = 0;
-    		              context_data.push(getCharFromInt(context_data_val));
-    		              context_data_val = 0;
-    		            } else {
-    		              context_data_position++;
-    		            }
-    		            value = value >> 1;
-    		          }
-    		        } else {
-    		          value = 1;
-    		          for (i=0 ; i<context_numBits ; i++) {
-    		            context_data_val = (context_data_val << 1) | value;
-    		            if (context_data_position == bitsPerChar-1) {
-    		              context_data_position = 0;
-    		              context_data.push(getCharFromInt(context_data_val));
-    		              context_data_val = 0;
-    		            } else {
-    		              context_data_position++;
-    		            }
-    		            value = 0;
-    		          }
-    		          value = context_w.charCodeAt(0);
-    		          for (i=0 ; i<16 ; i++) {
-    		            context_data_val = (context_data_val << 1) | (value&1);
-    		            if (context_data_position == bitsPerChar-1) {
-    		              context_data_position = 0;
-    		              context_data.push(getCharFromInt(context_data_val));
-    		              context_data_val = 0;
-    		            } else {
-    		              context_data_position++;
-    		            }
-    		            value = value >> 1;
-    		          }
-    		        }
-    		        context_enlargeIn--;
-    		        if (context_enlargeIn == 0) {
-    		          context_enlargeIn = Math.pow(2, context_numBits);
-    		          context_numBits++;
-    		        }
-    		        delete context_dictionaryToCreate[context_w];
-    		      } else {
-    		        value = context_dictionary[context_w];
-    		        for (i=0 ; i<context_numBits ; i++) {
-    		          context_data_val = (context_data_val << 1) | (value&1);
-    		          if (context_data_position == bitsPerChar-1) {
-    		            context_data_position = 0;
-    		            context_data.push(getCharFromInt(context_data_val));
-    		            context_data_val = 0;
-    		          } else {
-    		            context_data_position++;
-    		          }
-    		          value = value >> 1;
-    		        }
-
-
-    		      }
-    		      context_enlargeIn--;
-    		      if (context_enlargeIn == 0) {
-    		        context_enlargeIn = Math.pow(2, context_numBits);
-    		        context_numBits++;
-    		      }
-    		    }
-
-    		    // Mark the end of the stream
-    		    value = 2;
-    		    for (i=0 ; i<context_numBits ; i++) {
-    		      context_data_val = (context_data_val << 1) | (value&1);
-    		      if (context_data_position == bitsPerChar-1) {
-    		        context_data_position = 0;
-    		        context_data.push(getCharFromInt(context_data_val));
-    		        context_data_val = 0;
-    		      } else {
-    		        context_data_position++;
-    		      }
-    		      value = value >> 1;
-    		    }
-
-    		    // Flush the last char
-    		    while (true) {
-    		      context_data_val = (context_data_val << 1);
-    		      if (context_data_position == bitsPerChar-1) {
-    		        context_data.push(getCharFromInt(context_data_val));
-    		        break;
-    		      }
-    		      else context_data_position++;
-    		    }
-    		    return context_data.join('');
-    		  },
-
-    		  decompress: function (compressed) {
-    		    if (compressed == null) return "";
-    		    if (compressed == "") return null;
-    		    return LZString._decompress(compressed.length, 32768, function(index) { return compressed.charCodeAt(index); });
-    		  },
-
-    		  _decompress: function (length, resetValue, getNextValue) {
-    		    var dictionary = [],
-    		        enlargeIn = 4,
-    		        dictSize = 4,
-    		        numBits = 3,
-    		        entry = "",
-    		        result = [],
-    		        i,
-    		        w,
-    		        bits, resb, maxpower, power,
-    		        c,
-    		        data = {val:getNextValue(0), position:resetValue, index:1};
-
-    		    for (i = 0; i < 3; i += 1) {
-    		      dictionary[i] = i;
-    		    }
-
-    		    bits = 0;
-    		    maxpower = Math.pow(2,2);
-    		    power=1;
-    		    while (power!=maxpower) {
-    		      resb = data.val & data.position;
-    		      data.position >>= 1;
-    		      if (data.position == 0) {
-    		        data.position = resetValue;
-    		        data.val = getNextValue(data.index++);
-    		      }
-    		      bits |= (resb>0 ? 1 : 0) * power;
-    		      power <<= 1;
-    		    }
-
-    		    switch (bits) {
-    		      case 0:
-    		          bits = 0;
-    		          maxpower = Math.pow(2,8);
-    		          power=1;
-    		          while (power!=maxpower) {
-    		            resb = data.val & data.position;
-    		            data.position >>= 1;
-    		            if (data.position == 0) {
-    		              data.position = resetValue;
-    		              data.val = getNextValue(data.index++);
-    		            }
-    		            bits |= (resb>0 ? 1 : 0) * power;
-    		            power <<= 1;
-    		          }
-    		        c = f(bits);
-    		        break;
-    		      case 1:
-    		          bits = 0;
-    		          maxpower = Math.pow(2,16);
-    		          power=1;
-    		          while (power!=maxpower) {
-    		            resb = data.val & data.position;
-    		            data.position >>= 1;
-    		            if (data.position == 0) {
-    		              data.position = resetValue;
-    		              data.val = getNextValue(data.index++);
-    		            }
-    		            bits |= (resb>0 ? 1 : 0) * power;
-    		            power <<= 1;
-    		          }
-    		        c = f(bits);
-    		        break;
-    		      case 2:
-    		        return "";
-    		    }
-    		    dictionary[3] = c;
-    		    w = c;
-    		    result.push(c);
-    		    while (true) {
-    		      if (data.index > length) {
-    		        return "";
-    		      }
-
-    		      bits = 0;
-    		      maxpower = Math.pow(2,numBits);
-    		      power=1;
-    		      while (power!=maxpower) {
-    		        resb = data.val & data.position;
-    		        data.position >>= 1;
-    		        if (data.position == 0) {
-    		          data.position = resetValue;
-    		          data.val = getNextValue(data.index++);
-    		        }
-    		        bits |= (resb>0 ? 1 : 0) * power;
-    		        power <<= 1;
-    		      }
-
-    		      switch (c = bits) {
-    		        case 0:
-    		          bits = 0;
-    		          maxpower = Math.pow(2,8);
-    		          power=1;
-    		          while (power!=maxpower) {
-    		            resb = data.val & data.position;
-    		            data.position >>= 1;
-    		            if (data.position == 0) {
-    		              data.position = resetValue;
-    		              data.val = getNextValue(data.index++);
-    		            }
-    		            bits |= (resb>0 ? 1 : 0) * power;
-    		            power <<= 1;
-    		          }
-
-    		          dictionary[dictSize++] = f(bits);
-    		          c = dictSize-1;
-    		          enlargeIn--;
-    		          break;
-    		        case 1:
-    		          bits = 0;
-    		          maxpower = Math.pow(2,16);
-    		          power=1;
-    		          while (power!=maxpower) {
-    		            resb = data.val & data.position;
-    		            data.position >>= 1;
-    		            if (data.position == 0) {
-    		              data.position = resetValue;
-    		              data.val = getNextValue(data.index++);
-    		            }
-    		            bits |= (resb>0 ? 1 : 0) * power;
-    		            power <<= 1;
-    		          }
-    		          dictionary[dictSize++] = f(bits);
-    		          c = dictSize-1;
-    		          enlargeIn--;
-    		          break;
-    		        case 2:
-    		          return result.join('');
-    		      }
-
-    		      if (enlargeIn == 0) {
-    		        enlargeIn = Math.pow(2, numBits);
-    		        numBits++;
-    		      }
-
-    		      if (dictionary[c]) {
-    		        entry = dictionary[c];
-    		      } else {
-    		        if (c === dictSize) {
-    		          entry = w + w.charAt(0);
-    		        } else {
-    		          return null;
-    		        }
-    		      }
-    		      result.push(entry);
-
-    		      // Add w+entry[0] to the dictionary.
-    		      dictionary[dictSize++] = w + entry.charAt(0);
-    		      enlargeIn--;
-
-    		      w = entry;
-
-    		      if (enlargeIn == 0) {
-    		        enlargeIn = Math.pow(2, numBits);
-    		        numBits++;
-    		      }
-
-    		    }
-    		  }
-    		};
-    		  return LZString;
-    		})();
-
-    		if( module != null ) {
-    		  module.exports = LZString;
-    		} else if( typeof angular !== 'undefined' && angular != null ) {
-    		  angular.module('LZString', [])
-    		  .factory('LZString', function () {
-    		    return LZString;
-    		  });
-    		} 
-    	} (lzString));
-    	return lzString.exports;
-    }
-
-    var lzStringExports = requireLzString();
-    var LZString = /*@__PURE__*/getDefaultExportFromCjs(lzStringExports);
-
     // ---------------------------------------------------------------------------
-    // In-memory settings store — all EBC modules read/write through getSettings().
-    //
-    // Storage format: plain key/value pairs written directly under
-    // Player.ExtensionSettings.EmeryBC (no compression).
-    //
-    // One-time recovery migration: v4.6.2–v4.6.4 stored everything in a
-    // compressed _d blob.  If _d exists and decompresses to a non-empty object,
-    // its contents are restored to plain keys and the blob is removed.
-    // If _d was corrupted by v4.6.4 (empty object), the pre-v4.6.2 raw keys
-    // that were never deleted are used instead — recovering data from there.
+    // In-memory settings store.  All EBC modules read/write through getSettings().
+    // Data is stored as plain key/value pairs in Player.ExtensionSettings.EmeryBC.
     // ---------------------------------------------------------------------------
-    // Only used to decompress the legacy _d blob during the one-time migration.
-    // Never written again after this.
-    const COMPRESSED_KEY = "_d";
     let _mem = {};
     let _initialized = false;
     function initSettings() {
         var _a;
         if (_initialized)
             return;
-        // Do not initialise until BC has fully built Player.ExtensionSettings.
-        // getSettings() will retry on the next call — nothing is lost.
+        // If BC hasn't populated Player.ExtensionSettings yet, bail out.
+        // getSettings() will retry on the next call once the player is ready.
         if (!Player.ExtensionSettings)
             return;
         _initialized = true;
-        const raw = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
-        // ── Recovery: try to decompress legacy _d blob (v4.6.2–v4.6.4) ──────────
-        // Only accept it if it contains at least one key.  An empty object means
-        // v4.6.4 corrupted it with an empty sync; in that case fall through to the
-        // raw keys below which were never overwritten and still hold the real data.
-        const blob = raw[COMPRESSED_KEY];
-        if (typeof blob === "string" && blob.length > 0) {
-            try {
-                const json = LZString.decompressFromBase64(blob);
-                if (json) {
-                    const parsed = JSON.parse(json);
-                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed) &&
-                        Object.keys(parsed).length > 0) {
-                        _mem = parsed;
-                        _migrateKittyFromLocalStorage();
-                        flushToExtensionSettings(); // rewrite as plain keys, removes _d
-                        return;
-                    }
-                }
-            }
-            catch ( /* fall through to raw keys */_b) { /* fall through to raw keys */ }
-        }
-        // ── Plain raw keys (pre-v4.6.2 format or recovery from corrupted _d) ────
+        const src = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+        // Copy all existing keys into _mem, dropping any legacy _d compression blob.
         _mem = {};
-        for (const [k, v] of Object.entries(raw)) {
-            if (k !== COMPRESSED_KEY)
+        for (const [k, v] of Object.entries(src)) {
+            if (k !== "_d")
                 _mem[k] = v;
         }
+        // One-time migration: pull kitty data that may still be in localStorage
+        // from before it was moved into ExtensionSettings in v4.6.1.
         _migrateKittyFromLocalStorage();
-        flushToExtensionSettings(); // write back immediately so _d is cleared
     }
-    /** Migrate Kitty data from localStorage into the settings store. */
     function _migrateKittyFromLocalStorage() {
-        const KITTY_LS_KEYS = [
+        const LS_KEYS = [
             "EBC_kittyMood", "EBC_kittyEmotes", "EBC_kittyPoses",
             "EBC_kittyRestraintSets", "EBC_kittyReactions",
             "EBC_kittyExprPresets", "EBC_kittyPunishments",
         ];
-        for (const lsKey of KITTY_LS_KEYS) {
-            const settingKey = lsKey.slice(4); // strip "EBC_" → e.g. "kittyMood"
+        for (const lsKey of LS_KEYS) {
+            const settingKey = lsKey.slice(4); // "EBC_kittyMood" → "kittyMood"
             if (_mem[settingKey] !== undefined)
                 continue;
             try {
@@ -634,7 +78,7 @@
             initSettings();
         return _mem;
     }
-    /** Write _mem as plain keys directly to Player.ExtensionSettings.EmeryBC. */
+    /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
     function flushToExtensionSettings() {
         try {
             if (!Player.ExtensionSettings)
@@ -644,9 +88,8 @@
                 Player.ExtensionSettings.EmeryBC = {};
             }
             const target = Player.ExtensionSettings.EmeryBC;
-            // Remove the legacy compressed blob — never written back.
-            delete target[COMPRESSED_KEY];
-            // Sync every in-memory key as a plain value.
+            // Remove stale _d blob if it somehow survived.
+            delete target["_d"];
             for (const [k, v] of Object.entries(_mem)) {
                 target[k] = v;
             }
@@ -4923,6 +4366,12 @@
             pendingTimer = null;
         }
         pendingApplier = null;
+    }
+
+    var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+    function getDefaultExportFromCjs (x) {
+    	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
     }
 
     var dexie$1 = {exports: {}};
@@ -33696,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.6.5";
+    const MOD_VERSION = "4.6.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33707,6 +33156,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.6.6",
+            changes: [
+                "Reverted: LZ-string compression removed entirely — settings are stored as plain keys in ExtensionSettings again. Drops any leftover _d blob on load. Fixes all data-loss issues introduced in v4.6.2–v4.6.5.",
+            ],
+        },
         {
             version: "4.6.5",
             changes: [
