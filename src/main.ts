@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.5.3";
+const MOD_VERSION = "4.5.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.5.4",
+        changes: [
+            "Creator paw: fixed shaking — position now snaps (5-unit threshold) so BC's idle-animation jitter no longer moves the paw each frame. Added dark backing disc so the paw is legible on bright/busy room backgrounds.",
+        ],
+    },
     {
         version: "4.5.3",
         changes: [
@@ -4771,6 +4777,13 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _dragTarget: "icon" | "version" | null = null;
 
+// Snapped paw position for member 130267 — only updates when the character
+// moves by more than PAW_SNAP_THRESHOLD canvas units so BC's 1-2 unit idle
+// animation jitter doesn't shake the paw every frame.
+const PAW_SNAP_THRESHOLD = 5;
+let _pawSnapLeft: number | null = null;
+let _pawSnapTop:  number | null = null;
+
 // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
 // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
 // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -4940,23 +4953,44 @@ function drawPresenceMarker(args: unknown[]): void {
         const _pawCtx    = _pawCanvas?.getContext("2d");
         const _pawImg    = getEbcPawImg();
         if (_pawCtx && _pawImg) {
-            // Draw directly from the current draw-call coordinates — the paw is computed
-            // from the same left/top/zoom that just drew the character, so it is always
-            // perfectly locked to the character regardless of room layout changes.
-            //
+            // Snap the draw position: only update stored coordinates when the character
+            // moves by more than PAW_SNAP_THRESHOLD canvas units. This absorbs BC's
+            // 1-2 unit idle-animation jitter so the paw stays visually static.
+            if (
+                _pawSnapLeft === null || _pawSnapTop === null ||
+                Math.abs(left - _pawSnapLeft) > PAW_SNAP_THRESHOLD ||
+                Math.abs(top  - _pawSnapTop)  > PAW_SNAP_THRESHOLD
+            ) {
+                _pawSnapLeft = left;
+                _pawSnapTop  = top;
+            }
+            const sLeft = _pawSnapLeft;
+            const sTop  = _pawSnapTop;
+
             // BC bottom-aligns characters: feet stay near canvas Y=1000 while the character
             // shrinks upward as more players join. The name is at approximately
             // top + 975*zoom. Using gap = sz (= paw size) keeps a full paw-height of
-            // clearance at every zoom level (12px at min zoom, 20px at zoom=1) so the
-            // paw never sinks into the name regardless of how many players are in the room.
+            // clearance at every zoom level so the paw never sinks into the name.
             const sz  = Math.max(16, Math.round(28 * zoom));
-            const gap = Math.max(8, sz);                      // gap = paw size → consistent clearance at all zoom levels
-            const px  = Math.floor(left + 250 * zoom - sz / 2);
-            const py  = Math.floor(top  + 975 * zoom - sz - gap);
+            const gap = Math.max(8, sz);
+            const px  = Math.floor(sLeft + 250 * zoom - sz / 2);
+            const py  = Math.floor(sTop  + 975 * zoom - sz - gap);
+
+            // Dark backing disc so the paw is legible on any room background
+            const cr = sz / 2 + Math.max(3, Math.round(sz * 0.18));
             _pawCtx.save();
-            _pawCtx.globalAlpha = 0.92;
-            _pawCtx.shadowColor = "rgba(255, 185, 0, 0.85)";
-            _pawCtx.shadowBlur  = Math.round(sz * 0.55);
+            _pawCtx.globalAlpha = 0.62;
+            _pawCtx.fillStyle   = "rgba(0, 0, 0, 0.82)";
+            _pawCtx.beginPath();
+            _pawCtx.arc(px + sz / 2, py + sz / 2, cr, 0, Math.PI * 2);
+            _pawCtx.fill();
+            _pawCtx.restore();
+
+            // Gold glow + paw image on top
+            _pawCtx.save();
+            _pawCtx.globalAlpha = 0.95;
+            _pawCtx.shadowColor = "rgba(255, 195, 0, 0.9)";
+            _pawCtx.shadowBlur  = Math.round(sz * 0.5);
             _pawCtx.drawImage(_pawImg, px, py, sz, sz);
             _pawCtx.restore();
         }
