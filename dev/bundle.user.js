@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.5
+// @version      4.5.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -18810,8 +18810,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 btn.dataset["posBtn"] = "1";
                 return btn;
             };
-            posRow.appendChild(makePosBtn("text", "📍 " + t("strip.styleBtnText")));
-            posRow.appendChild(makePosBtn("cat", "📍 " + t("strip.styleBtnCat")));
+            posRow.appendChild(makePosBtn("text", t("strip.styleBtnText")));
+            posRow.appendChild(makePosBtn("cat", t("strip.styleBtnCat")));
             const resetPosBtn = document.createElement("button");
             resetPosBtn.textContent = "⟳";
             resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
@@ -33200,7 +33200,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: null,
             label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Pin Text]] and [[Pin Cat]] buttons to drag each badge to its exact on-screen position.",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
@@ -33236,7 +33236,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.5";
+    const MOD_VERSION = "4.5.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33247,6 +33247,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.6",
+            changes: [
+                "UI: removed 📍 pin emoji from the Text and Cat badge drag buttons.",
+            ],
+        },
         {
             version: "4.5.5",
             changes: [
