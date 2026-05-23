@@ -5076,7 +5076,7 @@ export class EBCDrawer {
         {
             tab: null,
             label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Pin Text]] and [[Pin Cat]] buttons to drag each badge to its exact on-screen position.",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
@@ -5894,8 +5894,8 @@ export class EBCDrawer {
             return btn;
         };
 
-        posRow.appendChild(makePosBtn("text", "📍 " + t("strip.styleBtnText")));
-        posRow.appendChild(makePosBtn("cat",  "📍 " + t("strip.styleBtnCat")));
+        posRow.appendChild(makePosBtn("text", t("strip.styleBtnText")));
+        posRow.appendChild(makePosBtn("cat",  t("strip.styleBtnCat")));
 
         const resetPosBtn = document.createElement("button");
         resetPosBtn.textContent = "⟳";
