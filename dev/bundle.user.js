@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.5.7
+// @version      4.5.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -26606,12 +26606,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const getModsInfo = sdk === null || sdk === void 0 ? void 0 : sdk.getModsInfo;
                         const mods = getModsInfo ? getModsInfo.call(sdk) : [];
                         if (!Array.isArray(mods) || mods.length === 0) {
+                            hookLbl.textContent = t("dev.addonsLoaded");
                             const hint = document.createElement("div");
                             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;";
                             hint.textContent = t("dev.noModsdk");
                             hookList.appendChild(hint);
                             return;
                         }
+                        hookLbl.textContent = t("dev.addonsLoaded") + " (" + mods.length + ")";
                         for (const mod of mods) {
                             const m = mod;
                             const hooks = Array.isArray(m.hooks) ? m.hooks : [];
@@ -33236,7 +33238,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.7";
+    const MOD_VERSION = "4.5.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33247,6 +33249,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.8",
+            changes: [
+                "Dev tab: Addons Loaded header now shows the count — e.g. 'ADDONS LOADED (10)'.",
+            ],
+        },
         {
             version: "4.5.7",
             changes: [
