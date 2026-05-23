@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings } from "./bcUtils";
@@ -12254,6 +12254,18 @@ export class EBCDrawer {
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                     nameRow.appendChild(nameEl);
+
+                    // Show account name in muted text when they use a different nickname
+                    const acctNameRoom = char.Name as string | undefined;
+                    const nickNameRoom = (char.Nickname as string | undefined)?.trim() ?? "";
+                    if (acctNameRoom && nickNameRoom && nickNameRoom !== acctNameRoom) {
+                        const acctEl = document.createElement("span");
+                        acctEl.textContent = "(" + acctNameRoom + ")";
+                        acctEl.title = "BC account name: " + acctNameRoom;
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        nameRow.appendChild(acctEl);
+                    }
+
                     nameRow.appendChild(numEl);
                     if (relBadge) {
                         const badge = document.createElement("span");
@@ -12815,11 +12827,23 @@ export class EBCDrawer {
                 tagArea.addEventListener("mouseleave", hideTooltip);
 
                 // ── Two-line layout assembly ───────────────────────────────
-                // nameRow: nameEl + numEl + relBadge
+                // nameRow: nameEl + acctEl? + numEl + relBadge
                 const nameRow = document.createElement("div");
                 nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                 // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                 nameRow.appendChild(nameEl);
+
+                // If this person has a nickname, show their account name in muted text
+                // so you can tell "Lucy" is actually "Lucas" on their account.
+                const acctName = getAccountName(num);
+                if (acctName && acctName !== name) {
+                    const acctEl = document.createElement("span");
+                    acctEl.textContent = "(" + acctName + ")";
+                    acctEl.title = "BC account name: " + acctName;
+                    acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                    nameRow.appendChild(acctEl);
+                }
+
                 nameRow.appendChild(numEl);
                 if (relBadge) {
                     const relBadgeEl = document.createElement("span");

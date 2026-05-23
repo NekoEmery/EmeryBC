@@ -68,6 +68,27 @@ export function cacheName(memberNumber: number, name: string): void {
     // Sync is deferred — name cache is saved alongside the next real operation
 }
 
+// -- Account name cache --------------------------------------------------------
+// Stores the raw BC account name (.Name) separately from the display name
+// (.Nickname). When a person uses a nickname, both are preserved so the
+// friends list can show "Nickname (AccountName)" for easy identification.
+
+export function getCachedAccountNames(): Record<string, string> {
+    const v = getStore().friendAccountNames;
+    return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
+}
+
+export function cacheAccountName(memberNumber: number, accountName: string): void {
+    const store = getStore();
+    if (!store.friendAccountNames || typeof store.friendAccountNames !== "object") store.friendAccountNames = {};
+    (store.friendAccountNames as Record<string, string>)[String(memberNumber)] = accountName;
+}
+
+/** Returns the cached BC account name for this member, or null if unknown. */
+export function getAccountName(memberNumber: number): string | null {
+    return getCachedAccountNames()[String(memberNumber)] ?? null;
+}
+
 export function flushNameCache(): void { sync(); }
 
 export function resolveName(memberNumber: number): string {
@@ -76,7 +97,11 @@ export function resolveName(memberNumber: number): string {
             Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
         const char = room?.find(c => c.MemberNumber === memberNumber);
         if (char) {
-            const name = char.Nickname?.trim() || char.Name || String(memberNumber);
+            const accountName = char.Name ?? "";
+            const nickname    = char.Nickname?.trim() ?? "";
+            // Always cache the raw account name so we can show it alongside nicknames
+            if (accountName) cacheAccountName(memberNumber, accountName);
+            const name = nickname || accountName || String(memberNumber);
             cacheName(memberNumber, name);
             return name;
         }
