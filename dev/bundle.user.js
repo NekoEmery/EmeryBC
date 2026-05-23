@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.7.3
+// @version      4.7.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33162,7 +33162,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.3";
+    const MOD_VERSION = "4.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -37994,21 +37994,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _dragTarget = null;
-    // Paw position — committed only after 90 consecutive stable frames (~1.5s at
-    // 60 fps).  BC's idle animation and row-collapse transitions both move
-    // left/top/zoom every frame; a fixed timer can't guarantee BC has settled.
-    // Instead we track a "pending" position and only promote it to "fixed"
-    // (what we actually draw) once it stops changing.  During any transition the
-    // paw stays frozen at the last committed position rather than jumping around.
+    // Paw position — committed only after the candidate position has been stable
+    // for _PAW_STABLE_MS real milliseconds (frame-rate independent).  BC's idle
+    // animation fluctuates left/top/zoom every frame; we absorb it with the
+    // jitter thresholds and only reset the stability clock on genuine movements.
+    // During any BC row-transition the paw stays frozen at the last committed
+    // position rather than jumping to an intermediate location.
     let _pawFixedLeft = null;
     let _pawFixedTop = null;
     let _pawFixedZoom = 1;
-    // Pending (candidate) position — reset whenever BC moves more than jitter
+    // Candidate position — reset to current frame whenever position exceeds jitter
     let _pawPendLeft = 0;
     let _pawPendTop = 0;
     let _pawPendZoom = 1;
-    let _pawPendFrames = 0;
-    const _PAW_STABLE_FRAMES = 90; // frames of stability before committing
+    let _pawPendSince = 0; // Date.now() when candidate started
+    const _PAW_STABLE_MS = 500; // ms of stability required to commit
     const _PAW_JITTER_PX = 5; // pixel tolerance (idle breathing)
     const _PAW_JITTER_ZOOM = 0.012; // zoom tolerance
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
@@ -38190,25 +38190,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Stability detection: accumulate frames where (left,top,zoom)
-                // stays within jitter of the pending candidate.  Only commit to
-                // the fixed (drawn) position after _PAW_STABLE_FRAMES stable
-                // frames — this keeps the paw frozen during BC row-transitions.
+                // Stability detection: reset the clock whenever position moves
+                // outside jitter.  Only commit to the drawn position once the
+                // candidate has been unchanged for _PAW_STABLE_MS (frame-rate
+                // independent).  This keeps the paw frozen during BC transitions
+                // regardless of how long they take or how active the room is.
+                const _pawNow = Date.now();
                 if (Math.abs(left - _pawPendLeft) <= _PAW_JITTER_PX &&
                     Math.abs(top - _pawPendTop) <= _PAW_JITTER_PX &&
-                    Math.abs(zoom - _pawPendZoom) <= _PAW_JITTER_ZOOM) {
-                    if (_pawPendFrames < _PAW_STABLE_FRAMES)
-                        _pawPendFrames++;
-                }
+                    Math.abs(zoom - _pawPendZoom) <= _PAW_JITTER_ZOOM) ;
                 else {
-                    // Position changed beyond jitter — reset candidate
+                    // Moved beyond jitter — reset candidate and restart clock
                     _pawPendLeft = left;
                     _pawPendTop = top;
                     _pawPendZoom = zoom;
-                    _pawPendFrames = 1;
+                    _pawPendSince = _pawNow;
                 }
-                // Promote candidate to fixed once stable (or on very first draw)
-                if (_pawFixedLeft === null || _pawPendFrames >= _PAW_STABLE_FRAMES) {
+                // Commit once stable, or immediately on first-ever draw
+                const _pawStable = (_pawNow - _pawPendSince) >= _PAW_STABLE_MS;
+                if (_pawFixedLeft === null || _pawStable) {
                     const dl = Math.abs(_pawPendLeft - (_pawFixedLeft !== null && _pawFixedLeft !== void 0 ? _pawFixedLeft : _pawPendLeft + 9999));
                     const dt = Math.abs(_pawPendTop - (_pawFixedTop !== null && _pawFixedTop !== void 0 ? _pawFixedTop : _pawPendTop + 9999));
                     const dz = Math.abs(_pawPendZoom - _pawFixedZoom);
