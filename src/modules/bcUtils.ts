@@ -1,75 +1,37 @@
-import LZString from "lz-string";
-
 // ---------------------------------------------------------------------------
-// In-memory settings store — all EBC modules read/write through getSettings().
-//
-// Storage format: plain key/value pairs written directly under
-// Player.ExtensionSettings.EmeryBC (no compression).
-//
-// One-time recovery migration: v4.6.2–v4.6.4 stored everything in a
-// compressed _d blob.  If _d exists and decompresses to a non-empty object,
-// its contents are restored to plain keys and the blob is removed.
-// If _d was corrupted by v4.6.4 (empty object), the pre-v4.6.2 raw keys
-// that were never deleted are used instead — recovering data from there.
+// In-memory settings store.  All EBC modules read/write through getSettings().
+// Data is stored as plain key/value pairs in Player.ExtensionSettings.EmeryBC.
 // ---------------------------------------------------------------------------
-
-// Only used to decompress the legacy _d blob during the one-time migration.
-// Never written again after this.
-const COMPRESSED_KEY = "_d";
 
 let _mem: Record<string, unknown> = {};
 let _initialized = false;
 
 export function initSettings(): void {
     if (_initialized) return;
-
-    // Do not initialise until BC has fully built Player.ExtensionSettings.
-    // getSettings() will retry on the next call — nothing is lost.
+    // If BC hasn't populated Player.ExtensionSettings yet, bail out.
+    // getSettings() will retry on the next call once the player is ready.
     if (!Player.ExtensionSettings) return;
-
     _initialized = true;
 
-    const raw = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
-
-    // ── Recovery: try to decompress legacy _d blob (v4.6.2–v4.6.4) ──────────
-    // Only accept it if it contains at least one key.  An empty object means
-    // v4.6.4 corrupted it with an empty sync; in that case fall through to the
-    // raw keys below which were never overwritten and still hold the real data.
-    const blob = raw[COMPRESSED_KEY];
-    if (typeof blob === "string" && blob.length > 0) {
-        try {
-            const json = LZString.decompressFromBase64(blob);
-            if (json) {
-                const parsed = JSON.parse(json) as unknown;
-                if (parsed && typeof parsed === "object" && !Array.isArray(parsed) &&
-                    Object.keys(parsed as object).length > 0) {
-                    _mem = parsed as Record<string, unknown>;
-                    _migrateKittyFromLocalStorage();
-                    flushToExtensionSettings(); // rewrite as plain keys, removes _d
-                    return;
-                }
-            }
-        } catch { /* fall through to raw keys */ }
-    }
-
-    // ── Plain raw keys (pre-v4.6.2 format or recovery from corrupted _d) ────
+    const src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+    // Copy all existing keys into _mem, dropping any legacy _d compression blob.
     _mem = {};
-    for (const [k, v] of Object.entries(raw)) {
-        if (k !== COMPRESSED_KEY) _mem[k] = v;
+    for (const [k, v] of Object.entries(src)) {
+        if (k !== "_d") _mem[k] = v;
     }
+    // One-time migration: pull kitty data that may still be in localStorage
+    // from before it was moved into ExtensionSettings in v4.6.1.
     _migrateKittyFromLocalStorage();
-    flushToExtensionSettings(); // write back immediately so _d is cleared
 }
 
-/** Migrate Kitty data from localStorage into the settings store. */
 function _migrateKittyFromLocalStorage(): void {
-    const KITTY_LS_KEYS = [
+    const LS_KEYS = [
         "EBC_kittyMood", "EBC_kittyEmotes", "EBC_kittyPoses",
         "EBC_kittyRestraintSets", "EBC_kittyReactions",
         "EBC_kittyExprPresets", "EBC_kittyPunishments",
     ] as const;
-    for (const lsKey of KITTY_LS_KEYS) {
-        const settingKey = lsKey.slice(4); // strip "EBC_" → e.g. "kittyMood"
+    for (const lsKey of LS_KEYS) {
+        const settingKey = lsKey.slice(4); // "EBC_kittyMood" → "kittyMood"
         if (_mem[settingKey] !== undefined) continue;
         try {
             const val = localStorage.getItem(lsKey);
@@ -87,7 +49,7 @@ export function getSettings(): Record<string, unknown> {
     return _mem;
 }
 
-/** Write _mem as plain keys directly to Player.ExtensionSettings.EmeryBC. */
+/** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
 export function flushToExtensionSettings(): void {
     try {
         if (!Player.ExtensionSettings) return;
@@ -96,9 +58,8 @@ export function flushToExtensionSettings(): void {
             Player.ExtensionSettings.EmeryBC = {} as typeof Player.ExtensionSettings.EmeryBC;
         }
         const target = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-        // Remove the legacy compressed blob — never written back.
-        delete target[COMPRESSED_KEY];
-        // Sync every in-memory key as a plain value.
+        // Remove stale _d blob if it somehow survived.
+        delete target["_d"];
         for (const [k, v] of Object.entries(_mem)) {
             target[k] = v;
         }
