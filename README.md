@@ -371,3 +371,9 @@ The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRAB
 ## License
 
 [MIT](LICENSE) — © Emery
+
+---
+
+<p align="center">
+  <img src="assets/stamp.png" alt="Vei Stamp of Approval — Good Addon" width="480">
+</p>
