@@ -24837,7 +24837,7 @@
                             const acctEl = document.createElement("span");
                             acctEl.textContent = "(" + acctNameRoom + ")";
                             acctEl.title = "BC account name: " + acctNameRoom;
-                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                            acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
@@ -25453,7 +25453,7 @@
                         const acctEl = document.createElement("span");
                         acctEl.textContent = "(" + acctName + ")";
                         acctEl.title = "BC account name: " + acctName;
-                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4050;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
+                        acctEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c090a8;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;";
                         nameRow.appendChild(acctEl);
                     }
                     nameRow.appendChild(numEl);
@@ -33145,7 +33145,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.7.5";
+    const MOD_VERSION = "4.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
