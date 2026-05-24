@@ -1721,6 +1721,17 @@
                 if (result.length === 0) {
                     psa(Player, null, true, false);
                 }
+                else if (wantsRelaxed) {
+                    // "Relaxed arms" path: nuke everything first, then re-add body-only poses.
+                    // On some BC builds, psa(body, force=true) only replaces the body category
+                    // and leaves the arm category untouched.  Clearing everything first (null +
+                    // force=true) and then re-adding is the only guaranteed way to flush the
+                    // arm slot from BC's internal state.
+                    psa(Player, null, true, false);
+                    for (const p of result) {
+                        psa(Player, p, false, false);
+                    }
+                }
                 else {
                     psa(Player, result[0], true, false);
                     for (let i = 1; i < result.length; i++) {
@@ -1758,6 +1769,15 @@
             }
             catch ( /* ignore */_c) { /* ignore */ }
         }
+        // 1c. Keep Player.ActivePose in sync — some BC builds rebuild ActivePoseMapping
+        //     *from* ActivePose inside CharacterRefresh.  Without this, a stale ActivePose
+        //     (e.g. still containing an arm pose) would silently restore the mapping we
+        //     just cleared in 1a/1b.
+        try {
+            Player.ActivePose =
+                result.length > 0 ? result : null;
+        }
+        catch ( /* ignore */_d) { /* ignore */ }
         // 2. Local visual refresh — Push=false, we push below.
         callBC(() => CharacterRefresh(Player, false));
         // 3. Push to room via direct ServerSend (same approach as sequence runner in
@@ -1771,7 +1791,7 @@
                 });
             }
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Each entry in `poses` is one step:
@@ -21983,9 +22003,12 @@
                         // if the user clicks a second button before the 150ms rerender fires.
                         const livePoses = getCurrentPoses();
                         if (preset.key === "" && group.group === "Arms") {
-                            // "Relaxed" — clear all arm poses, keep everything else
+                            // "Relaxed" — clear all arm poses, keep everything else.
+                            // Pass the "" marker so applyPoses uses the wantsRelaxed
+                            // code path (nuke + re-add) to guarantee BC's arm slot is
+                            // flushed on all BC versions.
                             const nonArmPoses = livePoses.filter(p => !armKeys.includes(p));
-                            applyPoses(nonArmPoses);
+                            applyPoses([...nonArmPoses, ""]);
                         }
                         else if (preset.key === "") {
                             // "Stand" clears everything
@@ -33167,7 +33190,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.3";
+    const MOD_VERSION = "4.8.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33178,6 +33201,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.4",
+            changes: [
+                "Fix: Relaxed arms while kneeling now reliably clears the arm pose — previously BC's internal arm slot was not always flushed when only the body category was updated; arm poses are now fully purged (clear-all + re-add body) and Player.ActivePose is kept in sync so CharacterRefresh always reads the correct state.",
+            ],
+        },
         {
             version: "4.8.3",
             changes: [
