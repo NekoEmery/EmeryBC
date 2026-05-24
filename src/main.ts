@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.6";
+const MOD_VERSION = "4.8.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.8.7",
+        changes: [
+            "Fix: ErrorRateLimited disconnect at startup — EBC's AccountUpdate (presence broadcast) now fires 5–8 seconds after room entry instead of immediately. With many addons all sending server messages at the same moment on room join, BC's rate limiter was tripped. The randomised delay spreads EBC's message outside the initial burst window.",
+        ],
+    },
     {
         version: "4.8.6",
         changes: [
@@ -5452,7 +5458,13 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        try { syncPresenceMarker();         } catch { /* ignore */ }
+        // Delay presence broadcast by 5–8 s (randomised) so EBC's AccountUpdate
+        // fires well after the initial burst of all ~10+ addons syncing at once.
+        // The 6 s per-send cooldown inside syncPresenceMarker still applies, so
+        // a rapid re-sync won't double-send even if the timer fires unexpectedly.
+        window.setTimeout(() => {
+            try { syncPresenceMarker(); } catch { /* ignore */ }
+        }, 5000 + Math.floor(Math.random() * 3000));
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
@@ -5925,11 +5937,11 @@ function init(): void {
         return next(args);
     });
 
-    try {
-        syncPresenceMarker();
-    } catch {
-        // Ignore early sync failures.
-    }
+    // Delay the init-time presence broadcast the same way as the ChatRoomSync
+    // hook — prevents a double spike when the addon loads while already in a room.
+    window.setTimeout(() => {
+        try { syncPresenceMarker(); } catch { /* ignore */ }
+    }, 5000 + Math.floor(Math.random() * 3000));
 
     startUpdateChecker();
     console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
