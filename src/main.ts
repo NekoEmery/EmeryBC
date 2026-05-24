@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.4";
+const MOD_VERSION = "4.8.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.8.5",
+        changes: [
+            "Fix: Relaxed arms now works correctly while kneeling or sitting — replaced the nuke+re-add approach with surgical removal that directly patches ActivePoseMapping/ActivePose to drop arm entries without ever touching the body pose.",
+            "Triggers: triggers can now be edited inline — click the pencil icon on any trigger row to expand a form pre-filled with its current match text, face preset, and hold duration.",
+        ],
+    },
     {
         version: "4.8.4",
         changes: [

@@ -130,6 +130,49 @@ export function applyPoses(poses: string[]): void {
     } catch { /* ignore */ }
 }
 
+// Surgically remove any active arm pose without disturbing body poses.
+// Directly mutates both ActivePoseMapping and ActivePose instead of going
+// through PoseSetActive — avoids any risk of psa clearing the body pose.
+export function clearArmPose(): void {
+    try {
+        const p = Player as unknown as Record<string, unknown>;
+
+        // 1. Remove arm entries from ActivePoseMapping
+        const mapping = p.ActivePoseMapping as Record<string, string> | null | undefined;
+        if (mapping && typeof mapping === "object") {
+            for (const key of Object.keys(mapping)) {
+                if (ARM_POSES.includes(mapping[key])) delete mapping[key];
+            }
+        }
+
+        // 2. Filter arm keys out of ActivePose
+        const ap = p.ActivePose as string[] | null | undefined;
+        if (Array.isArray(ap)) {
+            const next = ap.filter(x => !ARM_POSES.includes(x));
+            p.ActivePose = next.length > 0 ? next : null;
+        }
+
+        // 3. Capture final pose list (before CharacterRefresh can mutate anything)
+        const ap2 = p.ActivePose as string[] | null | undefined;
+        const m2  = p.ActivePoseMapping as Record<string, string> | null | undefined;
+        const poseList = Array.isArray(ap2) && ap2.length > 0
+            ? ap2
+            : Object.values(m2 ?? {}).filter(Boolean);
+
+        // 4. Local visual refresh
+        callBC(() => CharacterRefresh(Player, false));
+
+        // 5. Push to room
+        if (Player.OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID:         Player.OnlineID,
+                ActivePose: poseList.length > 0 ? poseList : null,
+                Appearance: ServerAppearanceBundle(Player.Appearance),
+            });
+        }
+    } catch { /* ignore */ }
+}
+
 // Apply poses one-by-one in the given order with a delay between each step.
 // Each entry in `poses` is one step:
 //   - a body-pose key ("Kneel", "AllFours", …) → replaces the body slot
