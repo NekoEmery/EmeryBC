@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.0
+// @version      4.8.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24069,7 +24069,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
             addPointerDown(header, (start, e) => {
-                if (e.target === closeBtn)
+                if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn)
                     return;
                 e.preventDefault();
                 const rect = win.getBoundingClientRect();
@@ -24115,7 +24115,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
             const renderHistory = () => {
-                var _a, _b;
+                var _a, _b, _c;
                 while (history.firstChild)
                     history.removeChild(history.firstChild);
                 // Flex spacer: pushes messages to the bottom when there are few of them.
@@ -24138,7 +24138,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
                     const bubbleMember = isSent ? self : e.from;
                     const nameLabel = document.createElement("div");
-                    nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
+                    // For sent messages read directly from Player so no other addon's
+                    // nickname hooks can bleed into the display name.
+                    const bubbleName = isSent
+                        ? ((_b = Player.Nickname) === null || _b === void 0 ? void 0 : _b.trim()) || Player.Name || "You"
+                        : resolveName(bubbleMember);
+                    nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
                     nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
                     // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
                     // Fall back to solid colour for non-EBC senders.
@@ -24186,7 +24191,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     text.textContent = msgBody;
                     bubble.appendChild(text);
                     // Image embed — detect image URL in the message body
-                    const imgUrl = (_b = IMAGE_RE.exec(msgBody)) === null || _b === void 0 ? void 0 : _b[0];
+                    const imgUrl = (_c = IMAGE_RE.exec(msgBody)) === null || _c === void 0 ? void 0 : _c[0];
                     if (imgUrl) {
                         const img = document.createElement("img");
                         img.className = "ebc-beep-img";
@@ -33164,7 +33169,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.0";
+    const MOD_VERSION = "4.8.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33175,6 +33180,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.1",
+            changes: [
+                "Fix: sent messages in the beep window showed the wrong name when other addons modify the player's nickname — now reads directly from Player.Name/Nickname instead of going through the room character lookup.",
+                "Fix: minimize and mute buttons in the beep window didn't respond to taps on mobile — the header drag handler was consuming touchstart on those buttons and preventing click from firing.",
+            ],
+        },
         {
             version: "4.8.0",
             changes: [
