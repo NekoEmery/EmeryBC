@@ -105,13 +105,21 @@ export function applyPoses(poses: string[]): void {
         } catch { /* ignore */ }
     }
 
-    // 1c. Keep Player.ActivePose in sync — some BC builds rebuild ActivePoseMapping
-    //     *from* ActivePose inside CharacterRefresh.  Without this, a stale ActivePose
-    //     (e.g. still containing an arm pose) would silently restore the mapping we
-    //     just cleared in 1a/1b.
+    // 1c. Keep Player.Pose, ActivePoseMapping, and ActivePose all in sync.
+    //     CharacterRefresh → CharacterLoadActualPose rebuilds the derived fields
+    //     from Player.Pose, so without syncing Pose here a stale arm entry would
+    //     survive the refresh and re-appear in ActivePoseMapping/ActivePose.
     try {
-        (Player as unknown as Record<string, unknown>).ActivePose =
-            result.length > 0 ? result : null;
+        const pp = Player as unknown as Record<string, unknown>;
+        // Pose — canonical source used by CharacterLoadActualPose
+        pp.Pose = result.length > 0 ? [...result] : [];
+        // ActivePoseMapping — also clear/set for builds that read this direction
+        // (already set in 1b above if pfn was available, but ensure it for wantsRelaxed)
+        if (result.length === 0) {
+            pp.ActivePoseMapping = {};
+        }
+        // ActivePose — derived cache
+        pp.ActivePose = result.length > 0 ? result : null;
     } catch { /* ignore */ }
 
     // 2. Local visual refresh — Push=false, we push below.
@@ -131,13 +139,25 @@ export function applyPoses(poses: string[]): void {
 }
 
 // Surgically remove any active arm pose without disturbing body poses.
-// Directly mutates both ActivePoseMapping and ActivePose instead of going
-// through PoseSetActive — avoids any risk of psa clearing the body pose.
+// Mutates Player.Pose (the canonical source), ActivePoseMapping, AND ActivePose.
+//
+// Root-cause note: CharacterRefresh → CharacterLoadActualPose rebuilds both
+// ActivePoseMapping and ActivePose FROM Player.Pose every call.  Earlier
+// attempts that only cleared ActivePoseMapping/ActivePose were immediately
+// undone by the next CharacterRefresh reading the stale Player.Pose.
 export function clearArmPose(): void {
     try {
         const p = Player as unknown as Record<string, unknown>;
 
-        // 1. Remove arm entries from ActivePoseMapping
+        // 1. Player.Pose — the canonical array CharacterLoadActualPose reads.
+        //    This is the field that was missing in prior fix attempts.
+        const pose = p.Pose as string[] | null | undefined;
+        if (Array.isArray(pose)) {
+            p.Pose = pose.filter(x => !ARM_POSES.includes(x));
+        }
+
+        // 2. ActivePoseMapping — belt-and-suspenders for builds where the
+        //    mapping is the primary source instead of Pose.
         const mapping = p.ActivePoseMapping as Record<string, string> | null | undefined;
         if (mapping && typeof mapping === "object") {
             for (const key of Object.keys(mapping)) {
@@ -145,24 +165,27 @@ export function clearArmPose(): void {
             }
         }
 
-        // 2. Filter arm keys out of ActivePose
+        // 3. ActivePose — the derived cache; keep consistent so nothing re-reads
+        //    a stale value before CharacterRefresh rebuilds it.
         const ap = p.ActivePose as string[] | null | undefined;
         if (Array.isArray(ap)) {
             const next = ap.filter(x => !ARM_POSES.includes(x));
             p.ActivePose = next.length > 0 ? next : null;
         }
 
-        // 3. Capture final pose list (before CharacterRefresh can mutate anything)
-        const ap2 = p.ActivePose as string[] | null | undefined;
-        const m2  = p.ActivePoseMapping as Record<string, string> | null | undefined;
-        const poseList = Array.isArray(ap2) && ap2.length > 0
-            ? ap2
+        // 4. Capture pose list for the server push BEFORE CharacterRefresh can
+        //    alter anything (use Pose as source of truth, fall back to mapping).
+        const cleanPose = (p.Pose as string[] | null | undefined) ?? [];
+        const m2        = p.ActivePoseMapping as Record<string, string> | null | undefined;
+        const poseList  = cleanPose.length > 0
+            ? cleanPose.filter(Boolean)
             : Object.values(m2 ?? {}).filter(Boolean);
 
-        // 4. Local visual refresh
+        // 5. Local visual refresh — CharacterLoadActualPose rebuilds the derived
+        //    fields from the Pose array we just cleaned.
         callBC(() => CharacterRefresh(Player, false));
 
-        // 5. Push to room
+        // 6. Push to room
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID:         Player.OnlineID,
