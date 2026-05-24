@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.4
+// @version      4.8.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1809,6 +1809,45 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         catch ( /* ignore */_e) { /* ignore */ }
+    }
+    // Surgically remove any active arm pose without disturbing body poses.
+    // Directly mutates both ActivePoseMapping and ActivePose instead of going
+    // through PoseSetActive — avoids any risk of psa clearing the body pose.
+    function clearArmPose() {
+        try {
+            const p = Player;
+            // 1. Remove arm entries from ActivePoseMapping
+            const mapping = p.ActivePoseMapping;
+            if (mapping && typeof mapping === "object") {
+                for (const key of Object.keys(mapping)) {
+                    if (ARM_POSES.includes(mapping[key]))
+                        delete mapping[key];
+                }
+            }
+            // 2. Filter arm keys out of ActivePose
+            const ap = p.ActivePose;
+            if (Array.isArray(ap)) {
+                const next = ap.filter(x => !ARM_POSES.includes(x));
+                p.ActivePose = next.length > 0 ? next : null;
+            }
+            // 3. Capture final pose list (before CharacterRefresh can mutate anything)
+            const ap2 = p.ActivePose;
+            const m2 = p.ActivePoseMapping;
+            const poseList = Array.isArray(ap2) && ap2.length > 0
+                ? ap2
+                : Object.values(m2 !== null && m2 !== void 0 ? m2 : {}).filter(Boolean);
+            // 4. Local visual refresh
+            callBC(() => CharacterRefresh(Player, false));
+            // 5. Push to room
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: poseList.length > 0 ? poseList : null,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Each entry in `poses` is one step:
@@ -22020,12 +22059,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // if the user clicks a second button before the 150ms rerender fires.
                         const livePoses = getCurrentPoses();
                         if (preset.key === "" && group.group === "Arms") {
-                            // "Relaxed" — clear all arm poses, keep everything else.
-                            // Pass the "" marker so applyPoses uses the wantsRelaxed
-                            // code path (nuke + re-add) to guarantee BC's arm slot is
-                            // flushed on all BC versions.
-                            const nonArmPoses = livePoses.filter(p => !armKeys.includes(p));
-                            applyPoses([...nonArmPoses, ""]);
+                            // "Relaxed" — surgical arm-pose removal.
+                            // Directly mutates ActivePoseMapping/ActivePose to drop arm entries
+                            // without touching the body pose — safer than any PoseSetActive path
+                            // which can silently clear the body pose as a side-effect.
+                            clearArmPose();
                         }
                         else if (preset.key === "") {
                             // "Stand" clears everything
@@ -31500,8 +31538,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(none);
             }
             for (const trig of triggers) {
+                // Wrapper holds row + inline edit panel (same pattern as outfit rows)
+                const tWrap = document.createElement("div");
+                tWrap.style.marginBottom = "3px";
                 const tRow = document.createElement("div");
-                tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(20,8,18,0.7);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;margin-bottom:3px;";
+                tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(20,8,18,0.7);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
                 // Match chip
                 const matchChip = document.createElement("span");
                 matchChip.style.cssText = `${F}11px;background:#2a0e1e;border:1px solid #5a2840;border-radius:4px;padding:1px 6px;color:#f0a0c0;flex-shrink:0;font-style:italic;`;
@@ -31523,6 +31564,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 holdChip.style.cssText = `${F}10px;color:#7a5070;flex-shrink:0;`;
                 holdChip.textContent = holdMs === 0 ? t("expr.permanent") : holdMs < 1000 ? `${holdMs}ms` : `${holdMs / 1000}s`;
                 holdChip.title = holdMs === 0 ? "Expression stays until manually changed" : `Reverts to default after ${holdMs}ms`;
+                // Edit (pencil) button
+                const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+                const trigEditBtn = document.createElement("button");
+                trigEditBtn.className = "ebc-edit-btn";
+                trigEditBtn.innerHTML = PENCIL_SVG;
+                trigEditBtn.title = "Edit trigger";
                 const trigDelBtn = document.createElement("button");
                 trigDelBtn.className = "ebc-outfit-del";
                 trigDelBtn.textContent = "×";
@@ -31537,8 +31584,86 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 tRow.appendChild(arrow);
                 tRow.appendChild(presetName);
                 tRow.appendChild(holdChip);
+                tRow.appendChild(trigEditBtn);
                 tRow.appendChild(trigDelBtn);
-                body.appendChild(tRow);
+                tWrap.appendChild(tRow);
+                // ── Inline edit panel ──────────────────────────────────────────
+                const editPanel = document.createElement("div");
+                editPanel.className = "ebc-edit-panel";
+                const makeERow = (labelText, inp) => {
+                    const r = document.createElement("div");
+                    r.className = "ebc-form-row";
+                    const lbl = document.createElement("span");
+                    lbl.className = "ebc-form-label";
+                    lbl.textContent = labelText;
+                    r.appendChild(lbl);
+                    r.appendChild(inp);
+                    return r;
+                };
+                const eMatchInp = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", value: trig.matchText, maxLength: 60,
+                });
+                eMatchInp.addEventListener("keydown", e => e.stopPropagation());
+                const ePresetSel = document.createElement("select");
+                ePresetSel.style.cssText = "flex:1;min-width:0;font-size:11px;font-family:'Trebuchet MS',serif;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:2px 4px;";
+                for (const pr of getExpressionPresets()) {
+                    const opt = document.createElement("option");
+                    opt.value = pr.id;
+                    opt.textContent = pr.name;
+                    if (pr.id === trig.presetId)
+                        opt.selected = true;
+                    ePresetSel.appendChild(opt);
+                }
+                const eHoldInp = Object.assign(document.createElement("input"), {
+                    type: "number", min: "0", max: "30000", value: String(trig.durationMs),
+                });
+                eHoldInp.style.cssText = "width:70px;font-size:11px;font-family:'Trebuchet MS',serif;padding:2px 4px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;";
+                eHoldInp.addEventListener("keydown", e => e.stopPropagation());
+                const eHoldUnit = document.createElement("span");
+                eHoldUnit.style.cssText = `${F}10px;color:#5a3050;flex-shrink:0;margin-left:4px;`;
+                eHoldUnit.textContent = t("expr.holdUnit");
+                const eHoldRow = document.createElement("div");
+                eHoldRow.className = "ebc-form-row";
+                const eHoldLbl = document.createElement("span");
+                eHoldLbl.className = "ebc-form-label";
+                eHoldLbl.textContent = t("expr.hold");
+                eHoldRow.appendChild(eHoldLbl);
+                eHoldRow.appendChild(eHoldInp);
+                eHoldRow.appendChild(eHoldUnit);
+                const eSaveBtn = document.createElement("button");
+                eSaveBtn.className = "ebc-create-btn";
+                eSaveBtn.style.cssText = "width:100%;font-size:11px;margin-top:2px;";
+                eSaveBtn.textContent = "✔ Save";
+                editPanel.appendChild(makeERow(t("expr.contains"), eMatchInp));
+                editPanel.appendChild(makeERow(t("expr.applyLabel"), ePresetSel));
+                editPanel.appendChild(eHoldRow);
+                editPanel.appendChild(eSaveBtn);
+                tWrap.appendChild(editPanel);
+                // Toggle
+                trigEditBtn.addEventListener("click", () => {
+                    const willOpen = !editPanel.classList.contains("open");
+                    editPanel.classList.toggle("open", willOpen);
+                    trigEditBtn.classList.toggle("open", willOpen);
+                    tRow.style.borderRadius = willOpen ? "5px 5px 0 0" : "5px";
+                    if (willOpen)
+                        eMatchInp.focus();
+                });
+                // Save
+                eSaveBtn.addEventListener("click", () => {
+                    const matchText = eMatchInp.value.trim();
+                    if (!matchText) {
+                        eMatchInp.style.borderColor = "#cf6f98";
+                        return;
+                    }
+                    const presetId = ePresetSel.value;
+                    if (!presetId)
+                        return;
+                    const durationMs = Math.max(0, parseInt(eHoldInp.value) || 0);
+                    saveExpressionTriggers(getExpressionTriggers().map(t2 => t2.id === trig.id
+                        ? Object.assign(Object.assign({}, t2), { matchText, name: matchText, presetId, durationMs }) : t2));
+                    this.rerender();
+                });
+                body.appendChild(tWrap);
             }
             // ── New trigger form ──────────────────────────────────────────────────────
             const newTrigToggle = document.createElement("button");
@@ -33207,7 +33332,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.4";
+    const MOD_VERSION = "4.8.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33218,6 +33343,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.5",
+            changes: [
+                "Fix: Relaxed arms now works correctly while kneeling or sitting — replaced the nuke+re-add approach with surgical removal that directly patches ActivePoseMapping/ActivePose to drop arm entries without ever touching the body pose.",
+                "Triggers: triggers can now be edited inline — click the pencil icon on any trigger row to expand a form pre-filled with its current match text, face preset, and hold duration.",
+            ],
+        },
         {
             version: "4.8.4",
             changes: [
