@@ -62,14 +62,17 @@ export function applyPoses(poses: string[]): void {
             if (result.length === 0) {
                 psa(Player, null, true, false);
             } else if (wantsRelaxed) {
-                // "Relaxed arms" path: nuke everything first, then re-add body-only poses.
-                // On some BC builds, psa(body, force=true) only replaces the body category
-                // and leaves the arm category untouched.  Clearing everything first (null +
-                // force=true) and then re-adding is the only guaranteed way to flush the
-                // arm slot from BC's internal state.
+                // "Relaxed arms" path — nuke all poses, re-add body-only poses, then
+                // explicitly set "BaseUpper" (BC's internal name for arms-at-sides).
+                // Without setting BaseUpper the BodyUpper category stays empty and BC
+                // does NOT automatically fall back to the relaxed rendering.
                 psa(Player, null, true, false);
                 for (const p of result) {
-                    psa(Player, p, false, false);
+                    psa(Player, p, true, false);
+                }
+                // Set BaseUpper if it's a valid pose in this BC build
+                if (!pfn || pfn("BaseUpper") != null) {
+                    try { psa(Player, "BaseUpper", true, false); } catch { /* ignore */ }
                 }
             } else {
                 psa(Player, result[0], true, false);
@@ -105,21 +108,14 @@ export function applyPoses(poses: string[]): void {
         } catch { /* ignore */ }
     }
 
-    // 1c. Keep Player.Pose, ActivePoseMapping, and ActivePose all in sync.
-    //     CharacterRefresh → CharacterLoadActualPose rebuilds the derived fields
-    //     from Player.Pose, so without syncing Pose here a stale arm entry would
-    //     survive the refresh and re-appear in ActivePoseMapping/ActivePose.
+    // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
+    //     ActivePoseMapping canonically; we only mirror ActivePose for the small
+    //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
+    //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
+    //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
     try {
-        const pp = Player as unknown as Record<string, unknown>;
-        // Pose — canonical source used by CharacterLoadActualPose
-        pp.Pose = result.length > 0 ? [...result] : [];
-        // ActivePoseMapping — also clear/set for builds that read this direction
-        // (already set in 1b above if pfn was available, but ensure it for wantsRelaxed)
-        if (result.length === 0) {
-            pp.ActivePoseMapping = {};
-        }
-        // ActivePose — derived cache
-        pp.ActivePose = result.length > 0 ? result : null;
+        (Player as unknown as Record<string, unknown>).ActivePose =
+            result.length > 0 ? result : null;
     } catch { /* ignore */ }
 
     // 2. Local visual refresh — Push=false, we push below.
@@ -138,54 +134,69 @@ export function applyPoses(poses: string[]): void {
     } catch { /* ignore */ }
 }
 
-// Surgically remove any active arm pose without disturbing body poses.
-// Mutates Player.Pose (the canonical source), ActivePoseMapping, AND ActivePose.
+// Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
 //
-// Root-cause note: CharacterRefresh → CharacterLoadActualPose rebuilds both
-// ActivePoseMapping and ActivePose FROM Player.Pose every call.  Earlier
-// attempts that only cleared ActivePoseMapping/ActivePose were immediately
-// undone by the next CharacterRefresh reading the stale Player.Pose.
+// "BaseUpper" is BC's explicit internal name for the default / relaxed upper-body
+// state.  Relaxed is NOT the absence of an arm pose — BC requires "BaseUpper" to
+// be set in the BodyUpper category; leaving the category empty causes BC to render
+// the arms incorrectly or leave them stuck in the previous pose.
+//
+// All earlier attempts removed arm entries from ActivePoseMapping/ActivePose but
+// did not call PoseSetActive("BaseUpper"), so BC never applied the relaxed state.
 export function clearArmPose(): void {
     try {
         const p = Player as unknown as Record<string, unknown>;
+        const win = window as unknown as Record<string, unknown>;
+        const psa = win.PoseSetActive as
+            ((C: unknown, name: string | null, force?: boolean, push?: boolean) => void) | undefined;
+        const pfn = win.AssetPoseFindName as
+            ((name: string) => { Category?: string } | null | undefined) | undefined;
 
-        // 1. Player.Pose — the canonical array CharacterLoadActualPose reads.
-        //    This is the field that was missing in prior fix attempts.
-        const pose = p.Pose as string[] | null | undefined;
-        if (Array.isArray(pose)) {
-            p.Pose = pose.filter(x => !ARM_POSES.includes(x));
-        }
+        if (typeof psa === "function") {
+            // Check whether "BaseUpper" is a valid pose in this BC build.
+            // If pfn isn't available, assume it is — psa no-ops silently on unknown poses.
+            const baseValid = typeof pfn === "function" ? pfn("BaseUpper") != null : true;
 
-        // 2. ActivePoseMapping — belt-and-suspenders for builds where the
-        //    mapping is the primary source instead of Pose.
-        const mapping = p.ActivePoseMapping as Record<string, string> | null | undefined;
-        if (mapping && typeof mapping === "object") {
-            for (const key of Object.keys(mapping)) {
-                if (ARM_POSES.includes(mapping[key])) delete mapping[key];
+            if (baseValid) {
+                // Set the BodyUpper category to its relaxed/default state.
+                // force=true → always set (never toggle off); push=false → we push below.
+                psa(Player, "BaseUpper", true, false);
+            } else {
+                // "BaseUpper" doesn't exist in this BC build — nuke-and-readd body poses.
+                const bodyPoses = getCurrentPoses().filter(x => !ARM_POSES.includes(x));
+                psa(Player, null, true, false);
+                for (const bp of bodyPoses) {
+                    psa(Player, bp, true, false);
+                }
+            }
+        } else {
+            // No PoseSetActive — direct mutation across all three fields (very old BC).
+            const rawPose = p.Pose as string[] | null | undefined;
+            if (Array.isArray(rawPose)) p.Pose = rawPose.filter(x => !ARM_POSES.includes(x));
+            const mapping = p.ActivePoseMapping as Record<string, string> | null | undefined;
+            if (mapping) {
+                for (const k of Object.keys(mapping)) {
+                    if (ARM_POSES.includes(mapping[k])) delete mapping[k];
+                }
+            }
+            const ap = p.ActivePose as string[] | null | undefined;
+            if (Array.isArray(ap)) {
+                const next = ap.filter(x => !ARM_POSES.includes(x));
+                p.ActivePose = next.length > 0 ? next : null;
             }
         }
 
-        // 3. ActivePose — the derived cache; keep consistent so nothing re-reads
-        //    a stale value before CharacterRefresh rebuilds it.
-        const ap = p.ActivePose as string[] | null | undefined;
-        if (Array.isArray(ap)) {
-            const next = ap.filter(x => !ARM_POSES.includes(x));
-            p.ActivePose = next.length > 0 ? next : null;
-        }
-
-        // 4. Capture pose list for the server push BEFORE CharacterRefresh can
-        //    alter anything (use Pose as source of truth, fall back to mapping).
-        const cleanPose = (p.Pose as string[] | null | undefined) ?? [];
-        const m2        = p.ActivePoseMapping as Record<string, string> | null | undefined;
-        const poseList  = cleanPose.length > 0
-            ? cleanPose.filter(Boolean)
+        // psa already called CharacterRefresh internally; read back the resulting state.
+        const ap2 = p.ActivePose as string[] | null | undefined;
+        const m2  = p.ActivePoseMapping as Record<string, string> | null | undefined;
+        const poseList = Array.isArray(ap2) && ap2.length > 0
+            ? [...ap2]
             : Object.values(m2 ?? {}).filter(Boolean);
 
-        // 5. Local visual refresh — CharacterLoadActualPose rebuilds the derived
-        //    fields from the Pose array we just cleaned.
+        // Ensure local canvas is refreshed (idempotent if psa already did it).
         callBC(() => CharacterRefresh(Player, false));
 
-        // 6. Push to room
+        // Push to room.
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID:         Player.OnlineID,

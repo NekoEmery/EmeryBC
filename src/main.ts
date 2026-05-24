@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.8";
+const MOD_VERSION = "4.8.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.8.9",
+        changes: [
+            "Fix: Relaxed arms — 'BaseUpper' is BC's explicit pose name for arms-at-sides; relaxed is not the absence of an arm pose. clearArmPose() now calls PoseSetActive('BaseUpper') so BC correctly applies the relaxed visual. Also reverts the v4.8.8 Player.Pose override in applyPoses() that was incorrectly stripping BC-managed defaults and breaking all poses.",
+        ],
+    },
     {
         version: "4.8.8",
         changes: [
