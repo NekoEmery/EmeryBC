@@ -21979,9 +21979,12 @@
                         ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
                         : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                     btn.addEventListener("click", () => {
+                        // Always read fresh — the closure-captured currentPoses is stale
+                        // if the user clicks a second button before the 150ms rerender fires.
+                        const livePoses = getCurrentPoses();
                         if (preset.key === "" && group.group === "Arms") {
                             // "Relaxed" — clear all arm poses, keep everything else
-                            const nonArmPoses = currentPoses.filter(p => !armKeys.includes(p));
+                            const nonArmPoses = livePoses.filter(p => !armKeys.includes(p));
                             applyPoses(nonArmPoses);
                         }
                         else if (preset.key === "") {
@@ -21990,12 +21993,12 @@
                         }
                         else if (group.group === "Body") {
                             // Replace body pose but keep existing arm poses
-                            const armPoses = currentPoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Arms")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
+                            const armPoses = livePoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Arms")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
                             applyPoses([preset.key, ...armPoses]);
                         }
                         else {
                             // Replace arm pose but keep existing body poses
-                            const bodyPoses = currentPoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
+                            const bodyPoses = livePoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
                             applyPoses([...bodyPoses, preset.key]);
                         }
                         this.rerender(150);
@@ -33164,7 +33167,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.2";
+    const MOD_VERSION = "4.8.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33175,6 +33178,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.3",
+            changes: [
+                "Fix: pose buttons (Relaxed arms, body poses) now read the live current pose at click time instead of the snapshot captured when the tab was last rendered — clicking Relaxed while kneeling no longer clears the kneel.",
+            ],
+        },
         {
             version: "4.8.2",
             changes: [
