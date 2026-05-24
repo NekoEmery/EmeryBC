@@ -9213,22 +9213,25 @@ export class EBCDrawer {
                     ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
                     : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
+                    // Always read fresh — the closure-captured currentPoses is stale
+                    // if the user clicks a second button before the 150ms rerender fires.
+                    const livePoses = getCurrentPoses();
                     if (preset.key === "" && group.group === "Arms") {
                         // "Relaxed" — clear all arm poses, keep everything else
-                        const nonArmPoses = currentPoses.filter(p => !armKeys.includes(p));
+                        const nonArmPoses = livePoses.filter(p => !armKeys.includes(p));
                         applyPoses(nonArmPoses);
                     } else if (preset.key === "") {
                         // "Stand" clears everything
                         applyPoses([]);
                     } else if (group.group === "Body") {
                         // Replace body pose but keep existing arm poses
-                        const armPoses = currentPoses.filter(p =>
+                        const armPoses = livePoses.filter(p =>
                             KNOWN_POSES.find(g => g.group === "Arms")?.poses.some(x => x.key === p),
                         );
                         applyPoses([preset.key, ...armPoses]);
                     } else {
                         // Replace arm pose but keep existing body poses
-                        const bodyPoses = currentPoses.filter(p =>
+                        const bodyPoses = livePoses.filter(p =>
                             KNOWN_POSES.find(g => g.group === "Body")?.poses.some(x => x.key === p),
                         );
                         applyPoses([...bodyPoses, preset.key]);
