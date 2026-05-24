@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.5";
+const MOD_VERSION = "4.8.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.8.6",
+        changes: [
+            "Fix: safeword debounced across all 3 hook points — on some BC builds the same Enter keypress reached the capture handler, ChatRoomKeyDown hook, and ChatRoomSendChat hook, causing triggerRed/Yellow to fire twice (double chat announcement, two ChatRoomLeave calls). Now silently de-duped within a 2-second window.",
+            "Fix: grace period server sync rate-limited to once/2s — ChatRoomCharacterUpdate + ServerPlayerAppearanceSync were firing on every CharacterRefresh while grace was active (could be many times/second from other addons or BC's animation loop).",
+            "Fix: anti-restraint server sync rate-limited to once/2s — same issue; 200ms re-entry window wasn't enough to prevent syncs at 5×/s when restraints were being re-applied rapidly.",
+        ],
+    },
     {
         version: "4.8.5",
         changes: [

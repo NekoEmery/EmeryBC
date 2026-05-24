@@ -77,7 +77,23 @@ export function setSafewordConfig(cfg: SafewordConfig): void {
     } catch { /* ignore */ }
 }
 
+// -- Safeword double-fire guard ------------------------------------------------
+// checkSafeword is called from three hook points (capture keydown, ChatRoomKeyDown,
+// ChatRoomSendChat).  On some BC builds all three fire for the same Enter press,
+// which causes triggerRed/Yellow to fire twice — double announcement in chat,
+// two ChatRoomLeave calls scheduled, etc.
+// A 2-second debounce collapses all three into a single trigger.
+let lastSafewordTriggerTs = 0;
+const SAFEWORD_DEBOUNCE_MS = 2000;
+
 // -- Grace period state (in-memory; resets on page reload) --------------------
+// Rate-limit grace-enforcement server syncs.  The enforcement itself (item
+// removal + CharacterRefresh) runs every time it's needed, but the expensive
+// ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair is capped to once
+// every 2 s so a burst of rapid CharacterRefresh calls (from other mods or BC's
+// own animation system) can't flood the server.
+let lastGraceEnforceSync = 0;
+const GRACE_SYNC_INTERVAL_MS = 2000;
 
 // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
 let gracePeriodEnd: number | null = null;
@@ -167,8 +183,15 @@ export function enforceGracePeriod(): void {
         );
         snapshotPlayerRestraints();
         callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
+        // Rate-limit server syncs — local refresh always runs, but the server
+        // round-trips are capped to avoid flooding when CharacterRefresh is called
+        // in rapid bursts (BC animation loop, other addons, etc.)
+        const now = Date.now();
+        if (now - lastGraceEnforceSync >= GRACE_SYNC_INTERVAL_MS) {
+            lastGraceEnforceSync = now;
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
+        }
     } finally {
         enforcing = false;
     }
@@ -271,6 +294,16 @@ export function checkSafeword(inputValue: string): boolean {
         if (!w) return false;
         return trimmed === w || trimmed === w + "!";
     };
+
+    if (!matches(cfg.yellowWord) && !matches(cfg.redWord)) return false;
+
+    // Debounce — the same Enter keypress can reach all three hook points
+    // (capture keydown, ChatRoomKeyDown hook, ChatRoomSendChat hook) on some
+    // BC builds, which would fire the safeword twice.  Silently consume any
+    // re-trigger within 2 seconds of the first.
+    const now = Date.now();
+    if (now - lastSafewordTriggerTs < SAFEWORD_DEBOUNCE_MS) return true;
+    lastSafewordTriggerTs = now;
 
     if (matches(cfg.yellowWord)) { triggerYellow(); return true; }
     if (matches(cfg.redWord))    { triggerRed();    return true; }

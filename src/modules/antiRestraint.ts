@@ -89,6 +89,13 @@ export function recordRestrainer(sourceMemberNumber: number): void {
 
 let knownRestraints = new Set<string>();
 let escaping = false;
+// Rate-limit anti-restraint server syncs.  The 200 ms re-entry guard already
+// limits how often doEscape() fires, but if someone repeatedly re-applies
+// restraints they can drive the sync rate to 5×/s.  Cap server syncs to once
+// every 2 s so the room still sees the change quickly while staying well
+// below BC's server rate limits.
+let lastEscapeSync = 0;
+const ESCAPE_SYNC_INTERVAL_MS = 2000;
 
 // Tracks failed removal attempts per group. Items here are NOT merged into
 // knownRestraints so they remain detectable for a retry.
@@ -181,8 +188,15 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
     }
 
     callBC(() => CharacterRefresh(Player, false));
-    callBC(() => ChatRoomCharacterUpdate(Player));
-    callBC(() => ServerPlayerAppearanceSync());
+    // Rate-limit server syncs — always refresh locally, but cap the
+    // ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair to avoid
+    // flooding BC's server when restraints are re-applied in rapid succession.
+    const syncNow = Date.now();
+    if (syncNow - lastEscapeSync >= ESCAPE_SYNC_INTERVAL_MS) {
+        lastEscapeSync = syncNow;
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+    }
     mergeCurrentRestraints();
 
     window.setTimeout(() => {
