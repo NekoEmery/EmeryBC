@@ -1685,6 +1685,7 @@
             group: "Body",
             poses: [
                 { key: "", label: "Stand" },
+                { key: "LegsClosed", label: "Legs Closed" },
                 { key: "Kneel", label: "Kneel" },
                 { key: "KneelingSpread", label: "Kneel Wide" },
                 { key: "AllFours", label: "All Fours" },
@@ -1817,7 +1818,18 @@
     function getCurrentPoses() {
         var _a;
         try {
-            return [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
+            const ap = (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [];
+            if (ap.length > 0)
+                return [...ap];
+            // In newer BC, PoseSetActive writes to ActivePoseMapping rather than ActivePose.
+            // Fall back to the mapping values so callers always see the real current pose set.
+            const mapping = Player.ActivePoseMapping;
+            if (mapping && typeof mapping === "object") {
+                const vals = Object.values(mapping).filter(Boolean);
+                if (vals.length > 0)
+                    return vals;
+            }
+            return [];
         }
         catch (_b) {
             return [];
@@ -33152,7 +33164,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.1";
+    const MOD_VERSION = "4.8.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33163,6 +33175,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.2",
+            changes: [
+                "Poses: added Legs Closed standing pose to the body pose grid.",
+                "Fix: clicking Relaxed arms while kneeling was clearing the kneel — getCurrentPoses now also reads ActivePoseMapping so the body pose is preserved when BC stores it there instead of ActivePose.",
+            ],
+        },
         {
             version: "4.8.1",
             changes: [
