@@ -11418,7 +11418,7 @@ export class EBCDrawer {
         // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
         addPointerDown(header, (start, e) => {
-            if (e.target === closeBtn) return;
+            if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn) return;
             e.preventDefault();
             const rect = win.getBoundingClientRect();
             const ox = start.clientX - rect.left;
@@ -11493,7 +11493,12 @@ export class EBCDrawer {
 
                 const bubbleMember = isSent ? self : e.from;
                 const nameLabel = document.createElement("div");
-                nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
+                // For sent messages read directly from Player so no other addon's
+                // nickname hooks can bleed into the display name.
+                const bubbleName = isSent
+                    ? ((Player as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || Player.Name || "You"
+                    : resolveName(bubbleMember);
+                nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
                 nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
                 // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
                 // Fall back to solid colour for non-EBC senders.
