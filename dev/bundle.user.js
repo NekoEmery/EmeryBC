@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.6
+// @version      4.8.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33378,7 +33378,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.6";
+    const MOD_VERSION = "4.8.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33389,6 +33389,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.7",
+            changes: [
+                "Fix: ErrorRateLimited disconnect at startup — EBC's AccountUpdate (presence broadcast) now fires 5–8 seconds after room entry instead of immediately. With many addons all sending server messages at the same moment on room join, BC's rate limiter was tripped. The randomised delay spreads EBC's message outside the initial burst window.",
+            ],
+        },
         {
             version: "4.8.6",
             changes: [
@@ -38800,42 +38806,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
-            try {
-                syncPresenceMarker();
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
+            // Delay presence broadcast by 5–8 s (randomised) so EBC's AccountUpdate
+            // fires well after the initial burst of all ~10+ addons syncing at once.
+            // The 6 s per-send cooldown inside syncPresenceMarker still applies, so
+            // a rapid re-sync won't double-send even if the timer fires unexpectedly.
+            window.setTimeout(() => {
+                try {
+                    syncPresenceMarker();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, 5000 + Math.floor(Math.random() * 3000));
             try {
                 showRoomLoadNotice();
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 timerOnRoomEnter();
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             try {
                 snapshotPlayerRestraints();
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             try {
                 snapshotForLog();
             }
-            catch ( /* ignore */_h) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             try {
                 onRoomSync(args[0]);
             }
-            catch ( /* ignore */_j) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             try {
                 detectNewJoins();
             }
-            catch ( /* ignore */_k) { /* ignore */ }
+            catch ( /* ignore */_j) { /* ignore */ }
             try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
-            catch ( /* ignore */_l) { /* ignore */ }
+            catch ( /* ignore */_k) { /* ignore */ }
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -38852,7 +38864,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_l) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -38872,7 +38884,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
             }
-            catch ( /* ignore */_o) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -39388,12 +39400,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
-        try {
-            syncPresenceMarker();
-        }
-        catch (_e) {
-            // Ignore early sync failures.
-        }
+        // Delay the init-time presence broadcast the same way as the ChatRoomSync
+        // hook — prevents a double spike when the addon loads while already in a room.
+        window.setTimeout(() => {
+            try {
+                syncPresenceMarker();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 5000 + Math.floor(Math.random() * 3000));
         startUpdateChecker();
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
     }
