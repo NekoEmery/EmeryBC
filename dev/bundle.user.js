@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.5
+// @version      4.8.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2745,6 +2745,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     let knownRestraints = new Set();
     let escaping = false;
+    // Rate-limit anti-restraint server syncs.  The 200 ms re-entry guard already
+    // limits how often doEscape() fires, but if someone repeatedly re-applies
+    // restraints they can drive the sync rate to 5×/s.  Cap server syncs to once
+    // every 2 s so the room still sees the change quickly while staying well
+    // below BC's server rate limits.
+    let lastEscapeSync = 0;
+    const ESCAPE_SYNC_INTERVAL_MS = 2000;
     // Tracks failed removal attempts per group. Items here are NOT merged into
     // knownRestraints so they remain detectable for a retry.
     const failAttempts = new Map();
@@ -2822,8 +2829,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
+        // Rate-limit server syncs — always refresh locally, but cap the
+        // ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair to avoid
+        // flooding BC's server when restraints are re-applied in rapid succession.
+        const syncNow = Date.now();
+        if (syncNow - lastEscapeSync >= ESCAPE_SYNC_INTERVAL_MS) {
+            lastEscapeSync = syncNow;
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
+        }
         mergeCurrentRestraints();
         window.setTimeout(() => {
             try {
@@ -11729,7 +11743,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Safeword double-fire guard ------------------------------------------------
+    // checkSafeword is called from three hook points (capture keydown, ChatRoomKeyDown,
+    // ChatRoomSendChat).  On some BC builds all three fire for the same Enter press,
+    // which causes triggerRed/Yellow to fire twice — double announcement in chat,
+    // two ChatRoomLeave calls scheduled, etc.
+    // A 2-second debounce collapses all three into a single trigger.
+    let lastSafewordTriggerTs = 0;
+    const SAFEWORD_DEBOUNCE_MS = 2000;
     // -- Grace period state (in-memory; resets on page reload) --------------------
+    // Rate-limit grace-enforcement server syncs.  The enforcement itself (item
+    // removal + CharacterRefresh) runs every time it's needed, but the expensive
+    // ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair is capped to once
+    // every 2 s so a burst of rapid CharacterRefresh calls (from other mods or BC's
+    // own animation system) can't flood the server.
+    let lastGraceEnforceSync = 0;
+    const GRACE_SYNC_INTERVAL_MS = 2000;
     // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
     let gracePeriodEnd = null;
     function isGraceActive() {
@@ -11802,8 +11831,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             Player.Appearance = Player.Appearance.filter((i) => !removeGroups.has(i.Asset.Group.Name));
             snapshotPlayerRestraints();
             callBC(() => CharacterRefresh(Player, false));
-            callBC(() => ChatRoomCharacterUpdate(Player));
-            callBC(() => ServerPlayerAppearanceSync());
+            // Rate-limit server syncs — local refresh always runs, but the server
+            // round-trips are capped to avoid flooding when CharacterRefresh is called
+            // in rapid bursts (BC animation loop, other addons, etc.)
+            const now = Date.now();
+            if (now - lastGraceEnforceSync >= GRACE_SYNC_INTERVAL_MS) {
+                lastGraceEnforceSync = now;
+                callBC(() => ChatRoomCharacterUpdate(Player));
+                callBC(() => ServerPlayerAppearanceSync());
+            }
         }
         finally {
             enforcing = false;
@@ -11917,6 +11953,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return false;
             return trimmed === w || trimmed === w + "!";
         };
+        if (!matches(cfg.yellowWord) && !matches(cfg.redWord))
+            return false;
+        // Debounce — the same Enter keypress can reach all three hook points
+        // (capture keydown, ChatRoomKeyDown hook, ChatRoomSendChat hook) on some
+        // BC builds, which would fire the safeword twice.  Silently consume any
+        // re-trigger within 2 seconds of the first.
+        const now = Date.now();
+        if (now - lastSafewordTriggerTs < SAFEWORD_DEBOUNCE_MS)
+            return true;
+        lastSafewordTriggerTs = now;
         if (matches(cfg.yellowWord)) {
             triggerYellow();
             return true;
@@ -33332,7 +33378,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.5";
+    const MOD_VERSION = "4.8.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33343,6 +33389,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.6",
+            changes: [
+                "Fix: safeword debounced across all 3 hook points — on some BC builds the same Enter keypress reached the capture handler, ChatRoomKeyDown hook, and ChatRoomSendChat hook, causing triggerRed/Yellow to fire twice (double chat announcement, two ChatRoomLeave calls). Now silently de-duped within a 2-second window.",
+                "Fix: grace period server sync rate-limited to once/2s — ChatRoomCharacterUpdate + ServerPlayerAppearanceSync were firing on every CharacterRefresh while grace was active (could be many times/second from other addons or BC's animation loop).",
+                "Fix: anti-restraint server sync rate-limited to once/2s — same issue; 200ms re-entry window wasn't enough to prevent syncs at 5×/s when restraints were being re-applied rapidly.",
+            ],
+        },
         {
             version: "4.8.5",
             changes: [
