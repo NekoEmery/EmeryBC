@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.8
+// @version      4.8.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1739,14 +1739,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     psa(Player, null, true, false);
                 }
                 else if (wantsRelaxed) {
-                    // "Relaxed arms" path: nuke everything first, then re-add body-only poses.
-                    // On some BC builds, psa(body, force=true) only replaces the body category
-                    // and leaves the arm category untouched.  Clearing everything first (null +
-                    // force=true) and then re-adding is the only guaranteed way to flush the
-                    // arm slot from BC's internal state.
+                    // "Relaxed arms" path — nuke all poses, re-add body-only poses, then
+                    // explicitly set "BaseUpper" (BC's internal name for arms-at-sides).
+                    // Without setting BaseUpper the BodyUpper category stays empty and BC
+                    // does NOT automatically fall back to the relaxed rendering.
                     psa(Player, null, true, false);
                     for (const p of result) {
-                        psa(Player, p, false, false);
+                        psa(Player, p, true, false);
+                    }
+                    // Set BaseUpper if it's a valid pose in this BC build
+                    if (!pfn || pfn("BaseUpper") != null) {
+                        try {
+                            psa(Player, "BaseUpper", true, false);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
                     }
                 }
                 else {
@@ -1756,7 +1762,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
         }
         // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
         //     This is the critical belt-and-suspenders step: PoseSetActive can silently
@@ -1776,7 +1782,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 Player.ActivePoseMapping =
                     result.length === 0 ? {} : mapping;
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         else if (typeof psa !== "function") {
             // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
@@ -1784,25 +1790,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 Player.ActivePose =
                     result.length > 0 ? result : null;
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
-        // 1c. Keep Player.Pose, ActivePoseMapping, and ActivePose all in sync.
-        //     CharacterRefresh → CharacterLoadActualPose rebuilds the derived fields
-        //     from Player.Pose, so without syncing Pose here a stale arm entry would
-        //     survive the refresh and re-appear in ActivePoseMapping/ActivePose.
+        // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
+        //     ActivePoseMapping canonically; we only mirror ActivePose for the small
+        //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
+        //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
+        //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
         try {
-            const pp = Player;
-            // Pose — canonical source used by CharacterLoadActualPose
-            pp.Pose = result.length > 0 ? [...result] : [];
-            // ActivePoseMapping — also clear/set for builds that read this direction
-            // (already set in 1b above if pfn was available, but ensure it for wantsRelaxed)
-            if (result.length === 0) {
-                pp.ActivePoseMapping = {};
-            }
-            // ActivePose — derived cache
-            pp.ActivePose = result.length > 0 ? result : null;
+            Player.ActivePose =
+                result.length > 0 ? result : null;
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // 2. Local visual refresh — Push=false, we push below.
         callBC(() => CharacterRefresh(Player, false));
         // 3. Push to room via direct ServerSend (same approach as sequence runner in
@@ -1816,52 +1815,68 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
             }
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
     }
-    // Surgically remove any active arm pose without disturbing body poses.
-    // Mutates Player.Pose (the canonical source), ActivePoseMapping, AND ActivePose.
+    // Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
     //
-    // Root-cause note: CharacterRefresh → CharacterLoadActualPose rebuilds both
-    // ActivePoseMapping and ActivePose FROM Player.Pose every call.  Earlier
-    // attempts that only cleared ActivePoseMapping/ActivePose were immediately
-    // undone by the next CharacterRefresh reading the stale Player.Pose.
+    // "BaseUpper" is BC's explicit internal name for the default / relaxed upper-body
+    // state.  Relaxed is NOT the absence of an arm pose — BC requires "BaseUpper" to
+    // be set in the BodyUpper category; leaving the category empty causes BC to render
+    // the arms incorrectly or leave them stuck in the previous pose.
+    //
+    // All earlier attempts removed arm entries from ActivePoseMapping/ActivePose but
+    // did not call PoseSetActive("BaseUpper"), so BC never applied the relaxed state.
     function clearArmPose() {
-        var _a;
         try {
             const p = Player;
-            // 1. Player.Pose — the canonical array CharacterLoadActualPose reads.
-            //    This is the field that was missing in prior fix attempts.
-            const pose = p.Pose;
-            if (Array.isArray(pose)) {
-                p.Pose = pose.filter(x => !ARM_POSES.includes(x));
-            }
-            // 2. ActivePoseMapping — belt-and-suspenders for builds where the
-            //    mapping is the primary source instead of Pose.
-            const mapping = p.ActivePoseMapping;
-            if (mapping && typeof mapping === "object") {
-                for (const key of Object.keys(mapping)) {
-                    if (ARM_POSES.includes(mapping[key]))
-                        delete mapping[key];
+            const win = window;
+            const psa = win.PoseSetActive;
+            const pfn = win.AssetPoseFindName;
+            if (typeof psa === "function") {
+                // Check whether "BaseUpper" is a valid pose in this BC build.
+                // If pfn isn't available, assume it is — psa no-ops silently on unknown poses.
+                const baseValid = typeof pfn === "function" ? pfn("BaseUpper") != null : true;
+                if (baseValid) {
+                    // Set the BodyUpper category to its relaxed/default state.
+                    // force=true → always set (never toggle off); push=false → we push below.
+                    psa(Player, "BaseUpper", true, false);
+                }
+                else {
+                    // "BaseUpper" doesn't exist in this BC build — nuke-and-readd body poses.
+                    const bodyPoses = getCurrentPoses().filter(x => !ARM_POSES.includes(x));
+                    psa(Player, null, true, false);
+                    for (const bp of bodyPoses) {
+                        psa(Player, bp, true, false);
+                    }
                 }
             }
-            // 3. ActivePose — the derived cache; keep consistent so nothing re-reads
-            //    a stale value before CharacterRefresh rebuilds it.
-            const ap = p.ActivePose;
-            if (Array.isArray(ap)) {
-                const next = ap.filter(x => !ARM_POSES.includes(x));
-                p.ActivePose = next.length > 0 ? next : null;
+            else {
+                // No PoseSetActive — direct mutation across all three fields (very old BC).
+                const rawPose = p.Pose;
+                if (Array.isArray(rawPose))
+                    p.Pose = rawPose.filter(x => !ARM_POSES.includes(x));
+                const mapping = p.ActivePoseMapping;
+                if (mapping) {
+                    for (const k of Object.keys(mapping)) {
+                        if (ARM_POSES.includes(mapping[k]))
+                            delete mapping[k];
+                    }
+                }
+                const ap = p.ActivePose;
+                if (Array.isArray(ap)) {
+                    const next = ap.filter(x => !ARM_POSES.includes(x));
+                    p.ActivePose = next.length > 0 ? next : null;
+                }
             }
-            // 4. Capture pose list for the server push BEFORE CharacterRefresh can
-            //    alter anything (use Pose as source of truth, fall back to mapping).
-            const cleanPose = (_a = p.Pose) !== null && _a !== void 0 ? _a : [];
+            // psa already called CharacterRefresh internally; read back the resulting state.
+            const ap2 = p.ActivePose;
             const m2 = p.ActivePoseMapping;
-            const poseList = cleanPose.length > 0
-                ? cleanPose.filter(Boolean)
+            const poseList = Array.isArray(ap2) && ap2.length > 0
+                ? [...ap2]
                 : Object.values(m2 !== null && m2 !== void 0 ? m2 : {}).filter(Boolean);
-            // 5. Local visual refresh — CharacterLoadActualPose rebuilds the derived
-            //    fields from the Pose array we just cleaned.
+            // Ensure local canvas is refreshed (idempotent if psa already did it).
             callBC(() => CharacterRefresh(Player, false));
-            // 6. Push to room
+            // Push to room.
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
@@ -1870,7 +1885,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
             }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Each entry in `poses` is one step:
@@ -33401,7 +33416,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.8";
+    const MOD_VERSION = "4.8.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33412,6 +33427,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.8.9",
+            changes: [
+                "Fix: Relaxed arms — 'BaseUpper' is BC's explicit pose name for arms-at-sides; relaxed is not the absence of an arm pose. clearArmPose() now calls PoseSetActive('BaseUpper') so BC correctly applies the relaxed visual. Also reverts the v4.8.8 Player.Pose override in applyPoses() that was incorrectly stripping BC-managed defaults and breaking all poses.",
+            ],
+        },
         {
             version: "4.8.8",
             changes: [
