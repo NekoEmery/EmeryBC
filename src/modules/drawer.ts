@@ -9217,9 +9217,12 @@ export class EBCDrawer {
                     // if the user clicks a second button before the 150ms rerender fires.
                     const livePoses = getCurrentPoses();
                     if (preset.key === "" && group.group === "Arms") {
-                        // "Relaxed" — clear all arm poses, keep everything else
+                        // "Relaxed" — clear all arm poses, keep everything else.
+                        // Pass the "" marker so applyPoses uses the wantsRelaxed
+                        // code path (nuke + re-add) to guarantee BC's arm slot is
+                        // flushed on all BC versions.
                         const nonArmPoses = livePoses.filter(p => !armKeys.includes(p));
-                        applyPoses(nonArmPoses);
+                        applyPoses([...nonArmPoses, ""]);
                     } else if (preset.key === "") {
                         // "Stand" clears everything
                         applyPoses([]);

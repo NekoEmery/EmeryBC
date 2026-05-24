@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.3";
+const MOD_VERSION = "4.8.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.8.4",
+        changes: [
+            "Fix: Relaxed arms while kneeling now reliably clears the arm pose — previously BC's internal arm slot was not always flushed when only the body category was updated; arm poses are now fully purged (clear-all + re-add body) and Player.ActivePose is kept in sync so CharacterRefresh always reads the correct state.",
+        ],
+    },
     {
         version: "4.8.3",
         changes: [

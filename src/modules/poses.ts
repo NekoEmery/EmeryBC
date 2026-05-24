@@ -61,6 +61,16 @@ export function applyPoses(poses: string[]): void {
         try {
             if (result.length === 0) {
                 psa(Player, null, true, false);
+            } else if (wantsRelaxed) {
+                // "Relaxed arms" path: nuke everything first, then re-add body-only poses.
+                // On some BC builds, psa(body, force=true) only replaces the body category
+                // and leaves the arm category untouched.  Clearing everything first (null +
+                // force=true) and then re-adding is the only guaranteed way to flush the
+                // arm slot from BC's internal state.
+                psa(Player, null, true, false);
+                for (const p of result) {
+                    psa(Player, p, false, false);
+                }
             } else {
                 psa(Player, result[0], true, false);
                 for (let i = 1; i < result.length; i++) {
@@ -94,6 +104,15 @@ export function applyPoses(poses: string[]): void {
                 result.length > 0 ? result : null;
         } catch { /* ignore */ }
     }
+
+    // 1c. Keep Player.ActivePose in sync — some BC builds rebuild ActivePoseMapping
+    //     *from* ActivePose inside CharacterRefresh.  Without this, a stale ActivePose
+    //     (e.g. still containing an arm pose) would silently restore the mapping we
+    //     just cleared in 1a/1b.
+    try {
+        (Player as unknown as Record<string, unknown>).ActivePose =
+            result.length > 0 ? result : null;
+    } catch { /* ignore */ }
 
     // 2. Local visual refresh — Push=false, we push below.
     callBC(() => CharacterRefresh(Player, false));
