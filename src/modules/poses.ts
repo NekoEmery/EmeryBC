@@ -20,6 +20,7 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
         group: "Body",
         poses: [
             { key: "",               label: "Stand"        },
+            { key: "LegsClosed",     label: "Legs Closed"  },
             { key: "Kneel",          label: "Kneel"        },
             { key: "KneelingSpread", label: "Kneel Wide"   },
             { key: "AllFours",       label: "All Fours"    },
@@ -151,7 +152,19 @@ export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
 }
 
 export function getCurrentPoses(): string[] {
-    try { return [...((Player.ActivePose as string[]) ?? [])]; } catch { return []; }
+    try {
+        const ap = (Player.ActivePose as string[] | undefined) ?? [];
+        if (ap.length > 0) return [...ap];
+        // In newer BC, PoseSetActive writes to ActivePoseMapping rather than ActivePose.
+        // Fall back to the mapping values so callers always see the real current pose set.
+        const mapping = (Player as unknown as Record<string, unknown>).ActivePoseMapping as
+            Record<string, string> | undefined;
+        if (mapping && typeof mapping === "object") {
+            const vals = Object.values(mapping).filter(Boolean);
+            if (vals.length > 0) return vals;
+        }
+        return [];
+    } catch { return []; }
 }
 
 // -- Combo storage -------------------------------------------------------
