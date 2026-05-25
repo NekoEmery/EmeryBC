@@ -184,14 +184,34 @@
     // one refresh + one server sync after ALL groups are set, instead of one per group.
     // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
     function applyExprGroup(group, exprName, noSync = false) {
+        var _a;
         try {
+            // Validate that the expression name exists in the current BC build before applying.
+            // Stored presets may contain names from older BC versions (e.g. "Eyes5", "Eyes1",
+            // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
+            // BC's server rejects appearance bundles containing unrecognised items and pushes a
+            // sanitised copy back — each round-trip triggers another sync, creating the loop that
+            // causes ErrorRateLimited on login.  If AssetGet returns null/undefined, treat the
+            // expression as absent and clear the group instead (silent downgrade, never an error).
+            let safeExprName = exprName;
+            if (safeExprName) {
+                try {
+                    const assetGet = window.AssetGet;
+                    if (typeof assetGet === "function") {
+                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, safeExprName)) {
+                            safeExprName = null; // not valid in this BC version — clear group instead
+                        }
+                    }
+                }
+                catch ( /* ignore — keep safeExprName as-is if AssetGet itself throws */_b) { /* ignore — keep safeExprName as-is if AssetGet itself throws */ }
+            }
             // Prefer BC's official API — omit optional Timer/Color args entirely so BC
             // uses its own defaults (no timer = keep expression; no colour override).
             // Passing null for Timer can be treated as "0 ms" in some BC builds which
             // would instantly clear the expression.
             const setExpr = window.CharacterSetFacialExpression;
             if (typeof setExpr === "function") {
-                setExpr(Player, group, exprName);
+                setExpr(Player, group, safeExprName);
             }
             else {
                 // Fallback: direct Appearance manipulation.
@@ -199,14 +219,14 @@
                 const wear = window.InventoryWear;
                 const remove = window.InventoryRemove;
                 if (typeof wear === "function" && typeof remove === "function") {
-                    if (exprName) {
-                        wear(Player, exprName, group, "Default", 0);
+                    if (safeExprName) {
+                        wear(Player, safeExprName, group, "Default", 0);
                         // Ensure Property.Expression is set (some BC builds leave it unset)
                         const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
                         if (item) {
                             if (!item.Property)
                                 item.Property = {};
-                            item.Property.Expression = exprName;
+                            item.Property.Expression = safeExprName;
                         }
                     }
                     else {
@@ -219,14 +239,14 @@
                     const idx = app.findIndex(i => i.Asset.Group.Name === group);
                     if (idx !== -1)
                         app.splice(idx, 1);
-                    if (exprName) {
-                        const asset = AssetGet(Player.AssetFamily, group, exprName);
+                    if (safeExprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, safeExprName);
                         if (asset) {
                             app.push({
                                 Asset: asset,
                                 Color: "Default",
                                 Difficulty: 0,
-                                Property: { Expression: exprName },
+                                Property: { Expression: safeExprName },
                             });
                         }
                     }
@@ -237,7 +257,7 @@
                 syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
             }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // Clear all expression groups in one batch: one CharacterRefresh + one server sync total.
     // Use this instead of looping applyExprGroup(g, null) without noSync.
@@ -33436,7 +33456,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.2";
+    const MOD_VERSION = "4.9.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33448,11 +33468,9 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "4.9.2",
+            version: "4.9.3",
             changes: [
-                "Fix: expression changes no longer cause rate-limit timeouts when WCE is also running. Previously applyExprGroup called CharacterRefresh + a server sync for each expression group individually — applying an 8-group preset traversed the full hook chain 8 times, giving WCE 8 opportunities to react and re-sync. All batch callers (presets, sequences, clear-all) now use noSync=true per group and do one CharacterRefresh + one server sync at the end.",
-                "Fix: syncAppearance no longer calls ServerPlayerAppearanceSync when already in a chat room. ChatRoomCharacterUpdate already handles both the room broadcast and server-side persistence in that context; the extra call was doubling EBC's server traffic and compounding any WCE reaction on ChatRoomCharacterUpdate.",
-                "Fix: emote shortcut (*text) now has a 500 ms dedup guard to prevent double-sends if BC's event propagation routes the same keypress through more than one of EBC's three intercept paths.",
+                "Fix: expression presets containing expression names that are invalid in the current BC version (e.g. 'Eyes5', 'Eyes1', 'Regular', 'Fluids' removed in R128) no longer cause ErrorRateLimited timeouts on login. Each invalid name caused BC's server to reject and sanitise the appearance bundle, triggering a ChatRoomSyncSingle loop that compounded with WCE. applyExprGroup now validates each name via AssetGet before setting it — if the asset doesn't exist in the running BC build the group is silently cleared instead, preventing any invalid data from reaching the server.",
             ],
         },
         {
