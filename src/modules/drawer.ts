@@ -2430,6 +2430,7 @@ const CSS = `
 }
 .ebc-beep-win.minimized .ebc-beep-win-history,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
+.ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -2523,27 +2524,25 @@ const CSS = `
 }
 .ebc-beep-reply-btn:hover { color: #cf6f98; background: #2a0e1e; }
 
-.ebc-beep-room-pill {
+.ebc-beep-room-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 10px;
+    font-size: 9px;
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #b090a0;
+    color: #8a6070;
+    background: rgba(18,7,14,0.60);
+    border-bottom: 1px solid rgba(45,18,32,0.70);
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+    flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
-    cursor: pointer;
-    /* Proper touch target — padding gives fingers something to hit */
-    padding: 4px 8px;
-    border-radius: 10px;
-    border: 1px solid #3a1928;
-    background: rgba(30,13,26,0.55);
-    display: inline-flex;
-    align-items: center;
-    transition: color 0.12s, border-color 0.12s, background 0.12s;
-    margin-top: 2px;
-    align-self: flex-start;
+    user-select: none;
 }
-.ebc-beep-room-pill:hover { color: #cf6f98; border-color: #cf6f98; background: rgba(58,16,40,0.70); }
+.ebc-beep-room-bar:hover { color: #cf6f98; background: rgba(50,14,34,0.70); }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -11358,26 +11357,20 @@ export class EBCDrawer {
         const dot = document.createElement("span");
         dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
 
-        const titleArea = document.createElement("div");
-        titleArea.style.cssText = "display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;overflow:hidden;";
-
         const title = document.createElement("span");
         title.className = "ebc-beep-win-title";
         title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
 
-        const roomPill = document.createElement("div");
-        roomPill.className = "ebc-beep-room-pill";
-        roomPill.style.display = "none";
-        roomPill.title = "Click to join this room";
-        roomPill.addEventListener("click", (e: Event) => {
-            e.stopPropagation(); // don't trigger header drag
+        // Slim room bar shown between header and chat when the other person is in a room.
+        // Click joins their room. Hidden when they have no room.
+        const roomBar = document.createElement("div");
+        roomBar.className = "ebc-beep-room-bar";
+        roomBar.style.display = "none";
+        roomBar.addEventListener("click", () => {
             const rName = getFriendOnlineInfo(memberNumber)?.roomName;
             if (!rName) return;
             ebcJoinRoom(rName);
         });
-
-        titleArea.appendChild(title);
-        titleArea.appendChild(roomPill);
 
         // Called whenever online friend status refreshes (AccountQueryResult)
         const updateStatus = (): void => {
@@ -11386,11 +11379,11 @@ export class EBCDrawer {
             title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
             const info = getFriendOnlineInfo(memberNumber);
             if (info?.roomName) {
-                roomPill.textContent = `📍 ${info.roomName} →`;
-                roomPill.title = `Tap to join ${info.roomName}`;
-                roomPill.style.display = "";
+                roomBar.textContent = `📍 ${info.roomName}`;
+                roomBar.title = `Tap to join ${info.roomName}`;
+                roomBar.style.display = "";
             } else {
-                roomPill.style.display = "none";
+                roomBar.style.display = "none";
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
@@ -11464,13 +11457,14 @@ export class EBCDrawer {
         });
 
         header.appendChild(dot);
-        header.appendChild(titleArea);
+        header.appendChild(title);
         header.appendChild(unreadDot);
         header.appendChild(muteBtn);
         header.appendChild(roomInviteBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
+        win.appendChild(roomBar);
 
         // Restore saved position from localStorage, or fall back to default offset.
         // Clamp the restored values so the window is always fully on-screen even if
@@ -11504,7 +11498,7 @@ export class EBCDrawer {
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
         addPointerDown(header, (start, e) => {
             if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
-                || e.target === roomInviteBtn || e.target === roomPill) return;
+                || e.target === roomInviteBtn) return;
             e.preventDefault();
             const rect = win.getBoundingClientRect();
             const ox = start.clientX - rect.left;
