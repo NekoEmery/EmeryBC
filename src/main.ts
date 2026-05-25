@@ -42,6 +42,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "Fix: expression presets now actually apply in BC R128+ — the AssetGet pre-validation was incorrectly skipping all expression groups (returning falsy for valid names). Removed the redundant pre-check; BC's own CharacterSetFacialExpression validates internally and ignores truly unknown names without corrupting appearance data.",
             "Fix: group chat window no longer looks semi-transparent and blurry — increased background opacity and fixed incorrect CSS class names on the history scroll area, message bubbles, input bar, and Send button (classes with no styles were being assigned).",
+            "UX: beep window room drawer now shows only the Join room button — removed the space/count/language/privacy chips.",
         ],
     },
     {

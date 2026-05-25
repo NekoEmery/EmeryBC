@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getCurrentRoomName, setRoomSearchCallback, isInCurrentRoom } from "./bcUtils";
+import { callBC, syncSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11443,9 +11443,6 @@ export class EBCDrawer {
         const roomDrawerInner = document.createElement("div");
         roomDrawerInner.className = "ebc-beep-room-drawer-inner";
 
-        const roomDrawerChips = document.createElement("div");
-        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
-
         const roomDrawerJoin = document.createElement("button");
         roomDrawerJoin.className = "ebc-beep-room-drawer-join";
         roomDrawerJoin.textContent = "Join room →";
@@ -11456,7 +11453,6 @@ export class EBCDrawer {
             doJoinRoom(rName);
         });
 
-        roomDrawerInner.appendChild(roomDrawerChips);
         roomDrawerInner.appendChild(roomDrawerJoin);
         roomDrawer.appendChild(roomDrawerInner);
 
@@ -11464,93 +11460,9 @@ export class EBCDrawer {
         // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
         let _drawerTimer: ReturnType<typeof setTimeout> | null = null;
 
-        // ── Lazy room-search enrichment ──────────────────────────────────────
-        // BC R128 AccountQueryResult only sends ChatRoomName + ChatRoomSpace.
-        // When the drawer opens we trigger a ChatRoomSearch to get count, language,
-        // game, privacy, lock state etc. Results are cached per room name so we
-        // never hit the server more than once per unique room per window instance.
-        const SPACE_NAMES: Record<string, string> = {
-            Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
-            Pandora: "Pandora", Bahamas: "Bahamas",
-            HarshWorld: "Harsh World", NaturalWorld: "Nature",
-            PvP: "PvP", X: "Club X",
-        };
-        // Cache: room name (lowercase) → raw search result entry
-        const _roomSearchCache = new Map<string, Record<string, unknown>>();
-        /** Rebuild chips from a rich ChatRoomSearchResult entry. */
-        const applySearchChips = (room: Record<string, unknown>): void => {
-            roomDrawerChips.innerHTML = "";
-            const addChip = (text: string): void => {
-                const c = document.createElement("span");
-                c.className = "ebc-beep-room-drawer-chip";
-                c.textContent = text;
-                roomDrawerChips.appendChild(c);
-            };
-            const space = typeof room.Space === "string" ? room.Space : undefined;
-            if (space) addChip(SPACE_NAMES[space] ?? space);
-            const count = typeof room.MemberCount === "number" ? room.MemberCount
-                        : typeof room.Count        === "number" ? room.Count : undefined;
-            const limit = typeof room.MemberLimit === "number" ? room.MemberLimit
-                        : typeof room.Limit        === "number" ? room.Limit : undefined;
-            if (count !== undefined) addChip(limit !== undefined ? `👥 ${count}/${limit}` : `👥 ${count}`);
-            const lang = typeof room.Language === "string" && room.Language ? room.Language.toUpperCase() : undefined;
-            if (lang) addChip(`🌍 ${lang}`);
-            const game = typeof room.Game === "string" && room.Game && room.Game !== "None" ? room.Game : undefined;
-            if (game) addChip(`🎮 ${game}`);
-            const isPrivate = typeof room.Private === "boolean" ? room.Private : undefined;
-            if (isPrivate !== undefined) addChip(isPrivate ? "🔒 Private" : "🌐 Public");
-            if (room.Locked === true) addChip("🔐 Locked");
-        };
-
-        /** Trigger a server room search to enrich the drawer. No-op if already cached.
-         *  Uses the bcUtils hook relay (main.ts hooks ChatRoomSearchResult via modAPI)
-         *  instead of window.ServerSocket which is module-scoped in BC R128. */
-        const enrichDrawerFromSearch = (rName: string): void => {
-            const key = rName.toLowerCase();
-            // Already have cached data → apply immediately
-            const cached = _roomSearchCache.get(key);
-            if (cached) { applySearchChips(cached); return; }
-
-            const tryApply = (list: Array<Record<string, unknown>>): boolean => {
-                const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
-                if (!match) return false;
-                _roomSearchCache.set(key, match);
-                applySearchChips(match);
-                return true;
-            };
-
-            // Fast path: hook relay (works if main.ts ChatRoomSearchResult hook succeeds)
-            setRoomSearchCallback((list) => { try { tryApply(list); } catch { /* ignore */ } });
-
-            try { ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true }); } catch { /* ignore */ }
-
-            // Fallback: poll window.ChatRoomList at 1.5 s, 3 s, and 5 s.
-            // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
-            // but BC stores the latest search results in window.ChatRoomList after the
-            // socket response arrives.  Three polls cover server round-trip variance.
-            const pollChatRoomList = (delay: number, finalAttempt: boolean): void => {
-                window.setTimeout(() => {
-                    if (_roomSearchCache.has(key)) return; // already applied
-                    if (finalAttempt) setRoomSearchCallback(null); // cancel stale hook callback
-                    try {
-                        const w = window as unknown as Record<string, unknown>;
-                        const list = w.ChatRoomList as Array<Record<string, unknown>> | undefined;
-                        if (Array.isArray(list)) tryApply(list);
-                    } catch { /* ignore */ }
-                }, delay);
-            };
-            pollChatRoomList(1500, false);
-            pollChatRoomList(3000, false);
-            pollChatRoomList(5000, true); // final attempt — cancel stale callback
-        };
-        // ── end lazy enrichment ──────────────────────────────────────────────
-
         const openDrawer = (): void => {
             if (_drawerTimer) { clearTimeout(_drawerTimer); _drawerTimer = null; }
             roomDrawer.classList.add("open");
-            // Enrich chips lazily on first open for this room
-            const rName = getFriendOnlineInfo(memberNumber)?.roomName;
-            if (rName) enrichDrawerFromSearch(rName);
         };
         const scheduleCloseDrawer = (): void => {
             _drawerTimer = setTimeout(() => roomDrawer.classList.remove("open"), 160);
@@ -11577,44 +11489,21 @@ export class EBCDrawer {
             const info = getFriendOnlineInfo(memberNumber);
             if (info?.roomName) {
                 roomBar.textContent = `📍 ${info.roomName}`;
-                roomBar.title = "Hover for room info";
+                roomBar.title = info.roomName;
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                // Rebuild chips: use cached search data if available, else basic space chip
-                const cached = _roomSearchCache.get(info.roomName.toLowerCase());
-                if (cached) {
-                    applySearchChips(cached);
-                } else {
-                    roomDrawerChips.innerHTML = "";
-                    if (info.roomSpace) {
-                        const c = document.createElement("span");
-                        c.className = "ebc-beep-room-drawer-chip";
-                        c.textContent = SPACE_NAMES[info.roomSpace] ?? info.roomSpace;
-                        roomDrawerChips.appendChild(c);
-                    }
-                }
             } else if (info) {
                 // Friend is online but no room name came back from the server.
                 // BC R128 omits ChatRoomName for friends in the same room — check
                 // ChatRoomCharacter before labelling as private.
-                _roomSearchCache.clear();
                 const sameRoomName = isInCurrentRoom(memberNumber) ? getCurrentRoomName() : "";
                 roomBar.textContent = sameRoomName ? `📍 ${sameRoomName}` : "📍 Private room";
                 roomBar.title = sameRoomName ? sameRoomName : "Friend is in a private room";
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
-                roomDrawerChips.innerHTML = "";
-                if (info.roomSpace) {
-                    const c = document.createElement("span");
-                    c.className = "ebc-beep-room-drawer-chip";
-                    c.textContent = SPACE_NAMES[info.roomSpace] ?? info.roomSpace;
-                    roomDrawerChips.appendChild(c);
-                }
             } else {
-                // Friend is offline — clear the search cache for the old room
-                _roomSearchCache.clear();
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";

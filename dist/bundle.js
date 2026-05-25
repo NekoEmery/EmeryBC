@@ -170,17 +170,8 @@
             }
         }, 300);
     }
-    let _roomSearchCb = null;
-    function setRoomSearchCallback(cb) { _roomSearchCb = cb; }
     function fireRoomSearchResult(list) {
-        const cb = _roomSearchCb;
-        if (!cb)
-            return;
-        _roomSearchCb = null; // auto-clear (one-shot)
-        try {
-            cb(list);
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
+        return;
     }
     // ---------------------------------------------------------------------------
     let _currentRoomName = "";
@@ -24383,8 +24374,6 @@
             roomDrawer.style.display = "none";
             const roomDrawerInner = document.createElement("div");
             roomDrawerInner.className = "ebc-beep-room-drawer-inner";
-            const roomDrawerChips = document.createElement("div");
-            roomDrawerChips.className = "ebc-beep-room-drawer-chips";
             const roomDrawerJoin = document.createElement("button");
             roomDrawerJoin.className = "ebc-beep-room-drawer-join";
             roomDrawerJoin.textContent = "Join room →";
@@ -24396,119 +24385,17 @@
                     return;
                 doJoinRoom(rName);
             });
-            roomDrawerInner.appendChild(roomDrawerChips);
             roomDrawerInner.appendChild(roomDrawerJoin);
             roomDrawer.appendChild(roomDrawerInner);
             // Hover: open on mouseenter, close after short delay on mouseleave.
             // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
             let _drawerTimer = null;
-            // ── Lazy room-search enrichment ──────────────────────────────────────
-            // BC R128 AccountQueryResult only sends ChatRoomName + ChatRoomSpace.
-            // When the drawer opens we trigger a ChatRoomSearch to get count, language,
-            // game, privacy, lock state etc. Results are cached per room name so we
-            // never hit the server more than once per unique room per window instance.
-            const SPACE_NAMES = {
-                Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
-                Pandora: "Pandora", Bahamas: "Bahamas",
-                HarshWorld: "Harsh World", NaturalWorld: "Nature",
-                PvP: "PvP", X: "Club X",
-            };
-            // Cache: room name (lowercase) → raw search result entry
-            const _roomSearchCache = new Map();
-            /** Rebuild chips from a rich ChatRoomSearchResult entry. */
-            const applySearchChips = (room) => {
-                var _a;
-                roomDrawerChips.innerHTML = "";
-                const addChip = (text) => {
-                    const c = document.createElement("span");
-                    c.className = "ebc-beep-room-drawer-chip";
-                    c.textContent = text;
-                    roomDrawerChips.appendChild(c);
-                };
-                const space = typeof room.Space === "string" ? room.Space : undefined;
-                if (space)
-                    addChip((_a = SPACE_NAMES[space]) !== null && _a !== void 0 ? _a : space);
-                const count = typeof room.MemberCount === "number" ? room.MemberCount
-                    : typeof room.Count === "number" ? room.Count : undefined;
-                const limit = typeof room.MemberLimit === "number" ? room.MemberLimit
-                    : typeof room.Limit === "number" ? room.Limit : undefined;
-                if (count !== undefined)
-                    addChip(limit !== undefined ? `👥 ${count}/${limit}` : `👥 ${count}`);
-                const lang = typeof room.Language === "string" && room.Language ? room.Language.toUpperCase() : undefined;
-                if (lang)
-                    addChip(`🌍 ${lang}`);
-                const game = typeof room.Game === "string" && room.Game && room.Game !== "None" ? room.Game : undefined;
-                if (game)
-                    addChip(`🎮 ${game}`);
-                const isPrivate = typeof room.Private === "boolean" ? room.Private : undefined;
-                if (isPrivate !== undefined)
-                    addChip(isPrivate ? "🔒 Private" : "🌐 Public");
-                if (room.Locked === true)
-                    addChip("🔐 Locked");
-            };
-            /** Trigger a server room search to enrich the drawer. No-op if already cached.
-             *  Uses the bcUtils hook relay (main.ts hooks ChatRoomSearchResult via modAPI)
-             *  instead of window.ServerSocket which is module-scoped in BC R128. */
-            const enrichDrawerFromSearch = (rName) => {
-                const key = rName.toLowerCase();
-                // Already have cached data → apply immediately
-                const cached = _roomSearchCache.get(key);
-                if (cached) {
-                    applySearchChips(cached);
-                    return;
-                }
-                const tryApply = (list) => {
-                    const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
-                    if (!match)
-                        return false;
-                    _roomSearchCache.set(key, match);
-                    applySearchChips(match);
-                    return true;
-                };
-                // Fast path: hook relay (works if main.ts ChatRoomSearchResult hook succeeds)
-                setRoomSearchCallback((list) => { try {
-                    tryApply(list);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } });
-                try {
-                    ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                // Fallback: poll window.ChatRoomList at 1.5 s, 3 s, and 5 s.
-                // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
-                // but BC stores the latest search results in window.ChatRoomList after the
-                // socket response arrives.  Three polls cover server round-trip variance.
-                const pollChatRoomList = (delay, finalAttempt) => {
-                    window.setTimeout(() => {
-                        if (_roomSearchCache.has(key))
-                            return; // already applied
-                        if (finalAttempt)
-                            setRoomSearchCallback(null); // cancel stale hook callback
-                        try {
-                            const w = window;
-                            const list = w.ChatRoomList;
-                            if (Array.isArray(list))
-                                tryApply(list);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    }, delay);
-                };
-                pollChatRoomList(1500, false);
-                pollChatRoomList(3000, false);
-                pollChatRoomList(5000, true); // final attempt — cancel stale callback
-            };
-            // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
-                var _a;
                 if (_drawerTimer) {
                     clearTimeout(_drawerTimer);
                     _drawerTimer = null;
                 }
                 roomDrawer.classList.add("open");
-                // Enrich chips lazily on first open for this room
-                const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
-                if (rName)
-                    enrichDrawerFromSearch(rName);
             };
             const scheduleCloseDrawer = () => {
                 _drawerTimer = setTimeout(() => roomDrawer.classList.remove("open"), 160);
@@ -24528,54 +24415,29 @@
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
-                var _a, _b;
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
                 const info = getFriendOnlineInfo(memberNumber);
                 if (info === null || info === void 0 ? void 0 : info.roomName) {
                     roomBar.textContent = `📍 ${info.roomName}`;
-                    roomBar.title = "Hover for room info";
+                    roomBar.title = info.roomName;
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                    // Rebuild chips: use cached search data if available, else basic space chip
-                    const cached = _roomSearchCache.get(info.roomName.toLowerCase());
-                    if (cached) {
-                        applySearchChips(cached);
-                    }
-                    else {
-                        roomDrawerChips.innerHTML = "";
-                        if (info.roomSpace) {
-                            const c = document.createElement("span");
-                            c.className = "ebc-beep-room-drawer-chip";
-                            c.textContent = (_a = SPACE_NAMES[info.roomSpace]) !== null && _a !== void 0 ? _a : info.roomSpace;
-                            roomDrawerChips.appendChild(c);
-                        }
-                    }
                 }
                 else if (info) {
                     // Friend is online but no room name came back from the server.
                     // BC R128 omits ChatRoomName for friends in the same room — check
                     // ChatRoomCharacter before labelling as private.
-                    _roomSearchCache.clear();
                     const sameRoomName = isInCurrentRoom(memberNumber) ? getCurrentRoomName() : "";
                     roomBar.textContent = sameRoomName ? `📍 ${sameRoomName}` : "📍 Private room";
                     roomBar.title = sameRoomName ? sameRoomName : "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // can't join by name
-                    roomDrawerChips.innerHTML = "";
-                    if (info.roomSpace) {
-                        const c = document.createElement("span");
-                        c.className = "ebc-beep-room-drawer-chip";
-                        c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
-                        roomDrawerChips.appendChild(c);
-                    }
                 }
                 else {
-                    // Friend is offline — clear the search cache for the old room
-                    _roomSearchCache.clear();
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
