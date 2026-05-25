@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.8.9";
+const MOD_VERSION = "4.9.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.9.0",
+        changes: [
+            "Fix: drawer drag broken on touch/mobile devices — a capture-phase stopPropagation on the slide container was intercepting touchstart before it could reach the header's drag handler. Removed the capture-phase listener; bubble-phase stopImmediatePropagation alone is sufficient to block BC's document-level touch handlers.",
+            "Fix: EBC badge now draws underneath WCE and other addon icons — DrawCharacter hook priority lowered from 3 to 1 so higher-priority addon hooks (WCE etc.) layer their icons on top of EBC's badge rather than underneath.",
+            "Fix: EBC badge no longer visible when clicking a character in the chatroom — added window.CurrentCharacter guard in drawPresenceMarker so the badge is skipped during BC's character interaction portrait view (same guard WCE uses), preventing EBC tag from being the only visible element on the portrait.",
+        ],
+    },
     {
         version: "4.8.9",
         changes: [
@@ -5099,6 +5107,15 @@ function initBadgeDragListeners(): void {
 function drawPresenceMarker(args: unknown[]): void {
     if (CurrentScreen !== "ChatRoom") return;
 
+    // Skip badge drawing when BC has a character interaction menu open.
+    // Clicking a character in the chatroom sets window.CurrentCharacter but keeps
+    // CurrentScreen as "ChatRoom", so BC renders a full-screen portrait via DrawCharacter.
+    // Other addons (WCE) guard against this the same way — without this guard EBC is the
+    // only badge visible on the portrait, making it look like EBC is the whole overlay.
+    const currentChar = (window as unknown as Record<string, unknown>).CurrentCharacter as
+        Character | null | undefined;
+    if (currentChar != null) return;
+
     const character = args[0] as Character | undefined;
     const left = typeof args[1] === "number" ? args[1] : null;
     const top  = typeof args[2] === "number" ? args[2] : null;
@@ -5414,7 +5431,9 @@ function init(): void {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
 
-    tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
+    // Priority 1 (inner) — EBC badge draws BEFORE other addons (WCE etc.) that run at
+    // higher priorities, so their icons layer on top of ours rather than underneath.
+    tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
         const result = next(args);
         try {
             drawPresenceMarker(args);

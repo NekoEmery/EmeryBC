@@ -3692,15 +3692,13 @@ export class EBCDrawer {
         // Stop BC's in-game touch handlers from eating our touch events.
         // BC registers touchmove/touchstart at document level (non-passive) and calls
         // preventDefault(), which kills native scroll inside HTML overlays.
-        // We stop propagation in BOTH capture and bubble phases:
-        //   - capture-phase listener: stops intermediate-element capture handlers
-        //   - bubble-phase listener: stops document-level bubble handlers (BC's main hooks)
-        // stopImmediatePropagation also cancels any other listeners on this exact element.
-        const stopTouchBubble  = (e: TouchEvent): void => { e.stopImmediatePropagation(); };
-        const stopTouchCapture = (e: TouchEvent): void => { e.stopPropagation(); };
+        // bubble-phase stopImmediatePropagation is sufficient to stop document-level handlers.
+        // NOTE: Do NOT register a capture-phase stopPropagation here — doing so would prevent
+        // touchstart from reaching child elements (e.g. the header drag handler), breaking
+        // drawer dragging on touch devices entirely.
+        const stopTouchBubble = (e: TouchEvent): void => { e.stopImmediatePropagation(); };
         for (const type of ["touchstart", "touchmove", "touchend"] as const) {
-            slideContainer.addEventListener(type, stopTouchBubble,  { passive: true });
-            slideContainer.addEventListener(type, stopTouchCapture, { passive: true, capture: true });
+            slideContainer.addEventListener(type, stopTouchBubble, { passive: true });
         }
 
         // Header

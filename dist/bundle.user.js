@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.7
+// @version      4.9.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1739,14 +1739,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     psa(Player, null, true, false);
                 }
                 else if (wantsRelaxed) {
-                    // "Relaxed arms" path: nuke everything first, then re-add body-only poses.
-                    // On some BC builds, psa(body, force=true) only replaces the body category
-                    // and leaves the arm category untouched.  Clearing everything first (null +
-                    // force=true) and then re-adding is the only guaranteed way to flush the
-                    // arm slot from BC's internal state.
+                    // "Relaxed arms" path — nuke all poses, re-add body-only poses, then
+                    // explicitly set "BaseUpper" (BC's internal name for arms-at-sides).
+                    // Without setting BaseUpper the BodyUpper category stays empty and BC
+                    // does NOT automatically fall back to the relaxed rendering.
                     psa(Player, null, true, false);
                     for (const p of result) {
-                        psa(Player, p, false, false);
+                        psa(Player, p, true, false);
+                    }
+                    // Set BaseUpper if it's a valid pose in this BC build
+                    if (!pfn || pfn("BaseUpper") != null) {
+                        try {
+                            psa(Player, "BaseUpper", true, false);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
                     }
                 }
                 else {
@@ -1756,7 +1762,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
         }
         // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
         //     This is the critical belt-and-suspenders step: PoseSetActive can silently
@@ -1776,7 +1782,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 Player.ActivePoseMapping =
                     result.length === 0 ? {} : mapping;
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         else if (typeof psa !== "function") {
             // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
@@ -1784,17 +1790,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 Player.ActivePose =
                     result.length > 0 ? result : null;
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
-        // 1c. Keep Player.ActivePose in sync — some BC builds rebuild ActivePoseMapping
-        //     *from* ActivePose inside CharacterRefresh.  Without this, a stale ActivePose
-        //     (e.g. still containing an arm pose) would silently restore the mapping we
-        //     just cleared in 1a/1b.
+        // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
+        //     ActivePoseMapping canonically; we only mirror ActivePose for the small
+        //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
+        //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
+        //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
         try {
             Player.ActivePose =
                 result.length > 0 ? result : null;
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // 2. Local visual refresh — Push=false, we push below.
         callBC(() => CharacterRefresh(Player, false));
         // 3. Push to room via direct ServerSend (same approach as sequence runner in
@@ -1808,37 +1815,68 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
             }
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
     }
-    // Surgically remove any active arm pose without disturbing body poses.
-    // Directly mutates both ActivePoseMapping and ActivePose instead of going
-    // through PoseSetActive — avoids any risk of psa clearing the body pose.
+    // Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
+    //
+    // "BaseUpper" is BC's explicit internal name for the default / relaxed upper-body
+    // state.  Relaxed is NOT the absence of an arm pose — BC requires "BaseUpper" to
+    // be set in the BodyUpper category; leaving the category empty causes BC to render
+    // the arms incorrectly or leave them stuck in the previous pose.
+    //
+    // All earlier attempts removed arm entries from ActivePoseMapping/ActivePose but
+    // did not call PoseSetActive("BaseUpper"), so BC never applied the relaxed state.
     function clearArmPose() {
         try {
             const p = Player;
-            // 1. Remove arm entries from ActivePoseMapping
-            const mapping = p.ActivePoseMapping;
-            if (mapping && typeof mapping === "object") {
-                for (const key of Object.keys(mapping)) {
-                    if (ARM_POSES.includes(mapping[key]))
-                        delete mapping[key];
+            const win = window;
+            const psa = win.PoseSetActive;
+            const pfn = win.AssetPoseFindName;
+            if (typeof psa === "function") {
+                // Check whether "BaseUpper" is a valid pose in this BC build.
+                // If pfn isn't available, assume it is — psa no-ops silently on unknown poses.
+                const baseValid = typeof pfn === "function" ? pfn("BaseUpper") != null : true;
+                if (baseValid) {
+                    // Set the BodyUpper category to its relaxed/default state.
+                    // force=true → always set (never toggle off); push=false → we push below.
+                    psa(Player, "BaseUpper", true, false);
+                }
+                else {
+                    // "BaseUpper" doesn't exist in this BC build — nuke-and-readd body poses.
+                    const bodyPoses = getCurrentPoses().filter(x => !ARM_POSES.includes(x));
+                    psa(Player, null, true, false);
+                    for (const bp of bodyPoses) {
+                        psa(Player, bp, true, false);
+                    }
                 }
             }
-            // 2. Filter arm keys out of ActivePose
-            const ap = p.ActivePose;
-            if (Array.isArray(ap)) {
-                const next = ap.filter(x => !ARM_POSES.includes(x));
-                p.ActivePose = next.length > 0 ? next : null;
+            else {
+                // No PoseSetActive — direct mutation across all three fields (very old BC).
+                const rawPose = p.Pose;
+                if (Array.isArray(rawPose))
+                    p.Pose = rawPose.filter(x => !ARM_POSES.includes(x));
+                const mapping = p.ActivePoseMapping;
+                if (mapping) {
+                    for (const k of Object.keys(mapping)) {
+                        if (ARM_POSES.includes(mapping[k]))
+                            delete mapping[k];
+                    }
+                }
+                const ap = p.ActivePose;
+                if (Array.isArray(ap)) {
+                    const next = ap.filter(x => !ARM_POSES.includes(x));
+                    p.ActivePose = next.length > 0 ? next : null;
+                }
             }
-            // 3. Capture final pose list (before CharacterRefresh can mutate anything)
+            // psa already called CharacterRefresh internally; read back the resulting state.
             const ap2 = p.ActivePose;
             const m2 = p.ActivePoseMapping;
             const poseList = Array.isArray(ap2) && ap2.length > 0
-                ? ap2
+                ? [...ap2]
                 : Object.values(m2 !== null && m2 !== void 0 ? m2 : {}).filter(Boolean);
-            // 4. Local visual refresh
+            // Ensure local canvas is refreshed (idempotent if psa already did it).
             callBC(() => CharacterRefresh(Player, false));
-            // 5. Push to room
+            // Push to room.
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
@@ -16808,15 +16846,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Stop BC's in-game touch handlers from eating our touch events.
             // BC registers touchmove/touchstart at document level (non-passive) and calls
             // preventDefault(), which kills native scroll inside HTML overlays.
-            // We stop propagation in BOTH capture and bubble phases:
-            //   - capture-phase listener: stops intermediate-element capture handlers
-            //   - bubble-phase listener: stops document-level bubble handlers (BC's main hooks)
-            // stopImmediatePropagation also cancels any other listeners on this exact element.
+            // bubble-phase stopImmediatePropagation is sufficient to stop document-level handlers.
+            // NOTE: Do NOT register a capture-phase stopPropagation here — doing so would prevent
+            // touchstart from reaching child elements (e.g. the header drag handler), breaking
+            // drawer dragging on touch devices entirely.
             const stopTouchBubble = (e) => { e.stopImmediatePropagation(); };
-            const stopTouchCapture = (e) => { e.stopPropagation(); };
             for (const type of ["touchstart", "touchmove", "touchend"]) {
                 slideContainer.addEventListener(type, stopTouchBubble, { passive: true });
-                slideContainer.addEventListener(type, stopTouchCapture, { passive: true, capture: true });
             }
             // Header
             const header = document.createElement("div");
@@ -33378,7 +33414,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.7";
+    const MOD_VERSION = "4.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33389,6 +33425,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.0",
+            changes: [
+                "Fix: drawer drag broken on touch/mobile devices — a capture-phase stopPropagation on the slide container was intercepting touchstart before it could reach the header's drag handler. Removed the capture-phase listener; bubble-phase stopImmediatePropagation alone is sufficient to block BC's document-level touch handlers.",
+                "Fix: EBC badge now draws underneath WCE and other addon icons — DrawCharacter hook priority lowered from 3 to 1 so higher-priority addon hooks (WCE etc.) layer their icons on top of EBC's badge rather than underneath.",
+                "Fix: EBC badge no longer visible when clicking a character in the chatroom — added window.CurrentCharacter guard in drawPresenceMarker so the badge is skipped during BC's character interaction portrait view (same guard WCE uses), preventing EBC tag from being the only visible element on the portrait.",
+            ],
+        },
+        {
+            version: "4.8.9",
+            changes: [
+                "Fix: Relaxed arms — 'BaseUpper' is BC's explicit pose name for arms-at-sides; relaxed is not the absence of an arm pose. clearArmPose() now calls PoseSetActive('BaseUpper') so BC correctly applies the relaxed visual. Also reverts the v4.8.8 Player.Pose override in applyPoses() that was incorrectly stripping BC-managed defaults and breaking all poses.",
+            ],
+        },
+        {
+            version: "4.8.8",
+            changes: [
+                "Fix: Relaxed arms now actually works — root cause found: CharacterRefresh calls CharacterLoadActualPose which rebuilds ActivePoseMapping/ActivePose from Player.Pose every time. Prior fixes cleared the derived fields but never touched Player.Pose, so CharacterRefresh silently restored the arm pose on every refresh. clearArmPose() now clears Player.Pose first, and applyPoses() syncs it too.",
+            ],
+        },
         {
             version: "4.8.7",
             changes: [
@@ -38425,6 +38481,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a, _b;
         if (CurrentScreen !== "ChatRoom")
             return;
+        // Skip badge drawing when BC has a character interaction menu open.
+        // Clicking a character in the chatroom sets window.CurrentCharacter but keeps
+        // CurrentScreen as "ChatRoom", so BC renders a full-screen portrait via DrawCharacter.
+        // Other addons (WCE) guard against this the same way — without this guard EBC is the
+        // only badge visible on the portrait, making it look like EBC is the whole overlay.
+        const currentChar = window.CurrentCharacter;
+        if (currentChar != null)
+            return;
         const character = args[0];
         const left = typeof args[1] === "number" ? args[1] : null;
         const top = typeof args[2] === "number" ? args[2] : null;
@@ -38748,7 +38812,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
         }
-        tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
+        // Priority 1 (inner) — EBC badge draws BEFORE other addons (WCE etc.) that run at
+        // higher priorities, so their icons layer on top of ours rather than underneath.
+        tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
             const result = next(args);
             try {
                 drawPresenceMarker(args);
