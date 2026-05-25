@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.2";
+const MOD_VERSION = "5.3.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.3",
+        changes: [
+            "UX: Groups section moved above the Friends list (now appears between User Notes and Friends) in the Users tab.",
+            "UX: Member picker in the Create Group form now has a live search box — type a name or member number to filter the friend list. Selections are preserved across filter changes. The previous 40-friend cap is removed.",
+        ],
+    },
     {
         version: "5.3.2",
         changes: [
