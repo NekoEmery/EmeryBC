@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.4
+// @version      4.9.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25656,7 +25656,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const isLocked = info.roomLocked;
                         const isFull = info.roomFull;
                         const roomName = info.roomName;
-                        const icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
+                        // Only show an icon for locked/private rooms — public rooms don't need one.
+                        const icon = isLocked ? "🔐 " : isPrivate ? "🔒 " : "";
                         let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
                         if (isLocked) {
                             bg = "#1a100d";
@@ -25677,7 +25678,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             ? (isFull ? "full · " : "") + roomName
                             : isLocked ? "locked room" : isPrivate ? "private room" : "online";
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = icon + " " + label;
+                        roomTagEl.textContent = icon + label;
                         roomTagEl.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
@@ -33588,7 +33589,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.4";
+    const MOD_VERSION = "4.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33599,6 +33600,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.5",
+            changes: [
+                "Fix: public rooms in the friends list no longer show a 📢 icon next to the room name. Only locked (🔐) and private (🔒) rooms still show an icon, since those carry actionable information. Public rooms just show the room name on its own.",
+            ],
+        },
         {
             version: "4.9.4",
             changes: [
