@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.3.5
+// @version      5.3.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -216,6 +216,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         return _currentRoomName;
+    }
+    /** Returns true if the given member number is present in the current chat room. */
+    function isInCurrentRoom(memberNumber) {
+        try {
+            const chars = window.ChatRoomCharacter;
+            if (Array.isArray(chars))
+                return chars.some(c => (c === null || c === void 0 ? void 0 : c.MemberNumber) === memberNumber);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return false;
     }
 
     // Expression presets and sequences — live expression picker + animated sequences.
@@ -11769,21 +11779,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // In-session group message history (not persisted — groups definitions are)
     const _groupHistory = new Map();
-    const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})\]$/;
+    // @members list is optional — old tags without it are still parsed (backward compat)
+    const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})(?:\s*@([\d,]+))?\]$/;
     function makeGroupId() {
         return Math.random().toString(36).slice(2, 8).padEnd(6, "0");
     }
-    function encodeGroupTag(id, name) {
+    /** Encode a group routing tag appended to outgoing beeps.
+     *  allMembers should include both the sender and all recipients so any
+     *  receiver can reconstruct the full member list without having the group saved. */
+    function encodeGroupTag(id, name, allMembers) {
         const safe = name.replace(/"/g, "'").slice(0, 24);
-        return `\n[EBC Group "${safe}" #${id}]`;
+        return `\n[EBC Group "${safe}" #${id} @${allMembers.join(",")}]`;
     }
     /** Returns null if the message contains no group tag.
-     *  Otherwise returns the parsed group id/name and the clean message body. */
+     *  Otherwise returns the parsed group id/name, clean message body, and member list.
+     *  members is empty when the tag was created by an older EBC version. */
     function extractGroupTag(raw) {
         const m = GROUP_TAG_RE.exec(raw);
         if (!m)
             return null;
-        return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim() };
+        const members = m[3] ? m[3].split(",").map(Number).filter(n => !isNaN(n) && n > 0) : [];
+        return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim(), members };
     }
     function getGroups() {
         try {
@@ -24559,13 +24575,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
                 else if (info) {
-                    // Friend is online but the room name is not visible (private room or hidden).
-                    // BC R128 may send ChatRoomSpace="" and ChatRoomName="" for private rooms,
-                    // so we can't rely on roomSpace being set.  Any online friend without a
-                    // visible room name is shown as being in a private/hidden room.
+                    // Friend is online but no room name came back from the server.
+                    // BC R128 omits ChatRoomName for friends in the same room — check
+                    // ChatRoomCharacter before labelling as private.
                     _roomSearchCache.clear();
-                    roomBar.textContent = "📍 Private room";
-                    roomBar.title = "Friend is in a private room";
+                    const sameRoomName = isInCurrentRoom(memberNumber) ? getCurrentRoomName() : "";
+                    roomBar.textContent = sameRoomName ? `📍 ${sameRoomName}` : "📍 Private room";
+                    roomBar.title = sameRoomName ? sameRoomName : "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // can't join by name
@@ -25177,21 +25193,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Group chat windows ----------------------------------------------------
-        onIncomingGroupBeep(groupId, groupName, fromNum) {
+        onIncomingGroupBeep(groupId, groupName, fromNum, members) {
+            var _a, _b;
+            const myNum = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            // Build group object — prefer saved definition, fall back to ephemeral from tag
+            const groupMembers = members.filter(n => n !== myNum && n > 0);
+            const grp = (_b = getGroups().find(g => g.id === groupId)) !== null && _b !== void 0 ? _b : { id: groupId, name: groupName, members: groupMembers.length > 0 ? groupMembers : [fromNum] };
             const entry = this.groupWins.get(groupId);
             if (entry) {
                 const fn = entry.el._refresh;
                 try {
                     fn === null || fn === void 0 ? void 0 : fn();
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
+            else {
+                // Auto-open window so recipients see the conversation even if they don't have the group saved
+                try {
+                    this.openGroupWindow(grp);
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
             try {
-                this.showGroupBeepToast(groupId, groupName, fromNum);
+                this.showGroupBeepToast(groupId, groupName, fromNum, grp);
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
         }
-        showGroupBeepToast(groupId, groupName, fromNum) {
+        showGroupBeepToast(groupId, groupName, fromNum, grp) {
             var _a;
             try {
                 const entries = getGroupHistory(groupId);
@@ -25216,13 +25244,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 toast.appendChild(hdr);
                 toast.appendChild(body);
                 toast.addEventListener("click", () => {
-                    const grp = getGroups().find(g => g.id === groupId);
-                    if (grp) {
-                        try {
-                            this.openGroupWindow(grp);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
+                    try {
+                        this.openGroupWindow(grp);
                     }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     dismiss();
                 });
                 document.body.appendChild(toast);
@@ -25294,7 +25319,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             nameEl.textContent = group.name;
             const subEl = document.createElement("div");
             subEl.style.cssText = "font-size:9px;color:#6a4858;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-            subEl.textContent = `👥 ${group.members.length} member${group.members.length !== 1 ? "s" : ""} · EBC users only`;
+            subEl.textContent = group.members.length > 0
+                ? `👥 ${group.members.map(n => resolveName(n)).join(", ")}`
+                : "👥 No other members";
             titleWrap.appendChild(nameEl);
             titleWrap.appendChild(subEl);
             const minBtn = document.createElement("button");
@@ -25378,7 +25405,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 input.value = "";
                 input.style.height = "auto";
                 addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
-                const tag = encodeGroupTag(group.id, group.name);
+                // Include all members (self + others) so any recipient can reconstruct the group
+                const tag = encodeGroupTag(group.id, group.name, [...group.members, myNum]);
                 for (const m of group.members) {
                     try {
                         sendBeep(m, `${text}${tag}`);
@@ -26499,7 +26527,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                     let roomTagEl = null;
                     if (info) {
-                        const roomName = info.roomName;
+                        // BC R128 may not return ChatRoomName for friends in the same room as the
+                        // player.  Check ChatRoomCharacter first so we don't false-positive as private.
+                        let roomName = info.roomName || undefined;
+                        if (!roomName && isInCurrentRoom(num)) {
+                            roomName = getCurrentRoomName() || undefined;
+                        }
                         const bg = roomName ? "#081a10" : "#1a0d18";
                         const color = roomName ? "#70c890" : "#b07898";
                         const border = roomName ? "#1a5a30" : "#3a1528";
@@ -34427,7 +34460,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.5";
+    const MOD_VERSION = "5.3.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34438,6 +34471,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.6",
+            changes: [
+                "Fix: friends in the same room as you no longer show as 'Private room' — BC doesn't include a room name in query results for same-room players; now checks ChatRoomCharacter directly so they show the correct room name.",
+                "Fix: receiving a group beep now automatically opens the group chat window, even if you don't have that group saved. The member list is embedded in the message tag so recipients can see everyone in the group and reply to their mutual friends.",
+                "Fix: group chat toast click now opens the window even for recipients who never created or saved the group.",
+                "UX: group chat window subtitle now shows member names instead of a generic count.",
+            ],
+        },
         {
             version: "5.3.5",
             changes: [
@@ -40490,7 +40532,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             catch ( /* ignore */_g) { /* ignore */ }
                         }
                         try {
-                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members);
                         }
                         catch ( /* ignore */_h) { /* ignore */ }
                         return; // suppress BC native popup for group messages

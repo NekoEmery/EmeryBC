@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.5";
+const MOD_VERSION = "5.3.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.6",
+        changes: [
+            "Fix: friends in the same room as you no longer show as 'Private room' — BC doesn't include a room name in query results for same-room players; now checks ChatRoomCharacter directly so they show the correct room name.",
+            "Fix: receiving a group beep now automatically opens the group chat window, even if you don't have that group saved. The member list is embedded in the message tag so recipients can see everyone in the group and reply to their mutual friends.",
+            "Fix: group chat toast click now opens the window even for recipients who never created or saved the group.",
+            "UX: group chat window subtitle now shows member names instead of a generic count.",
+        ],
+    },
     {
         version: "5.3.5",
         changes: [
@@ -6003,7 +6012,7 @@ function init(): void {
                 if (grpTag) {
                     addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
                     if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
-                    try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum); } catch { /* ignore */ }
+                    try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members); } catch { /* ignore */ }
                     return; // suppress BC native popup for group messages
                 }
                 const msg = stripBeepMetadata(rawMsg);

@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getCurrentRoomName, setRoomSearchCallback } from "./bcUtils";
+import { callBC, syncSettings, getCurrentRoomName, setRoomSearchCallback, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11595,13 +11595,13 @@ export class EBCDrawer {
                     }
                 }
             } else if (info) {
-                // Friend is online but the room name is not visible (private room or hidden).
-                // BC R128 may send ChatRoomSpace="" and ChatRoomName="" for private rooms,
-                // so we can't rely on roomSpace being set.  Any online friend without a
-                // visible room name is shown as being in a private/hidden room.
+                // Friend is online but no room name came back from the server.
+                // BC R128 omits ChatRoomName for friends in the same room — check
+                // ChatRoomCharacter before labelling as private.
                 _roomSearchCache.clear();
-                roomBar.textContent = "📍 Private room";
-                roomBar.title = "Friend is in a private room";
+                const sameRoomName = isInCurrentRoom(memberNumber) ? getCurrentRoomName() : "";
+                roomBar.textContent = sameRoomName ? `📍 ${sameRoomName}` : "📍 Private room";
+                roomBar.title = sameRoomName ? sameRoomName : "Friend is in a private room";
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
@@ -12248,16 +12248,25 @@ export class EBCDrawer {
 
     // -- Group chat windows ----------------------------------------------------
 
-    public onIncomingGroupBeep(groupId: string, groupName: string, fromNum: number): void {
+    public onIncomingGroupBeep(groupId: string, groupName: string, fromNum: number, members: number[]): void {
+        const myNum = Player.MemberNumber ?? 0;
+        // Build group object — prefer saved definition, fall back to ephemeral from tag
+        const groupMembers = members.filter(n => n !== myNum && n > 0);
+        const grp: EBCGroup = getGroups().find(g => g.id === groupId)
+            ?? { id: groupId, name: groupName, members: groupMembers.length > 0 ? groupMembers : [fromNum] };
+
         const entry = this.groupWins.get(groupId);
         if (entry) {
             const fn = (entry.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
             try { fn?.(); } catch { /* ignore */ }
+        } else {
+            // Auto-open window so recipients see the conversation even if they don't have the group saved
+            try { this.openGroupWindow(grp); } catch { /* ignore */ }
         }
-        try { this.showGroupBeepToast(groupId, groupName, fromNum); } catch { /* ignore */ }
+        try { this.showGroupBeepToast(groupId, groupName, fromNum, grp); } catch { /* ignore */ }
     }
 
-    private showGroupBeepToast(groupId: string, groupName: string, fromNum: number): void {
+    private showGroupBeepToast(groupId: string, groupName: string, fromNum: number, grp: EBCGroup): void {
         try {
             const entries = getGroupHistory(groupId);
             const last = entries[entries.length - 1];
@@ -12285,8 +12294,7 @@ export class EBCDrawer {
             toast.appendChild(hdr);
             toast.appendChild(body);
             toast.addEventListener("click", () => {
-                const grp = getGroups().find(g => g.id === groupId);
-                if (grp) { try { this.openGroupWindow(grp); } catch { /* ignore */ } }
+                try { this.openGroupWindow(grp); } catch { /* ignore */ }
                 dismiss();
             });
 
@@ -12353,7 +12361,9 @@ export class EBCDrawer {
         nameEl.textContent = group.name;
         const subEl = document.createElement("div");
         subEl.style.cssText = "font-size:9px;color:#6a4858;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-        subEl.textContent = `👥 ${group.members.length} member${group.members.length !== 1 ? "s" : ""} · EBC users only`;
+        subEl.textContent = group.members.length > 0
+            ? `👥 ${group.members.map(n => resolveName(n)).join(", ")}`
+            : "👥 No other members";
         titleWrap.appendChild(nameEl);
         titleWrap.appendChild(subEl);
 
@@ -12440,7 +12450,8 @@ export class EBCDrawer {
             input.value = "";
             input.style.height = "auto";
             addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
-            const tag = encodeGroupTag(group.id, group.name);
+            // Include all members (self + others) so any recipient can reconstruct the group
+            const tag = encodeGroupTag(group.id, group.name, [...group.members, myNum]);
             for (const m of group.members) {
                 try { sendBeep(m, `${text}${tag}`); } catch { /* ignore */ }
             }
@@ -13552,11 +13563,12 @@ export class EBCDrawer {
                 const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                 let roomTagEl: HTMLSpanElement | null = null;
                 if (info) {
-                    const roomName = info.roomName;
-                    // BC R128 may send ChatRoomSpace="" for private rooms so we cannot use
-                    // roomSpace as the signal.  Instead: any online friend without a visible
-                    // room name is treated as being in a private/hidden room.
-                    const isPrivate = !roomName;
+                    // BC R128 may not return ChatRoomName for friends in the same room as the
+                    // player.  Check ChatRoomCharacter first so we don't false-positive as private.
+                    let roomName: string | undefined = info.roomName || undefined;
+                    if (!roomName && isInCurrentRoom(num)) {
+                        roomName = getCurrentRoomName() || undefined;
+                    }
                     const bg    = roomName ? "#081a10" : "#1a0d18";
                     const color = roomName ? "#70c890" : "#b07898";
                     const border = roomName ? "#1a5a30" : "#3a1528";

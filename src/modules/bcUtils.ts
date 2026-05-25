@@ -193,3 +193,13 @@ export function getCurrentRoomName(): string {
     }
     return _currentRoomName;
 }
+
+/** Returns true if the given member number is present in the current chat room. */
+export function isInCurrentRoom(memberNumber: number): boolean {
+    try {
+        const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number }> | undefined;
+        if (Array.isArray(chars)) return chars.some(c => c?.MemberNumber === memberNumber);
+    } catch { /* ignore */ }
+    return false;
+}

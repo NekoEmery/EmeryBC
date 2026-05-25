@@ -580,23 +580,29 @@ export interface GroupBeepEntry {
 // In-session group message history (not persisted — groups definitions are)
 const _groupHistory = new Map<string, GroupBeepEntry[]>();
 
-const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})\]$/;
+// @members list is optional — old tags without it are still parsed (backward compat)
+const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})(?:\s*@([\d,]+))?\]$/;
 
 export function makeGroupId(): string {
     return Math.random().toString(36).slice(2, 8).padEnd(6, "0");
 }
 
-export function encodeGroupTag(id: string, name: string): string {
+/** Encode a group routing tag appended to outgoing beeps.
+ *  allMembers should include both the sender and all recipients so any
+ *  receiver can reconstruct the full member list without having the group saved. */
+export function encodeGroupTag(id: string, name: string, allMembers: number[]): string {
     const safe = name.replace(/"/g, "'").slice(0, 24);
-    return `\n[EBC Group "${safe}" #${id}]`;
+    return `\n[EBC Group "${safe}" #${id} @${allMembers.join(",")}]`;
 }
 
 /** Returns null if the message contains no group tag.
- *  Otherwise returns the parsed group id/name and the clean message body. */
-export function extractGroupTag(raw: string): { id: string; name: string; body: string } | null {
+ *  Otherwise returns the parsed group id/name, clean message body, and member list.
+ *  members is empty when the tag was created by an older EBC version. */
+export function extractGroupTag(raw: string): { id: string; name: string; body: string; members: number[] } | null {
     const m = GROUP_TAG_RE.exec(raw);
     if (!m) return null;
-    return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim() };
+    const members = m[3] ? m[3].split(",").map(Number).filter(n => !isNaN(n) && n > 0) : [];
+    return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim(), members };
 }
 
 export function getGroups(): EBCGroup[] {
