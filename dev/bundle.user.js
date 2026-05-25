@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.9
+// @version      5.1.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15708,6 +15708,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-win.minimized .ebc-beep-win-history,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
+.ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -15801,27 +15802,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-reply-btn:hover { color: #cf6f98; background: #2a0e1e; }
 
-.ebc-beep-room-pill {
+.ebc-beep-room-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 10px;
+    font-size: 9px;
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #b090a0;
+    color: #8a6070;
+    background: rgba(18,7,14,0.60);
+    border-bottom: 1px solid rgba(45,18,32,0.70);
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+    flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
-    cursor: pointer;
-    /* Proper touch target — padding gives fingers something to hit */
-    padding: 4px 8px;
-    border-radius: 10px;
-    border: 1px solid #3a1928;
-    background: rgba(30,13,26,0.55);
-    display: inline-flex;
-    align-items: center;
-    transition: color 0.12s, border-color 0.12s, background 0.12s;
-    margin-top: 2px;
-    align-self: flex-start;
+    user-select: none;
 }
-.ebc-beep-room-pill:hover { color: #cf6f98; border-color: #cf6f98; background: rgba(58,16,40,0.70); }
+.ebc-beep-room-bar:hover { color: #cf6f98; background: rgba(50,14,34,0.70); }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -24236,25 +24235,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             header.className = "ebc-beep-win-header";
             const dot = document.createElement("span");
             dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
-            const titleArea = document.createElement("div");
-            titleArea.style.cssText = "display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;overflow:hidden;";
             const title = document.createElement("span");
             title.className = "ebc-beep-win-title";
             title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
-            const roomPill = document.createElement("div");
-            roomPill.className = "ebc-beep-room-pill";
-            roomPill.style.display = "none";
-            roomPill.title = "Click to join this room";
-            roomPill.addEventListener("click", (e) => {
+            // Slim room bar shown between header and chat when the other person is in a room.
+            // Click joins their room. Hidden when they have no room.
+            const roomBar = document.createElement("div");
+            roomBar.className = "ebc-beep-room-bar";
+            roomBar.style.display = "none";
+            roomBar.addEventListener("click", () => {
                 var _a;
-                e.stopPropagation(); // don't trigger header drag
                 const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
                 if (!rName)
                     return;
                 ebcJoinRoom(rName);
             });
-            titleArea.appendChild(title);
-            titleArea.appendChild(roomPill);
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
                 const s = getFriendStatus(memberNumber);
@@ -24262,12 +24257,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
                 const info = getFriendOnlineInfo(memberNumber);
                 if (info === null || info === void 0 ? void 0 : info.roomName) {
-                    roomPill.textContent = `📍 ${info.roomName} →`;
-                    roomPill.title = `Tap to join ${info.roomName}`;
-                    roomPill.style.display = "";
+                    roomBar.textContent = `📍 ${info.roomName}`;
+                    roomBar.title = `Tap to join ${info.roomName}`;
+                    roomBar.style.display = "";
                 }
                 else {
-                    roomPill.style.display = "none";
+                    roomBar.style.display = "none";
                 }
             };
             win._updateStatus = updateStatus;
@@ -24339,13 +24334,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
             });
             header.appendChild(dot);
-            header.appendChild(titleArea);
+            header.appendChild(title);
             header.appendChild(unreadDot);
             header.appendChild(muteBtn);
             header.appendChild(roomInviteBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
+            win.appendChild(roomBar);
             // Restore saved position from localStorage, or fall back to default offset.
             // Clamp the restored values so the window is always fully on-screen even if
             // it was saved with an out-of-bounds position (e.g. after window resize).
@@ -24378,7 +24374,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
             addPointerDown(header, (start, e) => {
                 if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
-                    || e.target === roomInviteBtn || e.target === roomPill)
+                    || e.target === roomInviteBtn)
                     return;
                 e.preventDefault();
                 const rect = win.getBoundingClientRect();
@@ -33632,7 +33628,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.9";
+    const MOD_VERSION = "5.1.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33644,9 +33640,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.1.0",
+            changes: [
+                "Beep window: replaced the room pill badge in the header with a slim clickable room bar between the header and chat. Header is now a clean single row again — name, mute, invite, min, close.",
+            ],
+        },
+        {
             version: "4.9.9",
             changes: [
-                "Fix: room pill in beep window header (showing where a friend currently is) is now a proper tappable badge with padding, border, and background instead of a 9px text label. Displays as '📍 Room →' so it's visually clear it's interactive. Works on touch / tablet.",
+                "Fix: room pill in beep window header is now a tappable badge instead of tiny 9px text.",
                 "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend so joining works whether or not the recipient is already in another room.",
             ],
         },
