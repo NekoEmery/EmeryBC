@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.4.2
+// @version      5.4.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24459,16 +24459,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomDrawer.style.display = "none";
                     }
                 }
-                else if (info && info.roomName === "") {
-                    // BC sent an explicit empty string for ChatRoomName = private/hidden room
+                else if (info && (info.roomName === "" || info.roomSpace !== undefined)) {
+                    // Friend is in a room but the name is hidden — BC omits ChatRoomName or sends ""
+                    // for private/secret rooms but still sends ChatRoomSpace (even as "") when in a room.
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
-                    roomDrawerJoin.style.display = "none"; // can't join a private room by name
+                    roomDrawerJoin.style.display = "none"; // can't join by name
                 }
                 else {
-                    // info.roomName === undefined = lobby (field absent), or offline
+                    // roomName absent AND roomSpace absent = friend is in the lobby / not in any room
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -26392,14 +26393,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             roomTagEl.title = displayName;
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
                         }
-                        else if (rawRoom === "") {
-                            // BC sent explicit empty string = private/hidden room, not lobby
+                        else if (rawRoom === "" || info.roomSpace !== undefined) {
+                            // BC omits ChatRoomName or sends "" for private/secret rooms, but still
+                            // sends ChatRoomSpace (even as "") when the friend is in any room.
                             roomTagEl = document.createElement("span");
                             roomTagEl.textContent = "Private room";
                             roomTagEl.title = "Friend is in a private room";
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                         }
-                        // rawRoom === undefined = lobby, no tag
+                        // roomName absent AND roomSpace absent = lobby, no tag
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -34319,7 +34321,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.2";
+    const MOD_VERSION = "5.4.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34331,9 +34333,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.4.3",
+            changes: [
+                "Fix: private room detection now uses ChatRoomSpace presence as the reliable indicator — BC omits ChatRoomName for private rooms but still sends ChatRoomSpace (even as empty string) when a friend is in any room. Friends with no visible room name but a present ChatRoomSpace field now correctly show 'Private room'; friends with both fields absent are in the lobby and show no tag.",
+            ],
+        },
+        {
             version: "5.4.2",
             changes: [
-                "Fix: lobby friends no longer show 'Private room' — BC sends an explicit empty string for private rooms and omits ChatRoomName entirely for lobby state; we now correctly use === \"\" to distinguish the two instead of treating both as falsy.",
+                "Fix: lobby friends no longer show 'Private room' — attempted ChatRoomName === \"\" check but this misses cases where BC omits the field entirely for private rooms (superseded by 5.4.3).",
             ],
         },
         {
