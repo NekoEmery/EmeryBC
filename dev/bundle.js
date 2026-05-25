@@ -24568,11 +24568,10 @@
             // Room invite button click handler — deferred here so renderHistory is in scope.
             roomInviteBtn.addEventListener("click", () => {
                 const w = window;
-                // Must be on the ChatRoom screen with valid room data
-                const rd = w.CurrentScreen === "ChatRoom"
-                    ? w.ChatRoomData
-                    : null;
-                const rName = (rd ? (typeof rd.Name === "string" ? rd.Name : "") : "").trim();
+                // Check ChatRoomData directly — CurrentScreen can be "OnlineFriends" or other
+                // sub-screens even while the player is still in a room, so we don't gate on it.
+                const rd = w.ChatRoomData;
+                const rName = (rd && typeof rd.Name === "string" ? rd.Name : "").trim();
                 if (!rName) {
                     // Not in a room — flash indicator
                     roomInviteBtn.textContent = "🚫";
@@ -33646,7 +33645,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.2";
+    const MOD_VERSION = "5.1.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33658,9 +33657,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.1.3",
+            changes: [
+                "Fix: 📍 room invite button was always showing 🚫 because CurrentScreen can be 'OnlineFriends' while still in a room. Now checks ChatRoomData directly instead.",
+            ],
+        },
+        {
             version: "5.1.2",
             changes: [
-                "Fix: room bar 'tap to join' was crashing with ReferenceError (ebcJoinRoom not defined — should be doJoinRoom).",
+                "Fix: room bar 'tap to join' was crashing with ReferenceError (ebcJoinRoom not defined).",
             ],
         },
         {
