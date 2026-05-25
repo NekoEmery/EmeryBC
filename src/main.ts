@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.2";
+const MOD_VERSION = "4.9.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,11 +38,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "4.9.2",
+        version: "4.9.3",
         changes: [
-            "Fix: expression changes no longer cause rate-limit timeouts when WCE is also running. Previously applyExprGroup called CharacterRefresh + a server sync for each expression group individually — applying an 8-group preset traversed the full hook chain 8 times, giving WCE 8 opportunities to react and re-sync. All batch callers (presets, sequences, clear-all) now use noSync=true per group and do one CharacterRefresh + one server sync at the end.",
-            "Fix: syncAppearance no longer calls ServerPlayerAppearanceSync when already in a chat room. ChatRoomCharacterUpdate already handles both the room broadcast and server-side persistence in that context; the extra call was doubling EBC's server traffic and compounding any WCE reaction on ChatRoomCharacterUpdate.",
-            "Fix: emote shortcut (*text) now has a 500 ms dedup guard to prevent double-sends if BC's event propagation routes the same keypress through more than one of EBC's three intercept paths.",
+            "Fix: expression presets containing expression names that are invalid in the current BC version (e.g. 'Eyes5', 'Eyes1', 'Regular', 'Fluids' removed in R128) no longer cause ErrorRateLimited timeouts on login. Each invalid name caused BC's server to reject and sanitise the appearance bundle, triggering a ChatRoomSyncSingle loop that compounded with WCE. applyExprGroup now validates each name via AssetGet before setting it — if the asset doesn't exist in the running BC build the group is silently cleared instead, preventing any invalid data from reaching the server.",
         ],
     },
     {
