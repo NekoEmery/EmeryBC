@@ -113,12 +113,6 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Set to true when EBC initiates a ChatRoomLeave so the ChatRoomRun guard
-    // knows to skip null-ChatRoomData frames without affecting map rooms.
-    let _leavePending = false;
-    function setLeavePending() { _leavePending = true; }
-    function isLeavePending() { return _leavePending; }
-    function clearLeavePending() { _leavePending = false; }
     /** Returns the player's display name (nickname if set, otherwise Name). */
     function getDisplayName$1() {
         const nickFn = window.CharacterNickname;
@@ -24247,7 +24241,7 @@
             const doJoinRoom = (rName) => {
                 try {
                     const w = window;
-                    // BC's own join function handles leave/rejoin automatically in all versions
+                    // BC's own join function handles leave/rejoin automatically.
                     const joinFn = w.ChatRoomJoin;
                     if (typeof joinFn === "function") {
                         try {
@@ -24256,30 +24250,15 @@
                         }
                         catch ( /* fall through */_a) { /* fall through */ }
                     }
-                    // Fallback: manually leave any current room, then send join request.
-                    // setLeavePending() arms the ChatRoomRun guard so the one-frame gap
-                    // where ChatRoomData is null doesn't crash on MapData access.
-                    if (w.CurrentScreen === "ChatRoom") {
-                        setLeavePending();
-                        try {
-                            ChatRoomLeave();
-                        }
-                        catch ( /* ignore */_b) { /* ignore */ }
-                        window.setTimeout(() => {
-                            try {
-                                ServerSend("ChatRoomJoin", { Name: rName });
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
-                        }, 400);
+                    // Direct join request — the server handles the implicit leave from any
+                    // current room.  Skipping ChatRoomLeave() avoids the black screen that
+                    // results from ChatRoomData being cleared before ChatRoomSync arrives.
+                    try {
+                        ServerSend("ChatRoomJoin", { Name: rName });
                     }
-                    else {
-                        try {
-                            ServerSend("ChatRoomJoin", { Name: rName });
-                        }
-                        catch ( /* ignore */_c) { /* ignore */ }
-                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
             };
             // Header
             const header = document.createElement("div");
@@ -33769,7 +33748,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.6";
+    const MOD_VERSION = "5.1.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33780,6 +33759,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.1.7",
+            changes: [
+                "Fix: screen no longer goes black when joining a room from the beep window. Previously called ChatRoomLeave() + delayed join, which cleared ChatRoomData and caused a blank transition. Now sends ChatRoomJoin directly — server handles the implicit leave.",
+                "Fix: receiving a room invite no longer shows BC's native beep popup with the raw '📍 Room invite: …' text. EBC now always suppresses BC's notification for invite beeps and only shows the invite card in the EBC chat window.",
+            ],
+        },
         {
             version: "5.1.6",
             changes: [
@@ -39180,12 +39166,6 @@
         // crashes unless we swallow it.  Priority 500 runs before all other mod hooks
         // so the entire hook chain (BCX, CRABS, etc.) is also skipped for that frame.
         modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
-            if (isLeavePending()) {
-                const w = window;
-                if (!w.ChatRoomData)
-                    return; // skip the null-data frame
-                clearLeavePending(); // new room data arrived — stop guarding
-            }
             return next(args);
         });
         // Canvas sidebar action buttons.
@@ -39723,6 +39703,11 @@
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                         }
                         catch ( /* ignore */_h) { /* ignore */ }
+                        // Room invite messages are handled entirely by EBC's invite card in the
+                        // IM window — always suppress BC's native beep popup for these so the
+                        // raw "📍 Room invite: …" text never appears in the chat notification area.
+                        if (msg.startsWith("📍 Room invite: "))
+                            return;
                     }
                 }
                 catch ( /* ignore */_j) { /* ignore */ }
