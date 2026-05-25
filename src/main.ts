@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.4";
+const MOD_VERSION = "4.9.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.9.5",
+        changes: [
+            "Fix: public rooms in the friends list no longer show a 📢 icon next to the room name. Only locked (🔐) and private (🔒) rooms still show an icon, since those carry actionable information. Public rooms just show the room name on its own.",
+        ],
+    },
     {
         version: "4.9.4",
         changes: [

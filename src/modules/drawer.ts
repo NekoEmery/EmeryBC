@@ -12824,7 +12824,8 @@ export class EBCDrawer {
                     const isLocked  = info.roomLocked;
                     const isFull    = info.roomFull;
                     const roomName  = info.roomName;
-                    const icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
+                    // Only show an icon for locked/private rooms — public rooms don't need one.
+                    const icon = isLocked ? "🔐 " : isPrivate ? "🔒 " : "";
                     let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
                     if (isLocked)       { bg = "#1a100d"; color = "#daa070"; border = "#5a3020"; }
                     else if (isPrivate) { bg = "#1a0d20"; color = "#c890d8"; border = "#4a2060"; }
@@ -12833,7 +12834,7 @@ export class EBCDrawer {
                         ? (isFull ? "full · " : "") + roomName
                         : isLocked ? "locked room" : isPrivate ? "private room" : "online";
                     roomTagEl = document.createElement("span");
-                    roomTagEl.textContent = icon + " " + label;
+                    roomTagEl.textContent = icon + label;
                     roomTagEl.title = roomName
                         ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                         : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
