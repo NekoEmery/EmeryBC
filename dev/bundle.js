@@ -24747,7 +24747,14 @@
                                 const joinBtn = document.createElement("button");
                                 joinBtn.className = "ebc-beep-room-invite-join";
                                 joinBtn.textContent = "Join →";
-                                joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
+                                joinBtn.addEventListener("click", () => {
+                                    if (getCurrentRoomName().toLowerCase() === rName.toLowerCase()) {
+                                        joinBtn.textContent = "Already here ✓";
+                                        window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                        return;
+                                    }
+                                    doJoinRoom(rName);
+                                });
                                 const denyBtn = document.createElement("button");
                                 denyBtn.className = "ebc-beep-room-invite-deny";
                                 denyBtn.textContent = "Decline";
@@ -33885,7 +33892,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.2";
+    const MOD_VERSION = "5.2.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33896,6 +33903,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.3",
+            changes: [
+                "Fix: clicking 'Join →' on a room invite card when already in that room no longer triggers the 'ResponseAlreadyInRoom' BC error. The button now shows 'Already here ✓' briefly instead.",
+            ],
+        },
         {
             version: "5.2.2",
             changes: [
