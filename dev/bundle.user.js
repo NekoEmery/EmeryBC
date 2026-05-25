@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.3
+// @version      4.9.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15810,7 +15810,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     text-overflow: ellipsis;
     max-width: 160px;
     line-height: 1.3;
+    cursor: pointer;
+    transition: color 0.12s;
 }
+.ebc-beep-room-pill:hover { color: #cf6f98; }
+
+.ebc-beep-room-invite-card {
+    background: rgba(58,16,40,0.40);
+    border: 1px solid rgba(207,111,152,0.45);
+    border-radius: 5px;
+    padding: 5px 7px 6px;
+    margin-top: 1px;
+}
+.ebc-beep-room-invite-label {
+    font-size: 9px;
+    color: #9a6888;
+    margin-bottom: 3px;
+}
+.ebc-beep-room-invite-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: #e0b0c8;
+    word-break: break-all;
+    margin-bottom: 6px;
+}
+.ebc-beep-room-invite-join {
+    background: #3a1028;
+    border: 1px solid #cf6f98;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 3px 0;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-beep-room-invite-join:hover { background: #cf6f98; color: #fff; }
 
 .ebc-emoji-btn {
     background: #2a0e1e;
@@ -24163,6 +24199,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const roomPill = document.createElement("div");
             roomPill.className = "ebc-beep-room-pill";
             roomPill.style.display = "none";
+            roomPill.title = "Click to join this room";
+            roomPill.addEventListener("click", (e) => {
+                var _a;
+                e.stopPropagation(); // don't trigger header drag
+                const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
+                if (!rName)
+                    return;
+                try {
+                    const joinFn = window.ChatRoomJoin;
+                    if (typeof joinFn === "function") {
+                        joinFn(rName);
+                        return;
+                    }
+                    ServerSend("ChatRoomJoin", { Name: rName });
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            });
             titleArea.appendChild(title);
             titleArea.appendChild(roomPill);
             // Called whenever online friend status refreshes (AccountQueryResult)
@@ -24199,6 +24252,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 toggleMutedBeepMember(memberNumber);
                 refreshMuteBtn();
             });
+            // Room invite button — sends the player's current room name to this person.
+            // The click handler is added after renderHistory() is defined (see below)
+            // so it can call renderHistory() to refresh the chat after sending.
+            const roomInviteBtn = document.createElement("button");
+            roomInviteBtn.className = "ebc-beep-win-hbtn";
+            roomInviteBtn.textContent = "📍";
+            roomInviteBtn.title = "Send your current room as an invite";
             const minimizeBtn = document.createElement("button");
             minimizeBtn.className = "ebc-beep-win-hbtn";
             minimizeBtn.textContent = startMinimized ? "▲" : "–";
@@ -24244,6 +24304,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             header.appendChild(titleArea);
             header.appendChild(unreadDot);
             header.appendChild(muteBtn);
+            header.appendChild(roomInviteBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
@@ -24278,7 +24339,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
             addPointerDown(header, (start, e) => {
-                if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn)
+                if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
+                    || e.target === roomInviteBtn || e.target === roomPill)
                     return;
                 e.preventDefault();
                 const rect = win.getBoundingClientRect();
@@ -24395,20 +24457,57 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         bubble.appendChild(quoteEl);
                         msgBody = cleanMsg.slice(nl + 1);
                     }
-                    // Text content
-                    const text = document.createElement("div");
-                    text.textContent = msgBody;
-                    bubble.appendChild(text);
-                    // Image embed — detect image URL in the message body
-                    const imgUrl = (_c = IMAGE_RE.exec(msgBody)) === null || _c === void 0 ? void 0 : _c[0];
-                    if (imgUrl) {
-                        const img = document.createElement("img");
-                        img.className = "ebc-beep-img";
-                        img.src = imgUrl;
-                        img.alt = "image";
-                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
-                        img.addEventListener("error", () => { img.style.display = "none"; });
-                        bubble.appendChild(img);
+                    // Room invite card — sent via the 📍 button in the header.
+                    // Renders as a join card with a "Join →" button for the recipient.
+                    const ROOM_INVITE_PFX = "📍 Room invite: ";
+                    if (msgBody.startsWith(ROOM_INVITE_PFX)) {
+                        const rName = msgBody.slice(ROOM_INVITE_PFX.length).trim();
+                        const inviteCard = document.createElement("div");
+                        inviteCard.className = "ebc-beep-room-invite-card";
+                        const inviteLabel = document.createElement("div");
+                        inviteLabel.className = "ebc-beep-room-invite-label";
+                        inviteLabel.textContent = "📍 Room invite";
+                        const inviteName = document.createElement("div");
+                        inviteName.className = "ebc-beep-room-invite-name";
+                        inviteName.textContent = rName;
+                        inviteCard.appendChild(inviteLabel);
+                        inviteCard.appendChild(inviteName);
+                        if (!isSent) {
+                            // Only the recipient gets a Join button — sender already knows the room
+                            const joinBtn = document.createElement("button");
+                            joinBtn.className = "ebc-beep-room-invite-join";
+                            joinBtn.textContent = "Join →";
+                            joinBtn.addEventListener("click", () => {
+                                try {
+                                    const joinFn = window.ChatRoomJoin;
+                                    if (typeof joinFn === "function") {
+                                        joinFn(rName);
+                                        return;
+                                    }
+                                    ServerSend("ChatRoomJoin", { Name: rName });
+                                }
+                                catch ( /* ignore */_a) { /* ignore */ }
+                            });
+                            inviteCard.appendChild(joinBtn);
+                        }
+                        bubble.appendChild(inviteCard);
+                    }
+                    else {
+                        // Text content
+                        const text = document.createElement("div");
+                        text.textContent = msgBody;
+                        bubble.appendChild(text);
+                        // Image embed — detect image URL in the message body
+                        const imgUrl = (_c = IMAGE_RE.exec(msgBody)) === null || _c === void 0 ? void 0 : _c[0];
+                        if (imgUrl) {
+                            const img = document.createElement("img");
+                            img.className = "ebc-beep-img";
+                            img.src = imgUrl;
+                            img.alt = "image";
+                            img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                            img.addEventListener("error", () => { img.style.display = "none"; });
+                            bubble.appendChild(img);
+                        }
                     }
                     wrap.appendChild(bubble);
                     // Reply button — only show on received messages
@@ -24424,6 +24523,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
             };
             renderHistory();
+            // Room invite button click handler — deferred here so renderHistory is in scope.
+            roomInviteBtn.addEventListener("click", () => {
+                var _a;
+                const rd = window.ChatRoomData;
+                const rName = (_a = rd === null || rd === void 0 ? void 0 : rd.Name) === null || _a === void 0 ? void 0 : _a.trim();
+                if (!rName) {
+                    // Not in a room — flash a "not available" indicator
+                    roomInviteBtn.textContent = "🚫";
+                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                    return;
+                }
+                sendBeep(memberNumber, `📍 Room invite: ${rName}`);
+                renderHistory();
+                roomInviteBtn.textContent = "✓";
+                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+            });
             // Reply bar (shown above footer when replying)
             const replyBar = document.createElement("div");
             replyBar.className = "ebc-beep-reply-bar";
@@ -33473,7 +33588,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.3";
+    const MOD_VERSION = "4.9.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33484,6 +33599,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.4",
+            changes: [
+                "New: 📍 button in beep conversation windows — click it to send your current room as an invite. The recipient sees a join card with a 'Join →' button they can click to enter the room directly. If you're not in a room the button briefly shows 🚫. The room pill showing a friend's current location in the header is now also clickable — click it to join their room.",
+            ],
+        },
         {
             version: "4.9.3",
             changes: [
