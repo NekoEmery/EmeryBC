@@ -25042,31 +25042,9 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Group chat windows ----------------------------------------------------
-        onIncomingGroupBeep(groupId, groupName, fromNum, members) {
-            var _a, _b;
-            const myNum = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-            // Build group object — prefer saved definition, fall back to ephemeral from tag
-            const groupMembers = members.filter(n => n !== myNum && n > 0);
-            const grp = (_b = getGroups().find(g => g.id === groupId)) !== null && _b !== void 0 ? _b : { id: groupId, name: groupName, members: groupMembers.length > 0 ? groupMembers : [fromNum] };
-            const entry = this.groupWins.get(groupId);
-            if (entry) {
-                const fn = entry.el._refresh;
-                try {
-                    fn === null || fn === void 0 ? void 0 : fn();
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-            }
-            else {
-                // Auto-open window so recipients see the conversation even if they don't have the group saved
-                try {
-                    this.openGroupWindow(grp);
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-            }
-            try {
-                this.showGroupBeepToast(groupId, groupName, fromNum, grp);
-            }
-            catch ( /* ignore */_e) { /* ignore */ }
+        onIncomingGroupBeep(_groupId, _groupName, _fromNum, _members) {
+            // Group chat temporarily disabled — restore body to re-enable
+            return;
         }
         showGroupBeepToast(groupId, groupName, fromNum, grp) {
             var _a;
@@ -25785,7 +25763,8 @@
                 if (grpFormVisible)
                     grpNameInput.focus();
             });
-            body.appendChild(grpSec);
+            // Group chat temporarily disabled — re-enable by uncommenting this line
+            // body.appendChild(grpSec);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -34308,7 +34287,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.8";
+    const MOD_VERSION = "5.3.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34319,6 +34298,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.9",
+            changes: [
+                "UX: Group chat temporarily disabled while it's being reworked — the section is hidden from the Users tab and incoming group beeps are suppressed. All data is preserved.",
+            ],
+        },
         {
             version: "5.3.8",
             changes: [

@@ -12143,22 +12143,9 @@ export class EBCDrawer {
 
     // -- Group chat windows ----------------------------------------------------
 
-    public onIncomingGroupBeep(groupId: string, groupName: string, fromNum: number, members: number[]): void {
-        const myNum = Player.MemberNumber ?? 0;
-        // Build group object — prefer saved definition, fall back to ephemeral from tag
-        const groupMembers = members.filter(n => n !== myNum && n > 0);
-        const grp: EBCGroup = getGroups().find(g => g.id === groupId)
-            ?? { id: groupId, name: groupName, members: groupMembers.length > 0 ? groupMembers : [fromNum] };
-
-        const entry = this.groupWins.get(groupId);
-        if (entry) {
-            const fn = (entry.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
-            try { fn?.(); } catch { /* ignore */ }
-        } else {
-            // Auto-open window so recipients see the conversation even if they don't have the group saved
-            try { this.openGroupWindow(grp); } catch { /* ignore */ }
-        }
-        try { this.showGroupBeepToast(groupId, groupName, fromNum, grp); } catch { /* ignore */ }
+    public onIncomingGroupBeep(_groupId: string, _groupName: string, _fromNum: number, _members: number[]): void {
+        // Group chat temporarily disabled — restore body to re-enable
+        return;
     }
 
     private showGroupBeepToast(groupId: string, groupName: string, fromNum: number, grp: EBCGroup): void {
@@ -12896,7 +12883,8 @@ export class EBCDrawer {
             if (grpFormVisible) grpNameInput.focus();
         });
 
-        body.appendChild(grpSec);
+        // Group chat temporarily disabled — re-enable by uncommenting this line
+        // body.appendChild(grpSec);
 
         // ── Friends ──────────────────────────────────────────────────────────
         const friendsSection = document.createElement("div");
