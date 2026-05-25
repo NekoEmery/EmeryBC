@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.1.9";
+const MOD_VERSION = "5.2.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.0",
+        changes: [
+            "Fix: BC R128 AccountQueryResult for OnlineFriends only sends 5 fields (Type=relationship, MemberNumber, MemberName, ChatRoomSpace, ChatRoomName). EBC now only captures what BC actually provides — privacy, lock, full, language, game and count are no longer claimed as available.",
+            "Fix: Room info drawer and friends list room tag no longer show misleading 'Public' privacy chip (BC R128 removed privacy info from the friends endpoint). Drawer now shows space type only with proper display names (e.g. 'X' → 'Club X').",
+            "Fix: 'Duplicate join request' error — doJoinRoom now has a 1.5 s debounce preventing rapid double-clicks or multiple simultaneous join triggers from sending duplicate server requests.",
+        ],
+    },
     {
         version: "5.1.9",
         changes: [
@@ -5977,11 +5985,6 @@ function init(): void {
                 if (data.Query !== "OnlineFriends") return;
                 const results = data.Result as Array<Record<string, unknown>> | undefined;
                 if (!Array.isArray(results)) return;
-                // DEV: one-shot dump of first in-room entry so we can see all available fields
-                if (IS_DEV_BUILD) {
-                    const inRoom = results.find(r => typeof r.ChatRoomName === "string" && r.ChatRoomName);
-                    if (inRoom) console.log("[EBC] AccountQueryResult room entry keys:", Object.keys(inRoom), inRoom);
-                }
                 for (const r of results) {
                     const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                     const name = typeof r.MemberName === "string" ? r.MemberName : null;
