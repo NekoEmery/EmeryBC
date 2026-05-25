@@ -108,40 +108,32 @@ export function getExprGroupOptions(group: string): string[] {
 // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
 export function applyExprGroup(group: string, exprName: string | null, noSync = false): void {
     try {
-        // Pre-flight: verify the expression name exists in the current BC build.
-        // Stored presets may reference names from older BC versions (e.g. "Eyes5", "Eyes1",
-        // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
-        // BC's server rejects appearance bundles containing unrecognised items and pushes a
-        // sanitised copy back — each round-trip triggers another sync, creating the loop that
-        // causes ErrorRateLimited on login.
-        // Strategy: if AssetGet can't find the name, SKIP this group entirely (leave it unchanged)
-        // rather than clearing it.  Clearing was the original approach but it makes entire
-        // presets silently disappear when only one name is stale, which looks like "presets
-        // don't work".  Skipping is safer — valid groups still apply, stale ones are left as-is,
-        // and nothing invalid is ever sent to BC's server.
-        if (exprName) {
-            try {
-                const assetGet = (window as unknown as Record<string, unknown>).AssetGet as
-                    ((family: string, group: string, name: string) => unknown) | undefined;
-                if (typeof assetGet === "function") {
-                    if (!assetGet(Player.AssetFamily ?? "Female3DCG", group, exprName)) {
-                        return; // name not valid in this BC version — skip this group unchanged
-                    }
-                }
-            } catch { /* ignore — proceed if AssetGet itself throws */ }
-        }
-
-        // Prefer BC's official API — omit optional Timer/Color args entirely so BC
-        // uses its own defaults (no timer = keep expression; no colour override).
-        // Passing null for Timer can be treated as "0 ms" in some BC builds which
-        // would instantly clear the expression.
+        // Prefer BC's official API — it validates the expression name internally via its
+        // own AssetGet call and returns early for invalid names without touching Appearance.
+        // We do NOT pre-validate here: our own AssetGet call can behave differently from
+        // BC's internal one in R128+ (function scope changes, family lookup differences)
+        // and was causing ALL expressions to be skipped even when they're perfectly valid.
         const setExpr = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
             ((c: Character, g: string, e: string | null) => void) | undefined;
         if (typeof setExpr === "function") {
             setExpr(Player, group, exprName);
         } else {
-            // Fallback: direct Appearance manipulation.
-            // Also try BC's InventoryWear / InventoryRemove if available.
+            // Fallback: InventoryWear / InventoryRemove do not validate internally,
+            // so manually check the Asset array before touching Appearance.
+            if (exprName) {
+                const valid = (() => {
+                    try {
+                        const bcAsset = (window as unknown as Record<string, unknown>).Asset as
+                            Array<{ Group: { Name: string; Family?: string }; Name: string }> | undefined;
+                        if (!Array.isArray(bcAsset)) return true; // can't validate — proceed
+                        const family = Player?.AssetFamily ?? "Female3DCG";
+                        return bcAsset.some(a => a.Name === exprName &&
+                            a.Group.Name === group &&
+                            (a.Group.Family === family || !a.Group.Family));
+                    } catch { return true; }
+                })();
+                if (!valid) return;
+            }
             const wear   = (window as unknown as Record<string, unknown>).InventoryWear   as Function | undefined;
             const remove = (window as unknown as Record<string, unknown>).InventoryRemove as Function | undefined;
             if (typeof wear === "function" && typeof remove === "function") {

@@ -2293,9 +2293,9 @@ const CSS = `
     position: fixed;
     width: 300px;
     height: 380px;
-    background: rgba(19,8,16,0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(19,8,16,0.94);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     border: 2px solid #cf6f98;
     border-radius: 10px;
     display: flex;
@@ -12382,7 +12382,7 @@ export class EBCDrawer {
 
         // History
         const history = document.createElement("div");
-        history.className = "ebc-beep-history";
+        history.className = "ebc-beep-win-history";
         const IMG_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
         const myNum = Player.MemberNumber ?? 0;
 
@@ -12395,10 +12395,8 @@ export class EBCDrawer {
             const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
             for (const entry of entries) {
                 const isSelf = entry.from === myNum || entry.from === 0;
-                const wrap = document.createElement("div");
-                wrap.className = `ebc-beep-wrap ${isSelf ? "sent" : "received"}`;
                 const bubble = document.createElement("div");
-                bubble.className = "ebc-beep-bubble";
+                bubble.className = `ebc-beep-msg ${isSelf ? "sent" : "received"}`;
                 if (!isSelf) {
                     const senderEl = document.createElement("div");
                     senderEl.style.cssText = "font-size:9px;color:#9a7080;margin-bottom:2px;font-weight:bold;";
@@ -12426,8 +12424,7 @@ export class EBCDrawer {
                     img.addEventListener("error", () => { img.style.display = "none"; });
                     bubble.appendChild(img);
                 }
-                wrap.appendChild(bubble);
-                history.appendChild(wrap);
+                history.appendChild(bubble);
             }
             requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
         };
@@ -12435,13 +12432,13 @@ export class EBCDrawer {
 
         // Input
         const inputRow = document.createElement("div");
-        inputRow.className = "ebc-beep-input-row";
+        inputRow.className = "ebc-beep-win-footer";
         const input = document.createElement("textarea");
         input.className = "ebc-beep-win-input";
         input.placeholder = "Message group…";
         input.rows = 1;
         const sendBtn = document.createElement("button");
-        sendBtn.className = "ebc-beep-send";
+        sendBtn.className = "ebc-beep-win-send";
         sendBtn.textContent = "Send";
 
         const doSend = (): void => {

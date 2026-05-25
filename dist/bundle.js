@@ -224,41 +224,38 @@
     // one refresh + one server sync after ALL groups are set, instead of one per group.
     // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
     function applyExprGroup(group, exprName, noSync = false) {
-        var _a;
         try {
-            // Pre-flight: verify the expression name exists in the current BC build.
-            // Stored presets may reference names from older BC versions (e.g. "Eyes5", "Eyes1",
-            // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
-            // BC's server rejects appearance bundles containing unrecognised items and pushes a
-            // sanitised copy back — each round-trip triggers another sync, creating the loop that
-            // causes ErrorRateLimited on login.
-            // Strategy: if AssetGet can't find the name, SKIP this group entirely (leave it unchanged)
-            // rather than clearing it.  Clearing was the original approach but it makes entire
-            // presets silently disappear when only one name is stale, which looks like "presets
-            // don't work".  Skipping is safer — valid groups still apply, stale ones are left as-is,
-            // and nothing invalid is ever sent to BC's server.
-            if (exprName) {
-                try {
-                    const assetGet = window.AssetGet;
-                    if (typeof assetGet === "function") {
-                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, exprName)) {
-                            return; // name not valid in this BC version — skip this group unchanged
-                        }
-                    }
-                }
-                catch ( /* ignore — proceed if AssetGet itself throws */_b) { /* ignore — proceed if AssetGet itself throws */ }
-            }
-            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
-            // uses its own defaults (no timer = keep expression; no colour override).
-            // Passing null for Timer can be treated as "0 ms" in some BC builds which
-            // would instantly clear the expression.
+            // Prefer BC's official API — it validates the expression name internally via its
+            // own AssetGet call and returns early for invalid names without touching Appearance.
+            // We do NOT pre-validate here: our own AssetGet call can behave differently from
+            // BC's internal one in R128+ (function scope changes, family lookup differences)
+            // and was causing ALL expressions to be skipped even when they're perfectly valid.
             const setExpr = window.CharacterSetFacialExpression;
             if (typeof setExpr === "function") {
                 setExpr(Player, group, exprName);
             }
             else {
-                // Fallback: direct Appearance manipulation.
-                // Also try BC's InventoryWear / InventoryRemove if available.
+                // Fallback: InventoryWear / InventoryRemove do not validate internally,
+                // so manually check the Asset array before touching Appearance.
+                if (exprName) {
+                    const valid = (() => {
+                        var _a;
+                        try {
+                            const bcAsset = window.Asset;
+                            if (!Array.isArray(bcAsset))
+                                return true; // can't validate — proceed
+                            const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                            return bcAsset.some(a => a.Name === exprName &&
+                                a.Group.Name === group &&
+                                (a.Group.Family === family || !a.Group.Family));
+                        }
+                        catch (_b) {
+                            return true;
+                        }
+                    })();
+                    if (!valid)
+                        return;
+                }
                 const wear = window.InventoryWear;
                 const remove = window.InventoryRemove;
                 if (typeof wear === "function" && typeof remove === "function") {
@@ -300,7 +297,7 @@
                 syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Clear all expression groups in one batch: one CharacterRefresh + one server sync total.
     // Use this instead of looping applyExprGroup(g, null) without noSync.
@@ -15646,9 +15643,9 @@
     position: fixed;
     width: 300px;
     height: 380px;
-    background: rgba(19,8,16,0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(19,8,16,0.94);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     border: 2px solid #cf6f98;
     border-radius: 10px;
     display: flex;
@@ -25320,7 +25317,7 @@
             header.appendChild(closeBtn);
             // History
             const history = document.createElement("div");
-            history.className = "ebc-beep-history";
+            history.className = "ebc-beep-win-history";
             const IMG_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
             const myNum = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const renderGroupHistory = () => {
@@ -25334,10 +25331,8 @@
                 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 for (const entry of entries) {
                     const isSelf = entry.from === myNum || entry.from === 0;
-                    const wrap = document.createElement("div");
-                    wrap.className = `ebc-beep-wrap ${isSelf ? "sent" : "received"}`;
                     const bubble = document.createElement("div");
-                    bubble.className = "ebc-beep-bubble";
+                    bubble.className = `ebc-beep-msg ${isSelf ? "sent" : "received"}`;
                     if (!isSelf) {
                         const senderEl = document.createElement("div");
                         senderEl.style.cssText = "font-size:9px;color:#9a7080;margin-bottom:2px;font-weight:bold;";
@@ -25365,21 +25360,20 @@
                         img.addEventListener("error", () => { img.style.display = "none"; });
                         bubble.appendChild(img);
                     }
-                    wrap.appendChild(bubble);
-                    history.appendChild(wrap);
+                    history.appendChild(bubble);
                 }
                 requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
             };
             win._refresh = renderGroupHistory;
             // Input
             const inputRow = document.createElement("div");
-            inputRow.className = "ebc-beep-input-row";
+            inputRow.className = "ebc-beep-win-footer";
             const input = document.createElement("textarea");
             input.className = "ebc-beep-win-input";
             input.placeholder = "Message group…";
             input.rows = 1;
             const sendBtn = document.createElement("button");
-            sendBtn.className = "ebc-beep-send";
+            sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
             const doSend = () => {
                 const text = input.value.trim();
@@ -34443,7 +34437,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.6";
+    const MOD_VERSION = "5.3.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34454,6 +34448,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.7",
+            changes: [
+                "Fix: expression presets now actually apply in BC R128+ — the AssetGet pre-validation was incorrectly skipping all expression groups (returning falsy for valid names). Removed the redundant pre-check; BC's own CharacterSetFacialExpression validates internally and ignores truly unknown names without corrupting appearance data.",
+                "Fix: group chat window no longer looks semi-transparent and blurry — increased background opacity and fixed incorrect CSS class names on the history scroll area, message bubbles, input bar, and Send button (classes with no styles were being assigned).",
+            ],
+        },
         {
             version: "5.3.6",
             changes: [
