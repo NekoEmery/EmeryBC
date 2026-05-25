@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.3";
+const MOD_VERSION = "4.9.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.9.4",
+        changes: [
+            "New: 📍 button in beep conversation windows — click it to send your current room as an invite. The recipient sees a join card with a 'Join →' button they can click to enter the room directly. If you're not in a room the button briefly shows 🚫. The room pill showing a friend's current location in the header is now also clickable — click it to join their room.",
+        ],
+    },
     {
         version: "4.9.3",
         changes: [

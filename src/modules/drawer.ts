@@ -2532,7 +2532,43 @@ const CSS = `
     text-overflow: ellipsis;
     max-width: 160px;
     line-height: 1.3;
+    cursor: pointer;
+    transition: color 0.12s;
 }
+.ebc-beep-room-pill:hover { color: #cf6f98; }
+
+.ebc-beep-room-invite-card {
+    background: rgba(58,16,40,0.40);
+    border: 1px solid rgba(207,111,152,0.45);
+    border-radius: 5px;
+    padding: 5px 7px 6px;
+    margin-top: 1px;
+}
+.ebc-beep-room-invite-label {
+    font-size: 9px;
+    color: #9a6888;
+    margin-bottom: 3px;
+}
+.ebc-beep-room-invite-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: #e0b0c8;
+    word-break: break-all;
+    margin-bottom: 6px;
+}
+.ebc-beep-room-invite-join {
+    background: #3a1028;
+    border: 1px solid #cf6f98;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 3px 0;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-beep-room-invite-join:hover { background: #cf6f98; color: #fff; }
 
 .ebc-emoji-btn {
     background: #2a0e1e;
@@ -11303,6 +11339,17 @@ export class EBCDrawer {
         const roomPill = document.createElement("div");
         roomPill.className = "ebc-beep-room-pill";
         roomPill.style.display = "none";
+        roomPill.title = "Click to join this room";
+        roomPill.addEventListener("click", (e: Event) => {
+            e.stopPropagation(); // don't trigger header drag
+            const rName = getFriendOnlineInfo(memberNumber)?.roomName;
+            if (!rName) return;
+            try {
+                const joinFn = (window as unknown as Record<string, unknown>).ChatRoomJoin as ((n: string) => void) | undefined;
+                if (typeof joinFn === "function") { joinFn(rName); return; }
+                ServerSend("ChatRoomJoin", { Name: rName });
+            } catch { /* ignore */ }
+        });
 
         titleArea.appendChild(title);
         titleArea.appendChild(roomPill);
@@ -11342,6 +11389,14 @@ export class EBCDrawer {
             toggleMutedBeepMember(memberNumber);
             refreshMuteBtn();
         });
+
+        // Room invite button — sends the player's current room name to this person.
+        // The click handler is added after renderHistory() is defined (see below)
+        // so it can call renderHistory() to refresh the chat after sending.
+        const roomInviteBtn = document.createElement("button");
+        roomInviteBtn.className = "ebc-beep-win-hbtn";
+        roomInviteBtn.textContent = "📍";
+        roomInviteBtn.title = "Send your current room as an invite";
 
         const minimizeBtn = document.createElement("button");
         minimizeBtn.className = "ebc-beep-win-hbtn";
@@ -11386,6 +11441,7 @@ export class EBCDrawer {
         header.appendChild(titleArea);
         header.appendChild(unreadDot);
         header.appendChild(muteBtn);
+        header.appendChild(roomInviteBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
@@ -11421,7 +11477,8 @@ export class EBCDrawer {
         // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
         addPointerDown(header, (start, e) => {
-            if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn) return;
+            if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
+                || e.target === roomInviteBtn || e.target === roomPill) return;
             e.preventDefault();
             const rect = win.getBoundingClientRect();
             const ox = start.clientX - rect.left;
@@ -11546,21 +11603,54 @@ export class EBCDrawer {
                     msgBody = cleanMsg.slice(nl + 1);
                 }
 
-                // Text content
-                const text = document.createElement("div");
-                text.textContent = msgBody;
-                bubble.appendChild(text);
+                // Room invite card — sent via the 📍 button in the header.
+                // Renders as a join card with a "Join →" button for the recipient.
+                const ROOM_INVITE_PFX = "📍 Room invite: ";
+                if (msgBody.startsWith(ROOM_INVITE_PFX)) {
+                    const rName = msgBody.slice(ROOM_INVITE_PFX.length).trim();
+                    const inviteCard = document.createElement("div");
+                    inviteCard.className = "ebc-beep-room-invite-card";
+                    const inviteLabel = document.createElement("div");
+                    inviteLabel.className = "ebc-beep-room-invite-label";
+                    inviteLabel.textContent = "📍 Room invite";
+                    const inviteName = document.createElement("div");
+                    inviteName.className = "ebc-beep-room-invite-name";
+                    inviteName.textContent = rName;
+                    inviteCard.appendChild(inviteLabel);
+                    inviteCard.appendChild(inviteName);
+                    if (!isSent) {
+                        // Only the recipient gets a Join button — sender already knows the room
+                        const joinBtn = document.createElement("button");
+                        joinBtn.className = "ebc-beep-room-invite-join";
+                        joinBtn.textContent = "Join →";
+                        joinBtn.addEventListener("click", () => {
+                            try {
+                                const joinFn = (window as unknown as Record<string, unknown>).ChatRoomJoin as
+                                    ((n: string) => void) | undefined;
+                                if (typeof joinFn === "function") { joinFn(rName); return; }
+                                ServerSend("ChatRoomJoin", { Name: rName });
+                            } catch { /* ignore */ }
+                        });
+                        inviteCard.appendChild(joinBtn);
+                    }
+                    bubble.appendChild(inviteCard);
+                } else {
+                    // Text content
+                    const text = document.createElement("div");
+                    text.textContent = msgBody;
+                    bubble.appendChild(text);
 
-                // Image embed — detect image URL in the message body
-                const imgUrl = IMAGE_RE.exec(msgBody)?.[0];
-                if (imgUrl) {
-                    const img = document.createElement("img");
-                    img.className = "ebc-beep-img";
-                    img.src = imgUrl;
-                    img.alt = "image";
-                    img.addEventListener("click", () => window.open(imgUrl, "_blank"));
-                    img.addEventListener("error", () => { img.style.display = "none"; });
-                    bubble.appendChild(img);
+                    // Image embed — detect image URL in the message body
+                    const imgUrl = IMAGE_RE.exec(msgBody)?.[0];
+                    if (imgUrl) {
+                        const img = document.createElement("img");
+                        img.className = "ebc-beep-img";
+                        img.src = imgUrl;
+                        img.alt = "image";
+                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                        img.addEventListener("error", () => { img.style.display = "none"; });
+                        bubble.appendChild(img);
+                    }
                 }
 
                 wrap.appendChild(bubble);
@@ -11580,6 +11670,22 @@ export class EBCDrawer {
         };
 
         renderHistory();
+
+        // Room invite button click handler — deferred here so renderHistory is in scope.
+        roomInviteBtn.addEventListener("click", () => {
+            const rd = (window as unknown as Record<string, unknown>).ChatRoomData as { Name?: string } | undefined;
+            const rName = rd?.Name?.trim();
+            if (!rName) {
+                // Not in a room — flash a "not available" indicator
+                roomInviteBtn.textContent = "🚫";
+                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                return;
+            }
+            sendBeep(memberNumber, `📍 Room invite: ${rName}`);
+            renderHistory();
+            roomInviteBtn.textContent = "✓";
+            window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+        });
 
         // Reply bar (shown above footer when replying)
         const replyBar = document.createElement("div");
