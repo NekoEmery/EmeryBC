@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.2.4
+// @version      5.2.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33896,7 +33896,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.4";
+    const MOD_VERSION = "5.2.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33907,6 +33907,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.5",
+            changes: [
+                "Fix: friends list and open beep windows now update correctly when a friend goes offline or changes rooms. AccountQueryResult is now hooked via modAPI (reliable in BC R128) with the old window.ServerSocket listener kept as fallback. A 60 s heartbeat poll ensures the online list stays fresh even if neither listener fires.",
+            ],
+        },
         {
             version: "5.2.4",
             changes: [
@@ -39979,41 +39985,62 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return next(args);
         });
         // Track which friends BC considers online (not just in our room).
-        // AccountQueryResult is a socket event, not a patchable global.
-        try {
-            const socket2 = window.ServerSocket;
-            socket2 === null || socket2 === void 0 ? void 0 : socket2.on("AccountQueryResult", (raw) => {
-                try {
-                    const data = raw;
-                    if (data.Query !== "OnlineFriends")
-                        return;
-                    const results = data.Result;
-                    if (!Array.isArray(results))
-                        return;
-                    for (const r of results) {
-                        const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
-                        const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                        if (n && name)
-                            cacheName(n, name);
-                    }
-                    updateOnlineFriends(results);
-                    try {
-                        syncFriendsSince();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
+        // In BC R128 AccountQueryResult is a named global function AND a socket event.
+        // We hook both paths and deduplicate so only one update fires per result batch.
+        let _lastQueryResultTs = 0;
+        const handleAccountQueryResult = (raw) => {
+            try {
+                const now = Date.now();
+                if (now - _lastQueryResultTs < 500)
+                    return; // dedup if both hook + socket fire
+                _lastQueryResultTs = now;
+                const data = raw;
+                if (data.Query !== "OnlineFriends")
+                    return;
+                const results = data.Result;
+                if (!Array.isArray(results))
+                    return;
+                for (const r of results) {
+                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                    const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                    if (n && name)
+                        cacheName(n, name);
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
-            });
+                updateOnlineFriends(results);
+                try {
+                    syncFriendsSince();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+        };
+        // Primary: hook the BC global (reliable in R128 where it is a patchable function)
+        tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
+            handleAccountQueryResult(args[0]);
+            return next(args);
+        });
+        // Fallback: socket listener for BC versions where AccountQueryResult is not hookable
+        try {
+            const sock = window.ServerSocket;
+            sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
         catch ( /* ignore */_d) { /* ignore */ }
+        // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
+        // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
+        setInterval(() => {
+            try {
+                ServerSend("AccountQuery", { Query: "OnlineFriends" });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 60 * 1000);
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
