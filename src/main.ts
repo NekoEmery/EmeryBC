@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.1";
+const MOD_VERSION = "5.3.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.2",
+        changes: [
+            "Fix: private room detection no longer requires ChatRoomSpace to be non-empty — BC R128 may send an empty space for private rooms. Any online friend without a visible room name now shows 'Private room' in both the Users tab and the beep window room bar.",
+            "Fix: room info chips now use a direct socket.io manager listener for ChatRoomSearchResult as an additional fallback. The modAPI hook fails in BC R128 (function is module-scoped), so this path goes through the socket.io internals (window.io.managers) to intercept the response without relying on window.ServerSocket or window.ChatRoomList.",
+        ],
+    },
     {
         version: "5.3.1",
         changes: [
@@ -6002,8 +6009,8 @@ function init(): void {
 
 
     // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
-    // enrich the room info chips without needing window.ServerSocket (which is
-    // module-scoped in BC R128 and not reliably accessible from window).
+    // enrich the room info chips.
+    // Primary: modAPI hook (fails silently in BC R128 where the function is module-scoped).
     tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
         try {
             const list = args[0] as Array<Record<string, unknown>>;
@@ -6011,6 +6018,26 @@ function init(): void {
         } catch { /* ignore */ }
         return next(args);
     });
+    // Fallback: access BC's live socket via the socket.io manager internals.
+    // window.ServerSocket is module-scoped in BC R128, but window.io.managers
+    // exposes the underlying Socket instance we can attach a listener to.
+    try {
+        const ioFn = (window as unknown as Record<string, unknown>).io as Record<string, unknown> | undefined;
+        const managers = ioFn?.managers;
+        if (managers && typeof managers === "object") {
+            const firstMgr = Object.values(managers as Record<string, unknown>)[0] as Record<string, unknown> | undefined;
+            const nsps = firstMgr?.nsps;
+            if (nsps && typeof nsps === "object") {
+                const firstNsp = Object.values(nsps as Record<string, unknown>)[0] as
+                    { on?(e: string, h: (d: unknown) => void): void } | undefined;
+                firstNsp?.on?.("ChatRoomSearchResult", (list: unknown) => {
+                    try {
+                        if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
+                    } catch { /* ignore */ }
+                });
+            }
+        }
+    } catch { /* ignore */ }
 
     // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
     // button, or the "reply" arrow in the chat room beep preview).  Those calls go

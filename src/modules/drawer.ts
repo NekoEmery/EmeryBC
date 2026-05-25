@@ -11594,20 +11594,26 @@ export class EBCDrawer {
                         roomDrawerChips.appendChild(c);
                     }
                 }
-            } else if (info?.roomSpace) {
-                // Private room: BC hides the name but reports the space.
+            } else if (info) {
+                // Friend is online but the room name is not visible (private room or hidden).
+                // BC R128 may send ChatRoomSpace="" and ChatRoomName="" for private rooms,
+                // so we can't rely on roomSpace being set.  Any online friend without a
+                // visible room name is shown as being in a private/hidden room.
+                _roomSearchCache.clear();
                 roomBar.textContent = "📍 Private room";
                 roomBar.title = "Friend is in a private room";
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
                 roomDrawerChips.innerHTML = "";
-                const c = document.createElement("span");
-                c.className = "ebc-beep-room-drawer-chip";
-                c.textContent = SPACE_NAMES[info.roomSpace] ?? info.roomSpace;
-                roomDrawerChips.appendChild(c);
+                if (info.roomSpace) {
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = SPACE_NAMES[info.roomSpace] ?? info.roomSpace;
+                    roomDrawerChips.appendChild(c);
+                }
             } else {
-                // Friend left the room — clear the search cache for the old room
+                // Friend is offline — clear the search cache for the old room
                 _roomSearchCache.clear();
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
@@ -13369,17 +13375,17 @@ export class EBCDrawer {
                 let roomTagEl: HTMLSpanElement | null = null;
                 if (info) {
                     const roomName = info.roomName;
-                    const isPrivate = !roomName && !!info.roomSpace;
-                    // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
-                    // just show the room name with a neutral green "in a room" colour.
-                    // Private rooms show a muted tag rather than just "online".
-                    const bg    = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
-                    const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
-                    const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
-                    const label = roomName ? roomName : isPrivate ? "Private room" : "online";
+                    // BC R128 may send ChatRoomSpace="" for private rooms so we cannot use
+                    // roomSpace as the signal.  Instead: any online friend without a visible
+                    // room name is treated as being in a private/hidden room.
+                    const isPrivate = !roomName;
+                    const bg    = roomName ? "#081a10" : "#1a0d18";
+                    const color = roomName ? "#70c890" : "#b07898";
+                    const border = roomName ? "#1a5a30" : "#3a1528";
+                    const label = roomName ?? "Private room";
                     roomTagEl = document.createElement("span");
                     roomTagEl.textContent = label;
-                    roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
+                    roomTagEl.title = roomName ? roomName : "Friend is in a private room";
                     roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                 }
 
