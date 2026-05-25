@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.1.3";
+const MOD_VERSION = "5.1.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "5.1.4",
+        changes: [
+            "Beep window: room bar now expands into an info drawer on hover (desktop) or tap (touch) showing room space type, public/private, locked, and full status — with a Join button inside so you know what you're joining before committing.",
+        ],
+    },
+    {
         version: "5.1.3",
         changes: [
-            "Fix: 📍 room invite button was always showing 🚫 because CurrentScreen can be 'OnlineFriends' while still in a room. Now checks ChatRoomData directly instead.",
+            "Fix: 📍 room invite button was always showing 🚫 — was checking CurrentScreen instead of ChatRoomData directly.",
         ],
     },
     {

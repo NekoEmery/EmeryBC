@@ -2431,6 +2431,7 @@ const CSS = `
 .ebc-beep-win.minimized .ebc-beep-win-history,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-room-bar,
+.ebc-beep-win.minimized .ebc-beep-room-drawer,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -2543,6 +2544,50 @@ const CSS = `
     user-select: none;
 }
 .ebc-beep-room-bar:hover { color: #cf6f98; background: rgba(50,14,34,0.70); }
+
+/* Expandable room info drawer — slides open below the room bar on hover/tap */
+.ebc-beep-room-drawer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.18s ease;
+    background: rgba(14,5,10,0.82);
+    border-bottom: 1px solid rgba(45,18,32,0.60);
+    flex-shrink: 0;
+}
+.ebc-beep-room-drawer.open { max-height: 90px; }
+.ebc-beep-room-drawer-inner {
+    padding: 7px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.ebc-beep-room-drawer-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.ebc-beep-room-drawer-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #9a7080;
+    background: rgba(38,14,26,0.65);
+    border: 1px solid rgba(80,30,50,0.55);
+    border-radius: 3px;
+    padding: 1px 6px;
+}
+.ebc-beep-room-drawer-join {
+    background: #3a1028;
+    border: 1px solid #cf6f98;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 4px 0;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -11375,15 +11420,58 @@ export class EBCDrawer {
         title.className = "ebc-beep-win-title";
         title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
 
-        // Slim room bar shown between header and chat when the other person is in a room.
-        // Click joins their room. Hidden when they have no room.
+        // Slim room bar — click/tap to toggle the info drawer below it.
         const roomBar = document.createElement("div");
         roomBar.className = "ebc-beep-room-bar";
         roomBar.style.display = "none";
-        roomBar.addEventListener("click", () => {
+
+        // Info drawer — slides open on hover (desktop) or tap (touch).
+        const roomDrawer = document.createElement("div");
+        roomDrawer.className = "ebc-beep-room-drawer";
+        roomDrawer.style.display = "none";
+
+        const roomDrawerInner = document.createElement("div");
+        roomDrawerInner.className = "ebc-beep-room-drawer-inner";
+
+        const roomDrawerChips = document.createElement("div");
+        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
+
+        const roomDrawerJoin = document.createElement("button");
+        roomDrawerJoin.className = "ebc-beep-room-drawer-join";
+        roomDrawerJoin.textContent = "Join room →";
+        roomDrawerJoin.addEventListener("click", (e: Event) => {
+            e.stopPropagation();
             const rName = getFriendOnlineInfo(memberNumber)?.roomName;
             if (!rName) return;
             doJoinRoom(rName);
+        });
+
+        roomDrawerInner.appendChild(roomDrawerChips);
+        roomDrawerInner.appendChild(roomDrawerJoin);
+        roomDrawer.appendChild(roomDrawerInner);
+
+        // Hover: open on mouseenter, close after short delay on mouseleave.
+        // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
+        let _drawerTimer: ReturnType<typeof setTimeout> | null = null;
+        const openDrawer = (): void => {
+            if (_drawerTimer) { clearTimeout(_drawerTimer); _drawerTimer = null; }
+            roomDrawer.classList.add("open");
+        };
+        const scheduleCloseDrawer = (): void => {
+            _drawerTimer = setTimeout(() => roomDrawer.classList.remove("open"), 160);
+        };
+        roomBar.addEventListener("mouseenter", openDrawer);
+        roomBar.addEventListener("mouseleave", scheduleCloseDrawer);
+        roomDrawer.addEventListener("mouseenter", openDrawer);
+        roomDrawer.addEventListener("mouseleave", scheduleCloseDrawer);
+
+        // Touch / click: tap the bar to toggle the drawer.
+        roomBar.addEventListener("click", () => {
+            if (roomDrawer.classList.contains("open")) {
+                roomDrawer.classList.remove("open");
+            } else {
+                roomDrawer.classList.add("open");
+            }
         });
 
         // Called whenever online friend status refreshes (AccountQueryResult)
@@ -11394,10 +11482,25 @@ export class EBCDrawer {
             const info = getFriendOnlineInfo(memberNumber);
             if (info?.roomName) {
                 roomBar.textContent = `📍 ${info.roomName}`;
-                roomBar.title = `Tap to join ${info.roomName}`;
+                roomBar.title = "Hover for room info";
                 roomBar.style.display = "";
+                roomDrawer.style.display = "";
+                // Rebuild info chips
+                roomDrawerChips.innerHTML = "";
+                const addChip = (text: string): void => {
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = text;
+                    roomDrawerChips.appendChild(c);
+                };
+                if (info.roomSpace) addChip(info.roomSpace);
+                addChip(info.roomPrivate ? "🔒 Private" : "🌐 Public");
+                if (info.roomLocked) addChip("Locked");
+                if (info.roomFull)   addChip("Full");
             } else {
                 roomBar.style.display = "none";
+                roomDrawer.classList.remove("open");
+                roomDrawer.style.display = "none";
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
@@ -11479,6 +11582,7 @@ export class EBCDrawer {
         header.appendChild(closeBtn);
         win.appendChild(header);
         win.appendChild(roomBar);
+        win.appendChild(roomDrawer);
 
         // Restore saved position from localStorage, or fall back to default offset.
         // Clamp the restored values so the window is always fully on-screen even if
