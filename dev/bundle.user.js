@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.8.9
+// @version      4.9.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16846,15 +16846,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Stop BC's in-game touch handlers from eating our touch events.
             // BC registers touchmove/touchstart at document level (non-passive) and calls
             // preventDefault(), which kills native scroll inside HTML overlays.
-            // We stop propagation in BOTH capture and bubble phases:
-            //   - capture-phase listener: stops intermediate-element capture handlers
-            //   - bubble-phase listener: stops document-level bubble handlers (BC's main hooks)
-            // stopImmediatePropagation also cancels any other listeners on this exact element.
+            // bubble-phase stopImmediatePropagation is sufficient to stop document-level handlers.
+            // NOTE: Do NOT register a capture-phase stopPropagation here — doing so would prevent
+            // touchstart from reaching child elements (e.g. the header drag handler), breaking
+            // drawer dragging on touch devices entirely.
             const stopTouchBubble = (e) => { e.stopImmediatePropagation(); };
-            const stopTouchCapture = (e) => { e.stopPropagation(); };
             for (const type of ["touchstart", "touchmove", "touchend"]) {
                 slideContainer.addEventListener(type, stopTouchBubble, { passive: true });
-                slideContainer.addEventListener(type, stopTouchCapture, { passive: true, capture: true });
             }
             // Header
             const header = document.createElement("div");
@@ -33416,7 +33414,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.8.9";
+    const MOD_VERSION = "4.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33427,6 +33425,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.0",
+            changes: [
+                "Fix: drawer drag broken on touch/mobile devices — a capture-phase stopPropagation on the slide container was intercepting touchstart before it could reach the header's drag handler. Removed the capture-phase listener; bubble-phase stopImmediatePropagation alone is sufficient to block BC's document-level touch handlers.",
+                "Fix: EBC badge now draws underneath WCE and other addon icons — DrawCharacter hook priority lowered from 3 to 1 so higher-priority addon hooks (WCE etc.) layer their icons on top of EBC's badge rather than underneath.",
+                "Fix: EBC badge no longer visible when clicking a character in the chatroom — added window.CurrentCharacter guard in drawPresenceMarker so the badge is skipped during BC's character interaction portrait view (same guard WCE uses), preventing EBC tag from being the only visible element on the portrait.",
+            ],
+        },
         {
             version: "4.8.9",
             changes: [
@@ -38475,6 +38481,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a, _b;
         if (CurrentScreen !== "ChatRoom")
             return;
+        // Skip badge drawing when BC has a character interaction menu open.
+        // Clicking a character in the chatroom sets window.CurrentCharacter but keeps
+        // CurrentScreen as "ChatRoom", so BC renders a full-screen portrait via DrawCharacter.
+        // Other addons (WCE) guard against this the same way — without this guard EBC is the
+        // only badge visible on the portrait, making it look like EBC is the whole overlay.
+        const currentChar = window.CurrentCharacter;
+        if (currentChar != null)
+            return;
         const character = args[0];
         const left = typeof args[1] === "number" ? args[1] : null;
         const top = typeof args[2] === "number" ? args[2] : null;
@@ -38798,7 +38812,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
         }
-        tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
+        // Priority 1 (inner) — EBC badge draws BEFORE other addons (WCE etc.) that run at
+        // higher priorities, so their icons layer on top of ours rather than underneath.
+        tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
             const result = next(args);
             try {
                 drawPresenceMarker(args);
