@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.2.0
+// @version      5.2.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24347,12 +24347,103 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Hover: open on mouseenter, close after short delay on mouseleave.
             // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
             let _drawerTimer = null;
+            // ── Lazy room-search enrichment ──────────────────────────────────────
+            // BC R128 AccountQueryResult only sends ChatRoomName + ChatRoomSpace.
+            // When the drawer opens we trigger a ChatRoomSearch to get count, language,
+            // game, privacy, lock state etc. Results are cached per room name so we
+            // never hit the server more than once per unique room per window instance.
+            const SPACE_NAMES = {
+                Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
+                Pandora: "Pandora", Bahamas: "Bahamas",
+                HarshWorld: "Harsh World", NaturalWorld: "Nature",
+                PvP: "PvP", X: "Club X",
+            };
+            // Cache: room name (lowercase) → raw search result entry
+            const _roomSearchCache = new Map();
+            let _searchHandler = null;
+            /** Rebuild chips from a rich ChatRoomSearchResult entry. */
+            const applySearchChips = (room) => {
+                var _a;
+                roomDrawerChips.innerHTML = "";
+                const addChip = (text) => {
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = text;
+                    roomDrawerChips.appendChild(c);
+                };
+                const space = typeof room.Space === "string" ? room.Space : undefined;
+                if (space)
+                    addChip((_a = SPACE_NAMES[space]) !== null && _a !== void 0 ? _a : space);
+                const count = typeof room.MemberCount === "number" ? room.MemberCount
+                    : typeof room.Count === "number" ? room.Count : undefined;
+                const limit = typeof room.MemberLimit === "number" ? room.MemberLimit
+                    : typeof room.Limit === "number" ? room.Limit : undefined;
+                if (count !== undefined)
+                    addChip(limit !== undefined ? `👥 ${count}/${limit}` : `👥 ${count}`);
+                const lang = typeof room.Language === "string" && room.Language ? room.Language.toUpperCase() : undefined;
+                if (lang)
+                    addChip(`🌍 ${lang}`);
+                const game = typeof room.Game === "string" && room.Game && room.Game !== "None" ? room.Game : undefined;
+                if (game)
+                    addChip(`🎮 ${game}`);
+                const isPrivate = typeof room.Private === "boolean" ? room.Private : undefined;
+                if (isPrivate !== undefined)
+                    addChip(isPrivate ? "🔒 Private" : "🌐 Public");
+                if (room.Locked === true)
+                    addChip("🔐 Locked");
+            };
+            /** Trigger a server room search to enrich the drawer. No-op if already cached. */
+            const enrichDrawerFromSearch = (rName) => {
+                var _a;
+                const key = rName.toLowerCase();
+                // Already have cached data → apply immediately
+                const cached = _roomSearchCache.get(key);
+                if (cached) {
+                    applySearchChips(cached);
+                    return;
+                }
+                const sock = window.ServerSocket;
+                if (!sock)
+                    return;
+                // Remove any stale pending handler first
+                if (_searchHandler) {
+                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
+                    _searchHandler = null;
+                }
+                _searchHandler = (raw) => {
+                    var _a;
+                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
+                    _searchHandler = null;
+                    try {
+                        const list = raw;
+                        if (!Array.isArray(list))
+                            return;
+                        const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
+                        if (!match)
+                            return;
+                        _roomSearchCache.set(key, match);
+                        applySearchChips(match);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                };
+                sock.on("ChatRoomSearchResult", _searchHandler);
+                try {
+                    ServerSend("ChatRoomSearch", { Name: rName });
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            };
+            // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
+                var _a;
                 if (_drawerTimer) {
                     clearTimeout(_drawerTimer);
                     _drawerTimer = null;
                 }
                 roomDrawer.classList.add("open");
+                // Enrich chips lazily on first open for this room
+                const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
+                if (rName)
+                    enrichDrawerFromSearch(rName);
             };
             const scheduleCloseDrawer = () => {
                 _drawerTimer = setTimeout(() => roomDrawer.classList.remove("open"), 160);
@@ -24367,7 +24458,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.classList.remove("open");
                 }
                 else {
-                    roomDrawer.classList.add("open");
+                    openDrawer(); // use openDrawer so enrichment fires on tap too
                 }
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
@@ -24382,27 +24473,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomBar.title = "Hover for room info";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
-                    // Rebuild info chips
-                    roomDrawerChips.innerHTML = "";
-                    const addChip = (text) => {
-                        const c = document.createElement("span");
-                        c.className = "ebc-beep-room-drawer-chip";
-                        c.textContent = text;
-                        roomDrawerChips.appendChild(c);
-                    };
-                    // BC R128 AccountQueryResult only exposes ChatRoomSpace and ChatRoomName —
-                    // privacy, lock state, count etc. are no longer sent by the server.
-                    if (info.roomSpace) {
-                        const SPACE_NAMES = {
-                            Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
-                            Pandora: "Pandora", Bahamas: "Bahamas",
-                            HarshWorld: "Harsh World", NaturalWorld: "Nature",
-                            PvP: "PvP", X: "Club X",
-                        };
-                        addChip((_a = SPACE_NAMES[info.roomSpace]) !== null && _a !== void 0 ? _a : info.roomSpace);
+                    // Rebuild chips: use cached search data if available, else basic space chip
+                    const cached = _roomSearchCache.get(info.roomName.toLowerCase());
+                    if (cached) {
+                        applySearchChips(cached);
+                    }
+                    else {
+                        roomDrawerChips.innerHTML = "";
+                        if (info.roomSpace) {
+                            const c = document.createElement("span");
+                            c.className = "ebc-beep-room-drawer-chip";
+                            c.textContent = (_a = SPACE_NAMES[info.roomSpace]) !== null && _a !== void 0 ? _a : info.roomSpace;
+                            roomDrawerChips.appendChild(c);
+                        }
                     }
                 }
                 else {
+                    // Friend left the room — clear the search cache for the old room
+                    _roomSearchCache.clear();
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -33779,7 +33867,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.0";
+    const MOD_VERSION = "5.2.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33790,6 +33878,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.1",
+            changes: [
+                "Beep window: room info drawer now lazily fetches full room data (player count, language, game type, privacy, lock state) via ChatRoomSearch when you first hover/tap the room bar. Results are cached per room so the server is only hit once. Public rooms show all available details; private rooms silently show basic info if the search returns nothing.",
+            ],
+        },
         {
             version: "5.2.0",
             changes: [
