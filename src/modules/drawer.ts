@@ -11721,11 +11721,10 @@ export class EBCDrawer {
         // Room invite button click handler — deferred here so renderHistory is in scope.
         roomInviteBtn.addEventListener("click", () => {
             const w = window as unknown as Record<string, unknown>;
-            // Must be on the ChatRoom screen with valid room data
-            const rd = w.CurrentScreen === "ChatRoom"
-                ? (w.ChatRoomData as Record<string, unknown> | null | undefined)
-                : null;
-            const rName = (rd ? (typeof rd.Name === "string" ? rd.Name : "") : "").trim();
+            // Check ChatRoomData directly — CurrentScreen can be "OnlineFriends" or other
+            // sub-screens even while the player is still in a room, so we don't gate on it.
+            const rd = w.ChatRoomData as Record<string, unknown> | null | undefined;
+            const rName = (rd && typeof rd.Name === "string" ? rd.Name : "").trim();
             if (!rName) {
                 // Not in a room — flash indicator
                 roomInviteBtn.textContent = "🚫";
