@@ -24538,21 +24538,27 @@
                         }
                     }
                 }
-                else if (info === null || info === void 0 ? void 0 : info.roomSpace) {
-                    // Private room: BC hides the name but reports the space.
+                else if (info) {
+                    // Friend is online but the room name is not visible (private room or hidden).
+                    // BC R128 may send ChatRoomSpace="" and ChatRoomName="" for private rooms,
+                    // so we can't rely on roomSpace being set.  Any online friend without a
+                    // visible room name is shown as being in a private/hidden room.
+                    _roomSearchCache.clear();
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // can't join by name
                     roomDrawerChips.innerHTML = "";
-                    const c = document.createElement("span");
-                    c.className = "ebc-beep-room-drawer-chip";
-                    c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
-                    roomDrawerChips.appendChild(c);
+                    if (info.roomSpace) {
+                        const c = document.createElement("span");
+                        c.className = "ebc-beep-room-drawer-chip";
+                        c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
+                        roomDrawerChips.appendChild(c);
+                    }
                 }
                 else {
-                    // Friend left the room — clear the search cache for the old room
+                    // Friend is offline — clear the search cache for the old room
                     _roomSearchCache.clear();
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
@@ -26299,17 +26305,13 @@
                     let roomTagEl = null;
                     if (info) {
                         const roomName = info.roomName;
-                        const isPrivate = !roomName && !!info.roomSpace;
-                        // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
-                        // just show the room name with a neutral green "in a room" colour.
-                        // Private rooms show a muted tag rather than just "online".
-                        const bg = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
-                        const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
-                        const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
-                        const label = roomName ? roomName : isPrivate ? "Private room" : "online";
+                        const bg = roomName ? "#081a10" : "#1a0d18";
+                        const color = roomName ? "#70c890" : "#b07898";
+                        const border = roomName ? "#1a5a30" : "#3a1528";
+                        const label = roomName !== null && roomName !== void 0 ? roomName : "Private room";
                         roomTagEl = document.createElement("span");
                         roomTagEl.textContent = label;
-                        roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
+                        roomTagEl.title = roomName ? roomName : "Friend is in a private room";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -34356,7 +34358,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.1";
+    const MOD_VERSION = "5.3.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34367,6 +34369,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.2",
+            changes: [
+                "Fix: private room detection no longer requires ChatRoomSpace to be non-empty — BC R128 may send an empty space for private rooms. Any online friend without a visible room name now shows 'Private room' in both the Users tab and the beep window room bar.",
+                "Fix: room info chips now use a direct socket.io manager listener for ChatRoomSearchResult as an additional fallback. The modAPI hook fails in BC R128 (function is module-scoped), so this path goes through the socket.io internals (window.io.managers) to intercept the response without relying on window.ServerSocket or window.ChatRoomList.",
+            ],
+        },
         {
             version: "5.3.1",
             changes: [
@@ -39829,6 +39838,7 @@
         catch ( /* ignore */_b) { /* ignore */ }
     }
     function init() {
+        var _a;
         // Initialise compressed ExtensionSettings first — all modules read from here
         initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -39839,7 +39849,7 @@
             if (active && active !== "Inactive")
                 lastArousalActive = active;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -39897,12 +39907,12 @@
         try {
             initDragListener();
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -40429,8 +40439,8 @@
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
-        // enrich the room info chips without needing window.ServerSocket (which is
-        // module-scoped in BC R128 and not reliably accessible from window).
+        // enrich the room info chips.
+        // Primary: modAPI hook (fails silently in BC R128 where the function is module-scoped).
         tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
             try {
                 const list = args[0];
@@ -40440,6 +40450,28 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
+        // Fallback: access BC's live socket via the socket.io manager internals.
+        // window.ServerSocket is module-scoped in BC R128, but window.io.managers
+        // exposes the underlying Socket instance we can attach a listener to.
+        try {
+            const ioFn = window.io;
+            const managers = ioFn === null || ioFn === void 0 ? void 0 : ioFn.managers;
+            if (managers && typeof managers === "object") {
+                const firstMgr = Object.values(managers)[0];
+                const nsps = firstMgr === null || firstMgr === void 0 ? void 0 : firstMgr.nsps;
+                if (nsps && typeof nsps === "object") {
+                    const firstNsp = Object.values(nsps)[0];
+                    (_a = firstNsp === null || firstNsp === void 0 ? void 0 : firstNsp.on) === null || _a === void 0 ? void 0 : _a.call(firstNsp, "ChatRoomSearchResult", (list) => {
+                        try {
+                            if (Array.isArray(list))
+                                fireRoomSearchResult(list);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                }
+            }
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -40530,7 +40562,7 @@
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
