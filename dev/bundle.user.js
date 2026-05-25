@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.7
+// @version      4.9.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24186,6 +24186,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
             if (startMinimized)
                 win.classList.add("minimized");
+            // Join a room by name — shared by the room pill header click and the Join → card button.
+            // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
+            // leave the current room (if any) and then send a ChatRoomJoin socket event.
+            const doJoinRoom = (rName) => {
+                try {
+                    const w = window;
+                    // BC's own join function handles leave/rejoin automatically in all versions
+                    const joinFn = w.ChatRoomJoin;
+                    if (typeof joinFn === "function") {
+                        try {
+                            joinFn(rName);
+                            return;
+                        }
+                        catch ( /* fall through */_a) { /* fall through */ }
+                    }
+                    // Fallback: manually leave any current room, then send join request
+                    if (w.CurrentScreen === "ChatRoom") {
+                        try {
+                            ChatRoomLeave();
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                        window.setTimeout(() => {
+                            try {
+                                ServerSend("ChatRoomJoin", { Name: rName });
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        }, 400);
+                    }
+                    else {
+                        try {
+                            ServerSend("ChatRoomJoin", { Name: rName });
+                        }
+                        catch ( /* ignore */_c) { /* ignore */ }
+                    }
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+            };
             // Header
             const header = document.createElement("div");
             header.className = "ebc-beep-win-header";
@@ -24206,15 +24243,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
                 if (!rName)
                     return;
-                try {
-                    const joinFn = window.ChatRoomJoin;
-                    if (typeof joinFn === "function") {
-                        joinFn(rName);
-                        return;
-                    }
-                    ServerSend("ChatRoomJoin", { Name: rName });
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
+                ebcJoinRoom(rName);
             });
             titleArea.appendChild(title);
             titleArea.appendChild(roomPill);
@@ -24477,17 +24506,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const joinBtn = document.createElement("button");
                             joinBtn.className = "ebc-beep-room-invite-join";
                             joinBtn.textContent = "Join →";
-                            joinBtn.addEventListener("click", () => {
-                                try {
-                                    const joinFn = window.ChatRoomJoin;
-                                    if (typeof joinFn === "function") {
-                                        joinFn(rName);
-                                        return;
-                                    }
-                                    ServerSend("ChatRoomJoin", { Name: rName });
-                                }
-                                catch ( /* ignore */_a) { /* ignore */ }
-                            });
+                            joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
                             inviteCard.appendChild(joinBtn);
                         }
                         bubble.appendChild(inviteCard);
@@ -24525,13 +24544,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             renderHistory();
             // Room invite button click handler — deferred here so renderHistory is in scope.
             roomInviteBtn.addEventListener("click", () => {
-                var _a;
-                const rd = window.ChatRoomData;
-                const rName = (_a = rd === null || rd === void 0 ? void 0 : rd.Name) === null || _a === void 0 ? void 0 : _a.trim();
+                const w = window;
+                // Must be on the ChatRoom screen with valid room data
+                const rd = w.CurrentScreen === "ChatRoom"
+                    ? w.ChatRoomData
+                    : null;
+                const rName = (rd ? (typeof rd.Name === "string" ? rd.Name : "") : "").trim();
                 if (!rName) {
-                    // Not in a room — flash a "not available" indicator
+                    // Not in a room — flash indicator
                     roomInviteBtn.textContent = "🚫";
-                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                    roomInviteBtn.title = "You must be in a room to send a room invite";
+                    window.setTimeout(() => {
+                        roomInviteBtn.textContent = "📍";
+                        roomInviteBtn.title = "Send your current room as an invite";
+                    }, 1500);
                     return;
                 }
                 sendBeep(memberNumber, `📍 Room invite: ${rName}`);
@@ -33597,7 +33623,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.7";
+    const MOD_VERSION = "4.9.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33609,9 +33635,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "4.9.7",
+            version: "4.9.8",
             changes: [
-                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable (public or private-unlocked). Amber = room is full. Red = locked (can't join). Private rooms (locked or not) show a 🔒 prefix; public rooms show the name only.",
+                "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if you're not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend('ChatRoomJoin') so joining works whether or not the recipient is already in another room.",
+                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable. Amber = full. Red = locked. Private rooms show 🔒.",
             ],
         },
         {
