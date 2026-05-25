@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, syncSettings, getCurrentRoomName } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11829,10 +11829,11 @@ export class EBCDrawer {
         // Room invite button click handler — deferred here so renderHistory is in scope.
         // Dual-purpose: if the user is in a room → sends their room as an invite.
         // If the user is NOT in a room but the friend IS → joins the friend's room instead.
+        //
+        // getCurrentRoomName() tracks room name via ChatRoomSync (reliable across BC versions)
+        // with a fallback to window.ChatRoomData?.Name for rooms entered before EBC loaded.
         roomInviteBtn.addEventListener("click", () => {
-            const w = window as unknown as Record<string, unknown>;
-            const cd = w.ChatRoomData as Record<string, unknown> | null | undefined;
-            const myRoom = (cd && typeof cd.Name === "string" ? cd.Name : "").trim();
+            const myRoom = getCurrentRoomName();
             if (myRoom) {
                 // In a room — send invite to the other person
                 sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
@@ -11840,9 +11841,12 @@ export class EBCDrawer {
                 roomInviteBtn.textContent = "✓";
                 window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
             } else {
-                // Not in a room — shortcut: join their room if they have one
+                // Not in a room — shortcut: join their room if they have one.
+                // Guard: if friend status is "room" they're already with us, so we ARE
+                // in a room but room name detection hasn't populated yet — don't try to join.
                 const friendRoom = getFriendOnlineInfo(memberNumber)?.roomName;
-                if (friendRoom) {
+                const friendStatus = getFriendStatus(memberNumber);
+                if (friendRoom && friendStatus !== "room") {
                     doJoinRoom(friendRoom);
                     roomInviteBtn.textContent = "→";
                     window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);

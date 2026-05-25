@@ -139,3 +139,34 @@ export function syncAppearance(): void {
         }
     }, 300);
 }
+
+// ---------------------------------------------------------------------------
+// Current room name tracker
+//
+// The 📍 invite button needs to know the player's current room name.
+// Accessing window.ChatRoomData.Name is unreliable in newer BC versions where
+// ChatRoomData may be module-scoped (not on window).  We track it ourselves
+// via the ChatRoomSync hook (data is passed directly to the hook, no window
+// lookup needed) and clear it on ChatRoomLeave.
+//
+// getCurrentRoomName() falls back to window.ChatRoomData?.Name on first call
+// so rooms joined before EBC loaded are handled correctly.
+// ---------------------------------------------------------------------------
+
+let _currentRoomName = "";
+
+export function setCurrentRoomName(name: string): void { _currentRoomName = name; }
+export function clearCurrentRoomName(): void { _currentRoomName = ""; }
+export function getCurrentRoomName(): string {
+    if (!_currentRoomName) {
+        // Lazy init: try window.ChatRoomData for rooms entered before EBC loaded.
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            const cd = w.ChatRoomData as Record<string, unknown> | null | undefined;
+            if (cd && typeof cd.Name === "string" && cd.Name.trim()) {
+                _currentRoomName = cd.Name.trim();
+            }
+        } catch { /* ignore */ }
+    }
+    return _currentRoomName;
+}

@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.1.8";
+const MOD_VERSION = "5.1.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.1.9",
+        changes: [
+            "Fix: 📍 room invite button now reliably detects the current room name. Previously used window.ChatRoomData.Name which is unreliable in newer BC versions where ChatRoomData may be module-scoped. EBC now tracks the room name directly from the ChatRoomSync hook payload and clears it on ChatRoomLeave.",
+            "Fix: clicking 📍 on a friend in your own room no longer triggers 'ResponseAlreadyInRoom' — the join-their-room path is now guarded against running when the friend is already in the same room as you.",
+        ],
+    },
     {
         version: "5.1.8",
         changes: [
@@ -5733,6 +5740,10 @@ function init(): void {
         const copies: Record<string, unknown>[] = [];
         try {
             const [data] = args as [Record<string, unknown>];
+            // Track current room name — more reliable than window.ChatRoomData?.Name
+            // because ChatRoomSync passes data directly to hooks (no window lookup).
+            const rName = typeof data?.Name === "string" ? data.Name.trim() : "";
+            if (rName) setCurrentRoomName(rName);
             const chars = data?.Character;
             if (Array.isArray(chars)) {
                 for (const c of chars as Record<string, unknown>[]) {
@@ -5820,6 +5831,7 @@ function init(): void {
     // Only reset room timers when the player actually leaves the chatroom.
     tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
         const result = next(args);
+        try { clearCurrentRoomName(); } catch { /* ignore */ }
         try { timerOnRoomLeave(); } catch { /* ignore */ }
         try { onRoomLeave();     } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
