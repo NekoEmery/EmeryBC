@@ -2635,6 +2635,13 @@ const CSS = `
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-invite-deny:hover { background: #5a2030; color: #e08090; }
+.ebc-beep-room-decline-card {
+    background: rgba(30,10,18,0.35);
+    border-color: rgba(90,40,55,0.45);
+    opacity: 0.75;
+}
+.ebc-beep-room-decline-card .ebc-beep-room-invite-label { color: #7a5060; }
+.ebc-beep-room-decline-card .ebc-beep-room-invite-name  { color: #a07888; margin-bottom: 0; }
 
 .ebc-emoji-btn {
     background: #2a0e1e;
@@ -11745,6 +11752,9 @@ export class EBCDrawer {
         };
 
         const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+        // Tracks timestamps of invite messages the user has declined this session
+        // so renderHistory can replace the Join/Decline buttons with a "Declined" note.
+        const _declinedInviteTsSet = new Set<number>();
 
         const renderHistory = (): void => {
             while (history.firstChild) history.removeChild(history.firstChild);
@@ -11822,6 +11832,7 @@ export class EBCDrawer {
                 // Room invite card — sent via the 📍 button in the header.
                 // Renders as a join card with a "Join →" button for the recipient.
                 const ROOM_INVITE_PFX = "📍 Room invite: ";
+                const DECLINE_PFX = "❌ Room invite declined: ";
                 if (msgBody.startsWith(ROOM_INVITE_PFX)) {
                     const rName = msgBody.slice(ROOM_INVITE_PFX.length).trim();
                     const inviteCard = document.createElement("div");
@@ -11838,22 +11849,28 @@ export class EBCDrawer {
                         // Recipient gets Join + Decline buttons so they can't accidentally join
                         const btnRow = document.createElement("div");
                         btnRow.className = "ebc-beep-room-invite-btns";
-                        const joinBtn = document.createElement("button");
-                        joinBtn.className = "ebc-beep-room-invite-join";
-                        joinBtn.textContent = "Join →";
-                        joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
-                        const denyBtn = document.createElement("button");
-                        denyBtn.className = "ebc-beep-room-invite-deny";
-                        denyBtn.textContent = "Decline";
-                        denyBtn.addEventListener("click", () => {
-                            btnRow.innerHTML = "";
+                        if (_declinedInviteTsSet.has(e.ts)) {
+                            // Already declined this session — show static note
                             const note = document.createElement("div");
                             note.style.cssText = "font-size:9px;color:#5a3040;text-align:center;padding:2px 0;";
                             note.textContent = "Declined";
                             btnRow.appendChild(note);
-                        });
-                        btnRow.appendChild(joinBtn);
-                        btnRow.appendChild(denyBtn);
+                        } else {
+                            const joinBtn = document.createElement("button");
+                            joinBtn.className = "ebc-beep-room-invite-join";
+                            joinBtn.textContent = "Join →";
+                            joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
+                            const denyBtn = document.createElement("button");
+                            denyBtn.className = "ebc-beep-room-invite-deny";
+                            denyBtn.textContent = "Decline";
+                            denyBtn.addEventListener("click", () => {
+                                _declinedInviteTsSet.add(e.ts);
+                                sendBeep(memberNumber, `❌ Room invite declined: ${rName}`);
+                                renderHistory();
+                            });
+                            btnRow.appendChild(joinBtn);
+                            btnRow.appendChild(denyBtn);
+                        }
                         inviteCard.appendChild(btnRow);
                     } else {
                         // Sender sees a subtle "sent" note instead of buttons
@@ -11863,6 +11880,22 @@ export class EBCDrawer {
                         inviteCard.appendChild(sentNote);
                     }
                     bubble.appendChild(inviteCard);
+                } else if (msgBody.startsWith(DECLINE_PFX)) {
+                    // Decline notification — recipient sent this back to the inviter.
+                    // isSent=true → recipient's view ("You declined …")
+                    // isSent=false → inviter's view ("… declined your invite")
+                    const rName = msgBody.slice(DECLINE_PFX.length).trim();
+                    const declineCard = document.createElement("div");
+                    declineCard.className = "ebc-beep-room-invite-card ebc-beep-room-decline-card";
+                    const declineLabel = document.createElement("div");
+                    declineLabel.className = "ebc-beep-room-invite-label";
+                    declineLabel.textContent = isSent ? "❌ You declined" : "❌ Invite declined";
+                    const declineName = document.createElement("div");
+                    declineName.className = "ebc-beep-room-invite-name";
+                    declineName.textContent = rName;
+                    declineCard.appendChild(declineLabel);
+                    declineCard.appendChild(declineName);
+                    bubble.appendChild(declineCard);
                 } else {
                     // Text content
                     const text = document.createElement("div");

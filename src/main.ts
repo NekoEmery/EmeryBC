@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.1";
+const MOD_VERSION = "5.2.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.2",
+        changes: [
+            "Beep window: declining a room invite now sends a notification beep back to the inviter. The inviter sees a '❌ Invite declined' card in their beep window; the recipient's own history shows '❌ You declined'. BC's native popup is suppressed for decline messages just like for invite messages.",
+        ],
+    },
     {
         version: "5.2.1",
         changes: [
@@ -5934,6 +5940,7 @@ function init(): void {
                     // IM window — always suppress BC's native beep popup for these so the
                     // raw "📍 Room invite: …" text never appears in the chat notification area.
                     if (msg.startsWith("📍 Room invite: ")) return;
+                    if (msg.startsWith("❌ Room invite declined: ")) return;
                 }
             } catch { /* ignore */ }
 

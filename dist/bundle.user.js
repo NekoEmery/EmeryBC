@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.1.8
+// @version      5.2.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -186,6 +186,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_b) { /* ignore */ }
             }
         }, 300);
+    }
+    // ---------------------------------------------------------------------------
+    // Current room name tracker
+    //
+    // The 📍 invite button needs to know the player's current room name.
+    // Accessing window.ChatRoomData.Name is unreliable in newer BC versions where
+    // ChatRoomData may be module-scoped (not on window).  We track it ourselves
+    // via the ChatRoomSync hook (data is passed directly to the hook, no window
+    // lookup needed) and clear it on ChatRoomLeave.
+    //
+    // getCurrentRoomName() falls back to window.ChatRoomData?.Name on first call
+    // so rooms joined before EBC loaded are handled correctly.
+    // ---------------------------------------------------------------------------
+    let _currentRoomName = "";
+    function setCurrentRoomName(name) { _currentRoomName = name; }
+    function clearCurrentRoomName() { _currentRoomName = ""; }
+    function getCurrentRoomName() {
+        if (!_currentRoomName) {
+            // Lazy init: try window.ChatRoomData for rooms entered before EBC loaded.
+            try {
+                const w = window;
+                const cd = w.ChatRoomData;
+                if (cd && typeof cd.Name === "string" && cd.Name.trim()) {
+                    _currentRoomName = cd.Name.trim();
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        return _currentRoomName;
     }
 
     // Expression presets and sequences — live expression picker + animated sequences.
@@ -11361,16 +11390,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             onlineInfo.set(n, {
                 roomName: typeof r.ChatRoomName === "string" ? r.ChatRoomName : undefined,
                 roomSpace: typeof r.ChatRoomSpace === "string" ? r.ChatRoomSpace : undefined,
-                roomPrivate: typeof r.Private === "boolean" ? r.Private :
-                    typeof r.Type === "string" ? r.Type === "Private" : undefined,
-                roomFull: typeof r.ChatRoomFull === "boolean" ? r.ChatRoomFull : undefined,
-                roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
-                roomLanguage: typeof r.ChatRoomLanguage === "string" ? r.ChatRoomLanguage : undefined,
-                roomGame: typeof r.ChatRoomGame === "string" ? r.ChatRoomGame : undefined,
-                roomCount: typeof r.MemberCount === "number" ? r.MemberCount :
-                    typeof r.ChatRoomCount === "number" ? r.ChatRoomCount : undefined,
-                roomLimit: typeof r.MemberLimit === "number" ? r.MemberLimit :
-                    typeof r.ChatRoomSize === "number" ? r.ChatRoomSize : undefined,
             });
         }
         // Record last-seen for anyone who just went offline — batched into a single
@@ -15838,7 +15857,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 130px; }
+.ebc-beep-room-drawer.open { max-height: 90px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -15919,6 +15938,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-invite-deny:hover { background: #5a2030; color: #e08090; }
+.ebc-beep-room-decline-card {
+    background: rgba(30,10,18,0.35);
+    border-color: rgba(90,40,55,0.45);
+    opacity: 0.75;
+}
+.ebc-beep-room-decline-card .ebc-beep-room-invite-label { color: #7a5060; }
+.ebc-beep-room-decline-card .ebc-beep-room-invite-name  { color: #a07888; margin-bottom: 0; }
 
 .ebc-emoji-btn {
     background: #2a0e1e;
@@ -24261,7 +24287,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Join a room by name — shared by the room pill header click and the Join → card button.
             // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
             // leave the current room (if any) and then send a ChatRoomJoin socket event.
+            // Module-level join cooldown — prevents "Duplicate join request" errors when
+            // the user clicks Join in multiple places (drawer button + invite card) at once.
+            // Shared across the openBeepWindow closure via the outer class scope.
+            let _joinCooldownTs = 0;
             const doJoinRoom = (rName) => {
+                const now = Date.now();
+                if (now - _joinCooldownTs < 1500)
+                    return; // debounce 1.5 s
+                _joinCooldownTs = now;
                 try {
                     const w = window;
                     // BC's own join function handles leave/rejoin automatically.
@@ -24320,12 +24354,103 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Hover: open on mouseenter, close after short delay on mouseleave.
             // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
             let _drawerTimer = null;
+            // ── Lazy room-search enrichment ──────────────────────────────────────
+            // BC R128 AccountQueryResult only sends ChatRoomName + ChatRoomSpace.
+            // When the drawer opens we trigger a ChatRoomSearch to get count, language,
+            // game, privacy, lock state etc. Results are cached per room name so we
+            // never hit the server more than once per unique room per window instance.
+            const SPACE_NAMES = {
+                Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
+                Pandora: "Pandora", Bahamas: "Bahamas",
+                HarshWorld: "Harsh World", NaturalWorld: "Nature",
+                PvP: "PvP", X: "Club X",
+            };
+            // Cache: room name (lowercase) → raw search result entry
+            const _roomSearchCache = new Map();
+            let _searchHandler = null;
+            /** Rebuild chips from a rich ChatRoomSearchResult entry. */
+            const applySearchChips = (room) => {
+                var _a;
+                roomDrawerChips.innerHTML = "";
+                const addChip = (text) => {
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = text;
+                    roomDrawerChips.appendChild(c);
+                };
+                const space = typeof room.Space === "string" ? room.Space : undefined;
+                if (space)
+                    addChip((_a = SPACE_NAMES[space]) !== null && _a !== void 0 ? _a : space);
+                const count = typeof room.MemberCount === "number" ? room.MemberCount
+                    : typeof room.Count === "number" ? room.Count : undefined;
+                const limit = typeof room.MemberLimit === "number" ? room.MemberLimit
+                    : typeof room.Limit === "number" ? room.Limit : undefined;
+                if (count !== undefined)
+                    addChip(limit !== undefined ? `👥 ${count}/${limit}` : `👥 ${count}`);
+                const lang = typeof room.Language === "string" && room.Language ? room.Language.toUpperCase() : undefined;
+                if (lang)
+                    addChip(`🌍 ${lang}`);
+                const game = typeof room.Game === "string" && room.Game && room.Game !== "None" ? room.Game : undefined;
+                if (game)
+                    addChip(`🎮 ${game}`);
+                const isPrivate = typeof room.Private === "boolean" ? room.Private : undefined;
+                if (isPrivate !== undefined)
+                    addChip(isPrivate ? "🔒 Private" : "🌐 Public");
+                if (room.Locked === true)
+                    addChip("🔐 Locked");
+            };
+            /** Trigger a server room search to enrich the drawer. No-op if already cached. */
+            const enrichDrawerFromSearch = (rName) => {
+                var _a;
+                const key = rName.toLowerCase();
+                // Already have cached data → apply immediately
+                const cached = _roomSearchCache.get(key);
+                if (cached) {
+                    applySearchChips(cached);
+                    return;
+                }
+                const sock = window.ServerSocket;
+                if (!sock)
+                    return;
+                // Remove any stale pending handler first
+                if (_searchHandler) {
+                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
+                    _searchHandler = null;
+                }
+                _searchHandler = (raw) => {
+                    var _a;
+                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
+                    _searchHandler = null;
+                    try {
+                        const list = raw;
+                        if (!Array.isArray(list))
+                            return;
+                        const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
+                        if (!match)
+                            return;
+                        _roomSearchCache.set(key, match);
+                        applySearchChips(match);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                };
+                sock.on("ChatRoomSearchResult", _searchHandler);
+                try {
+                    ServerSend("ChatRoomSearch", { Name: rName });
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            };
+            // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
+                var _a;
                 if (_drawerTimer) {
                     clearTimeout(_drawerTimer);
                     _drawerTimer = null;
                 }
                 roomDrawer.classList.add("open");
+                // Enrich chips lazily on first open for this room
+                const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
+                if (rName)
+                    enrichDrawerFromSearch(rName);
             };
             const scheduleCloseDrawer = () => {
                 _drawerTimer = setTimeout(() => roomDrawer.classList.remove("open"), 160);
@@ -24340,11 +24465,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.classList.remove("open");
                 }
                 else {
-                    roomDrawer.classList.add("open");
+                    openDrawer(); // use openDrawer so enrichment fires on tap too
                 }
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
+                var _a;
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
@@ -24354,33 +24480,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomBar.title = "Hover for room info";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
-                    // Rebuild info chips
-                    roomDrawerChips.innerHTML = "";
-                    const addChip = (text) => {
-                        const c = document.createElement("span");
-                        c.className = "ebc-beep-room-drawer-chip";
-                        c.textContent = text;
-                        roomDrawerChips.appendChild(c);
-                    };
-                    if (info.roomSpace)
-                        addChip(info.roomSpace);
-                    addChip(info.roomPrivate ? "🔒 Private" : "🌐 Public");
-                    if (info.roomLocked)
-                        addChip("Locked");
-                    if (info.roomFull)
-                        addChip("Full");
-                    if (info.roomCount !== undefined) {
-                        addChip(info.roomLimit !== undefined
-                            ? `👥 ${info.roomCount}/${info.roomLimit}`
-                            : `👥 ${info.roomCount}`);
+                    // Rebuild chips: use cached search data if available, else basic space chip
+                    const cached = _roomSearchCache.get(info.roomName.toLowerCase());
+                    if (cached) {
+                        applySearchChips(cached);
                     }
-                    if (info.roomLanguage)
-                        addChip(`🌍 ${info.roomLanguage.toUpperCase()}`);
-                    if (info.roomGame && info.roomGame !== "None" && info.roomGame.trim() !== "") {
-                        addChip(`🎮 ${info.roomGame}`);
+                    else {
+                        roomDrawerChips.innerHTML = "";
+                        if (info.roomSpace) {
+                            const c = document.createElement("span");
+                            c.className = "ebc-beep-room-drawer-chip";
+                            c.textContent = (_a = SPACE_NAMES[info.roomSpace]) !== null && _a !== void 0 ? _a : info.roomSpace;
+                            roomDrawerChips.appendChild(c);
+                        }
                     }
                 }
                 else {
+                    // Friend left the room — clear the search cache for the old room
+                    _roomSearchCache.clear();
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -24541,6 +24658,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 input.focus();
             };
             const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+            // Tracks timestamps of invite messages the user has declined this session
+            // so renderHistory can replace the Join/Decline buttons with a "Declined" note.
+            const _declinedInviteTsSet = new Set();
             const renderHistory = () => {
                 var _a, _b, _c;
                 while (history.firstChild)
@@ -24616,6 +24736,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // Room invite card — sent via the 📍 button in the header.
                     // Renders as a join card with a "Join →" button for the recipient.
                     const ROOM_INVITE_PFX = "📍 Room invite: ";
+                    const DECLINE_PFX = "❌ Room invite declined: ";
                     if (msgBody.startsWith(ROOM_INVITE_PFX)) {
                         const rName = msgBody.slice(ROOM_INVITE_PFX.length).trim();
                         const inviteCard = document.createElement("div");
@@ -24632,22 +24753,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             // Recipient gets Join + Decline buttons so they can't accidentally join
                             const btnRow = document.createElement("div");
                             btnRow.className = "ebc-beep-room-invite-btns";
-                            const joinBtn = document.createElement("button");
-                            joinBtn.className = "ebc-beep-room-invite-join";
-                            joinBtn.textContent = "Join →";
-                            joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
-                            const denyBtn = document.createElement("button");
-                            denyBtn.className = "ebc-beep-room-invite-deny";
-                            denyBtn.textContent = "Decline";
-                            denyBtn.addEventListener("click", () => {
-                                btnRow.innerHTML = "";
+                            if (_declinedInviteTsSet.has(e.ts)) {
+                                // Already declined this session — show static note
                                 const note = document.createElement("div");
                                 note.style.cssText = "font-size:9px;color:#5a3040;text-align:center;padding:2px 0;";
                                 note.textContent = "Declined";
                                 btnRow.appendChild(note);
-                            });
-                            btnRow.appendChild(joinBtn);
-                            btnRow.appendChild(denyBtn);
+                            }
+                            else {
+                                const joinBtn = document.createElement("button");
+                                joinBtn.className = "ebc-beep-room-invite-join";
+                                joinBtn.textContent = "Join →";
+                                joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
+                                const denyBtn = document.createElement("button");
+                                denyBtn.className = "ebc-beep-room-invite-deny";
+                                denyBtn.textContent = "Decline";
+                                denyBtn.addEventListener("click", () => {
+                                    _declinedInviteTsSet.add(e.ts);
+                                    sendBeep(memberNumber, `❌ Room invite declined: ${rName}`);
+                                    renderHistory();
+                                });
+                                btnRow.appendChild(joinBtn);
+                                btnRow.appendChild(denyBtn);
+                            }
                             inviteCard.appendChild(btnRow);
                         }
                         else {
@@ -24658,6 +24786,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             inviteCard.appendChild(sentNote);
                         }
                         bubble.appendChild(inviteCard);
+                    }
+                    else if (msgBody.startsWith(DECLINE_PFX)) {
+                        // Decline notification — recipient sent this back to the inviter.
+                        // isSent=true → recipient's view ("You declined …")
+                        // isSent=false → inviter's view ("… declined your invite")
+                        const rName = msgBody.slice(DECLINE_PFX.length).trim();
+                        const declineCard = document.createElement("div");
+                        declineCard.className = "ebc-beep-room-invite-card ebc-beep-room-decline-card";
+                        const declineLabel = document.createElement("div");
+                        declineLabel.className = "ebc-beep-room-invite-label";
+                        declineLabel.textContent = isSent ? "❌ You declined" : "❌ Invite declined";
+                        const declineName = document.createElement("div");
+                        declineName.className = "ebc-beep-room-invite-name";
+                        declineName.textContent = rName;
+                        declineCard.appendChild(declineLabel);
+                        declineCard.appendChild(declineName);
+                        bubble.appendChild(declineCard);
                     }
                     else {
                         // Text content
@@ -24693,11 +24838,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Room invite button click handler — deferred here so renderHistory is in scope.
             // Dual-purpose: if the user is in a room → sends their room as an invite.
             // If the user is NOT in a room but the friend IS → joins the friend's room instead.
+            //
+            // getCurrentRoomName() tracks room name via ChatRoomSync (reliable across BC versions)
+            // with a fallback to window.ChatRoomData?.Name for rooms entered before EBC loaded.
             roomInviteBtn.addEventListener("click", () => {
                 var _a;
-                const w = window;
-                const cd = w.ChatRoomData;
-                const myRoom = (cd && typeof cd.Name === "string" ? cd.Name : "").trim();
+                const myRoom = getCurrentRoomName();
                 if (myRoom) {
                     // In a room — send invite to the other person
                     sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
@@ -24706,9 +24852,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                 }
                 else {
-                    // Not in a room — shortcut: join their room if they have one
+                    // Not in a room — shortcut: join their room if they have one.
+                    // Guard: if friend status is "room" they're already with us, so we ARE
+                    // in a room but room name detection hasn't populated yet — don't try to join.
                     const friendRoom = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
-                    if (friendRoom) {
+                    const friendStatus = getFriendStatus(memberNumber);
+                    if (friendRoom && friendStatus !== "room") {
                         doJoinRoom(friendRoom);
                         roomInviteBtn.textContent = "→";
                         window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
@@ -25836,44 +25985,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                     let roomTagEl = null;
                     if (info) {
-                        const isPrivate = info.roomPrivate;
-                        const isLocked = info.roomLocked;
-                        const isFull = info.roomFull;
                         const roomName = info.roomName;
-                        // Colour-coded by joinability — no emoji icons.
-                        // Red  = locked (can't join).
-                        // Amber = full (probably can't join right now).
-                        // Green = open / private-but-unlocked (friends can join).
-                        // Neutral = online but room name unknown.
-                        let bg, color, border;
-                        if (isLocked) {
-                            bg = "#1a0808";
-                            color = "#e07878";
-                            border = "#6a2020";
-                        }
-                        else if (isFull) {
-                            bg = "#1a1208";
-                            color = "#d8a060";
-                            border = "#5a3a10";
-                        }
-                        else if (roomName) {
-                            bg = "#081a10";
-                            color = "#70c890";
-                            border = "#1a5a30";
-                        }
-                        else {
-                            bg = "#1e0d1a";
-                            color = "#c08898";
-                            border = "#3a1928";
-                        }
-                        const label = roomName
-                            ? (isFull ? "full · " : "") + roomName
-                            : isLocked ? "locked" : isPrivate ? "private" : "online";
+                        // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
+                        // just show the room name with a neutral green "in a room" colour.
+                        const bg = roomName ? "#081a10" : "#1e0d1a";
+                        const color = roomName ? "#70c890" : "#c08898";
+                        const border = roomName ? "#1a5a30" : "#3a1928";
+                        const label = roomName !== null && roomName !== void 0 ? roomName : "online";
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = (isPrivate ? "🔒 " : "") + label;
-                        roomTagEl.title = roomName
-                            ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
-                            : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
+                        roomTagEl.textContent = label;
+                        roomTagEl.title = roomName ? roomName : "Online";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -33781,7 +33902,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.8";
+    const MOD_VERSION = "5.2.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33792,6 +33913,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.2",
+            changes: [
+                "Beep window: declining a room invite now sends a notification beep back to the inviter. The inviter sees a '❌ Invite declined' card in their beep window; the recipient's own history shows '❌ You declined'. BC's native popup is suppressed for decline messages just like for invite messages.",
+            ],
+        },
+        {
+            version: "5.2.1",
+            changes: [
+                "Beep window: room info drawer now lazily fetches full room data (player count, language, game type, privacy, lock state) via ChatRoomSearch when you first hover/tap the room bar. Results are cached per room so the server is only hit once. Public rooms show all available details; private rooms silently show basic info if the search returns nothing.",
+            ],
+        },
+        {
+            version: "5.2.0",
+            changes: [
+                "Fix: BC R128 AccountQueryResult for OnlineFriends only sends 5 fields (Type=relationship, MemberNumber, MemberName, ChatRoomSpace, ChatRoomName). EBC now only captures what BC actually provides — privacy, lock, full, language, game and count are no longer claimed as available.",
+                "Fix: Room info drawer and friends list room tag no longer show misleading 'Public' privacy chip (BC R128 removed privacy info from the friends endpoint). Drawer now shows space type only with proper display names (e.g. 'X' → 'Club X').",
+                "Fix: 'Duplicate join request' error — doJoinRoom now has a 1.5 s debounce preventing rapid double-clicks or multiple simultaneous join triggers from sending duplicate server requests.",
+            ],
+        },
+        {
+            version: "5.1.9",
+            changes: [
+                "Fix: 📍 room invite button now reliably detects the current room name. Previously used window.ChatRoomData.Name which is unreliable in newer BC versions where ChatRoomData may be module-scoped. EBC now tracks the room name directly from the ChatRoomSync hook payload and clears it on ChatRoomLeave.",
+                "Fix: clicking 📍 on a friend in your own room no longer triggers 'ResponseAlreadyInRoom' — the join-their-room path is now guarded against running when the friend is already in the same room as you.",
+            ],
+        },
         {
             version: "5.1.8",
             changes: [
@@ -39517,6 +39665,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const copies = [];
             try {
                 const [data] = args;
+                // Track current room name — more reliable than window.ChatRoomData?.Name
+                // because ChatRoomSync passes data directly to hooks (no window lookup).
+                const rName = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name.trim() : "";
+                if (rName)
+                    setCurrentRoomName(rName);
                 const chars = data === null || data === void 0 ? void 0 : data.Character;
                 if (Array.isArray(chars)) {
                     for (const c of chars) {
@@ -39631,18 +39784,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
             const result = next(args);
             try {
-                timerOnRoomLeave();
+                clearCurrentRoomName();
             }
             catch ( /* ignore */_a) { /* ignore */ }
             try {
-                onRoomLeave();
+                timerOnRoomLeave();
             }
             catch ( /* ignore */_b) { /* ignore */ }
+            try {
+                onRoomLeave();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 setBadgeDragMode(false);
                 _dragTarget = null;
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.
@@ -39746,6 +39903,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
                         if (msg.startsWith("📍 Room invite: "))
+                            return;
+                        if (msg.startsWith("❌ Room invite declined: "))
                             return;
                     }
                 }
