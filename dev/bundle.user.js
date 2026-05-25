@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.3.3
+// @version      5.3.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25823,8 +25823,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const rebuildMemberPicker = () => {
                 const q = grpMemberSearch.value.trim().toLowerCase();
                 memberPicker.innerHTML = "";
-                for (const num of getFriendList()) {
+                // Sort: known names first, number-only fallbacks at the bottom
+                const allNums = getFriendList();
+                const known = allNums.filter(n => resolveName(n) !== `#${n}`);
+                const unknown = allNums.filter(n => resolveName(n) === `#${n}`);
+                for (const num of [...known, ...unknown]) {
                     const name = resolveName(num);
+                    const isFallback = name === `#${num}`;
+                    // Search: match against name (or bare number)
                     if (q && !name.toLowerCase().includes(q) && !String(num).includes(q))
                         continue;
                     const lbl = document.createElement("label");
@@ -25841,8 +25847,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             selectedGrpMembers.delete(num);
                     });
                     const nsp = document.createElement("span");
-                    nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
-                    nsp.textContent = `${name} #${num}`;
+                    // When the name is unknown (fallback #number) show the number once
+                    // in a muted colour rather than duplicating it (#114921 #114921).
+                    if (isFallback) {
+                        nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a4050;";
+                        nsp.textContent = `#${num}`;
+                    }
+                    else {
+                        nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+                        nsp.textContent = `${name} #${num}`;
+                    }
                     lbl.appendChild(chk);
                     lbl.appendChild(nsp);
                     memberPicker.appendChild(lbl);
@@ -34397,7 +34411,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.3";
+    const MOD_VERSION = "5.3.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34408,6 +34422,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.4",
+            changes: [
+                "Fix: group member picker no longer shows '#114921 #114921' for friends whose name isn't cached — unknown friends display as a single dim '#114921'. Friends with known names appear first in the list; number-only entries are sorted to the bottom.",
+            ],
+        },
         {
             version: "5.3.3",
             changes: [
