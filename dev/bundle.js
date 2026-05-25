@@ -24393,21 +24393,39 @@
                     applySearchChips(cached);
                     return;
                 }
-                // Register a one-shot callback via bcUtils relay
-                setRoomSearchCallback((list) => {
-                    try {
-                        const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
-                        if (!match)
-                            return;
-                        _roomSearchCache.set(key, match);
-                        applySearchChips(match);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                });
+                const tryApply = (list) => {
+                    const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
+                    if (!match)
+                        return false;
+                    _roomSearchCache.set(key, match);
+                    applySearchChips(match);
+                    return true;
+                };
+                // Fast path: hook relay (works if main.ts ChatRoomSearchResult hook succeeds)
+                setRoomSearchCallback((list) => { try {
+                    tryApply(list);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } });
                 try {
-                    ServerSend("ChatRoomSearch", { Query: rName });
+                    ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
+                // Fallback: poll window.ChatRoomList after ~2 s.
+                // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
+                // but BC always stores the latest search results in window.ChatRoomList after
+                // the socket response arrives.
+                window.setTimeout(() => {
+                    if (_roomSearchCache.has(key))
+                        return; // hook relay already got it
+                    setRoomSearchCallback(null); // cancel stale callback
+                    try {
+                        const w = window;
+                        const list = w.ChatRoomList;
+                        if (Array.isArray(list))
+                            tryApply(list);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }, 2000);
             };
             // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
@@ -33879,7 +33897,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.5";
+    const MOD_VERSION = "5.2.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33890,6 +33908,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.6",
+            changes: [
+                "Fix: room info chips (player count, language, game, privacy) now populate correctly in BC R128. ChatRoomSearchResult is a raw socket event in R128, not a patchable BC global — the v5.2.4 hook silently failed with no fallback. Now polls window.ChatRoomList 2 s after sending the search query, which BC always populates when the server responds.",
+            ],
+        },
         {
             version: "5.2.5",
             changes: [
