@@ -24245,7 +24245,7 @@
                 const rName = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
                 if (!rName)
                     return;
-                ebcJoinRoom(rName);
+                doJoinRoom(rName);
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
@@ -33646,7 +33646,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.1";
+    const MOD_VERSION = "5.1.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33657,6 +33657,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.1.2",
+            changes: [
+                "Fix: room bar 'tap to join' was crashing with ReferenceError (ebcJoinRoom not defined — should be doJoinRoom).",
+            ],
+        },
         {
             version: "5.1.1",
             changes: [
