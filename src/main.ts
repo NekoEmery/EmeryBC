@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.1.4";
+const MOD_VERSION = "5.1.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,16 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "5.1.5",
+        changes: [
+            "Fix: joining a room from the beep window no longer crashes with 'Cannot read MapData of null'. ChatRoomLeave now sets the leavePending guard and a ChatRoomRun hook (priority 500) skips the one-frame null-data window before BC switches screens.",
+            "Fix: 📍 button is now dual-purpose — if you're in a room it sends your room as an invite; if you're not in a room but the friend is, it joins their room directly.",
+        ],
+    },
+    {
         version: "5.1.4",
         changes: [
-            "Beep window: room bar now expands into an info drawer on hover (desktop) or tap (touch) showing room space type, public/private, locked, and full status — with a Join button inside so you know what you're joining before committing.",
+            "Beep window: room bar expands into an info drawer on hover/tap showing space type, privacy, lock and full status with a Join button.",
         ],
     },
     {
@@ -5440,6 +5447,20 @@ function init(): void {
     } catch { /* ignore */ }
 
 
+
+    // Guard against the one-frame crash window between ChatRoomLeave() clearing
+    // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
+    // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
+    // crashes unless we swallow it.  Priority 500 runs before all other mod hooks
+    // so the entire hook chain (BCX, CRABS, etc.) is also skipped for that frame.
+    modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
+        if (isLeavePending()) {
+            const w = window as unknown as Record<string, unknown>;
+            if (!w.ChatRoomData) return; // skip the null-data frame
+            clearLeavePending();         // new room data arrived — stop guarding
+        }
+        return next(args);
+    });
 
     // Canvas sidebar action buttons.
     // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu

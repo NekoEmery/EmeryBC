@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings } from "./bcUtils";
+import { callBC, syncSettings, setLeavePending } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11397,8 +11397,11 @@ export class EBCDrawer {
                 // BC's own join function handles leave/rejoin automatically in all versions
                 const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
                 if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
-                // Fallback: manually leave any current room, then send join request
+                // Fallback: manually leave any current room, then send join request.
+                // setLeavePending() arms the ChatRoomRun guard so the one-frame gap
+                // where ChatRoomData is null doesn't crash on MapData access.
                 if (w.CurrentScreen === "ChatRoom") {
+                    setLeavePending();
                     try { ChatRoomLeave(); } catch { /* ignore */ }
                     window.setTimeout(() => {
                         try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
@@ -11823,26 +11826,34 @@ export class EBCDrawer {
         renderHistory();
 
         // Room invite button click handler — deferred here so renderHistory is in scope.
+        // Dual-purpose: if the user is in a room → sends their room as an invite.
+        // If the user is NOT in a room but the friend IS → joins the friend's room instead.
         roomInviteBtn.addEventListener("click", () => {
             const w = window as unknown as Record<string, unknown>;
-            // Check ChatRoomData directly — CurrentScreen can be "OnlineFriends" or other
-            // sub-screens even while the player is still in a room, so we don't gate on it.
-            const rd = w.ChatRoomData as Record<string, unknown> | null | undefined;
-            const rName = (rd && typeof rd.Name === "string" ? rd.Name : "").trim();
-            if (!rName) {
-                // Not in a room — flash indicator
-                roomInviteBtn.textContent = "🚫";
-                roomInviteBtn.title = "You must be in a room to send a room invite";
-                window.setTimeout(() => {
-                    roomInviteBtn.textContent = "📍";
-                    roomInviteBtn.title = "Send your current room as an invite";
-                }, 1500);
-                return;
+            const cd = w.ChatRoomData as Record<string, unknown> | null | undefined;
+            const myRoom = (cd && typeof cd.Name === "string" ? cd.Name : "").trim();
+            if (myRoom) {
+                // In a room — send invite to the other person
+                sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
+                renderHistory();
+                roomInviteBtn.textContent = "✓";
+                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+            } else {
+                // Not in a room — shortcut: join their room if they have one
+                const friendRoom = getFriendOnlineInfo(memberNumber)?.roomName;
+                if (friendRoom) {
+                    doJoinRoom(friendRoom);
+                    roomInviteBtn.textContent = "→";
+                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                } else {
+                    roomInviteBtn.textContent = "🚫";
+                    roomInviteBtn.title = "Neither you nor they are in a room";
+                    window.setTimeout(() => {
+                        roomInviteBtn.textContent = "📍";
+                        roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
+                    }, 1500);
+                }
             }
-            sendBeep(memberNumber, `📍 Room invite: ${rName}`);
-            renderHistory();
-            roomInviteBtn.textContent = "✓";
-            window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
         });
 
         // Reply bar (shown above footer when replying)
