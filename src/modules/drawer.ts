@@ -19032,7 +19032,20 @@ export class EBCDrawer {
                 applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
                 applyBtn.textContent = t("expr.applyBtn");
                 applyBtn.title = t("expr.applyBtnTitle");
-                applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+                applyBtn.addEventListener("click", () => {
+                    applyExpressionPreset(preset);
+                    // Brief visual confirmation — no full rerender needed (no live expression
+                    // chips to refresh; the preset list itself is unchanged by applying).
+                    const origText = applyBtn.textContent;
+                    applyBtn.textContent = "✔ Applied";
+                    applyBtn.style.borderColor = "#3a7850";
+                    applyBtn.style.color = "#70d898";
+                    window.setTimeout(() => {
+                        applyBtn.textContent = origText;
+                        applyBtn.style.borderColor = "#5a2840";
+                        applyBtn.style.color = "#cf6f98";
+                    }, 700);
+                });
 
                 const updateExprBtn = document.createElement("button");
                 updateExprBtn.className = "ebc-update-btn";

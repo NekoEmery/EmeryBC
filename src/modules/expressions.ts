@@ -108,24 +108,27 @@ export function getExprGroupOptions(group: string): string[] {
 // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
 export function applyExprGroup(group: string, exprName: string | null, noSync = false): void {
     try {
-        // Validate that the expression name exists in the current BC build before applying.
-        // Stored presets may contain names from older BC versions (e.g. "Eyes5", "Eyes1",
+        // Pre-flight: verify the expression name exists in the current BC build.
+        // Stored presets may reference names from older BC versions (e.g. "Eyes5", "Eyes1",
         // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
         // BC's server rejects appearance bundles containing unrecognised items and pushes a
         // sanitised copy back — each round-trip triggers another sync, creating the loop that
-        // causes ErrorRateLimited on login.  If AssetGet returns null/undefined, treat the
-        // expression as absent and clear the group instead (silent downgrade, never an error).
-        let safeExprName = exprName;
-        if (safeExprName) {
+        // causes ErrorRateLimited on login.
+        // Strategy: if AssetGet can't find the name, SKIP this group entirely (leave it unchanged)
+        // rather than clearing it.  Clearing was the original approach but it makes entire
+        // presets silently disappear when only one name is stale, which looks like "presets
+        // don't work".  Skipping is safer — valid groups still apply, stale ones are left as-is,
+        // and nothing invalid is ever sent to BC's server.
+        if (exprName) {
             try {
                 const assetGet = (window as unknown as Record<string, unknown>).AssetGet as
                     ((family: string, group: string, name: string) => unknown) | undefined;
                 if (typeof assetGet === "function") {
-                    if (!assetGet(Player.AssetFamily ?? "Female3DCG", group, safeExprName)) {
-                        safeExprName = null; // not valid in this BC version — clear group instead
+                    if (!assetGet(Player.AssetFamily ?? "Female3DCG", group, exprName)) {
+                        return; // name not valid in this BC version — skip this group unchanged
                     }
                 }
-            } catch { /* ignore — keep safeExprName as-is if AssetGet itself throws */ }
+            } catch { /* ignore — proceed if AssetGet itself throws */ }
         }
 
         // Prefer BC's official API — omit optional Timer/Color args entirely so BC
@@ -135,20 +138,20 @@ export function applyExprGroup(group: string, exprName: string | null, noSync = 
         const setExpr = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
             ((c: Character, g: string, e: string | null) => void) | undefined;
         if (typeof setExpr === "function") {
-            setExpr(Player, group, safeExprName);
+            setExpr(Player, group, exprName);
         } else {
             // Fallback: direct Appearance manipulation.
             // Also try BC's InventoryWear / InventoryRemove if available.
             const wear   = (window as unknown as Record<string, unknown>).InventoryWear   as Function | undefined;
             const remove = (window as unknown as Record<string, unknown>).InventoryRemove as Function | undefined;
             if (typeof wear === "function" && typeof remove === "function") {
-                if (safeExprName) {
-                    (wear as Function)(Player, safeExprName, group, "Default", 0);
+                if (exprName) {
+                    (wear as Function)(Player, exprName, group, "Default", 0);
                     // Ensure Property.Expression is set (some BC builds leave it unset)
                     const item = (Player.Appearance as Item[]).find(i => i.Asset.Group.Name === group);
                     if (item) {
                         if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
-                        (item.Property as Record<string, unknown>).Expression = safeExprName;
+                        (item.Property as Record<string, unknown>).Expression = exprName;
                     }
                 } else {
                     (remove as Function)(Player, group);
@@ -158,14 +161,14 @@ export function applyExprGroup(group: string, exprName: string | null, noSync = 
                 const app = Player.Appearance as Item[];
                 const idx = app.findIndex(i => i.Asset.Group.Name === group);
                 if (idx !== -1) app.splice(idx, 1);
-                if (safeExprName) {
-                    const asset = AssetGet(Player.AssetFamily, group, safeExprName);
+                if (exprName) {
+                    const asset = AssetGet(Player.AssetFamily, group, exprName);
                     if (asset) {
                         app.push({
                             Asset: asset,
                             Color: "Default",
                             Difficulty: 0,
-                            Property: { Expression: safeExprName },
+                            Property: { Expression: exprName },
                         } as unknown as Item);
                     }
                 }

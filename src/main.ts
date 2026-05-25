@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.4";
+const MOD_VERSION = "5.3.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.5",
+        changes: [
+            "Fix: expression presets now correctly apply even when a stored expression name isn't recognised by the current BC version — previously the group was silently cleared (making it look like the preset did nothing); now unrecognised groups are skipped so the rest of the preset still applies. Re-save any affected presets to update them to current BC expression names.",
+            "UX: expression preset Apply button now briefly flashes green with a checkmark to confirm the face was applied.",
+        ],
+    },
     {
         version: "5.3.4",
         changes: [

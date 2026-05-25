@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.3.1
+// @version      5.3.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -233,24 +233,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function applyExprGroup(group, exprName, noSync = false) {
         var _a;
         try {
-            // Validate that the expression name exists in the current BC build before applying.
-            // Stored presets may contain names from older BC versions (e.g. "Eyes5", "Eyes1",
+            // Pre-flight: verify the expression name exists in the current BC build.
+            // Stored presets may reference names from older BC versions (e.g. "Eyes5", "Eyes1",
             // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
             // BC's server rejects appearance bundles containing unrecognised items and pushes a
             // sanitised copy back — each round-trip triggers another sync, creating the loop that
-            // causes ErrorRateLimited on login.  If AssetGet returns null/undefined, treat the
-            // expression as absent and clear the group instead (silent downgrade, never an error).
-            let safeExprName = exprName;
-            if (safeExprName) {
+            // causes ErrorRateLimited on login.
+            // Strategy: if AssetGet can't find the name, SKIP this group entirely (leave it unchanged)
+            // rather than clearing it.  Clearing was the original approach but it makes entire
+            // presets silently disappear when only one name is stale, which looks like "presets
+            // don't work".  Skipping is safer — valid groups still apply, stale ones are left as-is,
+            // and nothing invalid is ever sent to BC's server.
+            if (exprName) {
                 try {
                     const assetGet = window.AssetGet;
                     if (typeof assetGet === "function") {
-                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, safeExprName)) {
-                            safeExprName = null; // not valid in this BC version — clear group instead
+                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, exprName)) {
+                            return; // name not valid in this BC version — skip this group unchanged
                         }
                     }
                 }
-                catch ( /* ignore — keep safeExprName as-is if AssetGet itself throws */_b) { /* ignore — keep safeExprName as-is if AssetGet itself throws */ }
+                catch ( /* ignore — proceed if AssetGet itself throws */_b) { /* ignore — proceed if AssetGet itself throws */ }
             }
             // Prefer BC's official API — omit optional Timer/Color args entirely so BC
             // uses its own defaults (no timer = keep expression; no colour override).
@@ -258,7 +261,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // would instantly clear the expression.
             const setExpr = window.CharacterSetFacialExpression;
             if (typeof setExpr === "function") {
-                setExpr(Player, group, safeExprName);
+                setExpr(Player, group, exprName);
             }
             else {
                 // Fallback: direct Appearance manipulation.
@@ -266,14 +269,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const wear = window.InventoryWear;
                 const remove = window.InventoryRemove;
                 if (typeof wear === "function" && typeof remove === "function") {
-                    if (safeExprName) {
-                        wear(Player, safeExprName, group, "Default", 0);
+                    if (exprName) {
+                        wear(Player, exprName, group, "Default", 0);
                         // Ensure Property.Expression is set (some BC builds leave it unset)
                         const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
                         if (item) {
                             if (!item.Property)
                                 item.Property = {};
-                            item.Property.Expression = safeExprName;
+                            item.Property.Expression = exprName;
                         }
                     }
                     else {
@@ -286,14 +289,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const idx = app.findIndex(i => i.Asset.Group.Name === group);
                     if (idx !== -1)
                         app.splice(idx, 1);
-                    if (safeExprName) {
-                        const asset = AssetGet(Player.AssetFamily, group, safeExprName);
+                    if (exprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, exprName);
                         if (asset) {
                             app.push({
                                 Asset: asset,
                                 Color: "Default",
                                 Difficulty: 0,
-                                Property: { Expression: safeExprName },
+                                Property: { Expression: exprName },
                             });
                         }
                     }
@@ -24555,21 +24558,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                 }
-                else if (info === null || info === void 0 ? void 0 : info.roomSpace) {
-                    // Private room: BC hides the name but reports the space.
+                else if (info) {
+                    // Friend is online but the room name is not visible (private room or hidden).
+                    // BC R128 may send ChatRoomSpace="" and ChatRoomName="" for private rooms,
+                    // so we can't rely on roomSpace being set.  Any online friend without a
+                    // visible room name is shown as being in a private/hidden room.
+                    _roomSearchCache.clear();
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // can't join by name
                     roomDrawerChips.innerHTML = "";
-                    const c = document.createElement("span");
-                    c.className = "ebc-beep-room-drawer-chip";
-                    c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
-                    roomDrawerChips.appendChild(c);
+                    if (info.roomSpace) {
+                        const c = document.createElement("span");
+                        c.className = "ebc-beep-room-drawer-chip";
+                        c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
+                        roomDrawerChips.appendChild(c);
+                    }
                 }
                 else {
-                    // Friend left the room — clear the search cache for the old room
+                    // Friend is offline — clear the search cache for the old room
                     _roomSearchCache.clear();
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
@@ -25728,6 +25737,181 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
+            // ── Groups ───────────────────────────────────────────────────────────
+            const grpSec = document.createElement("div");
+            grpSec.style.cssText = "margin-top:10px;";
+            const grpHeader = document.createElement("div");
+            grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
+            const grpTitleEl = document.createElement("span");
+            grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
+            const refreshGrpTitle = () => {
+                grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
+            };
+            refreshGrpTitle();
+            const grpNewBtn = document.createElement("button");
+            grpNewBtn.textContent = "+";
+            grpNewBtn.title = "Create a new group chat";
+            grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
+            grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
+            grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
+            grpHeader.appendChild(grpTitleEl);
+            grpHeader.appendChild(grpNewBtn);
+            grpSec.appendChild(grpHeader);
+            const grpListEl = document.createElement("div");
+            const buildGrpRows = () => {
+                grpListEl.innerHTML = "";
+                const groups = getGroups();
+                if (groups.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
+                    empty.textContent = "No groups yet";
+                    grpListEl.appendChild(empty);
+                    return;
+                }
+                for (const g of groups) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
+                    const nameBtn = document.createElement("button");
+                    nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameBtn.textContent = `${g.name}  (${g.members.length})`;
+                    nameBtn.title = `Open: ${g.name}`;
+                    nameBtn.addEventListener("click", () => { try {
+                        this.openGroupWindow(g);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } });
+                    nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
+                    nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "✕";
+                    delBtn.title = "Delete group";
+                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getGroups().filter(x => x.id !== g.id);
+                        saveGroups(updated);
+                        buildGrpRows();
+                        refreshGrpTitle();
+                    });
+                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
+                    row.appendChild(nameBtn);
+                    row.appendChild(delBtn);
+                    grpListEl.appendChild(row);
+                }
+            };
+            buildGrpRows();
+            grpSec.appendChild(grpListEl);
+            // ── Create-group form ─────────────────────────────────────────────────
+            let grpFormVisible = false;
+            const grpForm = document.createElement("div");
+            grpForm.style.cssText = "display:none;padding:5px 0 3px;";
+            const grpNameInput = document.createElement("input");
+            grpNameInput.type = "text";
+            grpNameInput.placeholder = "Group name…";
+            grpNameInput.maxLength = 24;
+            grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
+            grpNameInput.addEventListener("keydown", (e) => e.stopPropagation());
+            const memberLabel = document.createElement("div");
+            memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
+            memberLabel.textContent = "Members (select at least one):";
+            // Search box to filter the friend list in the picker
+            const grpMemberSearch = document.createElement("input");
+            grpMemberSearch.type = "text";
+            grpMemberSearch.placeholder = "Search friends…";
+            grpMemberSearch.style.cssText = "width:100%;box-sizing:border-box;background:#0e0610;border:1px solid #2a1020;border-radius:3px;color:#c0a0b0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 5px;margin-bottom:3px;outline:none;";
+            grpMemberSearch.addEventListener("keydown", (e) => e.stopPropagation());
+            const memberPicker = document.createElement("div");
+            memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
+            // Track which members are checked across filter rebuilds
+            const selectedGrpMembers = new Set();
+            const rebuildMemberPicker = () => {
+                const q = grpMemberSearch.value.trim().toLowerCase();
+                memberPicker.innerHTML = "";
+                // Sort: known names first, number-only fallbacks at the bottom
+                const allNums = getFriendList();
+                const known = allNums.filter(n => resolveName(n) !== `#${n}`);
+                const unknown = allNums.filter(n => resolveName(n) === `#${n}`);
+                for (const num of [...known, ...unknown]) {
+                    const name = resolveName(num);
+                    const isFallback = name === `#${num}`;
+                    // Search: match against name (or bare number)
+                    if (q && !name.toLowerCase().includes(q) && !String(num).includes(q))
+                        continue;
+                    const lbl = document.createElement("label");
+                    lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
+                    const chk = document.createElement("input");
+                    chk.type = "checkbox";
+                    chk.value = String(num);
+                    chk.checked = selectedGrpMembers.has(num);
+                    chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
+                    chk.addEventListener("change", () => {
+                        if (chk.checked)
+                            selectedGrpMembers.add(num);
+                        else
+                            selectedGrpMembers.delete(num);
+                    });
+                    const nsp = document.createElement("span");
+                    // When the name is unknown (fallback #number) show the number once
+                    // in a muted colour rather than duplicating it (#114921 #114921).
+                    if (isFallback) {
+                        nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a4050;";
+                        nsp.textContent = `#${num}`;
+                    }
+                    else {
+                        nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+                        nsp.textContent = `${name} #${num}`;
+                    }
+                    lbl.appendChild(chk);
+                    lbl.appendChild(nsp);
+                    memberPicker.appendChild(lbl);
+                }
+            };
+            grpMemberSearch.addEventListener("input", rebuildMemberPicker);
+            rebuildMemberPicker();
+            const grpCreateBtn = document.createElement("button");
+            grpCreateBtn.textContent = "Create Group";
+            grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
+            grpCreateBtn.addEventListener("click", () => {
+                const name = grpNameInput.value.trim();
+                if (!name) {
+                    grpNameInput.style.borderColor = "#cf6f98";
+                    grpNameInput.focus();
+                    return;
+                }
+                const sel = Array.from(selectedGrpMembers);
+                if (sel.length === 0) {
+                    memberLabel.style.color = "#cf6f98";
+                    return;
+                }
+                const g = { id: makeGroupId(), name, members: sel };
+                saveGroups([...getGroups(), g]);
+                grpNameInput.value = "";
+                selectedGrpMembers.clear();
+                grpMemberSearch.value = "";
+                rebuildMemberPicker();
+                grpFormVisible = false;
+                grpForm.style.display = "none";
+                grpNewBtn.textContent = "+";
+                buildGrpRows();
+                refreshGrpTitle();
+                try {
+                    this.openGroupWindow(g);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            grpForm.appendChild(grpNameInput);
+            grpForm.appendChild(memberLabel);
+            grpForm.appendChild(grpMemberSearch);
+            grpForm.appendChild(memberPicker);
+            grpForm.appendChild(grpCreateBtn);
+            grpSec.appendChild(grpForm);
+            grpNewBtn.addEventListener("click", () => {
+                grpFormVisible = !grpFormVisible;
+                grpForm.style.display = grpFormVisible ? "block" : "none";
+                grpNewBtn.textContent = grpFormVisible ? "−" : "+";
+                if (grpFormVisible)
+                    grpNameInput.focus();
+            });
+            body.appendChild(grpSec);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -26316,17 +26500,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     let roomTagEl = null;
                     if (info) {
                         const roomName = info.roomName;
-                        const isPrivate = !roomName && !!info.roomSpace;
-                        // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
-                        // just show the room name with a neutral green "in a room" colour.
-                        // Private rooms show a muted tag rather than just "online".
-                        const bg = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
-                        const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
-                        const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
-                        const label = roomName ? roomName : isPrivate ? "Private room" : "online";
+                        const bg = roomName ? "#081a10" : "#1a0d18";
+                        const color = roomName ? "#70c890" : "#b07898";
+                        const border = roomName ? "#1a5a30" : "#3a1528";
+                        const label = roomName !== null && roomName !== void 0 ? roomName : "Private room";
                         roomTagEl = document.createElement("span");
                         roomTagEl.textContent = label;
-                        roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
+                        roomTagEl.title = roomName ? roomName : "Friend is in a private room";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -27002,145 +27182,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            // ── Groups ───────────────────────────────────────────────────────────
-            const grpSec = document.createElement("div");
-            grpSec.style.cssText = "margin-top:10px;";
-            const grpHeader = document.createElement("div");
-            grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
-            const grpTitleEl = document.createElement("span");
-            grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
-            const refreshGrpTitle = () => {
-                grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
-            };
-            refreshGrpTitle();
-            const grpNewBtn = document.createElement("button");
-            grpNewBtn.textContent = "+";
-            grpNewBtn.title = "Create a new group chat";
-            grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
-            grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
-            grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
-            grpHeader.appendChild(grpTitleEl);
-            grpHeader.appendChild(grpNewBtn);
-            grpSec.appendChild(grpHeader);
-            const grpListEl = document.createElement("div");
-            const buildGrpRows = () => {
-                grpListEl.innerHTML = "";
-                const groups = getGroups();
-                if (groups.length === 0) {
-                    const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
-                    empty.textContent = "No groups yet";
-                    grpListEl.appendChild(empty);
-                    return;
-                }
-                for (const g of groups) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
-                    const nameBtn = document.createElement("button");
-                    nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    nameBtn.textContent = `${g.name}  (${g.members.length})`;
-                    nameBtn.title = `Open: ${g.name}`;
-                    nameBtn.addEventListener("click", () => { try {
-                        this.openGroupWindow(g);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                    nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
-                    nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
-                    const delBtn = document.createElement("button");
-                    delBtn.textContent = "✕";
-                    delBtn.title = "Delete group";
-                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
-                    delBtn.addEventListener("click", () => {
-                        const updated = getGroups().filter(x => x.id !== g.id);
-                        saveGroups(updated);
-                        buildGrpRows();
-                        refreshGrpTitle();
-                    });
-                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
-                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
-                    row.appendChild(nameBtn);
-                    row.appendChild(delBtn);
-                    grpListEl.appendChild(row);
-                }
-            };
-            buildGrpRows();
-            grpSec.appendChild(grpListEl);
-            // ── Create-group form ─────────────────────────────────────────────────
-            let grpFormVisible = false;
-            const grpForm = document.createElement("div");
-            grpForm.style.cssText = "display:none;padding:5px 0 3px;";
-            const grpNameInput = document.createElement("input");
-            grpNameInput.type = "text";
-            grpNameInput.placeholder = "Group name…";
-            grpNameInput.maxLength = 24;
-            grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
-            const memberLabel = document.createElement("div");
-            memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
-            memberLabel.textContent = "Members (select at least one):";
-            const memberPicker = document.createElement("div");
-            memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
-            const allFriends = getFriendList();
-            for (const num of allFriends.slice(0, 40)) {
-                const lbl = document.createElement("label");
-                lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
-                const chk = document.createElement("input");
-                chk.type = "checkbox";
-                chk.value = String(num);
-                chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
-                const nsp = document.createElement("span");
-                nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
-                nsp.textContent = `${resolveName(num)} #${num}`;
-                lbl.appendChild(chk);
-                lbl.appendChild(nsp);
-                memberPicker.appendChild(lbl);
-            }
-            const grpCreateBtn = document.createElement("button");
-            grpCreateBtn.textContent = "Create Group";
-            grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
-            grpCreateBtn.addEventListener("click", () => {
-                const name = grpNameInput.value.trim();
-                if (!name) {
-                    grpNameInput.style.borderColor = "#cf6f98";
-                    grpNameInput.focus();
-                    return;
-                }
-                const sel = [];
-                memberPicker.querySelectorAll("input:checked").forEach(c => {
-                    const n = parseInt(c.value, 10);
-                    if (n)
-                        sel.push(n);
-                });
-                if (sel.length === 0) {
-                    memberLabel.style.color = "#cf6f98";
-                    return;
-                }
-                const g = { id: makeGroupId(), name, members: sel };
-                saveGroups([...getGroups(), g]);
-                grpNameInput.value = "";
-                memberPicker.querySelectorAll("input").forEach(c => { c.checked = false; });
-                grpFormVisible = false;
-                grpForm.style.display = "none";
-                grpNewBtn.textContent = "+";
-                buildGrpRows();
-                refreshGrpTitle();
-                try {
-                    this.openGroupWindow(g);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            grpForm.appendChild(grpNameInput);
-            grpForm.appendChild(memberLabel);
-            grpForm.appendChild(memberPicker);
-            grpForm.appendChild(grpCreateBtn);
-            grpSec.appendChild(grpForm);
-            grpNewBtn.addEventListener("click", () => {
-                grpFormVisible = !grpFormVisible;
-                grpForm.style.display = grpFormVisible ? "block" : "none";
-                grpNewBtn.textContent = grpFormVisible ? "−" : "+";
-                if (grpFormVisible)
-                    grpNameInput.focus();
-            });
-            body.appendChild(grpSec);
         }
         charDisplayName(char) {
             const nickFn = window.CharacterNickname;
@@ -32487,7 +32528,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
                     applyBtn.textContent = t("expr.applyBtn");
                     applyBtn.title = t("expr.applyBtnTitle");
-                    applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+                    applyBtn.addEventListener("click", () => {
+                        applyExpressionPreset(preset);
+                        // Brief visual confirmation — no full rerender needed (no live expression
+                        // chips to refresh; the preset list itself is unchanged by applying).
+                        const origText = applyBtn.textContent;
+                        applyBtn.textContent = "✔ Applied";
+                        applyBtn.style.borderColor = "#3a7850";
+                        applyBtn.style.color = "#70d898";
+                        window.setTimeout(() => {
+                            applyBtn.textContent = origText;
+                            applyBtn.style.borderColor = "#5a2840";
+                            applyBtn.style.color = "#cf6f98";
+                        }, 700);
+                    });
                     const updateExprBtn = document.createElement("button");
                     updateExprBtn.className = "ebc-update-btn";
                     updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
@@ -34373,7 +34427,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.1";
+    const MOD_VERSION = "5.3.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34384,6 +34438,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.5",
+            changes: [
+                "Fix: expression presets now correctly apply even when a stored expression name isn't recognised by the current BC version — previously the group was silently cleared (making it look like the preset did nothing); now unrecognised groups are skipped so the rest of the preset still applies. Re-save any affected presets to update them to current BC expression names.",
+                "UX: expression preset Apply button now briefly flashes green with a checkmark to confirm the face was applied.",
+            ],
+        },
+        {
+            version: "5.3.4",
+            changes: [
+                "Fix: group member picker no longer shows '#114921 #114921' for friends whose name isn't cached — unknown friends display as a single dim '#114921'. Friends with known names appear first in the list; number-only entries are sorted to the bottom.",
+            ],
+        },
+        {
+            version: "5.3.3",
+            changes: [
+                "UX: Groups section moved above the Friends list (now appears between User Notes and Friends) in the Users tab.",
+                "UX: Member picker in the Create Group form now has a live search box — type a name or member number to filter the friend list. Selections are preserved across filter changes. The previous 40-friend cap is removed.",
+            ],
+        },
+        {
+            version: "5.3.2",
+            changes: [
+                "Fix: private room detection no longer requires ChatRoomSpace to be non-empty — BC R128 may send an empty space for private rooms. Any online friend without a visible room name now shows 'Private room' in both the Users tab and the beep window room bar.",
+                "Fix: room info chips now use a direct socket.io manager listener for ChatRoomSearchResult as an additional fallback. The modAPI hook fails in BC R128 (function is module-scoped), so this path goes through the socket.io internals (window.io.managers) to intercept the response without relying on window.ServerSocket or window.ChatRoomList.",
+            ],
+        },
         {
             version: "5.3.1",
             changes: [
@@ -39846,6 +39927,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }
     function init() {
+        var _a;
         // Initialise compressed ExtensionSettings first — all modules read from here
         initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -39856,7 +39938,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (active && active !== "Inactive")
                 lastArousalActive = active;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -39914,12 +39996,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             initDragListener();
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -40446,8 +40528,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
-        // enrich the room info chips without needing window.ServerSocket (which is
-        // module-scoped in BC R128 and not reliably accessible from window).
+        // enrich the room info chips.
+        // Primary: modAPI hook (fails silently in BC R128 where the function is module-scoped).
         tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
             try {
                 const list = args[0];
@@ -40457,6 +40539,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
+        // Fallback: access BC's live socket via the socket.io manager internals.
+        // window.ServerSocket is module-scoped in BC R128, but window.io.managers
+        // exposes the underlying Socket instance we can attach a listener to.
+        try {
+            const ioFn = window.io;
+            const managers = ioFn === null || ioFn === void 0 ? void 0 : ioFn.managers;
+            if (managers && typeof managers === "object") {
+                const firstMgr = Object.values(managers)[0];
+                const nsps = firstMgr === null || firstMgr === void 0 ? void 0 : firstMgr.nsps;
+                if (nsps && typeof nsps === "object") {
+                    const firstNsp = Object.values(nsps)[0];
+                    (_a = firstNsp === null || firstNsp === void 0 ? void 0 : firstNsp.on) === null || _a === void 0 ? void 0 : _a.call(firstNsp, "ChatRoomSearchResult", (list) => {
+                        try {
+                            if (Array.isArray(list))
+                                fireRoomSearchResult(list);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                }
+            }
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -40547,7 +40651,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
