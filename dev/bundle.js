@@ -216,24 +216,27 @@
     function applyExprGroup(group, exprName, noSync = false) {
         var _a;
         try {
-            // Validate that the expression name exists in the current BC build before applying.
-            // Stored presets may contain names from older BC versions (e.g. "Eyes5", "Eyes1",
+            // Pre-flight: verify the expression name exists in the current BC build.
+            // Stored presets may reference names from older BC versions (e.g. "Eyes5", "Eyes1",
             // "Regular", "Fluids", "Emoticon" for R128) that no longer exist as asset variants.
             // BC's server rejects appearance bundles containing unrecognised items and pushes a
             // sanitised copy back — each round-trip triggers another sync, creating the loop that
-            // causes ErrorRateLimited on login.  If AssetGet returns null/undefined, treat the
-            // expression as absent and clear the group instead (silent downgrade, never an error).
-            let safeExprName = exprName;
-            if (safeExprName) {
+            // causes ErrorRateLimited on login.
+            // Strategy: if AssetGet can't find the name, SKIP this group entirely (leave it unchanged)
+            // rather than clearing it.  Clearing was the original approach but it makes entire
+            // presets silently disappear when only one name is stale, which looks like "presets
+            // don't work".  Skipping is safer — valid groups still apply, stale ones are left as-is,
+            // and nothing invalid is ever sent to BC's server.
+            if (exprName) {
                 try {
                     const assetGet = window.AssetGet;
                     if (typeof assetGet === "function") {
-                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, safeExprName)) {
-                            safeExprName = null; // not valid in this BC version — clear group instead
+                        if (!assetGet((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, exprName)) {
+                            return; // name not valid in this BC version — skip this group unchanged
                         }
                     }
                 }
-                catch ( /* ignore — keep safeExprName as-is if AssetGet itself throws */_b) { /* ignore — keep safeExprName as-is if AssetGet itself throws */ }
+                catch ( /* ignore — proceed if AssetGet itself throws */_b) { /* ignore — proceed if AssetGet itself throws */ }
             }
             // Prefer BC's official API — omit optional Timer/Color args entirely so BC
             // uses its own defaults (no timer = keep expression; no colour override).
@@ -241,7 +244,7 @@
             // would instantly clear the expression.
             const setExpr = window.CharacterSetFacialExpression;
             if (typeof setExpr === "function") {
-                setExpr(Player, group, safeExprName);
+                setExpr(Player, group, exprName);
             }
             else {
                 // Fallback: direct Appearance manipulation.
@@ -249,14 +252,14 @@
                 const wear = window.InventoryWear;
                 const remove = window.InventoryRemove;
                 if (typeof wear === "function" && typeof remove === "function") {
-                    if (safeExprName) {
-                        wear(Player, safeExprName, group, "Default", 0);
+                    if (exprName) {
+                        wear(Player, exprName, group, "Default", 0);
                         // Ensure Property.Expression is set (some BC builds leave it unset)
                         const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
                         if (item) {
                             if (!item.Property)
                                 item.Property = {};
-                            item.Property.Expression = safeExprName;
+                            item.Property.Expression = exprName;
                         }
                     }
                     else {
@@ -269,14 +272,14 @@
                     const idx = app.findIndex(i => i.Asset.Group.Name === group);
                     if (idx !== -1)
                         app.splice(idx, 1);
-                    if (safeExprName) {
-                        const asset = AssetGet(Player.AssetFamily, group, safeExprName);
+                    if (exprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, exprName);
                         if (asset) {
                             app.push({
                                 Asset: asset,
                                 Color: "Default",
                                 Difficulty: 0,
-                                Property: { Expression: safeExprName },
+                                Property: { Expression: exprName },
                             });
                         }
                     }
@@ -32508,7 +32511,20 @@
                     applyBtn.style.cssText = `${F}11px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
                     applyBtn.textContent = t("expr.applyBtn");
                     applyBtn.title = t("expr.applyBtnTitle");
-                    applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+                    applyBtn.addEventListener("click", () => {
+                        applyExpressionPreset(preset);
+                        // Brief visual confirmation — no full rerender needed (no live expression
+                        // chips to refresh; the preset list itself is unchanged by applying).
+                        const origText = applyBtn.textContent;
+                        applyBtn.textContent = "✔ Applied";
+                        applyBtn.style.borderColor = "#3a7850";
+                        applyBtn.style.color = "#70d898";
+                        window.setTimeout(() => {
+                            applyBtn.textContent = origText;
+                            applyBtn.style.borderColor = "#5a2840";
+                            applyBtn.style.color = "#cf6f98";
+                        }, 700);
+                    });
                     const updateExprBtn = document.createElement("button");
                     updateExprBtn.className = "ebc-update-btn";
                     updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
@@ -34394,7 +34410,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.4";
+    const MOD_VERSION = "5.3.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34405,6 +34421,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.5",
+            changes: [
+                "Fix: expression presets now correctly apply even when a stored expression name isn't recognised by the current BC version — previously the group was silently cleared (making it look like the preset did nothing); now unrecognised groups are skipped so the rest of the preset still applies. Re-save any affected presets to update them to current BC expression names.",
+                "UX: expression preset Apply button now briefly flashes green with a checkmark to confirm the face was applied.",
+            ],
+        },
         {
             version: "5.3.4",
             changes: [
