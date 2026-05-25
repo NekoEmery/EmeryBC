@@ -11859,7 +11859,14 @@ export class EBCDrawer {
                             const joinBtn = document.createElement("button");
                             joinBtn.className = "ebc-beep-room-invite-join";
                             joinBtn.textContent = "Join →";
-                            joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
+                            joinBtn.addEventListener("click", () => {
+                                if (getCurrentRoomName().toLowerCase() === rName.toLowerCase()) {
+                                    joinBtn.textContent = "Already here ✓";
+                                    window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                    return;
+                                }
+                                doJoinRoom(rName);
+                            });
                             const denyBtn = document.createElement("button");
                             denyBtn.className = "ebc-beep-room-invite-deny";
                             denyBtn.textContent = "Decline";
