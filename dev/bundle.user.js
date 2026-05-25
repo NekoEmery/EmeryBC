@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.5
+// @version      4.9.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25656,31 +25656,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const isLocked = info.roomLocked;
                         const isFull = info.roomFull;
                         const roomName = info.roomName;
-                        // Only show an icon for locked/private rooms — public rooms don't need one.
-                        const icon = isLocked ? "🔐 " : isPrivate ? "🔒 " : "";
-                        let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
+                        // Colour-coded by joinability — no emoji icons.
+                        // Red  = locked (can't join).
+                        // Amber = full (probably can't join right now).
+                        // Green = open / private-but-unlocked (friends can join).
+                        // Neutral = online but room name unknown.
+                        let bg, color, border;
                         if (isLocked) {
-                            bg = "#1a100d";
-                            color = "#daa070";
-                            border = "#5a3020";
+                            bg = "#1a0808";
+                            color = "#e07878";
+                            border = "#6a2020";
                         }
-                        else if (isPrivate) {
-                            bg = "#1a0d20";
-                            color = "#c890d8";
-                            border = "#4a2060";
+                        else if (isFull) {
+                            bg = "#1a1208";
+                            color = "#d8a060";
+                            border = "#5a3a10";
                         }
                         else if (roomName) {
-                            bg = "#0d1a18";
-                            color = "#7dcab8";
-                            border = "#1e4038";
+                            bg = "#081a10";
+                            color = "#70c890";
+                            border = "#1a5a30";
+                        }
+                        else {
+                            bg = "#1e0d1a";
+                            color = "#c08898";
+                            border = "#3a1928";
                         }
                         const label = roomName
                             ? (isFull ? "full · " : "") + roomName
-                            : isLocked ? "locked room" : isPrivate ? "private room" : "online";
+                            : isLocked ? "locked" : isPrivate ? "private" : "online";
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = icon + label;
+                        roomTagEl.textContent = label;
                         roomTagEl.title = roomName
-                            ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
+                            ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
@@ -33589,7 +33597,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.5";
+    const MOD_VERSION = "4.9.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33601,9 +33609,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "4.9.5",
+            version: "4.9.6",
             changes: [
-                "Fix: public rooms in the friends list no longer show a 📢 icon next to the room name. Only locked (🔐) and private (🔒) rooms still show an icon, since those carry actionable information. Public rooms just show the room name on its own.",
+                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable (public or private-unlocked). Amber = room is full. Red = locked (can't join). No more emoji clutter — the colour tells you at a glance whether you can get in.",
             ],
         },
         {
