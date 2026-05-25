@@ -25289,7 +25289,7 @@
                 searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
                 const searchInput = document.createElement("input");
                 searchInput.type = "text";
-                searchInput.placeholder = "Search friends…";
+                searchInput.placeholder = "Search name, notes, tags…";
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
                 searchInput.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
@@ -25371,15 +25371,28 @@
                         }
                     }
                 });
-                // Build search filter — matches name or member number, case-insensitive.
+                // Build search filter — matches name, member number, notes, or tags, case-insensitive.
                 // normalizeForSearch strips diacritics and maps fancy Unicode letters
                 // (𝓓𝓙, 𝕯𝕵, 𝗗𝗝 …) to their plain ASCII equivalents so "dj" finds "𝓓𝓙".
                 const query = normalizeForSearch(this.friendSearch.trim()).toLowerCase();
+                // Load notes once outside the per-friend loop so we don't hit storage N times.
+                const notesMap = query ? getNotes() : {};
                 const matchesSearch = (n) => {
+                    var _a, _b;
                     if (!query)
                         return true;
                     const normName = normalizeForSearch(resolveName(n)).toLowerCase();
-                    return normName.includes(query) || String(n).includes(this.friendSearch.trim());
+                    if (normName.includes(query) || String(n).includes(this.friendSearch.trim()))
+                        return true;
+                    // Search note text
+                    const noteText = normalizeForSearch((_b = (_a = notesMap[String(n)]) === null || _a === void 0 ? void 0 : _a.note) !== null && _b !== void 0 ? _b : "").toLowerCase();
+                    if (noteText && noteText.includes(query))
+                        return true;
+                    // Search tag labels (all tags, including locked/system ones)
+                    const tagText = normalizeForSearch(getFriendTagList(n).map(tag => tag.text).join(" ")).toLowerCase();
+                    if (tagText && tagText.includes(query))
+                        return true;
+                    return false;
                 };
                 // Split into always-visible (pinned or online/room) and offline.
                 // Within offline: named friends (real cached name) sort before number-only entries.
@@ -33397,7 +33410,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.0";
+    const MOD_VERSION = "4.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33408,6 +33421,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.1",
+            changes: [
+                "Friends search now also searches notes and tags — typing in the search box matches against any note you've written for a person and any tag labels you've added to them, not just their name and member number. Placeholder updated to reflect this.",
+            ],
+        },
         {
             version: "4.9.0",
             changes: [
