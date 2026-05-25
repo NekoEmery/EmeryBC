@@ -25717,6 +25717,167 @@
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
+            // ── Groups ───────────────────────────────────────────────────────────
+            const grpSec = document.createElement("div");
+            grpSec.style.cssText = "margin-top:10px;";
+            const grpHeader = document.createElement("div");
+            grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
+            const grpTitleEl = document.createElement("span");
+            grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
+            const refreshGrpTitle = () => {
+                grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
+            };
+            refreshGrpTitle();
+            const grpNewBtn = document.createElement("button");
+            grpNewBtn.textContent = "+";
+            grpNewBtn.title = "Create a new group chat";
+            grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
+            grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
+            grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
+            grpHeader.appendChild(grpTitleEl);
+            grpHeader.appendChild(grpNewBtn);
+            grpSec.appendChild(grpHeader);
+            const grpListEl = document.createElement("div");
+            const buildGrpRows = () => {
+                grpListEl.innerHTML = "";
+                const groups = getGroups();
+                if (groups.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
+                    empty.textContent = "No groups yet";
+                    grpListEl.appendChild(empty);
+                    return;
+                }
+                for (const g of groups) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
+                    const nameBtn = document.createElement("button");
+                    nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameBtn.textContent = `${g.name}  (${g.members.length})`;
+                    nameBtn.title = `Open: ${g.name}`;
+                    nameBtn.addEventListener("click", () => { try {
+                        this.openGroupWindow(g);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } });
+                    nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
+                    nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "✕";
+                    delBtn.title = "Delete group";
+                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getGroups().filter(x => x.id !== g.id);
+                        saveGroups(updated);
+                        buildGrpRows();
+                        refreshGrpTitle();
+                    });
+                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
+                    row.appendChild(nameBtn);
+                    row.appendChild(delBtn);
+                    grpListEl.appendChild(row);
+                }
+            };
+            buildGrpRows();
+            grpSec.appendChild(grpListEl);
+            // ── Create-group form ─────────────────────────────────────────────────
+            let grpFormVisible = false;
+            const grpForm = document.createElement("div");
+            grpForm.style.cssText = "display:none;padding:5px 0 3px;";
+            const grpNameInput = document.createElement("input");
+            grpNameInput.type = "text";
+            grpNameInput.placeholder = "Group name…";
+            grpNameInput.maxLength = 24;
+            grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
+            grpNameInput.addEventListener("keydown", (e) => e.stopPropagation());
+            const memberLabel = document.createElement("div");
+            memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
+            memberLabel.textContent = "Members (select at least one):";
+            // Search box to filter the friend list in the picker
+            const grpMemberSearch = document.createElement("input");
+            grpMemberSearch.type = "text";
+            grpMemberSearch.placeholder = "Search friends…";
+            grpMemberSearch.style.cssText = "width:100%;box-sizing:border-box;background:#0e0610;border:1px solid #2a1020;border-radius:3px;color:#c0a0b0;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 5px;margin-bottom:3px;outline:none;";
+            grpMemberSearch.addEventListener("keydown", (e) => e.stopPropagation());
+            const memberPicker = document.createElement("div");
+            memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
+            // Track which members are checked across filter rebuilds
+            const selectedGrpMembers = new Set();
+            const rebuildMemberPicker = () => {
+                const q = grpMemberSearch.value.trim().toLowerCase();
+                memberPicker.innerHTML = "";
+                for (const num of getFriendList()) {
+                    const name = resolveName(num);
+                    if (q && !name.toLowerCase().includes(q) && !String(num).includes(q))
+                        continue;
+                    const lbl = document.createElement("label");
+                    lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
+                    const chk = document.createElement("input");
+                    chk.type = "checkbox";
+                    chk.value = String(num);
+                    chk.checked = selectedGrpMembers.has(num);
+                    chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
+                    chk.addEventListener("change", () => {
+                        if (chk.checked)
+                            selectedGrpMembers.add(num);
+                        else
+                            selectedGrpMembers.delete(num);
+                    });
+                    const nsp = document.createElement("span");
+                    nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+                    nsp.textContent = `${name} #${num}`;
+                    lbl.appendChild(chk);
+                    lbl.appendChild(nsp);
+                    memberPicker.appendChild(lbl);
+                }
+            };
+            grpMemberSearch.addEventListener("input", rebuildMemberPicker);
+            rebuildMemberPicker();
+            const grpCreateBtn = document.createElement("button");
+            grpCreateBtn.textContent = "Create Group";
+            grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
+            grpCreateBtn.addEventListener("click", () => {
+                const name = grpNameInput.value.trim();
+                if (!name) {
+                    grpNameInput.style.borderColor = "#cf6f98";
+                    grpNameInput.focus();
+                    return;
+                }
+                const sel = Array.from(selectedGrpMembers);
+                if (sel.length === 0) {
+                    memberLabel.style.color = "#cf6f98";
+                    return;
+                }
+                const g = { id: makeGroupId(), name, members: sel };
+                saveGroups([...getGroups(), g]);
+                grpNameInput.value = "";
+                selectedGrpMembers.clear();
+                grpMemberSearch.value = "";
+                rebuildMemberPicker();
+                grpFormVisible = false;
+                grpForm.style.display = "none";
+                grpNewBtn.textContent = "+";
+                buildGrpRows();
+                refreshGrpTitle();
+                try {
+                    this.openGroupWindow(g);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            grpForm.appendChild(grpNameInput);
+            grpForm.appendChild(memberLabel);
+            grpForm.appendChild(grpMemberSearch);
+            grpForm.appendChild(memberPicker);
+            grpForm.appendChild(grpCreateBtn);
+            grpSec.appendChild(grpForm);
+            grpNewBtn.addEventListener("click", () => {
+                grpFormVisible = !grpFormVisible;
+                grpForm.style.display = grpFormVisible ? "block" : "none";
+                grpNewBtn.textContent = grpFormVisible ? "−" : "+";
+                if (grpFormVisible)
+                    grpNameInput.focus();
+            });
+            body.appendChild(grpSec);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -26987,145 +27148,6 @@
                     }
                 }
             }
-            // ── Groups ───────────────────────────────────────────────────────────
-            const grpSec = document.createElement("div");
-            grpSec.style.cssText = "margin-top:10px;";
-            const grpHeader = document.createElement("div");
-            grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
-            const grpTitleEl = document.createElement("span");
-            grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
-            const refreshGrpTitle = () => {
-                grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
-            };
-            refreshGrpTitle();
-            const grpNewBtn = document.createElement("button");
-            grpNewBtn.textContent = "+";
-            grpNewBtn.title = "Create a new group chat";
-            grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
-            grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
-            grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
-            grpHeader.appendChild(grpTitleEl);
-            grpHeader.appendChild(grpNewBtn);
-            grpSec.appendChild(grpHeader);
-            const grpListEl = document.createElement("div");
-            const buildGrpRows = () => {
-                grpListEl.innerHTML = "";
-                const groups = getGroups();
-                if (groups.length === 0) {
-                    const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
-                    empty.textContent = "No groups yet";
-                    grpListEl.appendChild(empty);
-                    return;
-                }
-                for (const g of groups) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
-                    const nameBtn = document.createElement("button");
-                    nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    nameBtn.textContent = `${g.name}  (${g.members.length})`;
-                    nameBtn.title = `Open: ${g.name}`;
-                    nameBtn.addEventListener("click", () => { try {
-                        this.openGroupWindow(g);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                    nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
-                    nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
-                    const delBtn = document.createElement("button");
-                    delBtn.textContent = "✕";
-                    delBtn.title = "Delete group";
-                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
-                    delBtn.addEventListener("click", () => {
-                        const updated = getGroups().filter(x => x.id !== g.id);
-                        saveGroups(updated);
-                        buildGrpRows();
-                        refreshGrpTitle();
-                    });
-                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
-                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
-                    row.appendChild(nameBtn);
-                    row.appendChild(delBtn);
-                    grpListEl.appendChild(row);
-                }
-            };
-            buildGrpRows();
-            grpSec.appendChild(grpListEl);
-            // ── Create-group form ─────────────────────────────────────────────────
-            let grpFormVisible = false;
-            const grpForm = document.createElement("div");
-            grpForm.style.cssText = "display:none;padding:5px 0 3px;";
-            const grpNameInput = document.createElement("input");
-            grpNameInput.type = "text";
-            grpNameInput.placeholder = "Group name…";
-            grpNameInput.maxLength = 24;
-            grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
-            const memberLabel = document.createElement("div");
-            memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
-            memberLabel.textContent = "Members (select at least one):";
-            const memberPicker = document.createElement("div");
-            memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
-            const allFriends = getFriendList();
-            for (const num of allFriends.slice(0, 40)) {
-                const lbl = document.createElement("label");
-                lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
-                const chk = document.createElement("input");
-                chk.type = "checkbox";
-                chk.value = String(num);
-                chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
-                const nsp = document.createElement("span");
-                nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
-                nsp.textContent = `${resolveName(num)} #${num}`;
-                lbl.appendChild(chk);
-                lbl.appendChild(nsp);
-                memberPicker.appendChild(lbl);
-            }
-            const grpCreateBtn = document.createElement("button");
-            grpCreateBtn.textContent = "Create Group";
-            grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
-            grpCreateBtn.addEventListener("click", () => {
-                const name = grpNameInput.value.trim();
-                if (!name) {
-                    grpNameInput.style.borderColor = "#cf6f98";
-                    grpNameInput.focus();
-                    return;
-                }
-                const sel = [];
-                memberPicker.querySelectorAll("input:checked").forEach(c => {
-                    const n = parseInt(c.value, 10);
-                    if (n)
-                        sel.push(n);
-                });
-                if (sel.length === 0) {
-                    memberLabel.style.color = "#cf6f98";
-                    return;
-                }
-                const g = { id: makeGroupId(), name, members: sel };
-                saveGroups([...getGroups(), g]);
-                grpNameInput.value = "";
-                memberPicker.querySelectorAll("input").forEach(c => { c.checked = false; });
-                grpFormVisible = false;
-                grpForm.style.display = "none";
-                grpNewBtn.textContent = "+";
-                buildGrpRows();
-                refreshGrpTitle();
-                try {
-                    this.openGroupWindow(g);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            grpForm.appendChild(grpNameInput);
-            grpForm.appendChild(memberLabel);
-            grpForm.appendChild(memberPicker);
-            grpForm.appendChild(grpCreateBtn);
-            grpSec.appendChild(grpForm);
-            grpNewBtn.addEventListener("click", () => {
-                grpFormVisible = !grpFormVisible;
-                grpForm.style.display = grpFormVisible ? "block" : "none";
-                grpNewBtn.textContent = grpFormVisible ? "−" : "+";
-                if (grpFormVisible)
-                    grpNameInput.focus();
-            });
-            body.appendChild(grpSec);
         }
         charDisplayName(char) {
             const nickFn = window.CharacterNickname;
@@ -34358,7 +34380,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.2";
+    const MOD_VERSION = "5.3.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34369,6 +34391,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.3",
+            changes: [
+                "UX: Groups section moved above the Friends list (now appears between User Notes and Friends) in the Users tab.",
+                "UX: Member picker in the Create Group form now has a live search box — type a name or member number to filter the friend list. Selections are preserved across filter changes. The previous 40-friend cap is removed.",
+            ],
+        },
         {
             version: "5.3.2",
             changes: [
