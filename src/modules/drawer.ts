@@ -2554,7 +2554,7 @@ const CSS = `
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 90px; }
+.ebc-beep-room-drawer.open { max-height: 130px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -11492,6 +11492,15 @@ export class EBCDrawer {
                 addChip(info.roomPrivate ? "🔒 Private" : "🌐 Public");
                 if (info.roomLocked) addChip("Locked");
                 if (info.roomFull)   addChip("Full");
+                if (info.roomCount !== undefined) {
+                    addChip(info.roomLimit !== undefined
+                        ? `👥 ${info.roomCount}/${info.roomLimit}`
+                        : `👥 ${info.roomCount}`);
+                }
+                if (info.roomLanguage) addChip(`🌍 ${info.roomLanguage.toUpperCase()}`);
+                if (info.roomGame && info.roomGame !== "None" && info.roomGame.trim() !== "") {
+                    addChip(`🎮 ${info.roomGame}`);
+                }
             } else {
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");

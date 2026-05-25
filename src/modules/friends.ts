@@ -120,6 +120,10 @@ export interface FriendOnlineInfo {
     roomFull?: boolean;
     roomLocked?: boolean;
     roomSpace?: string;
+    roomLanguage?: string;
+    roomGame?: string;
+    roomCount?: number;
+    roomLimit?: number;
 }
 
 // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
@@ -158,12 +162,18 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
         if (!n) continue;
         onlineSet.add(n);
         onlineInfo.set(n, {
-            roomName:    typeof r.ChatRoomName    === "string"  ? r.ChatRoomName    : undefined,
-            roomSpace:   typeof r.ChatRoomSpace   === "string"  ? r.ChatRoomSpace   : undefined,
-            roomPrivate: typeof r.Private         === "boolean" ? r.Private         :
-                         typeof r.Type            === "string"  ? r.Type === "Private" : undefined,
-            roomFull:    typeof r.ChatRoomFull    === "boolean" ? r.ChatRoomFull    : undefined,
-            roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
+            roomName:     typeof r.ChatRoomName     === "string"  ? r.ChatRoomName     : undefined,
+            roomSpace:    typeof r.ChatRoomSpace    === "string"  ? r.ChatRoomSpace    : undefined,
+            roomPrivate:  typeof r.Private          === "boolean" ? r.Private          :
+                          typeof r.Type             === "string"  ? r.Type === "Private" : undefined,
+            roomFull:     typeof r.ChatRoomFull     === "boolean" ? r.ChatRoomFull     : undefined,
+            roomLocked:   typeof r.Locked           === "boolean" ? r.Locked           : undefined,
+            roomLanguage: typeof r.ChatRoomLanguage === "string"  ? r.ChatRoomLanguage : undefined,
+            roomGame:     typeof r.ChatRoomGame     === "string"  ? r.ChatRoomGame     : undefined,
+            roomCount:    typeof r.MemberCount      === "number"  ? r.MemberCount      :
+                          typeof r.ChatRoomCount    === "number"  ? r.ChatRoomCount    : undefined,
+            roomLimit:    typeof r.MemberLimit      === "number"  ? r.MemberLimit      :
+                          typeof r.ChatRoomSize     === "number"  ? r.ChatRoomSize     : undefined,
         });
     }
     // Record last-seen for anyone who just went offline — batched into a single
