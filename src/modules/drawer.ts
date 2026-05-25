@@ -12838,7 +12838,7 @@ export class EBCDrawer {
                         ? (isFull ? "full · " : "") + roomName
                         : isLocked ? "locked" : isPrivate ? "private" : "online";
                     roomTagEl = document.createElement("span");
-                    roomTagEl.textContent = label;
+                    roomTagEl.textContent = (isPrivate ? "🔒 " : "") + label;
                     roomTagEl.title = roomName
                         ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
                         : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
