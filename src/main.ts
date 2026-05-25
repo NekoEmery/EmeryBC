@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.5";
+const MOD_VERSION = "4.9.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "4.9.5",
+        version: "4.9.6",
         changes: [
-            "Fix: public rooms in the friends list no longer show a 📢 icon next to the room name. Only locked (🔐) and private (🔒) rooms still show an icon, since those carry actionable information. Public rooms just show the room name on its own.",
+            "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable (public or private-unlocked). Amber = room is full. Red = locked (can't join). No more emoji clutter — the colour tells you at a glance whether you can get in.",
         ],
     },
     {

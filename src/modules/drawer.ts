@@ -12824,19 +12824,23 @@ export class EBCDrawer {
                     const isLocked  = info.roomLocked;
                     const isFull    = info.roomFull;
                     const roomName  = info.roomName;
-                    // Only show an icon for locked/private rooms — public rooms don't need one.
-                    const icon = isLocked ? "🔐 " : isPrivate ? "🔒 " : "";
-                    let bg = "#1e0d1a", color = "#c08898", border = "#3a1928";
-                    if (isLocked)       { bg = "#1a100d"; color = "#daa070"; border = "#5a3020"; }
-                    else if (isPrivate) { bg = "#1a0d20"; color = "#c890d8"; border = "#4a2060"; }
-                    else if (roomName)  { bg = "#0d1a18"; color = "#7dcab8"; border = "#1e4038"; }
+                    // Colour-coded by joinability — no emoji icons.
+                    // Red  = locked (can't join).
+                    // Amber = full (probably can't join right now).
+                    // Green = open / private-but-unlocked (friends can join).
+                    // Neutral = online but room name unknown.
+                    let bg: string, color: string, border: string;
+                    if (isLocked)     { bg = "#1a0808"; color = "#e07878"; border = "#6a2020"; }
+                    else if (isFull)  { bg = "#1a1208"; color = "#d8a060"; border = "#5a3a10"; }
+                    else if (roomName){ bg = "#081a10"; color = "#70c890"; border = "#1a5a30"; }
+                    else              { bg = "#1e0d1a"; color = "#c08898"; border = "#3a1928"; }
                     const label = roomName
                         ? (isFull ? "full · " : "") + roomName
-                        : isLocked ? "locked room" : isPrivate ? "private room" : "online";
+                        : isLocked ? "locked" : isPrivate ? "private" : "online";
                     roomTagEl = document.createElement("span");
-                    roomTagEl.textContent = icon + label;
+                    roomTagEl.textContent = label;
                     roomTagEl.title = roomName
-                        ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
+                        ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
                         : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
                     roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                 }
