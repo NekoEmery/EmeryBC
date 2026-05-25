@@ -11383,7 +11383,7 @@ export class EBCDrawer {
         roomBar.addEventListener("click", () => {
             const rName = getFriendOnlineInfo(memberNumber)?.roomName;
             if (!rName) return;
-            ebcJoinRoom(rName);
+            doJoinRoom(rName);
         });
 
         // Called whenever online friend status refreshes (AccountQueryResult)
