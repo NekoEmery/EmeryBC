@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.9.1
+// @version      4.9.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -157,9 +157,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }, 400);
     }
     // Debounced appearance broadcast — collapses rapid expression chip clicks into
-    // one ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair fired 300 ms
-    // after the last change. CharacterRefresh (local canvas refresh) still fires
-    // immediately; only the server round-trips are deferred.
+    // one ChatRoomCharacterUpdate fired 300 ms after the last change.
+    // CharacterRefresh (local canvas refresh) still fires immediately; only the
+    // server round-trip is deferred.
+    //
+    // ServerPlayerAppearanceSync is only sent outside a chat room (e.g. wardrobe).
+    // In a room, ChatRoomCharacterUpdate already handles the room broadcast AND the
+    // server-side appearance save.  Calling both inside a room is redundant and
+    // doubles EBC's server traffic — other addons (WCE etc.) may also react to
+    // ChatRoomCharacterUpdate and send their own syncs on top, compounding the issue.
     let _appearTimer = null;
     function syncAppearance() {
         if (_appearTimer !== null)
@@ -170,10 +176,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 callBC(() => ChatRoomCharacterUpdate(Player));
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            try {
-                callBC(() => ServerPlayerAppearanceSync());
+            // Only sync via ServerPlayerAppearanceSync when outside a room — in a room
+            // ChatRoomCharacterUpdate already persists the appearance server-side.
+            const screen = window.CurrentScreen;
+            if (typeof screen !== "string" || screen !== "ChatRoom") {
+                try {
+                    callBC(() => ServerPlayerAppearanceSync());
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
         }, 300);
     }
 
@@ -185,7 +196,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Single-expression apply ---------------------------------------------------
     // Uses CharacterSetFacialExpression (BC's proper API) if available,
     // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
+    // noSync = true: skip the CharacterRefresh + syncAppearance call after setting the expression.
+    // Use this when applying a batch of groups (e.g. a full preset) so the caller can issue
+    // one refresh + one server sync after ALL groups are set, instead of one per group.
+    // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
+    function applyExprGroup(group, exprName, noSync = false) {
         try {
             // Prefer BC's official API — omit optional Timer/Color args entirely so BC
             // uses its own defaults (no timer = keep expression; no colour override).
@@ -234,10 +249,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            callBC(() => CharacterRefresh(Player, false));
-            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+            if (!noSync) {
+                callBC(() => CharacterRefresh(Player, false));
+                syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+            }
         }
         catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Clear all expression groups in one batch: one CharacterRefresh + one server sync total.
+    // Use this instead of looping applyExprGroup(g, null) without noSync.
+    function clearAllExprGroups() {
+        for (const g of EXPR_GROUPS) {
+            try {
+                applyExprGroup(g, null, true);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        try {
+            callBC(() => CharacterRefresh(Player, false));
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        syncAppearance();
     }
     // -- Presets (saved full-face snapshots for quick-apply) -----------------------
     function getExpressionPresets() {
@@ -282,15 +314,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return { id: uid$7(), name: name || "Preset", groups };
     }
     function applyExpressionPreset(preset) {
+        // Apply all groups with noSync=true, then do ONE CharacterRefresh + ONE server sync.
+        // Previously each applyExprGroup call did its own refresh, causing 8× CharacterRefresh
+        // chain traversals per preset (8 chances for WCE/BCX hooks to react and re-sync).
         try {
             for (const [group, entry] of Object.entries(preset.groups)) {
                 try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null, true);
                 }
                 catch ( /* skip group */_a) { /* skip group */ }
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
+        try {
+            callBC(() => CharacterRefresh(Player, false));
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
+        syncAppearance();
     }
     // -- Sequences -----------------------------------------------------------------
     function getExpressionSequences() {
@@ -433,15 +473,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (defPreset) {
                         applyExpressionPreset(defPreset);
                         return;
-                    }
+                    } // already batched
                 }
-                // No default — clear all expression groups back to neutral
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        applyExprGroup(g, null);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
+                // No default — clear all expression groups back to neutral (batched)
+                clearAllExprGroups();
             }, revertMs);
         }
     }
@@ -478,42 +513,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const step = seq.steps[i];
             try {
                 if (step.reset) {
-                    // Apply the default face preset, or clear all groups if none is set
+                    // Apply the default face preset (already batched), or clear all groups in one batch.
                     const defaultId = getDefaultExprPresetId();
                     if (defaultId) {
                         const defPreset = getExpressionPresets().find(p => p.id === defaultId);
                         if (defPreset) {
                             applyExpressionPreset(defPreset);
-                        }
+                        } // batched — one refresh+sync
                         else {
-                            for (const g of EXPR_GROUPS) {
-                                try {
-                                    applyExprGroup(g, null);
-                                }
-                                catch ( /* skip */_c) { /* skip */ }
-                            }
+                            clearAllExprGroups();
                         }
                     }
                     else {
-                        for (const g of EXPR_GROUPS) {
-                            try {
-                                applyExprGroup(g, null);
-                            }
-                            catch ( /* skip */_d) { /* skip */ }
-                        }
+                        clearAllExprGroups();
                     }
                 }
                 else {
+                    // Apply all groups in this step with noSync, then one refresh + one sync for the step.
                     const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
                     for (const [group, name] of Object.entries(groups)) {
                         try {
-                            applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                            applyExprGroup(group, name !== null && name !== void 0 ? name : null, true);
                         }
-                        catch ( /* skip */_e) { /* skip */ }
+                        catch ( /* skip */_c) { /* skip */ }
                     }
+                    try {
+                        callBC(() => CharacterRefresh(Player, false));
+                    }
+                    catch ( /* ignore */_d) { /* ignore */ }
+                    syncAppearance();
                 }
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             i++;
             window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
         };
@@ -31487,13 +31518,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return;
                     }
                 }
-                // No default set — clear all groups back to neutral
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        applyExprGroup(g, null);
-                    }
-                    catch ( /* skip */_a) { /* skip */ }
-                }
+                // No default set — clear all groups back to neutral (batched: one refresh+sync)
+                clearAllExprGroups();
                 this.rerender(150);
             });
             body.appendChild(clearAllBtn);
@@ -33427,7 +33453,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.1";
+    const MOD_VERSION = "4.9.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33438,6 +33464,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.9.2",
+            changes: [
+                "Fix: expression changes no longer cause rate-limit timeouts when WCE is also running. Previously applyExprGroup called CharacterRefresh + a server sync for each expression group individually — applying an 8-group preset traversed the full hook chain 8 times, giving WCE 8 opportunities to react and re-sync. All batch callers (presets, sequences, clear-all) now use noSync=true per group and do one CharacterRefresh + one server sync at the end.",
+                "Fix: syncAppearance no longer calls ServerPlayerAppearanceSync when already in a chat room. ChatRoomCharacterUpdate already handles both the room broadcast and server-side persistence in that context; the extra call was doubling EBC's server traffic and compounding any WCE reaction on ChatRoomCharacterUpdate.",
+                "Fix: emote shortcut (*text) now has a 500 ms dedup guard to prevent double-sends if BC's event propagation routes the same keypress through more than one of EBC's three intercept paths.",
+            ],
+        },
         {
             version: "4.9.1",
             changes: [
@@ -39373,12 +39407,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
+        // Prevent double-fire: EBC handles emote shortcuts from three code paths
+        // (document capture, ChatRoomKeyDown hook, ChatRoomSendChat hook) as a belt-
+        // and-suspenders strategy. The capture path calls stopImmediatePropagation()
+        // which should prevent the hook paths from seeing the same keypress, but
+        // certain BC builds or other addons can reorder event handling. This timestamp
+        // guard ensures the ServerSend fires at most once per 500 ms regardless.
+        let _lastEmoteSendTime = 0;
         const handleEmoteShortcut = (raw) => {
             if (!raw.startsWith("*"))
                 return false;
             const body = raw.slice(1).replace(/^\s+/, "");
             if (!body)
                 return false; // bare * alone — ignore
+            const now = Date.now();
+            if (now - _lastEmoteSendTime < 500)
+                return true; // already sent — swallow without re-send
+            _lastEmoteSendTime = now;
             try {
                 ServerSend("ChatRoomChat", {
                     Type: "Emote",
