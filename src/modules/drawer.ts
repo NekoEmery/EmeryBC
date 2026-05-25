@@ -11507,15 +11507,16 @@ export class EBCDrawer {
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                 }
-            } else if (info && info.roomName === "") {
-                // BC sent an explicit empty ChatRoomName → friend is in a private/hidden room
+            } else if (info) {
+                // No visible room name — BC omits ChatRoomName for both private rooms and lobby,
+                // so match BC's own behaviour and show "Private room".
                 roomBar.textContent = "📍 Private room";
                 roomBar.title = "Friend is in a private room";
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join a private room by name
             } else {
-                // info.roomName === undefined → BC omitted the field = friend is in the lobby
+                // offline
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
@@ -13464,14 +13465,14 @@ export class EBCDrawer {
                         roomTagEl.textContent = displayName;
                         roomTagEl.title = displayName;
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
-                    } else if (rawRoom === "") {
-                        // BC explicitly sent an empty room name → friend is in a private/hidden room
+                    } else {
+                        // No visible room name — BC doesn't distinguish private room from lobby
+                        // in AccountQueryResult, so match BC's own behaviour: show "Private room".
                         roomTagEl = document.createElement("span");
                         roomTagEl.textContent = "Private room";
                         roomTagEl.title = "Friend is in a private room";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                     }
-                    // rawRoom === undefined → lobby, show nothing
                 }
 
                 // Last-seen timestamp for away/offline friends

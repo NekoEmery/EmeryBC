@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.0";
+const MOD_VERSION = "5.4.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "5.4.1",
+        changes: [
+            "Fix: 'Private room' label correctly restored for online friends with no visible room name — BC omits ChatRoomName entirely for both private rooms and lobby, so the two are indistinguishable; we now match BC's own UI by showing 'Private room' for any online friend without a visible room name.",
+        ],
+    },
+    {
         version: "5.4.0",
         changes: [
-            "Fix: 'Private room' tag now correctly distinguishes between a friend in a private/hidden room and a friend in the lobby. BC sends ChatRoomName as an explicit empty string for private rooms and omits the field entirely for lobby state — we now check === \"\" vs undefined instead of treating both as falsy.",
+            "Fix: attempted distinction between private room and lobby via ChatRoomName === \"\" check — this was incorrect as BC omits the field for both states (superseded by 5.4.1).",
         ],
     },
     {
