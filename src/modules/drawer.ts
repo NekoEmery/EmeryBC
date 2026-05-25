@@ -11507,9 +11507,15 @@ export class EBCDrawer {
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                 }
+            } else if (info && info.roomName === "") {
+                // BC sent an explicit empty ChatRoomName → friend is in a private/hidden room
+                roomBar.textContent = "📍 Private room";
+                roomBar.title = "Friend is in a private room";
+                roomBar.style.display = "";
+                roomDrawer.style.display = "";
+                roomDrawerJoin.style.display = "none"; // can't join a private room by name
             } else {
-                // Online but no room name and not in our room — could be lobby or private room,
-                // BC gives us no way to tell. Show nothing rather than false-positive "Private room".
+                // info.roomName === undefined → BC omitted the field = friend is in the lobby
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
@@ -13443,22 +13449,29 @@ export class EBCDrawer {
                 const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                 let roomTagEl: HTMLSpanElement | null = null;
                 if (info) {
-                    // Only show a room tag when we have a confirmed room name.
-                    // BC R128 omits ChatRoomName for both private rooms AND friends who are in
-                    // the lobby (not in any room), so we cannot distinguish the two cases.
-                    // Showing "Private room" creates false positives for lobby-state friends;
-                    // instead we only show a tag when the name is known or the friend is
-                    // confirmed to be in our current room via ChatRoomCharacter.
-                    let roomName: string | undefined = info.roomName || undefined;
-                    if (!roomName && isInCurrentRoom(num)) {
-                        roomName = getCurrentRoomName() || undefined;
+                    // BC sends ChatRoomName as:
+                    //   "Name"    → friend is in a visible public room
+                    //   ""        → friend is in a room but the name is hidden (private/secret)
+                    //   undefined → field was absent entirely = friend is in the lobby, not in any room
+                    // We preserve this distinction (storage stores "" vs undefined directly).
+                    const rawRoom = info.roomName; // "" | "name" | undefined
+                    let displayName: string | undefined = rawRoom || undefined; // "" → undefined
+                    if (!displayName && isInCurrentRoom(num)) {
+                        displayName = getCurrentRoomName() || undefined;
                     }
-                    if (roomName) {
+                    if (displayName) {
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = roomName;
-                        roomTagEl.title = roomName;
+                        roomTagEl.textContent = displayName;
+                        roomTagEl.title = displayName;
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
+                    } else if (rawRoom === "") {
+                        // BC explicitly sent an empty room name → friend is in a private/hidden room
+                        roomTagEl = document.createElement("span");
+                        roomTagEl.textContent = "Private room";
+                        roomTagEl.title = "Friend is in a private room";
+                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                     }
+                    // rawRoom === undefined → lobby, show nothing
                 }
 
                 // Last-seen timestamp for away/offline friends
