@@ -25669,7 +25669,7 @@
                             ? (isFull ? "full · " : "") + roomName
                             : isLocked ? "locked" : isPrivate ? "private" : "online";
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = label;
+                        roomTagEl.textContent = (isPrivate ? "🔒 " : "") + label;
                         roomTagEl.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
@@ -33580,7 +33580,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.6";
+    const MOD_VERSION = "4.9.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33592,9 +33592,9 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "4.9.6",
+            version: "4.9.7",
             changes: [
-                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable (public or private-unlocked). Amber = room is full. Red = locked (can't join). No more emoji clutter — the colour tells you at a glance whether you can get in.",
+                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable (public or private-unlocked). Amber = room is full. Red = locked (can't join). Private rooms (locked or not) show a 🔒 prefix; public rooms show the name only.",
             ],
         },
         {
