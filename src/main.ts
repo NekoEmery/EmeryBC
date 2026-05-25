@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.0";
+const MOD_VERSION = "5.2.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.1",
+        changes: [
+            "Beep window: room info drawer now lazily fetches full room data (player count, language, game type, privacy, lock state) via ChatRoomSearch when you first hover/tap the room bar. Results are cached per room so the server is only hit once. Public rooms show all available details; private rooms silently show basic info if the search returns nothing.",
+        ],
+    },
     {
         version: "5.2.0",
         changes: [
