@@ -14,7 +14,7 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.6";
+const MOD_VERSION = "5.3.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.0",
+        changes: [
+            "New: Group Chats — create named groups from the Users tab (scroll to the Groups section). Select friends, name the group, and hit Create. Messages are broadcast to all members as individual beeps with an EBC routing tag; EBC users see a shared group window with sender labels. Non-EBC members receive the message with a visible '[EBC Group]' annotation — they can read it but replies go back to the sender only, not the whole group. Group definitions are saved to your extension settings across sessions.",
+        ],
+    },
     {
         version: "5.2.6",
         changes: [
@@ -5955,7 +5961,16 @@ function init(): void {
             // Strip metadata and add to IM — isolated in its own try so any
             // exception here can never cause fall-through to return next(args).
             try {
-                const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
+                const rawMsg = typeof beep.Message === "string" ? beep.Message : "";
+                // Check for EBC group tag BEFORE stripping metadata so the tag is still intact.
+                const grpTag = extractGroupTag(rawMsg);
+                if (grpTag) {
+                    addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
+                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum); } catch { /* ignore */ }
+                    return; // suppress BC native popup for group messages
+                }
+                const msg = stripBeepMetadata(rawMsg);
                 if (msg) {
                     addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
                     if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }

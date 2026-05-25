@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getCurrentRoomName, setRoomSearchCallback } from "./bcUtils";
@@ -3661,7 +3661,8 @@ export class EBCDrawer {
     private isDev   = false;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
-    private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
+    private beepWins  = new Map<number, { el: HTMLElement; minimized: boolean }>();
+    private groupWins = new Map<string, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
     private expandedFriends = new Set<number>();
     private friendsSectionEl: HTMLElement | null = null;
@@ -12222,6 +12223,241 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
+    // -- Group chat windows ----------------------------------------------------
+
+    public onIncomingGroupBeep(groupId: string, groupName: string, fromNum: number): void {
+        const entry = this.groupWins.get(groupId);
+        if (entry) {
+            const fn = (entry.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
+            try { fn?.(); } catch { /* ignore */ }
+        }
+        try { this.showGroupBeepToast(groupId, groupName, fromNum); } catch { /* ignore */ }
+    }
+
+    private showGroupBeepToast(groupId: string, groupName: string, fromNum: number): void {
+        try {
+            const entries = getGroupHistory(groupId);
+            const last = entries[entries.length - 1];
+            const preview = (last?.message ?? "").slice(0, 80) || "…";
+            const senderName = resolveName(fromNum);
+
+            const toast = document.createElement("div");
+            toast.className = "ebc-toast";
+
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-toast-header";
+            const ico = document.createElement("span");
+            ico.className = "ebc-toast-icon";
+            ico.textContent = "👥";
+            const nm = document.createElement("span");
+            nm.className = "ebc-toast-name";
+            nm.textContent = `${groupName} · ${senderName}`;
+            hdr.appendChild(ico);
+            hdr.appendChild(nm);
+
+            const body = document.createElement("div");
+            body.className = "ebc-toast-body";
+            body.textContent = preview;
+
+            toast.appendChild(hdr);
+            toast.appendChild(body);
+            toast.addEventListener("click", () => {
+                const grp = getGroups().find(g => g.id === groupId);
+                if (grp) { try { this.openGroupWindow(grp); } catch { /* ignore */ } }
+                dismiss();
+            });
+
+            document.body.appendChild(toast);
+            const existing = document.querySelectorAll<HTMLElement>(".ebc-toast");
+            let offset = 0;
+            existing.forEach(t => { if (t !== toast) offset += (t.offsetHeight || 72) + 8; });
+            if (offset > 0) toast.style.bottom = `${24 + offset}px`;
+
+            let gone = false;
+            const dismiss = (): void => {
+                if (gone) return; gone = true;
+                toast.classList.add("ebc-toast-out");
+                setTimeout(() => toast.remove(), 320);
+            };
+            const timer = setTimeout(dismiss, 5000);
+            toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+        } catch { /* ignore */ }
+    }
+
+    public openGroupWindow(group: EBCGroup): void {
+        const existing = this.groupWins.get(group.id);
+        if (existing) {
+            existing.el.style.display = "";
+            const restore = (existing.el as unknown as Record<string, unknown>)._restore as (() => void) | undefined;
+            restore?.();
+            const refresh = (existing.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
+            refresh?.();
+            return;
+        }
+
+        const offset = (this.beepWins.size + this.groupWins.size) * 28;
+        const win = document.createElement("div");
+        win.className = "ebc-beep-win";
+        win.style.bottom = `${80 + offset}px`;
+        win.style.right  = `${340 + offset}px`;
+        this.groupWins.set(group.id, { el: win, minimized: false });
+
+        // Drag
+        const header = document.createElement("div");
+        header.className = "ebc-beep-win-header";
+        let isDrag = false, dragOX = 0, dragOY = 0;
+        header.addEventListener("mousedown", (e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            isDrag = true;
+            const r = win.getBoundingClientRect();
+            dragOX = e.clientX - r.left; dragOY = e.clientY - r.top;
+            e.preventDefault();
+        });
+        const onMove = (e: MouseEvent): void => {
+            if (!isDrag) return;
+            win.style.left = `${e.clientX - dragOX}px`; win.style.top = `${e.clientY - dragOY}px`;
+            win.style.right = ""; win.style.bottom = "";
+        };
+        const onUp = (): void => { isDrag = false; };
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup",  onUp);
+
+        // Title area
+        const titleWrap = document.createElement("div");
+        titleWrap.style.cssText = "flex:1;min-width:0;overflow:hidden;";
+        const nameEl = document.createElement("span");
+        nameEl.className = "ebc-beep-win-name";
+        nameEl.textContent = group.name;
+        const subEl = document.createElement("div");
+        subEl.style.cssText = "font-size:9px;color:#6a4858;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+        subEl.textContent = `👥 ${group.members.length} member${group.members.length !== 1 ? "s" : ""} · EBC users only`;
+        titleWrap.appendChild(nameEl);
+        titleWrap.appendChild(subEl);
+
+        const minBtn = document.createElement("button");
+        minBtn.className = "ebc-beep-win-hbtn";
+        minBtn.textContent = "–";
+        minBtn.title = "Minimize";
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "ebc-beep-win-hbtn";
+        closeBtn.textContent = "✕";
+        closeBtn.title = "Close";
+
+        header.appendChild(titleWrap);
+        header.appendChild(minBtn);
+        header.appendChild(closeBtn);
+
+        // History
+        const history = document.createElement("div");
+        history.className = "ebc-beep-history";
+        const IMG_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+        const myNum = Player.MemberNumber ?? 0;
+
+        const renderGroupHistory = (): void => {
+            while (history.firstChild) history.removeChild(history.firstChild);
+            const spacer = document.createElement("div");
+            spacer.style.cssText = "flex:1;min-height:0;";
+            history.appendChild(spacer);
+            const entries = getGroupHistory(group.id);
+            const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            for (const entry of entries) {
+                const isSelf = entry.from === myNum || entry.from === 0;
+                const wrap = document.createElement("div");
+                wrap.className = `ebc-beep-wrap ${isSelf ? "sent" : "received"}`;
+                const bubble = document.createElement("div");
+                bubble.className = "ebc-beep-bubble";
+                if (!isSelf) {
+                    const senderEl = document.createElement("div");
+                    senderEl.style.cssText = "font-size:9px;color:#9a7080;margin-bottom:2px;font-weight:bold;";
+                    senderEl.textContent = resolveName(entry.from);
+                    bubble.appendChild(senderEl);
+                }
+                const d = new Date(entry.ts);
+                const timeStr = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                const now = new Date();
+                const isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                const tsEl = document.createElement("div");
+                tsEl.className = "ebc-beep-ts";
+                tsEl.textContent = isToday ? timeStr : `${d.getDate()} ${MONTHS[d.getMonth()]} · ${timeStr}`;
+                bubble.appendChild(tsEl);
+                const textEl = document.createElement("div");
+                textEl.textContent = entry.message;
+                bubble.appendChild(textEl);
+                const imgUrl = IMG_RE.exec(entry.message)?.[0];
+                if (imgUrl) {
+                    const img = document.createElement("img");
+                    img.className = "ebc-beep-img";
+                    img.src = imgUrl;
+                    img.alt = "image";
+                    img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                    img.addEventListener("error", () => { img.style.display = "none"; });
+                    bubble.appendChild(img);
+                }
+                wrap.appendChild(bubble);
+                history.appendChild(wrap);
+            }
+            requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+        };
+        (win as unknown as Record<string, unknown>)._refresh = renderGroupHistory;
+
+        // Input
+        const inputRow = document.createElement("div");
+        inputRow.className = "ebc-beep-input-row";
+        const input = document.createElement("textarea");
+        input.className = "ebc-beep-win-input";
+        input.placeholder = "Message group…";
+        input.rows = 1;
+        const sendBtn = document.createElement("button");
+        sendBtn.className = "ebc-beep-send";
+        sendBtn.textContent = "Send";
+
+        const doSend = (): void => {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            input.style.height = "auto";
+            addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
+            const tag = encodeGroupTag(group.id, group.name);
+            for (const m of group.members) {
+                try { sendBeep(m, `${text}${tag}`); } catch { /* ignore */ }
+            }
+            renderGroupHistory();
+        };
+        sendBtn.addEventListener("click", doSend);
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });
+        input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 80)}px`; });
+
+        inputRow.appendChild(input);
+        inputRow.appendChild(sendBtn);
+
+        // Minimize / restore / close
+        minBtn.addEventListener("click", () => {
+            const e = this.groupWins.get(group.id);
+            if (!e) return;
+            e.minimized = !e.minimized;
+            win.classList.toggle("minimized", e.minimized);
+            minBtn.textContent = e.minimized ? "▲" : "–";
+            minBtn.title = e.minimized ? "Restore" : "Minimize";
+        });
+        (win as unknown as Record<string, unknown>)._restore = (): void => {
+            const e = this.groupWins.get(group.id);
+            if (e) { e.minimized = false; win.classList.remove("minimized"); minBtn.textContent = "–"; minBtn.title = "Minimize"; }
+        };
+        closeBtn.addEventListener("click", () => {
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup",  onUp);
+            win.remove();
+            this.groupWins.delete(group.id);
+        });
+
+        win.appendChild(header);
+        win.appendChild(history);
+        win.appendChild(inputRow);
+        document.body.appendChild(win);
+        renderGroupHistory();
+        input.focus();
+    }
+
     // -- Notes tab -------------------------------------------------------------
 
     /**
@@ -13755,6 +13991,148 @@ export class EBCDrawer {
                 }
             }
         }
+
+        // ── Groups ───────────────────────────────────────────────────────────
+        const grpSec = document.createElement("div");
+        grpSec.style.cssText = "margin-top:10px;";
+
+        const grpHeader = document.createElement("div");
+        grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
+
+        const grpTitleEl = document.createElement("span");
+        grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
+        const refreshGrpTitle = (): void => {
+            grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
+        };
+        refreshGrpTitle();
+
+        const grpNewBtn = document.createElement("button");
+        grpNewBtn.textContent = "+";
+        grpNewBtn.title = "Create a new group chat";
+        grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
+        grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
+        grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
+
+        grpHeader.appendChild(grpTitleEl);
+        grpHeader.appendChild(grpNewBtn);
+        grpSec.appendChild(grpHeader);
+
+        const grpListEl = document.createElement("div");
+
+        const buildGrpRows = (): void => {
+            grpListEl.innerHTML = "";
+            const groups = getGroups();
+            if (groups.length === 0) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
+                empty.textContent = "No groups yet";
+                grpListEl.appendChild(empty);
+                return;
+            }
+            for (const g of groups) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
+
+                const nameBtn = document.createElement("button");
+                nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nameBtn.textContent = `${g.name}  (${g.members.length})`;
+                nameBtn.title = `Open: ${g.name}`;
+                nameBtn.addEventListener("click", () => { try { this.openGroupWindow(g); } catch { /* ignore */ } });
+                nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
+                nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
+
+                const delBtn = document.createElement("button");
+                delBtn.textContent = "✕";
+                delBtn.title = "Delete group";
+                delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
+                delBtn.addEventListener("click", () => {
+                    const updated = getGroups().filter(x => x.id !== g.id);
+                    saveGroups(updated);
+                    buildGrpRows();
+                    refreshGrpTitle();
+                });
+                delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
+                delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
+
+                row.appendChild(nameBtn);
+                row.appendChild(delBtn);
+                grpListEl.appendChild(row);
+            }
+        };
+        buildGrpRows();
+        grpSec.appendChild(grpListEl);
+
+        // ── Create-group form ─────────────────────────────────────────────────
+        let grpFormVisible = false;
+        const grpForm = document.createElement("div");
+        grpForm.style.cssText = "display:none;padding:5px 0 3px;";
+
+        const grpNameInput = document.createElement("input");
+        grpNameInput.type = "text";
+        grpNameInput.placeholder = "Group name…";
+        grpNameInput.maxLength = 24;
+        grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
+
+        const memberLabel = document.createElement("div");
+        memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
+        memberLabel.textContent = "Members (select at least one):";
+
+        const memberPicker = document.createElement("div");
+        memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
+
+        const allFriends = getFriendList();
+        for (const num of allFriends.slice(0, 40)) {
+            const lbl = document.createElement("label");
+            lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
+            const chk = document.createElement("input");
+            chk.type = "checkbox";
+            chk.value = String(num);
+            chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
+            const nsp = document.createElement("span");
+            nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+            nsp.textContent = `${resolveName(num)} #${num}`;
+            lbl.appendChild(chk);
+            lbl.appendChild(nsp);
+            memberPicker.appendChild(lbl);
+        }
+
+        const grpCreateBtn = document.createElement("button");
+        grpCreateBtn.textContent = "Create Group";
+        grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
+        grpCreateBtn.addEventListener("click", () => {
+            const name = grpNameInput.value.trim();
+            if (!name) { grpNameInput.style.borderColor = "#cf6f98"; grpNameInput.focus(); return; }
+            const sel: number[] = [];
+            memberPicker.querySelectorAll<HTMLInputElement>("input:checked").forEach(c => {
+                const n = parseInt(c.value, 10); if (n) sel.push(n);
+            });
+            if (sel.length === 0) { memberLabel.style.color = "#cf6f98"; return; }
+            const g: EBCGroup = { id: makeGroupId(), name, members: sel };
+            saveGroups([...getGroups(), g]);
+            grpNameInput.value = "";
+            memberPicker.querySelectorAll<HTMLInputElement>("input").forEach(c => { c.checked = false; });
+            grpFormVisible = false;
+            grpForm.style.display = "none";
+            grpNewBtn.textContent = "+";
+            buildGrpRows();
+            refreshGrpTitle();
+            try { this.openGroupWindow(g); } catch { /* ignore */ }
+        });
+
+        grpForm.appendChild(grpNameInput);
+        grpForm.appendChild(memberLabel);
+        grpForm.appendChild(memberPicker);
+        grpForm.appendChild(grpCreateBtn);
+        grpSec.appendChild(grpForm);
+
+        grpNewBtn.addEventListener("click", () => {
+            grpFormVisible = !grpFormVisible;
+            grpForm.style.display = grpFormVisible ? "block" : "none";
+            grpNewBtn.textContent = grpFormVisible ? "−" : "+";
+            if (grpFormVisible) grpNameInput.focus();
+        });
+
+        body.appendChild(grpSec);
     }
 
     private charDisplayName(char: Character): string {

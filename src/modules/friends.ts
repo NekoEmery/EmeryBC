@@ -30,6 +30,8 @@ export function stripBeepMetadata(msg: string): string {
     // These render as hollow squares (□) in most fonts.
     msg = msg.replace(/[-][\s\S]*$/, "").trim();
     msg = msg.replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF][\s\S]*$/, "").trim();
+    // Pass 3 — strip EBC group routing tags.
+    msg = msg.replace(/\n\[EBC Group "[^"]*" #[a-z0-9]{6}\]$/, "").trim();
     return msg;
 }
 
@@ -553,4 +555,70 @@ export function sendBeep(memberNumber: number, message: string): void {
         message,
         ts: Date.now(),
     });
+}
+
+
+// =============================================================================
+// Group chats
+// Group messages are broadcast to all members as individual beeps, with an EBC
+// routing tag appended so EBC users can route them to the group window.
+// Non-EBC users see: "message text\n[EBC Group "Name" #id]" — readable enough.
+// =============================================================================
+
+export interface EBCGroup {
+    id: string;        // 6-char random alphanumeric routing ID
+    name: string;      // display name chosen by creator
+    members: number[]; // member numbers (does not include self)
+}
+
+export interface GroupBeepEntry {
+    from: number;   // sender's member number; 0 means sent by self this session
+    message: string;
+    ts: number;
+}
+
+// In-session group message history (not persisted — groups definitions are)
+const _groupHistory = new Map<string, GroupBeepEntry[]>();
+
+const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})\]$/;
+
+export function makeGroupId(): string {
+    return Math.random().toString(36).slice(2, 8).padEnd(6, "0");
+}
+
+export function encodeGroupTag(id: string, name: string): string {
+    const safe = name.replace(/"/g, "'").slice(0, 24);
+    return `\n[EBC Group "${safe}" #${id}]`;
+}
+
+/** Returns null if the message contains no group tag.
+ *  Otherwise returns the parsed group id/name and the clean message body. */
+export function extractGroupTag(raw: string): { id: string; name: string; body: string } | null {
+    const m = GROUP_TAG_RE.exec(raw);
+    if (!m) return null;
+    return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim() };
+}
+
+export function getGroups(): EBCGroup[] {
+    try {
+        const d = getSettings().groups;
+        if (Array.isArray(d)) return d as EBCGroup[];
+    } catch { /* ignore */ }
+    return [];
+}
+
+export function saveGroups(groups: EBCGroup[]): void {
+    getSettings().groups = groups;
+    syncSettings();
+}
+
+export function addGroupBeepEntry(groupId: string, entry: GroupBeepEntry): void {
+    let arr = _groupHistory.get(groupId);
+    if (!arr) { arr = []; _groupHistory.set(groupId, arr); }
+    arr.push(entry);
+    if (arr.length > 200) arr.splice(0, arr.length - 200);
+}
+
+export function getGroupHistory(groupId: string): GroupBeepEntry[] {
+    return _groupHistory.get(groupId) ?? [];
 }
