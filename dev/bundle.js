@@ -15786,17 +15786,25 @@
 
 .ebc-beep-room-pill {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #a08098;
+    font-size: 10px;
+    color: #b090a0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 160px;
-    line-height: 1.3;
     cursor: pointer;
-    transition: color 0.12s;
+    /* Proper touch target — padding gives fingers something to hit */
+    padding: 4px 8px;
+    border-radius: 10px;
+    border: 1px solid #3a1928;
+    background: rgba(30,13,26,0.55);
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+    margin-top: 2px;
+    align-self: flex-start;
 }
-.ebc-beep-room-pill:hover { color: #cf6f98; }
+.ebc-beep-room-pill:hover { color: #cf6f98; border-color: #cf6f98; background: rgba(58,16,40,0.70); }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -24237,7 +24245,8 @@
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
                 const info = getFriendOnlineInfo(memberNumber);
                 if (info === null || info === void 0 ? void 0 : info.roomName) {
-                    roomPill.textContent = `📍 ${info.roomName}`;
+                    roomPill.textContent = `📍 ${info.roomName} →`;
+                    roomPill.title = `Tap to join ${info.roomName}`;
                     roomPill.style.display = "";
                 }
                 else {
@@ -33606,7 +33615,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.9.8";
+    const MOD_VERSION = "4.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33618,10 +33627,10 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "4.9.8",
+            version: "4.9.9",
             changes: [
-                "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if you're not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend('ChatRoomJoin') so joining works whether or not the recipient is already in another room.",
-                "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable. Amber = full. Red = locked. Private rooms show 🔒.",
+                "Fix: room pill in beep window header (showing where a friend currently is) is now a proper tappable badge with padding, border, and background instead of a 9px text label. Displays as '📍 Room →' so it's visually clear it's interactive. Works on touch / tablet.",
+                "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend so joining works whether or not the recipient is already in another room.",
             ],
         },
         {
