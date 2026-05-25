@@ -5965,6 +5965,11 @@ function init(): void {
                 if (data.Query !== "OnlineFriends") return;
                 const results = data.Result as Array<Record<string, unknown>> | undefined;
                 if (!Array.isArray(results)) return;
+                // DEV: one-shot dump of first in-room entry so we can see all available fields
+                if (IS_DEV_BUILD) {
+                    const inRoom = results.find(r => typeof r.ChatRoomName === "string" && r.ChatRoomName);
+                    if (inRoom) console.log("[EBC] AccountQueryResult room entry keys:", Object.keys(inRoom), inRoom);
+                }
                 for (const r of results) {
                     const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                     const name = typeof r.MemberName === "string" ? r.MemberName : null;
