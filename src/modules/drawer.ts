@@ -12919,8 +12919,14 @@ export class EBCDrawer {
         const rebuildMemberPicker = (): void => {
             const q = grpMemberSearch.value.trim().toLowerCase();
             memberPicker.innerHTML = "";
-            for (const num of getFriendList()) {
+            // Sort: known names first, number-only fallbacks at the bottom
+            const allNums = getFriendList();
+            const known   = allNums.filter(n => resolveName(n) !== `#${n}`);
+            const unknown = allNums.filter(n => resolveName(n) === `#${n}`);
+            for (const num of [...known, ...unknown]) {
                 const name = resolveName(num);
+                const isFallback = name === `#${num}`;
+                // Search: match against name (or bare number)
                 if (q && !name.toLowerCase().includes(q) && !String(num).includes(q)) continue;
                 const lbl = document.createElement("label");
                 lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
@@ -12934,8 +12940,15 @@ export class EBCDrawer {
                     else selectedGrpMembers.delete(num);
                 });
                 const nsp = document.createElement("span");
-                nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
-                nsp.textContent = `${name} #${num}`;
+                // When the name is unknown (fallback #number) show the number once
+                // in a muted colour rather than duplicating it (#114921 #114921).
+                if (isFallback) {
+                    nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#5a4050;";
+                    nsp.textContent = `#${num}`;
+                } else {
+                    nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+                    nsp.textContent = `${name} #${num}`;
+                }
                 lbl.appendChild(chk);
                 lbl.appendChild(nsp);
                 memberPicker.appendChild(lbl);

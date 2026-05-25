@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.3";
+const MOD_VERSION = "5.3.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.4",
+        changes: [
+            "Fix: group member picker no longer shows '#114921 #114921' for friends whose name isn't cached — unknown friends display as a single dim '#114921'. Friends with known names appear first in the list; number-only entries are sorted to the bottom.",
+        ],
+    },
     {
         version: "5.3.3",
         changes: [
