@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.1.7
+// @version      5.1.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11365,6 +11365,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     typeof r.Type === "string" ? r.Type === "Private" : undefined,
                 roomFull: typeof r.ChatRoomFull === "boolean" ? r.ChatRoomFull : undefined,
                 roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
+                roomLanguage: typeof r.ChatRoomLanguage === "string" ? r.ChatRoomLanguage : undefined,
+                roomGame: typeof r.ChatRoomGame === "string" ? r.ChatRoomGame : undefined,
+                roomCount: typeof r.MemberCount === "number" ? r.MemberCount :
+                    typeof r.ChatRoomCount === "number" ? r.ChatRoomCount : undefined,
+                roomLimit: typeof r.MemberLimit === "number" ? r.MemberLimit :
+                    typeof r.ChatRoomSize === "number" ? r.ChatRoomSize : undefined,
             });
         }
         // Record last-seen for anyone who just went offline — batched into a single
@@ -15832,7 +15838,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 90px; }
+.ebc-beep-room-drawer.open { max-height: 130px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -24363,6 +24369,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         addChip("Locked");
                     if (info.roomFull)
                         addChip("Full");
+                    if (info.roomCount !== undefined) {
+                        addChip(info.roomLimit !== undefined
+                            ? `👥 ${info.roomCount}/${info.roomLimit}`
+                            : `👥 ${info.roomCount}`);
+                    }
+                    if (info.roomLanguage)
+                        addChip(`🌍 ${info.roomLanguage.toUpperCase()}`);
+                    if (info.roomGame && info.roomGame !== "None" && info.roomGame.trim() !== "") {
+                        addChip(`🎮 ${info.roomGame}`);
+                    }
                 }
                 else {
                     roomBar.style.display = "none";
@@ -33765,7 +33781,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.7";
+    const MOD_VERSION = "5.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33776,6 +33792,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.1.8",
+            changes: [
+                "Beep window: room info drawer now shows player count (👥 current/max), language (🌍), and game type (🎮) chips when BC provides them via AccountQueryResult.",
+            ],
+        },
         {
             version: "5.1.7",
             changes: [
