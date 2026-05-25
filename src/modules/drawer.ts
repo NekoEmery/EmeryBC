@@ -12541,7 +12541,7 @@ export class EBCDrawer {
             searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
             const searchInput = document.createElement("input");
             searchInput.type = "text";
-            searchInput.placeholder = "Search friends…";
+            searchInput.placeholder = "Search name, notes, tags…";
             searchInput.value = this.friendSearch;
             searchInput.className = "ebc-form-input";
             searchInput.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
@@ -12615,14 +12615,25 @@ export class EBCDrawer {
                 }
             });
 
-            // Build search filter — matches name or member number, case-insensitive.
+            // Build search filter — matches name, member number, notes, or tags, case-insensitive.
             // normalizeForSearch strips diacritics and maps fancy Unicode letters
             // (𝓓𝓙, 𝕯𝕵, 𝗗𝗝 …) to their plain ASCII equivalents so "dj" finds "𝓓𝓙".
             const query = normalizeForSearch(this.friendSearch.trim()).toLowerCase();
+            // Load notes once outside the per-friend loop so we don't hit storage N times.
+            const notesMap = query ? getNotes() : {};
             const matchesSearch = (n: number): boolean => {
                 if (!query) return true;
                 const normName = normalizeForSearch(resolveName(n)).toLowerCase();
-                return normName.includes(query) || String(n).includes(this.friendSearch.trim());
+                if (normName.includes(query) || String(n).includes(this.friendSearch.trim())) return true;
+                // Search note text
+                const noteText = normalizeForSearch(notesMap[String(n)]?.note ?? "").toLowerCase();
+                if (noteText && noteText.includes(query)) return true;
+                // Search tag labels (all tags, including locked/system ones)
+                const tagText = normalizeForSearch(
+                    getFriendTagList(n).map(tag => tag.text).join(" "),
+                ).toLowerCase();
+                if (tagText && tagText.includes(query)) return true;
+                return false;
             };
 
             // Split into always-visible (pinned or online/room) and offline.
