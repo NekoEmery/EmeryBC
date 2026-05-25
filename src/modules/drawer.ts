@@ -11322,6 +11322,27 @@ export class EBCDrawer {
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
+        // Join a room by name — shared by the room pill header click and the Join → card button.
+        // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
+        // leave the current room (if any) and then send a ChatRoomJoin socket event.
+        const doJoinRoom = (rName: string): void => {
+            try {
+                const w = window as unknown as Record<string, unknown>;
+                // BC's own join function handles leave/rejoin automatically in all versions
+                const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
+                if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
+                // Fallback: manually leave any current room, then send join request
+                if (w.CurrentScreen === "ChatRoom") {
+                    try { ChatRoomLeave(); } catch { /* ignore */ }
+                    window.setTimeout(() => {
+                        try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
+                    }, 400);
+                } else {
+                    try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
+                }
+            } catch { /* ignore */ }
+        };
+
         // Header
         const header = document.createElement("div");
         header.className = "ebc-beep-win-header";
@@ -11344,11 +11365,7 @@ export class EBCDrawer {
             e.stopPropagation(); // don't trigger header drag
             const rName = getFriendOnlineInfo(memberNumber)?.roomName;
             if (!rName) return;
-            try {
-                const joinFn = (window as unknown as Record<string, unknown>).ChatRoomJoin as ((n: string) => void) | undefined;
-                if (typeof joinFn === "function") { joinFn(rName); return; }
-                ServerSend("ChatRoomJoin", { Name: rName });
-            } catch { /* ignore */ }
+            ebcJoinRoom(rName);
         });
 
         titleArea.appendChild(title);
@@ -11623,14 +11640,7 @@ export class EBCDrawer {
                         const joinBtn = document.createElement("button");
                         joinBtn.className = "ebc-beep-room-invite-join";
                         joinBtn.textContent = "Join →";
-                        joinBtn.addEventListener("click", () => {
-                            try {
-                                const joinFn = (window as unknown as Record<string, unknown>).ChatRoomJoin as
-                                    ((n: string) => void) | undefined;
-                                if (typeof joinFn === "function") { joinFn(rName); return; }
-                                ServerSend("ChatRoomJoin", { Name: rName });
-                            } catch { /* ignore */ }
-                        });
+                        joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
                         inviteCard.appendChild(joinBtn);
                     }
                     bubble.appendChild(inviteCard);
@@ -11673,12 +11683,20 @@ export class EBCDrawer {
 
         // Room invite button click handler — deferred here so renderHistory is in scope.
         roomInviteBtn.addEventListener("click", () => {
-            const rd = (window as unknown as Record<string, unknown>).ChatRoomData as { Name?: string } | undefined;
-            const rName = rd?.Name?.trim();
+            const w = window as unknown as Record<string, unknown>;
+            // Must be on the ChatRoom screen with valid room data
+            const rd = w.CurrentScreen === "ChatRoom"
+                ? (w.ChatRoomData as Record<string, unknown> | null | undefined)
+                : null;
+            const rName = (rd ? (typeof rd.Name === "string" ? rd.Name : "") : "").trim();
             if (!rName) {
-                // Not in a room — flash a "not available" indicator
+                // Not in a room — flash indicator
                 roomInviteBtn.textContent = "🚫";
-                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                roomInviteBtn.title = "You must be in a room to send a room invite";
+                window.setTimeout(() => {
+                    roomInviteBtn.textContent = "📍";
+                    roomInviteBtn.title = "Send your current room as an invite";
+                }, 1500);
                 return;
             }
             sendBeep(memberNumber, `📍 Room invite: ${rName}`);
