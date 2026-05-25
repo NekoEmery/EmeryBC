@@ -113,6 +113,12 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Set to true when EBC initiates a ChatRoomLeave so the ChatRoomRun guard
+    // knows to skip null-ChatRoomData frames without affecting map rooms.
+    let _leavePending = false;
+    function setLeavePending() { _leavePending = true; }
+    function isLeavePending() { return _leavePending; }
+    function clearLeavePending() { _leavePending = false; }
     /** Returns the player's display name (nickname if set, otherwise Name). */
     function getDisplayName$1() {
         const nickFn = window.CharacterNickname;
@@ -24250,8 +24256,11 @@
                         }
                         catch ( /* fall through */_a) { /* fall through */ }
                     }
-                    // Fallback: manually leave any current room, then send join request
+                    // Fallback: manually leave any current room, then send join request.
+                    // setLeavePending() arms the ChatRoomRun guard so the one-frame gap
+                    // where ChatRoomData is null doesn't crash on MapData access.
                     if (w.CurrentScreen === "ChatRoom") {
+                        setLeavePending();
                         try {
                             ChatRoomLeave();
                         }
@@ -24670,26 +24679,37 @@
             };
             renderHistory();
             // Room invite button click handler — deferred here so renderHistory is in scope.
+            // Dual-purpose: if the user is in a room → sends their room as an invite.
+            // If the user is NOT in a room but the friend IS → joins the friend's room instead.
             roomInviteBtn.addEventListener("click", () => {
+                var _a;
                 const w = window;
-                // Check ChatRoomData directly — CurrentScreen can be "OnlineFriends" or other
-                // sub-screens even while the player is still in a room, so we don't gate on it.
-                const rd = w.ChatRoomData;
-                const rName = (rd && typeof rd.Name === "string" ? rd.Name : "").trim();
-                if (!rName) {
-                    // Not in a room — flash indicator
-                    roomInviteBtn.textContent = "🚫";
-                    roomInviteBtn.title = "You must be in a room to send a room invite";
-                    window.setTimeout(() => {
-                        roomInviteBtn.textContent = "📍";
-                        roomInviteBtn.title = "Send your current room as an invite";
-                    }, 1500);
-                    return;
+                const cd = w.ChatRoomData;
+                const myRoom = (cd && typeof cd.Name === "string" ? cd.Name : "").trim();
+                if (myRoom) {
+                    // In a room — send invite to the other person
+                    sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
+                    renderHistory();
+                    roomInviteBtn.textContent = "✓";
+                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                 }
-                sendBeep(memberNumber, `📍 Room invite: ${rName}`);
-                renderHistory();
-                roomInviteBtn.textContent = "✓";
-                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                else {
+                    // Not in a room — shortcut: join their room if they have one
+                    const friendRoom = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
+                    if (friendRoom) {
+                        doJoinRoom(friendRoom);
+                        roomInviteBtn.textContent = "→";
+                        window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                    }
+                    else {
+                        roomInviteBtn.textContent = "🚫";
+                        roomInviteBtn.title = "Neither you nor they are in a room";
+                        window.setTimeout(() => {
+                            roomInviteBtn.textContent = "📍";
+                            roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
+                        }, 1500);
+                    }
+                }
             });
             // Reply bar (shown above footer when replying)
             const replyBar = document.createElement("div");
@@ -33749,7 +33769,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.4";
+    const MOD_VERSION = "5.1.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33761,9 +33781,16 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.1.5",
+            changes: [
+                "Fix: joining a room from the beep window no longer crashes with 'Cannot read MapData of null'. ChatRoomLeave now sets the leavePending guard and a ChatRoomRun hook (priority 500) skips the one-frame null-data window before BC switches screens.",
+                "Fix: 📍 button is now dual-purpose — if you're in a room it sends your room as an invite; if you're not in a room but the friend is, it joins their room directly.",
+            ],
+        },
+        {
             version: "5.1.4",
             changes: [
-                "Beep window: room bar now expands into an info drawer on hover (desktop) or tap (touch) showing room space type, public/private, locked, and full status — with a Join button inside so you know what you're joining before committing.",
+                "Beep window: room bar expands into an info drawer on hover/tap showing space type, privacy, lock and full status with a Join button.",
             ],
         },
         {
@@ -39136,6 +39163,20 @@
                 lastArousalActive = active;
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        // Guard against the one-frame crash window between ChatRoomLeave() clearing
+        // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
+        // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
+        // crashes unless we swallow it.  Priority 500 runs before all other mod hooks
+        // so the entire hook chain (BCX, CRABS, etc.) is also skipped for that frame.
+        modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
+            if (isLeavePending()) {
+                const w = window;
+                if (!w.ChatRoomData)
+                    return; // skip the null-data frame
+                clearLeavePending(); // new room data arrived — stop guarding
+            }
+            return next(args);
+        });
         // Canvas sidebar action buttons.
         // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
         // was migrated to DOM). Hook DrawProcess instead, which is the actual per-frame
