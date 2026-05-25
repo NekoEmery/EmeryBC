@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.2.3
+// @version      5.2.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -187,17 +187,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }, 300);
     }
-    // ---------------------------------------------------------------------------
-    // Current room name tracker
-    //
-    // The 📍 invite button needs to know the player's current room name.
-    // Accessing window.ChatRoomData.Name is unreliable in newer BC versions where
-    // ChatRoomData may be module-scoped (not on window).  We track it ourselves
-    // via the ChatRoomSync hook (data is passed directly to the hook, no window
-    // lookup needed) and clear it on ChatRoomLeave.
-    //
-    // getCurrentRoomName() falls back to window.ChatRoomData?.Name on first call
-    // so rooms joined before EBC loaded are handled correctly.
+    let _roomSearchCb = null;
+    function setRoomSearchCallback(cb) { _roomSearchCb = cb; }
+    function fireRoomSearchResult(list) {
+        const cb = _roomSearchCb;
+        if (!cb)
+            return;
+        _roomSearchCb = null; // auto-clear (one-shot)
+        try {
+            cb(list);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // ---------------------------------------------------------------------------
     let _currentRoomName = "";
     function setCurrentRoomName(name) { _currentRoomName = name; }
@@ -24367,7 +24368,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // Cache: room name (lowercase) → raw search result entry
             const _roomSearchCache = new Map();
-            let _searchHandler = null;
             /** Rebuild chips from a rich ChatRoomSearchResult entry. */
             const applySearchChips = (room) => {
                 var _a;
@@ -24399,9 +24399,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (room.Locked === true)
                     addChip("🔐 Locked");
             };
-            /** Trigger a server room search to enrich the drawer. No-op if already cached. */
+            /** Trigger a server room search to enrich the drawer. No-op if already cached.
+             *  Uses the bcUtils hook relay (main.ts hooks ChatRoomSearchResult via modAPI)
+             *  instead of window.ServerSocket which is module-scoped in BC R128. */
             const enrichDrawerFromSearch = (rName) => {
-                var _a;
                 const key = rName.toLowerCase();
                 // Already have cached data → apply immediately
                 const cached = _roomSearchCache.get(key);
@@ -24409,35 +24410,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     applySearchChips(cached);
                     return;
                 }
-                const sock = window.ServerSocket;
-                if (!sock)
-                    return;
-                // Remove any stale pending handler first
-                if (_searchHandler) {
-                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
-                    _searchHandler = null;
-                }
-                _searchHandler = (raw) => {
-                    var _a;
-                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
-                    _searchHandler = null;
+                // Register a one-shot callback via bcUtils relay
+                setRoomSearchCallback((list) => {
                     try {
-                        const list = raw;
-                        if (!Array.isArray(list))
-                            return;
                         const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
                         if (!match)
                             return;
                         _roomSearchCache.set(key, match);
                         applySearchChips(match);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                };
-                sock.on("ChatRoomSearchResult", _searchHandler);
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
                 try {
-                    ServerSend("ChatRoomSearch", { Name: rName });
+                    ServerSend("ChatRoomSearch", { Query: rName });
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
             };
             // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
@@ -33909,7 +33896,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.3";
+    const MOD_VERSION = "5.2.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33920,6 +33907,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.4",
+            changes: [
+                "Fix: room info drawer now correctly fetches player count, language, game type and privacy via ChatRoomSearch. The previous approach used window.ServerSocket which is module-scoped in BC R128 and not reliably accessible — replaced with a modAPI hook on ChatRoomSearchResult that relays results through bcUtils.",
+            ],
+        },
         {
             version: "5.2.3",
             changes: [
@@ -39929,6 +39922,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
             }
             catch ( /* ignore */_k) { /* ignore */ }
+            return next(args);
+        });
+        // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
+        // enrich the room info chips without needing window.ServerSocket (which is
+        // module-scoped in BC R128 and not reliably accessible from window).
+        tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
+            try {
+                const list = args[0];
+                if (Array.isArray(list))
+                    fireRoomSearchResult(list);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
