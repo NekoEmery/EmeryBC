@@ -2563,7 +2563,9 @@ const CSS = `
     word-break: break-all;
     margin-bottom: 6px;
 }
+.ebc-beep-room-invite-btns { display: flex; gap: 4px; }
 .ebc-beep-room-invite-join {
+    flex: 1;
     background: #3a1028;
     border: 1px solid #cf6f98;
     border-radius: 4px;
@@ -2572,10 +2574,22 @@ const CSS = `
     font-family: "Trebuchet MS", serif;
     padding: 3px 0;
     cursor: pointer;
-    width: 100%;
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-invite-join:hover { background: #cf6f98; color: #fff; }
+.ebc-beep-room-invite-deny {
+    flex: 1;
+    background: #1a0810;
+    border: 1px solid #5a2030;
+    border-radius: 4px;
+    color: #885060;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 3px 0;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-beep-room-invite-deny:hover { background: #5a2030; color: #e08090; }
 
 .ebc-emoji-btn {
     background: #2a0e1e;
@@ -11639,12 +11653,32 @@ export class EBCDrawer {
                     inviteCard.appendChild(inviteLabel);
                     inviteCard.appendChild(inviteName);
                     if (!isSent) {
-                        // Only the recipient gets a Join button — sender already knows the room
+                        // Recipient gets Join + Decline buttons so they can't accidentally join
+                        const btnRow = document.createElement("div");
+                        btnRow.className = "ebc-beep-room-invite-btns";
                         const joinBtn = document.createElement("button");
                         joinBtn.className = "ebc-beep-room-invite-join";
                         joinBtn.textContent = "Join →";
                         joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
-                        inviteCard.appendChild(joinBtn);
+                        const denyBtn = document.createElement("button");
+                        denyBtn.className = "ebc-beep-room-invite-deny";
+                        denyBtn.textContent = "Decline";
+                        denyBtn.addEventListener("click", () => {
+                            btnRow.innerHTML = "";
+                            const note = document.createElement("div");
+                            note.style.cssText = "font-size:9px;color:#5a3040;text-align:center;padding:2px 0;";
+                            note.textContent = "Declined";
+                            btnRow.appendChild(note);
+                        });
+                        btnRow.appendChild(joinBtn);
+                        btnRow.appendChild(denyBtn);
+                        inviteCard.appendChild(btnRow);
+                    } else {
+                        // Sender sees a subtle "sent" note instead of buttons
+                        const sentNote = document.createElement("div");
+                        sentNote.style.cssText = "font-size:9px;color:#6a4050;text-align:right;padding-top:1px;";
+                        sentNote.textContent = "Invite sent ✓";
+                        inviteCard.appendChild(sentNote);
                     }
                     bubble.appendChild(inviteCard);
                 } else {
