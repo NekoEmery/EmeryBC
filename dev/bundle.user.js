@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.4.1
+// @version      5.4.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24459,9 +24459,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomDrawer.style.display = "none";
                     }
                 }
-                else if (info) {
-                    // No visible room name — BC omits ChatRoomName for both private rooms and lobby,
-                    // so match BC's own behaviour and show "Private room".
+                else if (info && info.roomName === "") {
+                    // BC sent an explicit empty string for ChatRoomName = private/hidden room
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
@@ -24469,7 +24468,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawerJoin.style.display = "none"; // can't join a private room by name
                 }
                 else {
-                    // offline
+                    // info.roomName === undefined = lobby (field absent), or offline
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -26393,14 +26392,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             roomTagEl.title = displayName;
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
                         }
-                        else {
-                            // No visible room name — BC doesn't distinguish private room from lobby
-                            // in AccountQueryResult, so match BC's own behaviour: show "Private room".
+                        else if (rawRoom === "") {
+                            // BC sent explicit empty string = private/hidden room, not lobby
                             roomTagEl = document.createElement("span");
                             roomTagEl.textContent = "Private room";
                             roomTagEl.title = "Friend is in a private room";
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                         }
+                        // rawRoom === undefined = lobby, no tag
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -34320,7 +34319,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.1";
+    const MOD_VERSION = "5.4.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34332,9 +34331,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.4.2",
+            changes: [
+                "Fix: lobby friends no longer show 'Private room' — BC sends an explicit empty string for private rooms and omits ChatRoomName entirely for lobby state; we now correctly use === \"\" to distinguish the two instead of treating both as falsy.",
+            ],
+        },
+        {
             version: "5.4.1",
             changes: [
-                "Fix: 'Private room' label correctly restored for online friends with no visible room name — BC omits ChatRoomName entirely for both private rooms and lobby, so the two are indistinguishable; we now match BC's own UI by showing 'Private room' for any online friend without a visible room name.",
+                "Fix: attempted to restore 'Private room' label by showing it for all online friends with no visible room name — this incorrectly showed 'Private room' for lobby friends too (superseded by 5.4.2).",
             ],
         },
         {
