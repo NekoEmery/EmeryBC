@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.8";
+const MOD_VERSION = "4.9.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,10 +38,10 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "4.9.8",
+        version: "4.9.9",
         changes: [
-            "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if you're not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend('ChatRoomJoin') so joining works whether or not the recipient is already in another room.",
-            "Friends list room pills are now colour-coded instead of using emoji icons. Green = open/joinable. Amber = full. Red = locked. Private rooms show 🔒.",
+            "Fix: room pill in beep window header (showing where a friend currently is) is now a proper tappable badge with padding, border, and background instead of a 9px text label. Displays as '📍 Room →' so it's visually clear it's interactive. Works on touch / tablet.",
+            "Fix: room invite 📍 button now works correctly. Send guard now requires CurrentScreen === 'ChatRoom' and a valid ChatRoomData.Name (flashes 🚫 if not in a room). Join flow tries ChatRoomJoin first then falls back to ChatRoomLeave() + delayed ServerSend so joining works whether or not the recipient is already in another room.",
         ],
     },
     {

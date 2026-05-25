@@ -2525,17 +2525,25 @@ const CSS = `
 
 .ebc-beep-room-pill {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #a08098;
+    font-size: 10px;
+    color: #b090a0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 160px;
-    line-height: 1.3;
     cursor: pointer;
-    transition: color 0.12s;
+    /* Proper touch target — padding gives fingers something to hit */
+    padding: 4px 8px;
+    border-radius: 10px;
+    border: 1px solid #3a1928;
+    background: rgba(30,13,26,0.55);
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+    margin-top: 2px;
+    align-self: flex-start;
 }
-.ebc-beep-room-pill:hover { color: #cf6f98; }
+.ebc-beep-room-pill:hover { color: #cf6f98; border-color: #cf6f98; background: rgba(58,16,40,0.70); }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -11378,7 +11386,8 @@ export class EBCDrawer {
             title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
             const info = getFriendOnlineInfo(memberNumber);
             if (info?.roomName) {
-                roomPill.textContent = `📍 ${info.roomName}`;
+                roomPill.textContent = `📍 ${info.roomName} →`;
+                roomPill.title = `Tap to join ${info.roomName}`;
                 roomPill.style.display = "";
             } else {
                 roomPill.style.display = "none";
