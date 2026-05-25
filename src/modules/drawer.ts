@@ -11509,16 +11509,33 @@ export class EBCDrawer {
             // Already have cached data → apply immediately
             const cached = _roomSearchCache.get(key);
             if (cached) { applySearchChips(cached); return; }
-            // Register a one-shot callback via bcUtils relay
-            setRoomSearchCallback((list) => {
+
+            const tryApply = (list: Array<Record<string, unknown>>): boolean => {
+                const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
+                if (!match) return false;
+                _roomSearchCache.set(key, match);
+                applySearchChips(match);
+                return true;
+            };
+
+            // Fast path: hook relay (works if main.ts ChatRoomSearchResult hook succeeds)
+            setRoomSearchCallback((list) => { try { tryApply(list); } catch { /* ignore */ } });
+
+            try { ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true }); } catch { /* ignore */ }
+
+            // Fallback: poll window.ChatRoomList after ~2 s.
+            // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
+            // but BC always stores the latest search results in window.ChatRoomList after
+            // the socket response arrives.
+            window.setTimeout(() => {
+                if (_roomSearchCache.has(key)) return; // hook relay already got it
+                setRoomSearchCallback(null); // cancel stale callback
                 try {
-                    const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
-                    if (!match) return;
-                    _roomSearchCache.set(key, match);
-                    applySearchChips(match);
+                    const w = window as unknown as Record<string, unknown>;
+                    const list = w.ChatRoomList as Array<Record<string, unknown>> | undefined;
+                    if (Array.isArray(list)) tryApply(list);
                 } catch { /* ignore */ }
-            });
-            try { ServerSend("ChatRoomSearch", { Query: rName }); } catch { /* ignore */ }
+            }, 2000);
         };
         // ── end lazy enrichment ──────────────────────────────────────────────
 

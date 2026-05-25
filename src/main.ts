@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.5";
+const MOD_VERSION = "5.2.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.6",
+        changes: [
+            "Fix: room info chips (player count, language, game, privacy) now populate correctly in BC R128. ChatRoomSearchResult is a raw socket event in R128, not a patchable BC global — the v5.2.4 hook silently failed with no fallback. Now polls window.ChatRoomList 2 s after sending the search query, which BC always populates when the server responds.",
+        ],
+    },
     {
         version: "5.2.5",
         changes: [
