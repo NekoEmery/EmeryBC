@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.4";
+const MOD_VERSION = "5.2.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.5",
+        changes: [
+            "Fix: friends list and open beep windows now update correctly when a friend goes offline or changes rooms. AccountQueryResult is now hooked via modAPI (reliable in BC R128) with the old window.ServerSocket listener kept as fallback. A 60 s heartbeat poll ensures the online list stays fresh even if neither listener fires.",
+        ],
+    },
     {
         version: "5.2.4",
         changes: [
@@ -6011,28 +6017,48 @@ function init(): void {
     });
 
     // Track which friends BC considers online (not just in our room).
-    // AccountQueryResult is a socket event, not a patchable global.
+    // In BC R128 AccountQueryResult is a named global function AND a socket event.
+    // We hook both paths and deduplicate so only one update fires per result batch.
+    let _lastQueryResultTs = 0;
+    const handleAccountQueryResult = (raw: unknown): void => {
+        try {
+            const now = Date.now();
+            if (now - _lastQueryResultTs < 500) return; // dedup if both hook + socket fire
+            _lastQueryResultTs = now;
+            const data = raw as Record<string, unknown>;
+            if (data.Query !== "OnlineFriends") return;
+            const results = data.Result as Array<Record<string, unknown>> | undefined;
+            if (!Array.isArray(results)) return;
+            for (const r of results) {
+                const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                if (n && name) cacheName(n, name);
+            }
+            updateOnlineFriends(results);
+            try { syncFriendsSince(); } catch { /* ignore */ }
+            try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
+            try { drawer?.refreshFriendList(); } catch { /* ignore */ }
+        } catch { /* ignore */ }
+    };
+
+    // Primary: hook the BC global (reliable in R128 where it is a patchable function)
+    tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
+        handleAccountQueryResult(args[0]);
+        return next(args);
+    });
+
+    // Fallback: socket listener for BC versions where AccountQueryResult is not hookable
     try {
-        const socket2 = (window as unknown as Record<string, unknown>).ServerSocket as
+        const sock = (window as unknown as Record<string, unknown>).ServerSocket as
             { on(event: string, cb: (data: unknown) => void): void } | undefined;
-        socket2?.on("AccountQueryResult", (raw: unknown) => {
-            try {
-                const data = raw as Record<string, unknown>;
-                if (data.Query !== "OnlineFriends") return;
-                const results = data.Result as Array<Record<string, unknown>> | undefined;
-                if (!Array.isArray(results)) return;
-                for (const r of results) {
-                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
-                    const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                    if (n && name) cacheName(n, name);
-                }
-                updateOnlineFriends(results);
-                try { syncFriendsSince(); } catch { /* ignore */ }
-                try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
-                try { drawer?.refreshFriendList(); } catch { /* ignore */ }
-            } catch { /* ignore */ }
-        });
+        sock?.on("AccountQueryResult", handleAccountQueryResult);
     } catch { /* ignore */ }
+
+    // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
+    // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
+    setInterval(() => {
+        try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
+    }, 60 * 1000);
 
     // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
     // Typing *text (or * text) in the chat box sends a BC Emote message so it
