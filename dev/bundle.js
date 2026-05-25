@@ -11373,16 +11373,6 @@
             onlineInfo.set(n, {
                 roomName: typeof r.ChatRoomName === "string" ? r.ChatRoomName : undefined,
                 roomSpace: typeof r.ChatRoomSpace === "string" ? r.ChatRoomSpace : undefined,
-                roomPrivate: typeof r.Private === "boolean" ? r.Private :
-                    typeof r.Type === "string" ? r.Type === "Private" : undefined,
-                roomFull: typeof r.ChatRoomFull === "boolean" ? r.ChatRoomFull : undefined,
-                roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
-                roomLanguage: typeof r.ChatRoomLanguage === "string" ? r.ChatRoomLanguage : undefined,
-                roomGame: typeof r.ChatRoomGame === "string" ? r.ChatRoomGame : undefined,
-                roomCount: typeof r.MemberCount === "number" ? r.MemberCount :
-                    typeof r.ChatRoomCount === "number" ? r.ChatRoomCount : undefined,
-                roomLimit: typeof r.MemberLimit === "number" ? r.MemberLimit :
-                    typeof r.ChatRoomSize === "number" ? r.ChatRoomSize : undefined,
             });
         }
         // Record last-seen for anyone who just went offline — batched into a single
@@ -15850,7 +15840,7 @@
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 130px; }
+.ebc-beep-room-drawer.open { max-height: 90px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -24273,7 +24263,15 @@
             // Join a room by name — shared by the room pill header click and the Join → card button.
             // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
             // leave the current room (if any) and then send a ChatRoomJoin socket event.
+            // Module-level join cooldown — prevents "Duplicate join request" errors when
+            // the user clicks Join in multiple places (drawer button + invite card) at once.
+            // Shared across the openBeepWindow closure via the outer class scope.
+            let _joinCooldownTs = 0;
             const doJoinRoom = (rName) => {
+                const now = Date.now();
+                if (now - _joinCooldownTs < 1500)
+                    return; // debounce 1.5 s
+                _joinCooldownTs = now;
                 try {
                     const w = window;
                     // BC's own join function handles leave/rejoin automatically.
@@ -24357,6 +24355,7 @@
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
+                var _a;
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
@@ -24374,22 +24373,16 @@
                         c.textContent = text;
                         roomDrawerChips.appendChild(c);
                     };
-                    if (info.roomSpace)
-                        addChip(info.roomSpace);
-                    addChip(info.roomPrivate ? "🔒 Private" : "🌐 Public");
-                    if (info.roomLocked)
-                        addChip("Locked");
-                    if (info.roomFull)
-                        addChip("Full");
-                    if (info.roomCount !== undefined) {
-                        addChip(info.roomLimit !== undefined
-                            ? `👥 ${info.roomCount}/${info.roomLimit}`
-                            : `👥 ${info.roomCount}`);
-                    }
-                    if (info.roomLanguage)
-                        addChip(`🌍 ${info.roomLanguage.toUpperCase()}`);
-                    if (info.roomGame && info.roomGame !== "None" && info.roomGame.trim() !== "") {
-                        addChip(`🎮 ${info.roomGame}`);
+                    // BC R128 AccountQueryResult only exposes ChatRoomSpace and ChatRoomName —
+                    // privacy, lock state, count etc. are no longer sent by the server.
+                    if (info.roomSpace) {
+                        const SPACE_NAMES = {
+                            Asylum: "Asylum", LARP: "LARP", Racing: "Racing",
+                            Pandora: "Pandora", Bahamas: "Bahamas",
+                            HarshWorld: "Harsh World", NaturalWorld: "Nature",
+                            PvP: "PvP", X: "Club X",
+                        };
+                        addChip((_a = SPACE_NAMES[info.roomSpace]) !== null && _a !== void 0 ? _a : info.roomSpace);
                     }
                 }
                 else {
@@ -25852,44 +25845,16 @@
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                     let roomTagEl = null;
                     if (info) {
-                        const isPrivate = info.roomPrivate;
-                        const isLocked = info.roomLocked;
-                        const isFull = info.roomFull;
                         const roomName = info.roomName;
-                        // Colour-coded by joinability — no emoji icons.
-                        // Red  = locked (can't join).
-                        // Amber = full (probably can't join right now).
-                        // Green = open / private-but-unlocked (friends can join).
-                        // Neutral = online but room name unknown.
-                        let bg, color, border;
-                        if (isLocked) {
-                            bg = "#1a0808";
-                            color = "#e07878";
-                            border = "#6a2020";
-                        }
-                        else if (isFull) {
-                            bg = "#1a1208";
-                            color = "#d8a060";
-                            border = "#5a3a10";
-                        }
-                        else if (roomName) {
-                            bg = "#081a10";
-                            color = "#70c890";
-                            border = "#1a5a30";
-                        }
-                        else {
-                            bg = "#1e0d1a";
-                            color = "#c08898";
-                            border = "#3a1928";
-                        }
-                        const label = roomName
-                            ? (isFull ? "full · " : "") + roomName
-                            : isLocked ? "locked" : isPrivate ? "private" : "online";
+                        // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
+                        // just show the room name with a neutral green "in a room" colour.
+                        const bg = roomName ? "#081a10" : "#1e0d1a";
+                        const color = roomName ? "#70c890" : "#c08898";
+                        const border = roomName ? "#1a5a30" : "#3a1928";
+                        const label = roomName !== null && roomName !== void 0 ? roomName : "online";
                         roomTagEl = document.createElement("span");
-                        roomTagEl.textContent = (isPrivate ? "🔒 " : "") + label;
-                        roomTagEl.title = roomName
-                            ? roomName + (isPrivate ? " (private)" : " (public)") + (isLocked ? " · locked" : "") + (isFull ? " · full" : "")
-                            : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
+                        roomTagEl.textContent = label;
+                        roomTagEl.title = roomName ? roomName : "Online";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -33797,7 +33762,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.9";
+    const MOD_VERSION = "5.2.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33808,6 +33773,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.2.0",
+            changes: [
+                "Fix: BC R128 AccountQueryResult for OnlineFriends only sends 5 fields (Type=relationship, MemberNumber, MemberName, ChatRoomSpace, ChatRoomName). EBC now only captures what BC actually provides — privacy, lock, full, language, game and count are no longer claimed as available.",
+                "Fix: Room info drawer and friends list room tag no longer show misleading 'Public' privacy chip (BC R128 removed privacy info from the friends endpoint). Drawer now shows space type only with proper display names (e.g. 'X' → 'Club X').",
+                "Fix: 'Duplicate join request' error — doJoinRoom now has a 1.5 s debounce preventing rapid double-clicks or multiple simultaneous join triggers from sending duplicate server requests.",
+            ],
+        },
         {
             version: "5.1.9",
             changes: [
@@ -39845,12 +39818,6 @@
                     const results = data.Result;
                     if (!Array.isArray(results))
                         return;
-                    // DEV: one-shot dump of first in-room entry so we can see all available fields
-                    if (IS_DEV_BUILD) {
-                        const inRoom = results.find(r => typeof r.ChatRoomName === "string" && r.ChatRoomName);
-                        if (inRoom)
-                            console.log("[EBC] AccountQueryResult room entry keys:", Object.keys(inRoom), inRoom);
-                    }
                     for (const r of results) {
                         const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                         const name = typeof r.MemberName === "string" ? r.MemberName : null;
