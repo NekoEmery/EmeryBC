@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, setLeavePending } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11394,21 +11394,13 @@ export class EBCDrawer {
         const doJoinRoom = (rName: string): void => {
             try {
                 const w = window as unknown as Record<string, unknown>;
-                // BC's own join function handles leave/rejoin automatically in all versions
+                // BC's own join function handles leave/rejoin automatically.
                 const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
                 if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
-                // Fallback: manually leave any current room, then send join request.
-                // setLeavePending() arms the ChatRoomRun guard so the one-frame gap
-                // where ChatRoomData is null doesn't crash on MapData access.
-                if (w.CurrentScreen === "ChatRoom") {
-                    setLeavePending();
-                    try { ChatRoomLeave(); } catch { /* ignore */ }
-                    window.setTimeout(() => {
-                        try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
-                    }, 400);
-                } else {
-                    try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
-                }
+                // Direct join request — the server handles the implicit leave from any
+                // current room.  Skipping ChatRoomLeave() avoids the black screen that
+                // results from ChatRoomData being cleared before ChatRoomSync arrives.
+                try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
             } catch { /* ignore */ }
         };
 
