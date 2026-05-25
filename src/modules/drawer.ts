@@ -95,7 +95,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getCurrentRoomName } from "./bcUtils";
+import { callBC, syncSettings, getCurrentRoomName, setRoomSearchCallback } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -11476,8 +11476,6 @@ export class EBCDrawer {
         };
         // Cache: room name (lowercase) → raw search result entry
         const _roomSearchCache = new Map<string, Record<string, unknown>>();
-        let _searchHandler: ((data: unknown) => void) | null = null;
-
         /** Rebuild chips from a rich ChatRoomSearchResult entry. */
         const applySearchChips = (room: Record<string, unknown>): void => {
             roomDrawerChips.innerHTML = "";
@@ -11503,32 +11501,24 @@ export class EBCDrawer {
             if (room.Locked === true) addChip("🔐 Locked");
         };
 
-        /** Trigger a server room search to enrich the drawer. No-op if already cached. */
+        /** Trigger a server room search to enrich the drawer. No-op if already cached.
+         *  Uses the bcUtils hook relay (main.ts hooks ChatRoomSearchResult via modAPI)
+         *  instead of window.ServerSocket which is module-scoped in BC R128. */
         const enrichDrawerFromSearch = (rName: string): void => {
             const key = rName.toLowerCase();
             // Already have cached data → apply immediately
             const cached = _roomSearchCache.get(key);
             if (cached) { applySearchChips(cached); return; }
-            // Set up result listener
-            type EBCSock = { on(e: string, cb: (d: unknown) => void): void; off?(e: string, cb: (d: unknown) => void): void };
-            const sock = (window as unknown as Record<string, unknown>).ServerSocket as EBCSock | undefined;
-            if (!sock) return;
-            // Remove any stale pending handler first
-            if (_searchHandler) { sock.off?.("ChatRoomSearchResult", _searchHandler); _searchHandler = null; }
-            _searchHandler = (raw: unknown) => {
-                sock.off?.("ChatRoomSearchResult", _searchHandler!);
-                _searchHandler = null;
+            // Register a one-shot callback via bcUtils relay
+            setRoomSearchCallback((list) => {
                 try {
-                    const list = raw as Array<Record<string, unknown>>;
-                    if (!Array.isArray(list)) return;
                     const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
                     if (!match) return;
                     _roomSearchCache.set(key, match);
                     applySearchChips(match);
                 } catch { /* ignore */ }
-            };
-            sock.on("ChatRoomSearchResult", _searchHandler);
-            try { ServerSend("ChatRoomSearch", { Name: rName }); } catch { /* ignore */ }
+            });
+            try { ServerSend("ChatRoomSearch", { Query: rName }); } catch { /* ignore */ }
         };
         // ── end lazy enrichment ──────────────────────────────────────────────
 

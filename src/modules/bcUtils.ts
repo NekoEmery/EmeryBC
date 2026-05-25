@@ -153,6 +153,29 @@ export function syncAppearance(): void {
 // so rooms joined before EBC loaded are handled correctly.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Room search result relay
+//
+// BC R128 keeps ServerSocket module-scoped (not on window), so attaching
+// listeners via window.ServerSocket is unreliable.  Instead, main.ts hooks
+// the BC global ChatRoomSearchResult function and calls fireRoomSearchResult.
+// Any module (e.g. drawer.ts) can register a one-shot callback via
+// setRoomSearchCallback to receive the next result list.
+// ---------------------------------------------------------------------------
+
+type RoomSearchCb = (list: Array<Record<string, unknown>>) => void;
+let _roomSearchCb: RoomSearchCb | null = null;
+
+export function setRoomSearchCallback(cb: RoomSearchCb | null): void { _roomSearchCb = cb; }
+export function fireRoomSearchResult(list: Array<Record<string, unknown>>): void {
+    const cb = _roomSearchCb;
+    if (!cb) return;
+    _roomSearchCb = null; // auto-clear (one-shot)
+    try { cb(list); } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+
 let _currentRoomName = "";
 
 export function setCurrentRoomName(name: string): void { _currentRoomName = name; }

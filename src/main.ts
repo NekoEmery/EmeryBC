@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.2.3";
+const MOD_VERSION = "5.2.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.2.4",
+        changes: [
+            "Fix: room info drawer now correctly fetches player count, language, game type and privacy via ChatRoomSearch. The previous approach used window.ServerSocket which is module-scoped in BC R128 and not reliably accessible — replaced with a modAPI hook on ChatRoomSearchResult that relays results through bcUtils.",
+        ],
+    },
     {
         version: "5.2.3",
         changes: [
@@ -5958,6 +5964,17 @@ function init(): void {
         return next(args);
     });
 
+
+    // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
+    // enrich the room info chips without needing window.ServerSocket (which is
+    // module-scoped in BC R128 and not reliably accessible from window).
+    tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
+        try {
+            const list = args[0] as Array<Record<string, unknown>>;
+            if (Array.isArray(list)) fireRoomSearchResult(list);
+        } catch { /* ignore */ }
+        return next(args);
+    });
 
     // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
     // button, or the "reply" arrow in the chat room beep preview).  Those calls go
