@@ -170,6 +170,35 @@
             }
         }, 300);
     }
+    // ---------------------------------------------------------------------------
+    // Current room name tracker
+    //
+    // The 📍 invite button needs to know the player's current room name.
+    // Accessing window.ChatRoomData.Name is unreliable in newer BC versions where
+    // ChatRoomData may be module-scoped (not on window).  We track it ourselves
+    // via the ChatRoomSync hook (data is passed directly to the hook, no window
+    // lookup needed) and clear it on ChatRoomLeave.
+    //
+    // getCurrentRoomName() falls back to window.ChatRoomData?.Name on first call
+    // so rooms joined before EBC loaded are handled correctly.
+    // ---------------------------------------------------------------------------
+    let _currentRoomName = "";
+    function setCurrentRoomName(name) { _currentRoomName = name; }
+    function clearCurrentRoomName() { _currentRoomName = ""; }
+    function getCurrentRoomName() {
+        if (!_currentRoomName) {
+            // Lazy init: try window.ChatRoomData for rooms entered before EBC loaded.
+            try {
+                const w = window;
+                const cd = w.ChatRoomData;
+                if (cd && typeof cd.Name === "string" && cd.Name.trim()) {
+                    _currentRoomName = cd.Name.trim();
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        return _currentRoomName;
+    }
 
     // Expression presets and sequences — live expression picker + animated sequences.
     const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
@@ -24676,11 +24705,12 @@
             // Room invite button click handler — deferred here so renderHistory is in scope.
             // Dual-purpose: if the user is in a room → sends their room as an invite.
             // If the user is NOT in a room but the friend IS → joins the friend's room instead.
+            //
+            // getCurrentRoomName() tracks room name via ChatRoomSync (reliable across BC versions)
+            // with a fallback to window.ChatRoomData?.Name for rooms entered before EBC loaded.
             roomInviteBtn.addEventListener("click", () => {
                 var _a;
-                const w = window;
-                const cd = w.ChatRoomData;
-                const myRoom = (cd && typeof cd.Name === "string" ? cd.Name : "").trim();
+                const myRoom = getCurrentRoomName();
                 if (myRoom) {
                     // In a room — send invite to the other person
                     sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
@@ -24689,9 +24719,12 @@
                     window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                 }
                 else {
-                    // Not in a room — shortcut: join their room if they have one
+                    // Not in a room — shortcut: join their room if they have one.
+                    // Guard: if friend status is "room" they're already with us, so we ARE
+                    // in a room but room name detection hasn't populated yet — don't try to join.
                     const friendRoom = (_a = getFriendOnlineInfo(memberNumber)) === null || _a === void 0 ? void 0 : _a.roomName;
-                    if (friendRoom) {
+                    const friendStatus = getFriendStatus(memberNumber);
+                    if (friendRoom && friendStatus !== "room") {
                         doJoinRoom(friendRoom);
                         roomInviteBtn.textContent = "→";
                         window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
@@ -33764,7 +33797,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.1.8";
+    const MOD_VERSION = "5.1.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33775,6 +33808,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.1.9",
+            changes: [
+                "Fix: 📍 room invite button now reliably detects the current room name. Previously used window.ChatRoomData.Name which is unreliable in newer BC versions where ChatRoomData may be module-scoped. EBC now tracks the room name directly from the ChatRoomSync hook payload and clears it on ChatRoomLeave.",
+                "Fix: clicking 📍 on a friend in your own room no longer triggers 'ResponseAlreadyInRoom' — the join-their-room path is now guarded against running when the friend is already in the same room as you.",
+            ],
+        },
         {
             version: "5.1.8",
             changes: [
@@ -39500,6 +39540,11 @@
             const copies = [];
             try {
                 const [data] = args;
+                // Track current room name — more reliable than window.ChatRoomData?.Name
+                // because ChatRoomSync passes data directly to hooks (no window lookup).
+                const rName = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name.trim() : "";
+                if (rName)
+                    setCurrentRoomName(rName);
                 const chars = data === null || data === void 0 ? void 0 : data.Character;
                 if (Array.isArray(chars)) {
                     for (const c of chars) {
@@ -39614,18 +39659,22 @@
         tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
             const result = next(args);
             try {
-                timerOnRoomLeave();
+                clearCurrentRoomName();
             }
             catch ( /* ignore */_a) { /* ignore */ }
             try {
-                onRoomLeave();
+                timerOnRoomLeave();
             }
             catch ( /* ignore */_b) { /* ignore */ }
+            try {
+                onRoomLeave();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 setBadgeDragMode(false);
                 _dragTarget = null;
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.
