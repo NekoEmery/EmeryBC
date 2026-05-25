@@ -116,15 +116,26 @@ export function syncSettings(): void {
 }
 
 // Debounced appearance broadcast — collapses rapid expression chip clicks into
-// one ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair fired 300 ms
-// after the last change. CharacterRefresh (local canvas refresh) still fires
-// immediately; only the server round-trips are deferred.
+// one ChatRoomCharacterUpdate fired 300 ms after the last change.
+// CharacterRefresh (local canvas refresh) still fires immediately; only the
+// server round-trip is deferred.
+//
+// ServerPlayerAppearanceSync is only sent outside a chat room (e.g. wardrobe).
+// In a room, ChatRoomCharacterUpdate already handles the room broadcast AND the
+// server-side appearance save.  Calling both inside a room is redundant and
+// doubles EBC's server traffic — other addons (WCE etc.) may also react to
+// ChatRoomCharacterUpdate and send their own syncs on top, compounding the issue.
 let _appearTimer: ReturnType<typeof setTimeout> | null = null;
 export function syncAppearance(): void {
     if (_appearTimer !== null) clearTimeout(_appearTimer);
     _appearTimer = setTimeout(() => {
         _appearTimer = null;
         try { callBC(() => ChatRoomCharacterUpdate(Player)); } catch { /* ignore */ }
-        try { callBC(() => ServerPlayerAppearanceSync()); } catch { /* ignore */ }
+        // Only sync via ServerPlayerAppearanceSync when outside a room — in a room
+        // ChatRoomCharacterUpdate already persists the appearance server-side.
+        const screen = (window as unknown as Record<string, unknown>).CurrentScreen;
+        if (typeof screen !== "string" || screen !== "ChatRoom") {
+            try { callBC(() => ServerPlayerAppearanceSync()); } catch { /* ignore */ }
+        }
     }, 300);
 }

@@ -102,7 +102,11 @@ export function getExprGroupOptions(group: string): string[] {
 // Uses CharacterSetFacialExpression (BC's proper API) if available,
 // otherwise falls back to direct Appearance manipulation.
 
-export function applyExprGroup(group: string, exprName: string | null): void {
+// noSync = true: skip the CharacterRefresh + syncAppearance call after setting the expression.
+// Use this when applying a batch of groups (e.g. a full preset) so the caller can issue
+// one refresh + one server sync after ALL groups are set, instead of one per group.
+// That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
+export function applyExprGroup(group: string, exprName: string | null, noSync = false): void {
     try {
         // Prefer BC's official API — omit optional Timer/Color args entirely so BC
         // uses its own defaults (no timer = keep expression; no colour override).
@@ -147,9 +151,19 @@ export function applyExprGroup(group: string, exprName: string | null): void {
                 }
             }
         }
-        callBC(() => CharacterRefresh(Player, false));
-        syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+        if (!noSync) {
+            callBC(() => CharacterRefresh(Player, false));
+            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+        }
     } catch { /* ignore */ }
+}
+
+// Clear all expression groups in one batch: one CharacterRefresh + one server sync total.
+// Use this instead of looping applyExprGroup(g, null) without noSync.
+export function clearAllExprGroups(): void {
+    for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null, true); } catch { /* ignore */ } }
+    try { callBC(() => CharacterRefresh(Player, false)); } catch { /* ignore */ }
+    syncAppearance();
 }
 
 // -- Presets (saved full-face snapshots for quick-apply) -----------------------
@@ -192,13 +206,18 @@ export function captureCurrentExpression(name: string): ExpressionPreset {
 }
 
 export function applyExpressionPreset(preset: ExpressionPreset): void {
+    // Apply all groups with noSync=true, then do ONE CharacterRefresh + ONE server sync.
+    // Previously each applyExprGroup call did its own refresh, causing 8× CharacterRefresh
+    // chain traversals per preset (8 chances for WCE/BCX hooks to react and re-sync).
     try {
         for (const [group, entry] of Object.entries(preset.groups)) {
             try {
-                applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null, true);
             } catch { /* skip group */ }
         }
     } catch { /* ignore */ }
+    try { callBC(() => CharacterRefresh(Player, false)); } catch { /* ignore */ }
+    syncAppearance();
 }
 
 // -- Sequences -----------------------------------------------------------------
@@ -337,12 +356,10 @@ export function applyExprPresetWithRevert(presetId: string, revertMs: number): v
             const defaultId = getDefaultExprPresetId();
             if (defaultId) {
                 const defPreset = getExpressionPresets().find(p => p.id === defaultId);
-                if (defPreset) { applyExpressionPreset(defPreset); return; }
+                if (defPreset) { applyExpressionPreset(defPreset); return; } // already batched
             }
-            // No default — clear all expression groups back to neutral
-            for (const g of EXPR_GROUPS) {
-                try { applyExprGroup(g, null); } catch { /* ignore */ }
-            }
+            // No default — clear all expression groups back to neutral (batched)
+            clearAllExprGroups();
         }, revertMs);
     }
 }
@@ -380,20 +397,23 @@ export function playExpressionSequence(seq: ExpressionSequence, onDone?: () => v
         const step = seq.steps[i];
         try {
             if (step.reset) {
-                // Apply the default face preset, or clear all groups if none is set
+                // Apply the default face preset (already batched), or clear all groups in one batch.
                 const defaultId = getDefaultExprPresetId();
                 if (defaultId) {
                     const defPreset = getExpressionPresets().find(p => p.id === defaultId);
-                    if (defPreset) { applyExpressionPreset(defPreset); }
-                    else { for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } } }
+                    if (defPreset) { applyExpressionPreset(defPreset); } // batched — one refresh+sync
+                    else { clearAllExprGroups(); }
                 } else {
-                    for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
+                    clearAllExprGroups();
                 }
             } else {
+                // Apply all groups in this step with noSync, then one refresh + one sync for the step.
                 const groups = step.groups ?? {};
                 for (const [group, name] of Object.entries(groups)) {
-                    try { applyExprGroup(group, name ?? null); } catch { /* skip */ }
+                    try { applyExprGroup(group, name ?? null, true); } catch { /* skip */ }
                 }
+                try { callBC(() => CharacterRefresh(Player, false)); } catch { /* ignore */ }
+                syncAppearance();
             }
         } catch { /* ignore */ }
         i++;

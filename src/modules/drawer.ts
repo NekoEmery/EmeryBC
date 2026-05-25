@@ -135,7 +135,7 @@ import {
 } from "./kitty";
 import {
     EXPR_GROUPS, EXPR_GROUP_LABELS,
-    applyExprGroup, getExprGroupOptions,
+    applyExprGroup, clearAllExprGroups, getExprGroupOptions,
     getExpressionPresets, saveExpressionPresets,
     captureCurrentExpression, applyExpressionPreset,
     getDefaultExprPresetId, setDefaultExprPresetId,
@@ -18143,8 +18143,8 @@ export class EBCDrawer {
                 const def = getExpressionPresets().find(p => p.id === defaultId);
                 if (def) { applyExpressionPreset(def); this.rerender(150); return; }
             }
-            // No default set — clear all groups back to neutral
-            for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
+            // No default set — clear all groups back to neutral (batched: one refresh+sync)
+            clearAllExprGroups();
             this.rerender(150);
         });
         body.appendChild(clearAllBtn);

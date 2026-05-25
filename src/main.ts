@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.9.1";
+const MOD_VERSION = "4.9.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.9.2",
+        changes: [
+            "Fix: expression changes no longer cause rate-limit timeouts when WCE is also running. Previously applyExprGroup called CharacterRefresh + a server sync for each expression group individually — applying an 8-group preset traversed the full hook chain 8 times, giving WCE 8 opportunities to react and re-sync. All batch callers (presets, sequences, clear-all) now use noSync=true per group and do one CharacterRefresh + one server sync at the end.",
+            "Fix: syncAppearance no longer calls ServerPlayerAppearanceSync when already in a chat room. ChatRoomCharacterUpdate already handles both the room broadcast and server-side persistence in that context; the extra call was doubling EBC's server traffic and compounding any WCE reaction on ChatRoomCharacterUpdate.",
+            "Fix: emote shortcut (*text) now has a 500 ms dedup guard to prevent double-sends if BC's event propagation routes the same keypress through more than one of EBC's three intercept paths.",
+        ],
+    },
     {
         version: "4.9.1",
         changes: [
@@ -5867,10 +5875,20 @@ function init(): void {
     // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
     // Typing *text (or * text) in the chat box sends a BC Emote message so it
     // renders as *Name text* in chat without going through gag processing.
+    // Prevent double-fire: EBC handles emote shortcuts from three code paths
+    // (document capture, ChatRoomKeyDown hook, ChatRoomSendChat hook) as a belt-
+    // and-suspenders strategy. The capture path calls stopImmediatePropagation()
+    // which should prevent the hook paths from seeing the same keypress, but
+    // certain BC builds or other addons can reorder event handling. This timestamp
+    // guard ensures the ServerSend fires at most once per 500 ms regardless.
+    let _lastEmoteSendTime = 0;
     const handleEmoteShortcut = (raw: string): boolean => {
         if (!raw.startsWith("*")) return false;
         const body = raw.slice(1).replace(/^\s+/, "");
         if (!body) return false; // bare * alone — ignore
+        const now = Date.now();
+        if (now - _lastEmoteSendTime < 500) return true; // already sent — swallow without re-send
+        _lastEmoteSendTime = now;
         try {
             ServerSend("ChatRoomChat", {
                 Type: "Emote",
