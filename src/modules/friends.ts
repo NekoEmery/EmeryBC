@@ -116,13 +116,17 @@ export function getFriendList(): number[] {
     } catch { return []; }
 }
 
-// BC R128 AccountQueryResult (Query: "OnlineFriends") only sends:
-//   Type (relationship type = "Friend"), MemberNumber, MemberName,
-//   ChatRoomSpace, ChatRoomName
-// Privacy, lock state, full state, language, game and count are NOT provided.
+// BC AccountQueryResult (Query: "OnlineFriends") sends per entry:
+//   Type, MemberNumber, MemberName,
+//   ChatRoomSpace  — room space if public room, null otherwise
+//   ChatRoomName   — room name if public room, null otherwise
+//   Private        — true if friend is in a private/restricted room, undefined otherwise
+// Both ChatRoomName and ChatRoomSpace are null for BOTH private rooms and lobby,
+// so the Private field is the only reliable way to distinguish the two.
 export interface FriendOnlineInfo {
-    roomName?: string;
-    roomSpace?: string;
+    roomName?: string;   // non-empty = public room name; undefined = private or lobby
+    roomSpace?: string;  // non-empty = public room space; undefined = private or lobby
+    isPrivate?: boolean; // true = friend is in a private/restricted room
 }
 
 // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
@@ -163,6 +167,7 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
         onlineInfo.set(n, {
             roomName:  typeof r.ChatRoomName  === "string" ? r.ChatRoomName  : undefined,
             roomSpace: typeof r.ChatRoomSpace === "string" ? r.ChatRoomSpace : undefined,
+            isPrivate: r.Private === true,
         });
     }
     // Record last-seen for anyone who just went offline — batched into a single

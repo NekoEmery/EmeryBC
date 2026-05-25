@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.3";
+const MOD_VERSION = "5.4.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "5.4.4",
+        changes: [
+            "Fix: private room detection now reads the dedicated Private field from BC's AccountQueryResult — the server sets Private: true for friends in private/restricted rooms and omits it for lobby. Both ChatRoomName and ChatRoomSpace are null for both private rooms and lobby, so this is the only reliable signal.",
+        ],
+    },
+    {
         version: "5.4.3",
         changes: [
-            "Fix: private room detection now uses ChatRoomSpace presence as the reliable indicator — BC omits ChatRoomName for private rooms but still sends ChatRoomSpace (even as empty string) when a friend is in any room. Friends with no visible room name but a present ChatRoomSpace field now correctly show 'Private room'; friends with both fields absent are in the lobby and show no tag.",
+            "Fix: attempted private room detection via ChatRoomSpace presence — this was also unreliable as the server sends null for both fields in private rooms and lobby (superseded by 5.4.4).",
         ],
     },
     {
