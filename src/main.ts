@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.3.0";
+const MOD_VERSION = "5.3.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.3.1",
+        changes: [
+            "Fix: friends in private rooms now show a 'Private room' tag in the Users list instead of just 'online'.",
+            "Fix: the room bar in beep windows now shows '📍 Private room' (with space chip, Join button hidden) for friends in private rooms — previously the bar was hidden entirely.",
+            "Fix: name labels in the beep window no longer show gradient for regular EBC users who happened to share a room at some point during the session — gradient is now reserved for self and VIP/Credits members only.",
+            "Fix: room info chip enrichment now retries at 1.5 s, 3 s, and 5 s instead of a single 2 s poll, covering slower server round-trips.",
+        ],
+    },
     {
         version: "5.3.0",
         changes: [

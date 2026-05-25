@@ -170,17 +170,18 @@
             }
         }, 300);
     }
-    // ---------------------------------------------------------------------------
-    // Current room name tracker
-    //
-    // The 📍 invite button needs to know the player's current room name.
-    // Accessing window.ChatRoomData.Name is unreliable in newer BC versions where
-    // ChatRoomData may be module-scoped (not on window).  We track it ourselves
-    // via the ChatRoomSync hook (data is passed directly to the hook, no window
-    // lookup needed) and clear it on ChatRoomLeave.
-    //
-    // getCurrentRoomName() falls back to window.ChatRoomData?.Name on first call
-    // so rooms joined before EBC loaded are handled correctly.
+    let _roomSearchCb = null;
+    function setRoomSearchCallback(cb) { _roomSearchCb = cb; }
+    function fireRoomSearchResult(list) {
+        const cb = _roomSearchCb;
+        if (!cb)
+            return;
+        _roomSearchCb = null; // auto-clear (one-shot)
+        try {
+            cb(list);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // ---------------------------------------------------------------------------
     let _currentRoomName = "";
     function setCurrentRoomName(name) { _currentRoomName = name; }
@@ -11266,6 +11267,8 @@
         // These render as hollow squares (□) in most fonts.
         msg = msg.replace(/[-][\s\S]*$/, "").trim();
         msg = msg.replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF][\s\S]*$/, "").trim();
+        // Pass 3 — strip EBC group routing tags.
+        msg = msg.replace(/\n\[EBC Group "[^"]*" #[a-z0-9]{6}\]$/, "").trim();
         return msg;
     }
     let syncTimer = null;
@@ -11743,6 +11746,51 @@
             message,
             ts: Date.now(),
         });
+    }
+    // In-session group message history (not persisted — groups definitions are)
+    const _groupHistory = new Map();
+    const GROUP_TAG_RE = /\n\[EBC Group "([^"]*)" #([a-z0-9]{6})\]$/;
+    function makeGroupId() {
+        return Math.random().toString(36).slice(2, 8).padEnd(6, "0");
+    }
+    function encodeGroupTag(id, name) {
+        const safe = name.replace(/"/g, "'").slice(0, 24);
+        return `\n[EBC Group "${safe}" #${id}]`;
+    }
+    /** Returns null if the message contains no group tag.
+     *  Otherwise returns the parsed group id/name and the clean message body. */
+    function extractGroupTag(raw) {
+        const m = GROUP_TAG_RE.exec(raw);
+        if (!m)
+            return null;
+        return { name: m[1], id: m[2], body: raw.slice(0, m.index).trim() };
+    }
+    function getGroups() {
+        try {
+            const d = getSettings().groups;
+            if (Array.isArray(d))
+                return d;
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return [];
+    }
+    function saveGroups(groups) {
+        getSettings().groups = groups;
+        syncSettings();
+    }
+    function addGroupBeepEntry(groupId, entry) {
+        let arr = _groupHistory.get(groupId);
+        if (!arr) {
+            arr = [];
+            _groupHistory.set(groupId, arr);
+        }
+        arr.push(entry);
+        if (arr.length > 200)
+            arr.splice(0, arr.length - 200);
+    }
+    function getGroupHistory(groupId) {
+        var _a;
+        return (_a = _groupHistory.get(groupId)) !== null && _a !== void 0 ? _a : [];
     }
 
     // DevLog — circular buffer of recent ChatRoomMessage events.
@@ -16905,6 +16953,7 @@
             this.refreshConfirmToggle = null;
             this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
+            this.groupWins = new Map();
             this.beepUnread = new Map();
             this.expandedFriends = new Set();
             this.friendsSectionEl = null;
@@ -24350,7 +24399,6 @@
             };
             // Cache: room name (lowercase) → raw search result entry
             const _roomSearchCache = new Map();
-            let _searchHandler = null;
             /** Rebuild chips from a rich ChatRoomSearchResult entry. */
             const applySearchChips = (room) => {
                 var _a;
@@ -24382,9 +24430,10 @@
                 if (room.Locked === true)
                     addChip("🔐 Locked");
             };
-            /** Trigger a server room search to enrich the drawer. No-op if already cached. */
+            /** Trigger a server room search to enrich the drawer. No-op if already cached.
+             *  Uses the bcUtils hook relay (main.ts hooks ChatRoomSearchResult via modAPI)
+             *  instead of window.ServerSocket which is module-scoped in BC R128. */
             const enrichDrawerFromSearch = (rName) => {
-                var _a;
                 const key = rName.toLowerCase();
                 // Already have cached data → apply immediately
                 const cached = _roomSearchCache.get(key);
@@ -24392,35 +24441,45 @@
                     applySearchChips(cached);
                     return;
                 }
-                const sock = window.ServerSocket;
-                if (!sock)
-                    return;
-                // Remove any stale pending handler first
-                if (_searchHandler) {
-                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
-                    _searchHandler = null;
-                }
-                _searchHandler = (raw) => {
-                    var _a;
-                    (_a = sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", _searchHandler);
-                    _searchHandler = null;
-                    try {
-                        const list = raw;
-                        if (!Array.isArray(list))
-                            return;
-                        const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
-                        if (!match)
-                            return;
-                        _roomSearchCache.set(key, match);
-                        applySearchChips(match);
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                const tryApply = (list) => {
+                    const match = list.find(r => typeof r.Name === "string" && r.Name.toLowerCase() === key);
+                    if (!match)
+                        return false;
+                    _roomSearchCache.set(key, match);
+                    applySearchChips(match);
+                    return true;
                 };
-                sock.on("ChatRoomSearchResult", _searchHandler);
-                try {
-                    ServerSend("ChatRoomSearch", { Name: rName });
+                // Fast path: hook relay (works if main.ts ChatRoomSearchResult hook succeeds)
+                setRoomSearchCallback((list) => { try {
+                    tryApply(list);
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ } });
+                try {
+                    ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                // Fallback: poll window.ChatRoomList at 1.5 s, 3 s, and 5 s.
+                // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
+                // but BC stores the latest search results in window.ChatRoomList after the
+                // socket response arrives.  Three polls cover server round-trip variance.
+                const pollChatRoomList = (delay, finalAttempt) => {
+                    window.setTimeout(() => {
+                        if (_roomSearchCache.has(key))
+                            return; // already applied
+                        if (finalAttempt)
+                            setRoomSearchCallback(null); // cancel stale hook callback
+                        try {
+                            const w = window;
+                            const list = w.ChatRoomList;
+                            if (Array.isArray(list))
+                                tryApply(list);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, delay);
+                };
+                pollChatRoomList(1500, false);
+                pollChatRoomList(3000, false);
+                pollChatRoomList(5000, true); // final attempt — cancel stale callback
             };
             // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
@@ -24453,7 +24512,7 @@
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
-                var _a;
+                var _a, _b;
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
@@ -24463,6 +24522,7 @@
                     roomBar.title = "Hover for room info";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
+                    roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
                     // Rebuild chips: use cached search data if available, else basic space chip
                     const cached = _roomSearchCache.get(info.roomName.toLowerCase());
                     if (cached) {
@@ -24477,6 +24537,19 @@
                             roomDrawerChips.appendChild(c);
                         }
                     }
+                }
+                else if (info === null || info === void 0 ? void 0 : info.roomSpace) {
+                    // Private room: BC hides the name but reports the space.
+                    roomBar.textContent = "📍 Private room";
+                    roomBar.title = "Friend is in a private room";
+                    roomBar.style.display = "";
+                    roomDrawer.style.display = "";
+                    roomDrawerJoin.style.display = "none"; // can't join by name
+                    roomDrawerChips.innerHTML = "";
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
+                    roomDrawerChips.appendChild(c);
                 }
                 else {
                     // Friend left the room — clear the search cache for the old room
@@ -24675,13 +24748,12 @@
                         : resolveName(bubbleMember);
                     nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
                     nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
-                    // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
-                    // Fall back to solid colour for non-EBC senders.
+                    // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                     const vipEntry = VIP_MEMBERS[bubbleMember];
                     if (vipEntry) {
                         applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
                     }
-                    else if (bubbleMember === self || getEBCVersion(bubbleMember) !== null) {
+                    else if (bubbleMember === self) {
                         applyGradientText(nameLabel, "#cf6f98", "#8090d0");
                     }
                     else {
@@ -24747,7 +24819,14 @@
                                 const joinBtn = document.createElement("button");
                                 joinBtn.className = "ebc-beep-room-invite-join";
                                 joinBtn.textContent = "Join →";
-                                joinBtn.addEventListener("click", () => { doJoinRoom(rName); });
+                                joinBtn.addEventListener("click", () => {
+                                    if (getCurrentRoomName().toLowerCase() === rName.toLowerCase()) {
+                                        joinBtn.textContent = "Already here ✓";
+                                        window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                        return;
+                                    }
+                                    doJoinRoom(rName);
+                                });
                                 const denyBtn = document.createElement("button");
                                 denyBtn.className = "ebc-beep-room-invite-deny";
                                 denyBtn.textContent = "Decline";
@@ -25070,6 +25149,257 @@
                 toast.addEventListener("click", () => clearTimeout(timer), { once: true });
             }
             catch ( /* ignore */_a) { /* ignore */ }
+        }
+        // -- Group chat windows ----------------------------------------------------
+        onIncomingGroupBeep(groupId, groupName, fromNum) {
+            const entry = this.groupWins.get(groupId);
+            if (entry) {
+                const fn = entry.el._refresh;
+                try {
+                    fn === null || fn === void 0 ? void 0 : fn();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            try {
+                this.showGroupBeepToast(groupId, groupName, fromNum);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        showGroupBeepToast(groupId, groupName, fromNum) {
+            var _a;
+            try {
+                const entries = getGroupHistory(groupId);
+                const last = entries[entries.length - 1];
+                const preview = ((_a = last === null || last === void 0 ? void 0 : last.message) !== null && _a !== void 0 ? _a : "").slice(0, 80) || "…";
+                const senderName = resolveName(fromNum);
+                const toast = document.createElement("div");
+                toast.className = "ebc-toast";
+                const hdr = document.createElement("div");
+                hdr.className = "ebc-toast-header";
+                const ico = document.createElement("span");
+                ico.className = "ebc-toast-icon";
+                ico.textContent = "👥";
+                const nm = document.createElement("span");
+                nm.className = "ebc-toast-name";
+                nm.textContent = `${groupName} · ${senderName}`;
+                hdr.appendChild(ico);
+                hdr.appendChild(nm);
+                const body = document.createElement("div");
+                body.className = "ebc-toast-body";
+                body.textContent = preview;
+                toast.appendChild(hdr);
+                toast.appendChild(body);
+                toast.addEventListener("click", () => {
+                    const grp = getGroups().find(g => g.id === groupId);
+                    if (grp) {
+                        try {
+                            this.openGroupWindow(grp);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }
+                    dismiss();
+                });
+                document.body.appendChild(toast);
+                const existing = document.querySelectorAll(".ebc-toast");
+                let offset = 0;
+                existing.forEach(t => { if (t !== toast)
+                    offset += (t.offsetHeight || 72) + 8; });
+                if (offset > 0)
+                    toast.style.bottom = `${24 + offset}px`;
+                let gone = false;
+                const dismiss = () => {
+                    if (gone)
+                        return;
+                    gone = true;
+                    toast.classList.add("ebc-toast-out");
+                    setTimeout(() => toast.remove(), 320);
+                };
+                const timer = setTimeout(dismiss, 5000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        openGroupWindow(group) {
+            var _a;
+            const existing = this.groupWins.get(group.id);
+            if (existing) {
+                existing.el.style.display = "";
+                const restore = existing.el._restore;
+                restore === null || restore === void 0 ? void 0 : restore();
+                const refresh = existing.el._refresh;
+                refresh === null || refresh === void 0 ? void 0 : refresh();
+                return;
+            }
+            const offset = (this.beepWins.size + this.groupWins.size) * 28;
+            const win = document.createElement("div");
+            win.className = "ebc-beep-win";
+            win.style.bottom = `${80 + offset}px`;
+            win.style.right = `${340 + offset}px`;
+            this.groupWins.set(group.id, { el: win, minimized: false });
+            // Drag
+            const header = document.createElement("div");
+            header.className = "ebc-beep-win-header";
+            let isDrag = false, dragOX = 0, dragOY = 0;
+            header.addEventListener("mousedown", (e) => {
+                if (e.target.closest("button"))
+                    return;
+                isDrag = true;
+                const r = win.getBoundingClientRect();
+                dragOX = e.clientX - r.left;
+                dragOY = e.clientY - r.top;
+                e.preventDefault();
+            });
+            const onMove = (e) => {
+                if (!isDrag)
+                    return;
+                win.style.left = `${e.clientX - dragOX}px`;
+                win.style.top = `${e.clientY - dragOY}px`;
+                win.style.right = "";
+                win.style.bottom = "";
+            };
+            const onUp = () => { isDrag = false; };
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+            // Title area
+            const titleWrap = document.createElement("div");
+            titleWrap.style.cssText = "flex:1;min-width:0;overflow:hidden;";
+            const nameEl = document.createElement("span");
+            nameEl.className = "ebc-beep-win-name";
+            nameEl.textContent = group.name;
+            const subEl = document.createElement("div");
+            subEl.style.cssText = "font-size:9px;color:#6a4858;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+            subEl.textContent = `👥 ${group.members.length} member${group.members.length !== 1 ? "s" : ""} · EBC users only`;
+            titleWrap.appendChild(nameEl);
+            titleWrap.appendChild(subEl);
+            const minBtn = document.createElement("button");
+            minBtn.className = "ebc-beep-win-hbtn";
+            minBtn.textContent = "–";
+            minBtn.title = "Minimize";
+            const closeBtn = document.createElement("button");
+            closeBtn.className = "ebc-beep-win-hbtn";
+            closeBtn.textContent = "✕";
+            closeBtn.title = "Close";
+            header.appendChild(titleWrap);
+            header.appendChild(minBtn);
+            header.appendChild(closeBtn);
+            // History
+            const history = document.createElement("div");
+            history.className = "ebc-beep-history";
+            const IMG_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+            const myNum = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const renderGroupHistory = () => {
+                var _a;
+                while (history.firstChild)
+                    history.removeChild(history.firstChild);
+                const spacer = document.createElement("div");
+                spacer.style.cssText = "flex:1;min-height:0;";
+                history.appendChild(spacer);
+                const entries = getGroupHistory(group.id);
+                const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                for (const entry of entries) {
+                    const isSelf = entry.from === myNum || entry.from === 0;
+                    const wrap = document.createElement("div");
+                    wrap.className = `ebc-beep-wrap ${isSelf ? "sent" : "received"}`;
+                    const bubble = document.createElement("div");
+                    bubble.className = "ebc-beep-bubble";
+                    if (!isSelf) {
+                        const senderEl = document.createElement("div");
+                        senderEl.style.cssText = "font-size:9px;color:#9a7080;margin-bottom:2px;font-weight:bold;";
+                        senderEl.textContent = resolveName(entry.from);
+                        bubble.appendChild(senderEl);
+                    }
+                    const d = new Date(entry.ts);
+                    const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                    const now = new Date();
+                    const isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                    const tsEl = document.createElement("div");
+                    tsEl.className = "ebc-beep-ts";
+                    tsEl.textContent = isToday ? timeStr : `${d.getDate()} ${MONTHS[d.getMonth()]} · ${timeStr}`;
+                    bubble.appendChild(tsEl);
+                    const textEl = document.createElement("div");
+                    textEl.textContent = entry.message;
+                    bubble.appendChild(textEl);
+                    const imgUrl = (_a = IMG_RE.exec(entry.message)) === null || _a === void 0 ? void 0 : _a[0];
+                    if (imgUrl) {
+                        const img = document.createElement("img");
+                        img.className = "ebc-beep-img";
+                        img.src = imgUrl;
+                        img.alt = "image";
+                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                        img.addEventListener("error", () => { img.style.display = "none"; });
+                        bubble.appendChild(img);
+                    }
+                    wrap.appendChild(bubble);
+                    history.appendChild(wrap);
+                }
+                requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+            };
+            win._refresh = renderGroupHistory;
+            // Input
+            const inputRow = document.createElement("div");
+            inputRow.className = "ebc-beep-input-row";
+            const input = document.createElement("textarea");
+            input.className = "ebc-beep-win-input";
+            input.placeholder = "Message group…";
+            input.rows = 1;
+            const sendBtn = document.createElement("button");
+            sendBtn.className = "ebc-beep-send";
+            sendBtn.textContent = "Send";
+            const doSend = () => {
+                const text = input.value.trim();
+                if (!text)
+                    return;
+                input.value = "";
+                input.style.height = "auto";
+                addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
+                const tag = encodeGroupTag(group.id, group.name);
+                for (const m of group.members) {
+                    try {
+                        sendBeep(m, `${text}${tag}`);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+                renderGroupHistory();
+            };
+            sendBtn.addEventListener("click", doSend);
+            input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                doSend();
+            } });
+            input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 80)}px`; });
+            inputRow.appendChild(input);
+            inputRow.appendChild(sendBtn);
+            // Minimize / restore / close
+            minBtn.addEventListener("click", () => {
+                const e = this.groupWins.get(group.id);
+                if (!e)
+                    return;
+                e.minimized = !e.minimized;
+                win.classList.toggle("minimized", e.minimized);
+                minBtn.textContent = e.minimized ? "▲" : "–";
+                minBtn.title = e.minimized ? "Restore" : "Minimize";
+            });
+            win._restore = () => {
+                const e = this.groupWins.get(group.id);
+                if (e) {
+                    e.minimized = false;
+                    win.classList.remove("minimized");
+                    minBtn.textContent = "–";
+                    minBtn.title = "Minimize";
+                }
+            };
+            closeBtn.addEventListener("click", () => {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+                win.remove();
+                this.groupWins.delete(group.id);
+            });
+            win.appendChild(header);
+            win.appendChild(history);
+            win.appendChild(inputRow);
+            document.body.appendChild(win);
+            renderGroupHistory();
+            input.focus();
         }
         // -- Notes tab -------------------------------------------------------------
         /**
@@ -25969,15 +26299,17 @@
                     let roomTagEl = null;
                     if (info) {
                         const roomName = info.roomName;
+                        const isPrivate = !roomName && !!info.roomSpace;
                         // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
                         // just show the room name with a neutral green "in a room" colour.
-                        const bg = roomName ? "#081a10" : "#1e0d1a";
-                        const color = roomName ? "#70c890" : "#c08898";
-                        const border = roomName ? "#1a5a30" : "#3a1928";
-                        const label = roomName !== null && roomName !== void 0 ? roomName : "online";
+                        // Private rooms show a muted tag rather than just "online".
+                        const bg = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
+                        const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
+                        const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
+                        const label = roomName ? roomName : isPrivate ? "Private room" : "online";
                         roomTagEl = document.createElement("span");
                         roomTagEl.textContent = label;
-                        roomTagEl.title = roomName ? roomName : "Online";
+                        roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -26653,6 +26985,145 @@
                     }
                 }
             }
+            // ── Groups ───────────────────────────────────────────────────────────
+            const grpSec = document.createElement("div");
+            grpSec.style.cssText = "margin-top:10px;";
+            const grpHeader = document.createElement("div");
+            grpHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:3px 0 4px;border-top:1px solid rgba(90,30,50,0.4);";
+            const grpTitleEl = document.createElement("span");
+            grpTitleEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#6a4858;letter-spacing:0.05em;";
+            const refreshGrpTitle = () => {
+                grpTitleEl.textContent = `💬 GROUPS (${getGroups().length})`;
+            };
+            refreshGrpTitle();
+            const grpNewBtn = document.createElement("button");
+            grpNewBtn.textContent = "+";
+            grpNewBtn.title = "Create a new group chat";
+            grpNewBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;font-weight:bold;color:#8a6070;padding:0 2px;line-height:1;";
+            grpNewBtn.addEventListener("mouseenter", () => { grpNewBtn.style.color = "#cf6f98"; });
+            grpNewBtn.addEventListener("mouseleave", () => { grpNewBtn.style.color = "#8a6070"; });
+            grpHeader.appendChild(grpTitleEl);
+            grpHeader.appendChild(grpNewBtn);
+            grpSec.appendChild(grpHeader);
+            const grpListEl = document.createElement("div");
+            const buildGrpRows = () => {
+                grpListEl.innerHTML = "";
+                const groups = getGroups();
+                if (groups.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#3a2030;text-align:center;padding:4px 0;";
+                    empty.textContent = "No groups yet";
+                    grpListEl.appendChild(empty);
+                    return;
+                }
+                for (const g of groups) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
+                    const nameBtn = document.createElement("button");
+                    nameBtn.style.cssText = "flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;color:#c090a8;padding:2px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameBtn.textContent = `${g.name}  (${g.members.length})`;
+                    nameBtn.title = `Open: ${g.name}`;
+                    nameBtn.addEventListener("click", () => { try {
+                        this.openGroupWindow(g);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } });
+                    nameBtn.addEventListener("mouseenter", () => { nameBtn.style.background = "rgba(207,111,152,0.12)"; nameBtn.style.color = "#e0b0c8"; });
+                    nameBtn.addEventListener("mouseleave", () => { nameBtn.style.background = "none"; nameBtn.style.color = "#c090a8"; });
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "✕";
+                    delBtn.title = "Delete group";
+                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:10px;color:#4a2838;padding:1px 3px;border-radius:3px;flex-shrink:0;";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getGroups().filter(x => x.id !== g.id);
+                        saveGroups(updated);
+                        buildGrpRows();
+                        refreshGrpTitle();
+                    });
+                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#cf6f98"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#4a2838"; });
+                    row.appendChild(nameBtn);
+                    row.appendChild(delBtn);
+                    grpListEl.appendChild(row);
+                }
+            };
+            buildGrpRows();
+            grpSec.appendChild(grpListEl);
+            // ── Create-group form ─────────────────────────────────────────────────
+            let grpFormVisible = false;
+            const grpForm = document.createElement("div");
+            grpForm.style.cssText = "display:none;padding:5px 0 3px;";
+            const grpNameInput = document.createElement("input");
+            grpNameInput.type = "text";
+            grpNameInput.placeholder = "Group name…";
+            grpNameInput.maxLength = 24;
+            grpNameInput.style.cssText = "width:100%;box-sizing:border-box;background:#120810;border:1px solid #3a1028;border-radius:4px;color:#e0b0c8;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;margin-bottom:5px;outline:none;";
+            const memberLabel = document.createElement("div");
+            memberLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin-bottom:3px;";
+            memberLabel.textContent = "Members (select at least one):";
+            const memberPicker = document.createElement("div");
+            memberPicker.style.cssText = "max-height:90px;overflow-y:auto;border:1px solid #2a1020;border-radius:3px;padding:2px 4px;background:#0e0610;margin-bottom:5px;";
+            const allFriends = getFriendList();
+            for (const num of allFriends.slice(0, 40)) {
+                const lbl = document.createElement("label");
+                lbl.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;padding:1px 0;";
+                const chk = document.createElement("input");
+                chk.type = "checkbox";
+                chk.value = String(num);
+                chk.style.cssText = "accent-color:#cf6f98;cursor:pointer;";
+                const nsp = document.createElement("span");
+                nsp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090a0;";
+                nsp.textContent = `${resolveName(num)} #${num}`;
+                lbl.appendChild(chk);
+                lbl.appendChild(nsp);
+                memberPicker.appendChild(lbl);
+            }
+            const grpCreateBtn = document.createElement("button");
+            grpCreateBtn.textContent = "Create Group";
+            grpCreateBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1e0c18;border:1px solid #cf6f98;border-radius:4px;color:#cf6f98;padding:3px 0;cursor:pointer;";
+            grpCreateBtn.addEventListener("click", () => {
+                const name = grpNameInput.value.trim();
+                if (!name) {
+                    grpNameInput.style.borderColor = "#cf6f98";
+                    grpNameInput.focus();
+                    return;
+                }
+                const sel = [];
+                memberPicker.querySelectorAll("input:checked").forEach(c => {
+                    const n = parseInt(c.value, 10);
+                    if (n)
+                        sel.push(n);
+                });
+                if (sel.length === 0) {
+                    memberLabel.style.color = "#cf6f98";
+                    return;
+                }
+                const g = { id: makeGroupId(), name, members: sel };
+                saveGroups([...getGroups(), g]);
+                grpNameInput.value = "";
+                memberPicker.querySelectorAll("input").forEach(c => { c.checked = false; });
+                grpFormVisible = false;
+                grpForm.style.display = "none";
+                grpNewBtn.textContent = "+";
+                buildGrpRows();
+                refreshGrpTitle();
+                try {
+                    this.openGroupWindow(g);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            grpForm.appendChild(grpNameInput);
+            grpForm.appendChild(memberLabel);
+            grpForm.appendChild(memberPicker);
+            grpForm.appendChild(grpCreateBtn);
+            grpSec.appendChild(grpForm);
+            grpNewBtn.addEventListener("click", () => {
+                grpFormVisible = !grpFormVisible;
+                grpForm.style.display = grpFormVisible ? "block" : "none";
+                grpNewBtn.textContent = grpFormVisible ? "−" : "+";
+                if (grpFormVisible)
+                    grpNameInput.focus();
+            });
+            body.appendChild(grpSec);
         }
         charDisplayName(char) {
             const nickFn = window.CharacterNickname;
@@ -33885,7 +34356,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.2.2";
+    const MOD_VERSION = "5.3.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33896,6 +34367,45 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.1",
+            changes: [
+                "Fix: friends in private rooms now show a 'Private room' tag in the Users list instead of just 'online'.",
+                "Fix: the room bar in beep windows now shows '📍 Private room' (with space chip, Join button hidden) for friends in private rooms — previously the bar was hidden entirely.",
+                "Fix: name labels in the beep window no longer show gradient for regular EBC users who happened to share a room at some point during the session — gradient is now reserved for self and VIP/Credits members only.",
+                "Fix: room info chip enrichment now retries at 1.5 s, 3 s, and 5 s instead of a single 2 s poll, covering slower server round-trips.",
+            ],
+        },
+        {
+            version: "5.3.0",
+            changes: [
+                "New: Group Chats — create named groups from the Users tab (scroll to the Groups section). Select friends, name the group, and hit Create. Messages are broadcast to all members as individual beeps with an EBC routing tag; EBC users see a shared group window with sender labels. Non-EBC members receive the message with a visible '[EBC Group]' annotation — they can read it but replies go back to the sender only, not the whole group. Group definitions are saved to your extension settings across sessions.",
+            ],
+        },
+        {
+            version: "5.2.6",
+            changes: [
+                "Fix: room info chips (player count, language, game, privacy) now populate correctly in BC R128. ChatRoomSearchResult is a raw socket event in R128, not a patchable BC global — the v5.2.4 hook silently failed with no fallback. Now polls window.ChatRoomList 2 s after sending the search query, which BC always populates when the server responds.",
+            ],
+        },
+        {
+            version: "5.2.5",
+            changes: [
+                "Fix: friends list and open beep windows now update correctly when a friend goes offline or changes rooms. AccountQueryResult is now hooked via modAPI (reliable in BC R128) with the old window.ServerSocket listener kept as fallback. A 60 s heartbeat poll ensures the online list stays fresh even if neither listener fires.",
+            ],
+        },
+        {
+            version: "5.2.4",
+            changes: [
+                "Fix: room info drawer now correctly fetches player count, language, game type and privacy via ChatRoomSearch. The previous approach used window.ServerSocket which is module-scoped in BC R128 and not reliably accessible — replaced with a modAPI hook on ChatRoomSearchResult that relays results through bcUtils.",
+            ],
+        },
+        {
+            version: "5.2.3",
+            changes: [
+                "Fix: clicking 'Join →' on a room invite card when already in that room no longer triggers the 'ResponseAlreadyInRoom' BC error. The button now shows 'Already here ✓' briefly instead.",
+            ],
+        },
         {
             version: "5.2.2",
             changes: [
@@ -39869,9 +40379,11 @@
                 // Strip metadata and add to IM — isolated in its own try so any
                 // exception here can never cause fall-through to return next(args).
                 try {
-                    const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
-                    if (msg) {
-                        addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
+                    const rawMsg = typeof beep.Message === "string" ? beep.Message : "";
+                    // Check for EBC group tag BEFORE stripping metadata so the tag is still intact.
+                    const grpTag = extractGroupTag(rawMsg);
+                    if (grpTag) {
+                        addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
                         if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
@@ -39879,9 +40391,24 @@
                             catch ( /* ignore */_g) { /* ignore */ }
                         }
                         try {
-                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum);
                         }
                         catch ( /* ignore */_h) { /* ignore */ }
+                        return; // suppress BC native popup for group messages
+                    }
+                    const msg = stripBeepMetadata(rawMsg);
+                    if (msg) {
+                        addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
+                        if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) {
+                            try {
+                                playBeepSound();
+                            }
+                            catch ( /* ignore */_j) { /* ignore */ }
+                        }
+                        try {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                        }
+                        catch ( /* ignore */_k) { /* ignore */ }
                         // Room invite messages are handled entirely by EBC's invite card in the
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
@@ -39891,14 +40418,26 @@
                             return;
                     }
                 }
-                catch ( /* ignore */_j) { /* ignore */ }
+                catch ( /* ignore */_l) { /* ignore */ }
                 // Suppress BC's native chat-log notification for ALL friend beeps when
                 // the toggle is on. document.hidden is intentionally NOT checked here —
                 // OS-level notifications come through FriendListBeep, not this path.
                 if (getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_k) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
+            return next(args);
+        });
+        // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
+        // enrich the room info chips without needing window.ServerSocket (which is
+        // module-scoped in BC R128 and not reliably accessible from window).
+        tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
+            try {
+                const list = args[0];
+                if (Array.isArray(list))
+                    fireRoomSearchResult(list);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
@@ -39944,41 +40483,62 @@
             return next(args);
         });
         // Track which friends BC considers online (not just in our room).
-        // AccountQueryResult is a socket event, not a patchable global.
-        try {
-            const socket2 = window.ServerSocket;
-            socket2 === null || socket2 === void 0 ? void 0 : socket2.on("AccountQueryResult", (raw) => {
-                try {
-                    const data = raw;
-                    if (data.Query !== "OnlineFriends")
-                        return;
-                    const results = data.Result;
-                    if (!Array.isArray(results))
-                        return;
-                    for (const r of results) {
-                        const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
-                        const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                        if (n && name)
-                            cacheName(n, name);
-                    }
-                    updateOnlineFriends(results);
-                    try {
-                        syncFriendsSince();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
+        // In BC R128 AccountQueryResult is a named global function AND a socket event.
+        // We hook both paths and deduplicate so only one update fires per result batch.
+        let _lastQueryResultTs = 0;
+        const handleAccountQueryResult = (raw) => {
+            try {
+                const now = Date.now();
+                if (now - _lastQueryResultTs < 500)
+                    return; // dedup if both hook + socket fire
+                _lastQueryResultTs = now;
+                const data = raw;
+                if (data.Query !== "OnlineFriends")
+                    return;
+                const results = data.Result;
+                if (!Array.isArray(results))
+                    return;
+                for (const r of results) {
+                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                    const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                    if (n && name)
+                        cacheName(n, name);
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
-            });
+                updateOnlineFriends(results);
+                try {
+                    syncFriendsSince();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+        };
+        // Primary: hook the BC global (reliable in R128 where it is a patchable function)
+        tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
+            handleAccountQueryResult(args[0]);
+            return next(args);
+        });
+        // Fallback: socket listener for BC versions where AccountQueryResult is not hookable
+        try {
+            const sock = window.ServerSocket;
+            sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
         catch ( /* ignore */_d) { /* ignore */ }
+        // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
+        // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
+        setInterval(() => {
+            try {
+                ServerSend("AccountQuery", { Query: "OnlineFriends" });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 60 * 1000);
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.

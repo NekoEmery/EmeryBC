@@ -11524,19 +11524,24 @@ export class EBCDrawer {
 
             try { ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true }); } catch { /* ignore */ }
 
-            // Fallback: poll window.ChatRoomList after ~2 s.
+            // Fallback: poll window.ChatRoomList at 1.5 s, 3 s, and 5 s.
             // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
-            // but BC always stores the latest search results in window.ChatRoomList after
-            // the socket response arrives.
-            window.setTimeout(() => {
-                if (_roomSearchCache.has(key)) return; // hook relay already got it
-                setRoomSearchCallback(null); // cancel stale callback
-                try {
-                    const w = window as unknown as Record<string, unknown>;
-                    const list = w.ChatRoomList as Array<Record<string, unknown>> | undefined;
-                    if (Array.isArray(list)) tryApply(list);
-                } catch { /* ignore */ }
-            }, 2000);
+            // but BC stores the latest search results in window.ChatRoomList after the
+            // socket response arrives.  Three polls cover server round-trip variance.
+            const pollChatRoomList = (delay: number, finalAttempt: boolean): void => {
+                window.setTimeout(() => {
+                    if (_roomSearchCache.has(key)) return; // already applied
+                    if (finalAttempt) setRoomSearchCallback(null); // cancel stale hook callback
+                    try {
+                        const w = window as unknown as Record<string, unknown>;
+                        const list = w.ChatRoomList as Array<Record<string, unknown>> | undefined;
+                        if (Array.isArray(list)) tryApply(list);
+                    } catch { /* ignore */ }
+                }, delay);
+            };
+            pollChatRoomList(1500, false);
+            pollChatRoomList(3000, false);
+            pollChatRoomList(5000, true); // final attempt — cancel stale callback
         };
         // ── end lazy enrichment ──────────────────────────────────────────────
 
@@ -11575,6 +11580,7 @@ export class EBCDrawer {
                 roomBar.title = "Hover for room info";
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
+                roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
                 // Rebuild chips: use cached search data if available, else basic space chip
                 const cached = _roomSearchCache.get(info.roomName.toLowerCase());
                 if (cached) {
@@ -11588,6 +11594,18 @@ export class EBCDrawer {
                         roomDrawerChips.appendChild(c);
                     }
                 }
+            } else if (info?.roomSpace) {
+                // Private room: BC hides the name but reports the space.
+                roomBar.textContent = "📍 Private room";
+                roomBar.title = "Friend is in a private room";
+                roomBar.style.display = "";
+                roomDrawer.style.display = "";
+                roomDrawerJoin.style.display = "none"; // can't join by name
+                roomDrawerChips.innerHTML = "";
+                const c = document.createElement("span");
+                c.className = "ebc-beep-room-drawer-chip";
+                c.textContent = SPACE_NAMES[info.roomSpace] ?? info.roomSpace;
+                roomDrawerChips.appendChild(c);
             } else {
                 // Friend left the room — clear the search cache for the old room
                 _roomSearchCache.clear();
@@ -11794,12 +11812,11 @@ export class EBCDrawer {
                     : resolveName(bubbleMember);
                 nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
                 nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
-                // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
-                // Fall back to solid colour for non-EBC senders.
+                // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
                 if (vipEntry) {
                     applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
-                } else if (bubbleMember === self || getEBCVersion(bubbleMember) !== null) {
+                } else if (bubbleMember === self) {
                     applyGradientText(nameLabel, "#cf6f98", "#8090d0");
                 } else {
                     nameLabel.style.color = isSent ? "#e090b8" : "#80c0e0";
@@ -13352,15 +13369,17 @@ export class EBCDrawer {
                 let roomTagEl: HTMLSpanElement | null = null;
                 if (info) {
                     const roomName = info.roomName;
+                    const isPrivate = !roomName && !!info.roomSpace;
                     // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
                     // just show the room name with a neutral green "in a room" colour.
-                    const bg = roomName ? "#081a10" : "#1e0d1a";
-                    const color = roomName ? "#70c890" : "#c08898";
-                    const border = roomName ? "#1a5a30" : "#3a1928";
-                    const label = roomName ?? "online";
+                    // Private rooms show a muted tag rather than just "online".
+                    const bg    = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
+                    const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
+                    const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
+                    const label = roomName ? roomName : isPrivate ? "Private room" : "online";
                     roomTagEl = document.createElement("span");
                     roomTagEl.textContent = label;
-                    roomTagEl.title = roomName ? roomName : "Online";
+                    roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
                     roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                 }
 
