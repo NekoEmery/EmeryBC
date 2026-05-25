@@ -54,6 +54,13 @@ jobs:
           cp -r dist/. deploy/${{ steps.channel.outputs.name }}/
           cp -r public/. deploy/
 
+      - name: Get commit subject
+        id: commitmsg
+        # Use only the first line (subject) of the commit message so the
+        # multi-line body never ends up unquoted inside the git commit command,
+        # which caused the deploy to treat body words as pathspec arguments.
+        run: echo "title=$(git log -1 --format=%s)" >> $GITHUB_OUTPUT
+
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
@@ -61,4 +68,4 @@ jobs:
           branch: gh-pages
           folder: deploy
           clean: false
-          commit-message: "deploy(${{ steps.channel.outputs.name }}): ${{ github.event.head_commit.message }}"
+          commit-message: "deploy(${{ steps.channel.outputs.name }}): ${{ steps.commitmsg.outputs.title }}"
