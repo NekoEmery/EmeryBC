@@ -24458,22 +24458,28 @@
                     ServerSend("ChatRoomSearch", { Query: rName, FullRooms: true });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
-                // Fallback: poll window.ChatRoomList after ~2 s.
+                // Fallback: poll window.ChatRoomList at 1.5 s, 3 s, and 5 s.
                 // In BC R128 ChatRoomSearchResult is NOT a patchable BC global (hook fails),
-                // but BC always stores the latest search results in window.ChatRoomList after
-                // the socket response arrives.
-                window.setTimeout(() => {
-                    if (_roomSearchCache.has(key))
-                        return; // hook relay already got it
-                    setRoomSearchCallback(null); // cancel stale callback
-                    try {
-                        const w = window;
-                        const list = w.ChatRoomList;
-                        if (Array.isArray(list))
-                            tryApply(list);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }, 2000);
+                // but BC stores the latest search results in window.ChatRoomList after the
+                // socket response arrives.  Three polls cover server round-trip variance.
+                const pollChatRoomList = (delay, finalAttempt) => {
+                    window.setTimeout(() => {
+                        if (_roomSearchCache.has(key))
+                            return; // already applied
+                        if (finalAttempt)
+                            setRoomSearchCallback(null); // cancel stale hook callback
+                        try {
+                            const w = window;
+                            const list = w.ChatRoomList;
+                            if (Array.isArray(list))
+                                tryApply(list);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, delay);
+                };
+                pollChatRoomList(1500, false);
+                pollChatRoomList(3000, false);
+                pollChatRoomList(5000, true); // final attempt — cancel stale callback
             };
             // ── end lazy enrichment ──────────────────────────────────────────────
             const openDrawer = () => {
@@ -24506,7 +24512,7 @@
             });
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
-                var _a;
+                var _a, _b;
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
@@ -24516,6 +24522,7 @@
                     roomBar.title = "Hover for room info";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
+                    roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
                     // Rebuild chips: use cached search data if available, else basic space chip
                     const cached = _roomSearchCache.get(info.roomName.toLowerCase());
                     if (cached) {
@@ -24530,6 +24537,19 @@
                             roomDrawerChips.appendChild(c);
                         }
                     }
+                }
+                else if (info === null || info === void 0 ? void 0 : info.roomSpace) {
+                    // Private room: BC hides the name but reports the space.
+                    roomBar.textContent = "📍 Private room";
+                    roomBar.title = "Friend is in a private room";
+                    roomBar.style.display = "";
+                    roomDrawer.style.display = "";
+                    roomDrawerJoin.style.display = "none"; // can't join by name
+                    roomDrawerChips.innerHTML = "";
+                    const c = document.createElement("span");
+                    c.className = "ebc-beep-room-drawer-chip";
+                    c.textContent = (_b = SPACE_NAMES[info.roomSpace]) !== null && _b !== void 0 ? _b : info.roomSpace;
+                    roomDrawerChips.appendChild(c);
                 }
                 else {
                     // Friend left the room — clear the search cache for the old room
@@ -24728,13 +24748,12 @@
                         : resolveName(bubbleMember);
                     nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
                     nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
-                    // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
-                    // Fall back to solid colour for non-EBC senders.
+                    // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                     const vipEntry = VIP_MEMBERS[bubbleMember];
                     if (vipEntry) {
                         applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
                     }
-                    else if (bubbleMember === self || getEBCVersion(bubbleMember) !== null) {
+                    else if (bubbleMember === self) {
                         applyGradientText(nameLabel, "#cf6f98", "#8090d0");
                     }
                     else {
@@ -26280,15 +26299,17 @@
                     let roomTagEl = null;
                     if (info) {
                         const roomName = info.roomName;
+                        const isPrivate = !roomName && !!info.roomSpace;
                         // BC R128 AccountQueryResult no longer sends lock/full/privacy fields —
                         // just show the room name with a neutral green "in a room" colour.
-                        const bg = roomName ? "#081a10" : "#1e0d1a";
-                        const color = roomName ? "#70c890" : "#c08898";
-                        const border = roomName ? "#1a5a30" : "#3a1928";
-                        const label = roomName !== null && roomName !== void 0 ? roomName : "online";
+                        // Private rooms show a muted tag rather than just "online".
+                        const bg = roomName ? "#081a10" : isPrivate ? "#1a0d18" : "#1e0d1a";
+                        const color = roomName ? "#70c890" : isPrivate ? "#b07898" : "#c08898";
+                        const border = roomName ? "#1a5a30" : isPrivate ? "#3a1528" : "#3a1928";
+                        const label = roomName ? roomName : isPrivate ? "Private room" : "online";
                         roomTagEl = document.createElement("span");
                         roomTagEl.textContent = label;
-                        roomTagEl.title = roomName ? roomName : "Online";
+                        roomTagEl.title = roomName ? roomName : isPrivate ? "Friend is in a private room" : "Online";
                         roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
                     // Last-seen timestamp for away/offline friends
@@ -34335,7 +34356,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.3.0";
+    const MOD_VERSION = "5.3.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34346,6 +34367,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.3.1",
+            changes: [
+                "Fix: friends in private rooms now show a 'Private room' tag in the Users list instead of just 'online'.",
+                "Fix: the room bar in beep windows now shows '📍 Private room' (with space chip, Join button hidden) for friends in private rooms — previously the bar was hidden entirely.",
+                "Fix: name labels in the beep window no longer show gradient for regular EBC users who happened to share a room at some point during the session — gradient is now reserved for self and VIP/Credits members only.",
+                "Fix: room info chip enrichment now retries at 1.5 s, 3 s, and 5 s instead of a single 2 s poll, covering slower server round-trips.",
+            ],
+        },
         {
             version: "5.3.0",
             changes: [
