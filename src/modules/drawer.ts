@@ -11493,17 +11493,23 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-            } else if (info) {
-                // Friend is online but no room name came back from the server.
-                // BC R128 omits ChatRoomName for friends in the same room — check
-                // ChatRoomCharacter before labelling as private.
-                const sameRoomName = isInCurrentRoom(memberNumber) ? getCurrentRoomName() : "";
-                roomBar.textContent = sameRoomName ? `📍 ${sameRoomName}` : "📍 Private room";
-                roomBar.title = sameRoomName ? sameRoomName : "Friend is in a private room";
-                roomBar.style.display = "";
-                roomDrawer.style.display = "";
-                roomDrawerJoin.style.display = "none"; // can't join by name
+            } else if (info && isInCurrentRoom(memberNumber)) {
+                // Friend is in our room but BC didn't return a room name — use our tracked name.
+                const sameRoomName = getCurrentRoomName();
+                if (sameRoomName) {
+                    roomBar.textContent = `📍 ${sameRoomName}`;
+                    roomBar.title = sameRoomName;
+                    roomBar.style.display = "";
+                    roomDrawer.style.display = "";
+                    roomDrawerJoin.style.display = "none"; // already in the same room
+                } else {
+                    roomBar.style.display = "none";
+                    roomDrawer.classList.remove("open");
+                    roomDrawer.style.display = "none";
+                }
             } else {
+                // Online but no room name and not in our room — could be lobby or private room,
+                // BC gives us no way to tell. Show nothing rather than false-positive "Private room".
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
@@ -13449,20 +13455,22 @@ export class EBCDrawer {
                 const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                 let roomTagEl: HTMLSpanElement | null = null;
                 if (info) {
-                    // BC R128 may not return ChatRoomName for friends in the same room as the
-                    // player.  Check ChatRoomCharacter first so we don't false-positive as private.
+                    // Only show a room tag when we have a confirmed room name.
+                    // BC R128 omits ChatRoomName for both private rooms AND friends who are in
+                    // the lobby (not in any room), so we cannot distinguish the two cases.
+                    // Showing "Private room" creates false positives for lobby-state friends;
+                    // instead we only show a tag when the name is known or the friend is
+                    // confirmed to be in our current room via ChatRoomCharacter.
                     let roomName: string | undefined = info.roomName || undefined;
                     if (!roomName && isInCurrentRoom(num)) {
                         roomName = getCurrentRoomName() || undefined;
                     }
-                    const bg    = roomName ? "#081a10" : "#1a0d18";
-                    const color = roomName ? "#70c890" : "#b07898";
-                    const border = roomName ? "#1a5a30" : "#3a1528";
-                    const label = roomName ?? "Private room";
-                    roomTagEl = document.createElement("span");
-                    roomTagEl.textContent = label;
-                    roomTagEl.title = roomName ? roomName : "Friend is in a private room";
-                    roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:${bg};color:${color};border:1px solid ${border};`;
+                    if (roomName) {
+                        roomTagEl = document.createElement("span");
+                        roomTagEl.textContent = roomName;
+                        roomTagEl.title = roomName;
+                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
+                    }
                 }
 
                 // Last-seen timestamp for away/offline friends
