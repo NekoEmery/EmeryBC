@@ -24442,8 +24442,9 @@
                         roomDrawer.style.display = "none";
                     }
                 }
-                else if (info && info.roomName === "") {
-                    // BC sent an explicit empty ChatRoomName → friend is in a private/hidden room
+                else if (info) {
+                    // No visible room name — BC omits ChatRoomName for both private rooms and lobby,
+                    // so match BC's own behaviour and show "Private room".
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
@@ -24451,7 +24452,7 @@
                     roomDrawerJoin.style.display = "none"; // can't join a private room by name
                 }
                 else {
-                    // info.roomName === undefined → BC omitted the field = friend is in the lobby
+                    // offline
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -26375,14 +26376,14 @@
                             roomTagEl.title = displayName;
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
                         }
-                        else if (rawRoom === "") {
-                            // BC explicitly sent an empty room name → friend is in a private/hidden room
+                        else {
+                            // No visible room name — BC doesn't distinguish private room from lobby
+                            // in AccountQueryResult, so match BC's own behaviour: show "Private room".
                             roomTagEl = document.createElement("span");
                             roomTagEl.textContent = "Private room";
                             roomTagEl.title = "Friend is in a private room";
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                         }
-                        // rawRoom === undefined → lobby, show nothing
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -34302,7 +34303,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.0";
+    const MOD_VERSION = "5.4.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34314,9 +34315,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.4.1",
+            changes: [
+                "Fix: 'Private room' label correctly restored for online friends with no visible room name — BC omits ChatRoomName entirely for both private rooms and lobby, so the two are indistinguishable; we now match BC's own UI by showing 'Private room' for any online friend without a visible room name.",
+            ],
+        },
+        {
             version: "5.4.0",
             changes: [
-                "Fix: 'Private room' tag now correctly distinguishes between a friend in a private/hidden room and a friend in the lobby. BC sends ChatRoomName as an explicit empty string for private rooms and omits the field entirely for lobby state — we now check === \"\" vs undefined instead of treating both as falsy.",
+                "Fix: attempted distinction between private room and lobby via ChatRoomName === \"\" check — this was incorrect as BC omits the field for both states (superseded by 5.4.1).",
             ],
         },
         {
