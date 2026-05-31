@@ -24765,12 +24765,18 @@
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
+            // ── Tiny SVG icon helpers for header buttons ─────────────────────────
+            const _mkIcon = (...paths) => `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${paths.map(d => `<path d="${d}"/>`).join("")}</svg>`;
+            const ICON_BELL = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0");
+            const ICON_MUTED = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0", "M3 3l10 10");
+            const ICON_INVITE = _mkIcon("M3 8h10", "M9 5l4 3-4 3");
+            const ICON_TRASH = _mkIcon("M6 3h4", "M3 5h10", "M4 5v7a1 1 0 011 1h6a1 1 0 011-1V5", "M7 7v4", "M9 7v4");
             // Per-person mute toggle — silences beep sounds from this specific person
             const muteBtn = document.createElement("button");
             muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
             const refreshMuteBtn = () => {
                 const muted = isBeepMemberMuted(memberNumber);
-                muteBtn.textContent = muted ? "⊘" : "♪";
+                muteBtn.innerHTML = muted ? ICON_MUTED : ICON_BELL;
                 muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
                 muteBtn.classList.toggle("muted", muted);
             };
@@ -24785,12 +24791,12 @@
             // so it can call renderHistory() to refresh the chat after sending.
             const roomInviteBtn = document.createElement("button");
             roomInviteBtn.className = "ebc-beep-win-hbtn";
-            roomInviteBtn.textContent = "⊕";
+            roomInviteBtn.innerHTML = ICON_INVITE;
             roomInviteBtn.title = "Send your current room as an invite";
             // Clear conversation button — wipes local history after confirmation
             const clearBtn = document.createElement("button");
             clearBtn.className = "ebc-beep-win-hbtn";
-            clearBtn.textContent = "⌫";
+            clearBtn.innerHTML = ICON_TRASH;
             clearBtn.title = "Clear conversation";
             clearBtn.addEventListener("click", () => {
                 showConfirmOverlay("Clear all messages with this person? This cannot be undone.", "Cancel", "Clear", () => {
@@ -24811,6 +24817,8 @@
                 minimizeBtn.textContent = entry.minimized ? "▲" : "–";
                 minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
                 if (!entry.minimized) {
+                    // History just became visible — scroll to bottom (scrollHeight is 0 while hidden)
+                    window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
                     unreadDot.classList.remove("visible");
                     this.beepUnread.delete(memberNumber);
                     this.refreshTabDot();
@@ -24830,6 +24838,8 @@
                 win.classList.remove("minimized");
                 minimizeBtn.textContent = "–";
                 minimizeBtn.title = "Minimize";
+                // History just became visible — scroll to bottom
+                window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
             };
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
@@ -25143,7 +25153,11 @@
                     }
                     history.appendChild(wrap);
                 }
-                requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+                // Only scroll when the window is already in the DOM — the initial call from before
+                // body.appendChild would read scrollHeight=0 (display:none or no layout yet).
+                if (win.isConnected) {
+                    requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+                }
             };
             renderHistory();
             // Room invite button click handler — deferred here so renderHistory is in scope.
@@ -25160,7 +25174,7 @@
                     sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
                     renderHistory();
                     roomInviteBtn.textContent = "✓";
-                    window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
+                    window.setTimeout(() => { roomInviteBtn.innerHTML = ICON_INVITE; }, 1200);
                 }
                 else {
                     // Not in a room — shortcut: join their room if they have one.
@@ -25171,13 +25185,13 @@
                     if (friendRoom && friendStatus !== "room") {
                         doJoinRoom(friendRoom);
                         roomInviteBtn.textContent = "→";
-                        window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
+                        window.setTimeout(() => { roomInviteBtn.innerHTML = ICON_INVITE; }, 1200);
                     }
                     else {
                         roomInviteBtn.textContent = "×";
                         roomInviteBtn.title = "Neither you nor they are in a room";
                         window.setTimeout(() => {
-                            roomInviteBtn.textContent = "⊕";
+                            roomInviteBtn.innerHTML = ICON_INVITE;
                             roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
                         }, 1500);
                     }
@@ -34789,7 +34803,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.7";
+    const MOD_VERSION = "5.5.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34800,6 +34814,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.8",
+            changes: [
+                "Improvement: header buttons now use clean SVG icons (bell, arrow, trash) instead of emoji or Unicode symbols — monochrome, scale correctly, match the dark-pink aesthetic.",
+                "Fix: chat history now correctly starts scrolled to the bottom — initial render was guarded so it only scrolls after the window is in the DOM; restoring a minimized window now also scrolls to bottom (history was display:none so scrollHeight was 0).",
+            ],
+        },
         {
             version: "5.5.7",
             changes: [
