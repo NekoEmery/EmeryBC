@@ -12536,7 +12536,7 @@ export class EBCDrawer {
                     btn.className = "ebc-qr-btn";
                     btn.textContent = text.length > 22 ? text.slice(0, 20) + "…" : text;
                     btn.title = text;
-                    btn.addEventListener("click", () => { input.value = text; updateCounter(); input.focus(); });
+                    btn.addEventListener("click", () => { input.value = text; doSend(); });
                     qrBar.appendChild(btn);
                 }
                 const gearBtn = document.createElement("button");
