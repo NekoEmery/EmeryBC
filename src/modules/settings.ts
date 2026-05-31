@@ -302,7 +302,7 @@ export function setBeepMuted(value: boolean): void {
 // Configurable one-click phrases shown as buttons inside beep windows.
 // Clicking inserts the text into the input so the user can review/edit before sending.
 
-const DEFAULT_QUICK_REPLIES = ["brb", "in character", "busy, back soon"];
+const DEFAULT_QUICK_REPLIES = ["brb", "busy, back soon", "hello ^^"];
 
 export function getQuickReplies(): string[] {
     try {

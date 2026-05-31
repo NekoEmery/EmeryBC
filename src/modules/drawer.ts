@@ -2563,9 +2563,9 @@ const CSS = `
 .ebc-qr-btn:hover { background: #3a1028; border-color: #cf6f98; color: #e8c8d8; }
 .ebc-qr-gear {
     background: transparent;
-    border: 1px solid #4a2038;
+    border: 1px solid #8a4060;
     border-radius: 3px;
-    color: #8a5070;
+    color: #c09098;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     padding: 2px 5px;
@@ -2686,24 +2686,23 @@ const CSS = `
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
-/* Message wrap — gives us a hover target for the copy button */
+/* Message wrap — hover target for the inline copy icon */
 .ebc-beep-msg-wrap { position: relative; }
-.ebc-beep-copy-btn {
+/* Inline copy icon — sits right after the name, revealed on wrap hover */
+.ebc-bubble-copy-btn {
     display: none;
     background: transparent;
-    border: 1px solid #3a1928;
-    border-radius: 3px;
-    color: #5a3040;
-    font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    padding: 1px 5px;
+    border: none;
+    color: #5a3848;
+    font-size: 11px;
     cursor: pointer;
-    align-self: flex-end;
-    margin-top: 2px;
-    transition: color 0.1s, border-color 0.1s;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.1s;
 }
-.ebc-beep-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
-.ebc-beep-msg-wrap:hover .ebc-beep-copy-btn { display: block; }
+.ebc-bubble-copy-btn:hover { color: #cf6f98; }
+.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: inline-block; }
 
 /* "They came online!" transient notice */
 .ebc-beep-online-alert {
@@ -11688,6 +11687,19 @@ export class EBCDrawer {
             const info = getFriendOnlineInfo(memberNumber);
 
             // ── Room drawer chips (privacy + space) ──────────────────────────
+            // Friendly names for BC's internal room-space identifiers.
+            const SPACE_NAMES: Record<string, string> = {
+                BDSM: "BDSM", X: "Club X", Nerd: "Nerd", Music: "Music",
+                Medical: "Medical", Pet: "Pet Play", Asylum: "Asylum",
+                School: "School", Pandora: "Pandora's Box", Cheerleader: "Cheerleader",
+                Sports: "Sports", Fantasy: "Fantasy", SciFi: "Sci-Fi",
+                Loge: "Loge", Casino: "Casino", Island: "Island",
+                Laboratory: "Laboratory", GrandBallroom: "Grand Ballroom",
+                TeaRoom: "Tea Room", Arcade: "Arcade",
+                Festival: "Festival", Workshop: "Workshop",
+            };
+            const friendlySpace = (s: string): string => SPACE_NAMES[s] ?? s;
+
             while (roomDrawerChips.firstChild) roomDrawerChips.removeChild(roomDrawerChips.firstChild);
             const makeChip = (text: string): HTMLElement => {
                 const c = document.createElement("span");
@@ -11702,8 +11714,9 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                roomDrawerChips.appendChild(makeChip("🌐 Public"));
-                if (info.roomSpace) roomDrawerChips.appendChild(makeChip(info.roomSpace));
+                // Combine privacy + space into one chip ("🌐 Public · Club X") to avoid confusing raw codes
+                const spaceLabel = info.roomSpace ? ` · ${friendlySpace(info.roomSpace)}` : "";
+                roomDrawerChips.appendChild(makeChip(`🌐 Public${spaceLabel}`));
                 roomDrawerChips.style.display = "";
                 roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
@@ -11950,22 +11963,44 @@ export class EBCDrawer {
                 wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
 
                 const bubbleMember = isSent ? self : e.from;
-                const nameLabel = document.createElement("div");
                 // For sent messages read directly from Player so no other addon's
                 // nickname hooks can bleed into the display name.
                 const bubbleName = isSent
                     ? ((Player as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || Player.Name || "You"
                     : resolveName(bubbleMember);
-                nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
-                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+
+                // Name row — flex so we can add the account-name sub-text and copy icon inline
+                const nameLabel = document.createElement("div");
+                nameLabel.style.cssText = "display:flex;align-items:baseline;gap:3px;margin-bottom:2px;padding:0 3px;min-width:0;flex-wrap:nowrap;";
+
+                const nameText = document.createElement("span");
+                nameText.textContent = `${bubbleName} #${bubbleMember}`;
+                nameText.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+
+                // Account name sub-text — only for received messages where it differs from display name
+                if (!isSent) {
+                    const acctName = getAccountName(bubbleMember);
+                    if (acctName && acctName !== bubbleName) {
+                        const acctSub = document.createElement("span");
+                        acctSub.textContent = acctName;
+                        acctSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3848;font-weight:normal;white-space:nowrap;flex-shrink:0;";
+                        nameLabel.appendChild(nameText);
+                        nameLabel.appendChild(acctSub);
+                    } else {
+                        nameLabel.appendChild(nameText);
+                    }
+                } else {
+                    nameLabel.appendChild(nameText);
+                }
+
                 // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
                 if (vipEntry) {
-                    applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
+                    applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
                 } else if (bubbleMember === self) {
-                    applyGradientText(nameLabel, "#cf6f98", "#8090d0");
+                    applyGradientText(nameText, "#cf6f98", "#8090d0");
                 } else {
-                    nameLabel.style.color = isSent ? "#e090b8" : "#80c0e0";
+                    nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
                 }
                 wrap.appendChild(nameLabel);
 
@@ -12104,19 +12139,18 @@ export class EBCDrawer {
                     wrap.appendChild(replyBtn);
                 }
 
-                // Copy button — visible on hover for all messages
-                // Only show for plain text (skip invite/decline cards where it makes less sense)
+                // Inline copy icon — appended to the nameLabel, hidden until wrap is hovered
                 if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                     const copyBtn = document.createElement("button");
-                    copyBtn.className = "ebc-beep-copy-btn";
-                    copyBtn.textContent = "⎘ Copy";
-                    copyBtn.title = "Copy message text";
+                    copyBtn.className = "ebc-bubble-copy-btn";
+                    copyBtn.textContent = "⎘";
+                    copyBtn.title = "Copy message";
                     copyBtn.addEventListener("click", () => {
                         navigator.clipboard.writeText(msgBody).catch(() => {});
-                        copyBtn.textContent = "✓ Copied";
-                        window.setTimeout(() => { copyBtn.textContent = "⎘ Copy"; }, 1200);
+                        copyBtn.textContent = "✓";
+                        window.setTimeout(() => { copyBtn.textContent = "⎘"; }, 1200);
                     });
-                    wrap.appendChild(copyBtn);
+                    nameLabel.appendChild(copyBtn);
                 }
 
                 history.appendChild(wrap);
@@ -12215,12 +12249,12 @@ export class EBCDrawer {
 
         // Character counter — overlaid absolutely inside the footer (which is position:relative)
         const charCounter = document.createElement("span");
-        charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4055;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
+        charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:10px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;min-width:16px;text-align:right;";
         charCounter.textContent = "300";
         const updateCounter = (): void => {
             const rem = 300 - input.value.length;
             charCounter.textContent = String(rem);
-            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#c07030" : "#7a4055";
+            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
         };
         input.addEventListener("input", updateCounter);
 

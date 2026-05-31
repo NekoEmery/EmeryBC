@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.2";
+const MOD_VERSION = "5.5.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.3",
+        changes: [
+            "Fix: character counter is now clearly visible — brighter colour (#a07080) and 10px font instead of near-invisible 9px.",
+            "Fix: ⚙ gear icon is now properly visible with higher-contrast colour and border.",
+            "Fix: default quick-reply phrases changed to brb / busy, back soon / hello ^^ — the old ones were unhelpful.",
+            "Fix: room drawer space chip no longer shows raw BC codes like 'X' — now shows the friendly name (e.g. 'Club X') merged into the 🌐 Public chip.",
+            "Fix: copy button moved from a hover element below the bubble to an inline ⎘ icon beside the sender name — much cleaner.",
+            "Fix: received message bubbles now show the account name in small text beside the sender nickname when the two differ, matching the header behaviour.",
+        ],
+    },
     {
         version: "5.5.2",
         changes: [
