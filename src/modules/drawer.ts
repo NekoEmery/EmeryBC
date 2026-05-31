@@ -4834,8 +4834,10 @@ export class EBCDrawer {
         resizeHandle.title = "Drag to resize · Double-click to restore full height";
         slideContainer.appendChild(resizeHandle);
 
-        // Direct drag handlers — bypasses addPointerDown/addPointerTracking to avoid
-        // any event-ordering issues with BC's global handlers.
+        // Pointer Events API — setPointerCapture routes all subsequent pointermove/
+        // pointerup to this element regardless of where the pointer travels.
+        // No document-level listeners needed → immune to stopPropagation from
+        // stopTouchBubble and BC's global canvas handlers.
         let dragStartY = 0;
         let dragStartH = 0;
 
@@ -4848,39 +4850,33 @@ export class EBCDrawer {
             if (!this.isResizeDragging) return;
             this.isResizeDragging = false;
             resizeHandle.classList.remove("active");
-            document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup",   onMouseUp);
-            document.removeEventListener("touchmove", onTouchMove);
-            document.removeEventListener("touchend",  onTouchEnd);
             if (this.userPanelHeight !== null)
                 try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
         };
-        const onMouseMove = (e: MouseEvent):  void => { onResizeMove(e.clientY); };
-        const onMouseUp   = (_e: MouseEvent): void => { onResizeEnd(); };
-        const onTouchMove = (e: TouchEvent):  void => { if (e.touches.length) { e.preventDefault(); onResizeMove(e.touches[0].clientY); } };
-        const onTouchEnd  = (_e: TouchEvent): void => { onResizeEnd(); };
 
-        resizeHandle.addEventListener("mousedown", (e: MouseEvent) => {
+        resizeHandle.addEventListener("pointerdown", (e: PointerEvent) => {
             if (e.button !== 0) return;
             e.preventDefault();
+            try { resizeHandle.setPointerCapture(e.pointerId); } catch { /* ignore */ }
             this.isResizeDragging = true;
             dragStartY = e.clientY;
             dragStartH = slideContainer.getBoundingClientRect().height;
             resizeHandle.classList.add("active");
-            document.addEventListener("mousemove", onMouseMove);
-            document.addEventListener("mouseup",   onMouseUp);
         });
 
-        resizeHandle.addEventListener("touchstart", (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
+        resizeHandle.addEventListener("pointermove", (e: PointerEvent) => {
+            if (!this.isResizeDragging) return;
             e.preventDefault();
-            this.isResizeDragging = true;
-            dragStartY = e.touches[0].clientY;
-            dragStartH = slideContainer.getBoundingClientRect().height;
-            resizeHandle.classList.add("active");
-            document.addEventListener("touchmove", onTouchMove, { passive: false });
-            document.addEventListener("touchend",  onTouchEnd);
-        }, { passive: false });
+            onResizeMove(e.clientY);
+        });
+
+        resizeHandle.addEventListener("pointerup", (_e: PointerEvent) => {
+            onResizeEnd();
+        });
+
+        resizeHandle.addEventListener("pointercancel", (_e: PointerEvent) => {
+            onResizeEnd();
+        });
 
         resizeHandle.addEventListener("dblclick", () => {
             this.userPanelHeight = null;

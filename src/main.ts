@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.2";
+const MOD_VERSION = "5.7.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.3",
+        changes: [
+            "Fix: resize handle drag rewritten with Pointer Events API (pointerdown/pointermove/pointerup + setPointerCapture). Pointer capture routes all subsequent events directly to the handle element regardless of where the pointer travels — no document-level listeners needed, immune to stopPropagation from BC global handlers and the container's touch-bubble guard.",
+        ],
+    },
     {
         version: "5.7.2",
         changes: [
