@@ -11429,6 +11429,10 @@
         pendingOfflineMessages.set(memberNumber, queue);
         persistOfflineQueue();
     }
+    // Timestamp when this module was first loaded — used to add a startup grace
+    // window before offline messages are re-delivered so EBC's burst of beeps
+    // doesn't stack on top of BC's own login traffic and trip the rate limiter.
+    const _moduleLoadTime = Date.now();
     // Session cache: EBC version for members we've shared a room with this session
     const ebcVersionCache = new Map();
     function cacheEBCVersion(memberNumber, version) {
@@ -11471,18 +11475,28 @@
         }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
+        // Messages are staggered 350 ms apart to avoid burst-sending.  A startup grace
+        // window (up to 10 s after module load) adds extra headroom so EBC's re-delivery
+        // doesn't compound with BC's own login traffic and trip the server rate limiter.
         let queueChanged = false;
+        const ageMs = Date.now() - _moduleLoadTime;
+        const startupGrace = ageMs < 10000 ? 10000 - ageMs : 0;
+        let redeliverySlot = 0; // incremented per message across all recipients
         for (const [num, msgs] of pendingOfflineMessages) {
             if (onlineSet.has(num) && !prevOnline.has(num)) {
                 pendingOfflineMessages.delete(num);
                 pendingOfflineQueuedAt.delete(num);
                 queueChanged = true;
-                try {
-                    for (const msg of msgs) {
-                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
-                    }
+                for (const msg of msgs) {
+                    const delay = startupGrace + redeliverySlot * 350;
+                    redeliverySlot++;
+                    window.setTimeout(() => {
+                        try {
+                            ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, delay);
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
             }
         }
         if (queueChanged)
@@ -34774,7 +34788,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.1";
+    const MOD_VERSION = "5.5.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34785,6 +34799,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.2",
+            changes: [
+                "Fix: offline beep re-delivery no longer causes ErrorRateLimited disconnects — messages are now staggered 350 ms apart instead of burst-sent in a synchronous loop. A startup grace window (up to 10 s after page load) adds extra headroom so re-delivery doesn't compound with BC's own login traffic.",
+            ],
+        },
         {
             version: "5.5.1",
             changes: [
