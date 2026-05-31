@@ -298,6 +298,28 @@ export function setBeepMuted(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Quick replies -------------------------------------------------------------
+// Configurable one-click phrases shown as buttons inside beep windows.
+// Clicking inserts the text into the input so the user can review/edit before sending.
+
+const DEFAULT_QUICK_REPLIES = ["brb", "in character", "busy, back soon"];
+
+export function getQuickReplies(): string[] {
+    try {
+        const v = getSettings()?.quickReplies;
+        if (Array.isArray(v)) return v as string[];
+    } catch { /* ignore */ }
+    return [...DEFAULT_QUICK_REPLIES];
+}
+
+export function saveQuickReplies(replies: string[]): void {
+    try {
+        const store = getSettings();
+        store.quickReplies = replies;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Action buttons sidebar visibility ----------------------------------------
 
 export function getActionButtonsVisible(): boolean {
