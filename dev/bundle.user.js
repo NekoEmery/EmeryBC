@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.5
+// @version      5.6.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -35061,7 +35061,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.5";
+    const MOD_VERSION = "5.6.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35072,6 +35072,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.6",
+            changes: [
+                "Fix: quick action sidebar buttons (EAR, TAIL, etc.) now hide when BC's 'Show/hide character icons' eye toggle is active, matching the badge and WCE icon behaviour.",
+            ],
+        },
         {
             version: "5.6.5",
             changes: [
@@ -40813,7 +40819,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_b) { /* ignore */ }
             try {
-                if (getActionButtonsVisible())
+                const iconsHidden = !!(window.ChatRoomHideIconState);
+                if (getActionButtonsVisible() && !iconsHidden)
                     drawActionButtons();
             }
             catch ( /* ignore */_c) { /* ignore */ }
@@ -40824,8 +40831,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // click-through to character tabs and other BC canvas interactions.
             if (getBadgeDragMode())
                 return;
+            const iconsHidden = !!(window.ChatRoomHideIconState);
             try {
-                if (handleActionButtonClick())
+                if (!iconsHidden && handleActionButtonClick())
                     return;
             }
             catch ( /* ignore */_a) { /* ignore */ }
