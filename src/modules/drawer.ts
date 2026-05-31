@@ -79,6 +79,10 @@ import {
     cancelSequence,
     isSeqRunning,
     setSeqDoneCallback,
+    startBCSlowLeave,
+    cancelBCSlowLeave,
+    isSlowLeaveActive,
+    setSlowLeaveDoneCallback,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -17834,35 +17838,34 @@ export class EBCDrawer {
         const slLeaveBtn = document.createElement("button");
         slLeaveBtn.className = "ebc-create-btn";
         slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        const seqRunning = isSeqRunning();
-        slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
+        const slActive = isSlowLeaveActive();
+        slLeaveBtn.textContent = slActive ? t("sl.cancel") : t("sl.leave");
         slLeaveBtn.title = t("sl.leaveTitle");
         slLeaveBtn.dataset.guideTarget = "btn-slow-leave";
-        if (seqRunning) {
+        if (slActive) {
             slLeaveBtn.style.background = "#4a1a2a";
             slLeaveBtn.style.color = "#ff8aaa";
         }
         slLeaveBtn.addEventListener("click", () => {
-            if (isSeqRunning()) {
-                cancelSequence();
+            if (isSlowLeaveActive()) {
+                cancelBCSlowLeave();
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
                 return;
             }
-            const livePresets = getSlowLeavePresets();
-            const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
-            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
-            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
-            setSeqDoneCallback(() => {
+            const durMs = Math.max(2000, parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10) * 1000);
+            setSlowLeaveDoneCallback(() => {
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
+                callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                callBC(() => ChatRoomLeave());
             });
             slLeaveBtn.textContent = t("sl.cancel");
             slLeaveBtn.style.background = "#4a1a2a";
             slLeaveBtn.style.color = "#ff8aaa";
-            runSequence(seq);
+            startBCSlowLeave(durMs);
         });
         body.appendChild(slLeaveBtn);
 
@@ -17888,47 +17891,9 @@ export class EBCDrawer {
         slEditorHdr.appendChild(slEditorLbl);
         slEditorCard.appendChild(slEditorHdr);
 
-        // Editor body
+        // Editor body — duration slider only
         const slEditorBody = document.createElement("div");
         slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
-
-        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
-
-        const slPresetDropdown = document.createElement("select");
-        slPresetDropdown.style.cssText = DD_CSS;
-        const populateSlPresets = (): void => {
-            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
-            getSlowLeavePresets().forEach((p, i) => {
-                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
-            });
-            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
-        };
-        populateSlPresets();
-        slPresetDropdown.addEventListener("change", () => {
-            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            slSeqArea.value = lp[pi]?.seq ?? "";
-        });
-        slEditorBody.appendChild(slPresetDropdown);
-
-        const slSeqArea = document.createElement("textarea");
-        slSeqArea.rows = 3;
-        slSeqArea.spellcheck = false;
-        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-        slSeqArea.title = t("sl.seqHint");
-        const slSeqInitPresets = getSlowLeavePresets();
-        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
-        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
-        slSeqArea.addEventListener("change", () => {
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            if (pi >= 0 && pi < lp.length) {
-                lp[pi].seq = slSeqArea.value;
-                saveSlowLeavePresets(lp);
-            }
-        });
-        slEditorBody.appendChild(slSeqArea);
 
         const slDurRow = document.createElement("div");
         slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";

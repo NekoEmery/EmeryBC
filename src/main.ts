@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.6.9";
+const MOD_VERSION = "5.7.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.0",
+        changes: [
+            "Overhaul: Slow Leave now uses BC's own SlowLeaveAttempt / SlowLeaveCancel action messages instead of a custom emote sequence. Clicking the button sends '(Name slowly heads for the door.)' — the same native message BC shows for slowed players — waits the configured duration, then calls ChatRoomLeave(). Clicking again sends '(Name stops heading for the door.)' and cancels. The preset/sequence editor has been removed.",
+        ],
+    },
     {
         version: "5.6.9",
         changes: [

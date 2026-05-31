@@ -163,6 +163,46 @@ let seqRestoreFn: (() => void) | null = null;
 
 export function isSeqRunning(): boolean { return seqRunning; }
 export function setSeqDoneCallback(fn: (() => void) | null): void { seqDoneCallback = fn; }
+
+// -- BC-native slow leave ----------------------------------------------------
+// Sends BC's own SlowLeaveAttempt / SlowLeaveCancel action messages then
+// calls the done callback after the configured delay.
+let slowLeaveTimerId: ReturnType<typeof setTimeout> | null = null;
+let slowLeaveDoneCallback: (() => void) | null = null;
+
+export function isSlowLeaveActive(): boolean { return slowLeaveTimerId !== null; }
+export function setSlowLeaveDoneCallback(fn: (() => void) | null): void { slowLeaveDoneCallback = fn; }
+
+export function startBCSlowLeave(durMs: number): void {
+    if (slowLeaveTimerId !== null) return;
+    try {
+        ServerSend("ChatRoomChat", {
+            Type: "Action",
+            Content: "SlowLeaveAttempt",
+            Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+        });
+    } catch { /* ignore */ }
+    slowLeaveTimerId = window.setTimeout(() => {
+        slowLeaveTimerId = null;
+        const cb = slowLeaveDoneCallback;
+        slowLeaveDoneCallback = null;
+        cb?.();
+    }, durMs);
+}
+
+export function cancelBCSlowLeave(): void {
+    if (slowLeaveTimerId === null) return;
+    window.clearTimeout(slowLeaveTimerId);
+    slowLeaveTimerId = null;
+    slowLeaveDoneCallback = null;
+    try {
+        ServerSend("ChatRoomChat", {
+            Type: "Action",
+            Content: "SlowLeaveCancel",
+            Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+        });
+    } catch { /* ignore */ }
+}
 export function cancelSequence(): void {
     if (!seqRunning) return;
     if (seqTimeoutId !== null) { window.clearTimeout(seqTimeoutId); seqTimeoutId = null; }
