@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.5.8
+// @version      5.5.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24782,8 +24782,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
-            // ── Tiny SVG icon helpers for header buttons ─────────────────────────
+            // ── Tiny SVG icon helpers for header/footer buttons ──────────────────
             const _mkIcon = (...paths) => `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${paths.map(d => `<path d="${d}"/>`).join("")}</svg>`;
+            const _mkIconSvg = (inner) => `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${inner}</svg>`;
             const ICON_BELL = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0");
             const ICON_MUTED = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0", "M3 3l10 10");
             const ICON_INVITE = _mkIcon("M3 8h10", "M9 5l4 3-4 3");
@@ -25267,9 +25268,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.type = "text";
             input.placeholder = t("users.typeMessage");
             input.maxLength = 300;
-            // Character counter — overlaid absolutely inside the footer (which is position:relative)
+            // Character counter — flex item, sits between input and emoji button
             const charCounter = document.createElement("span");
-            charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:10px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;min-width:16px;text-align:right;";
+            charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
             charCounter.textContent = "300";
             const updateCounter = () => {
                 const rem = 300 - input.value.length;
@@ -25277,6 +25278,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
             };
             input.addEventListener("input", updateCounter);
+            // ── Emoji picker ─────────────────────────────────────────────────────
+            const EMOTES = [
+                "😊", "😘", "😍", "🥺", "😳", "🙈", "😏", "😈",
+                "❤️", "💕", "💗", "💖", "💞", "💝", "🎀", "✨",
+                "🐱", "🐾", "🌸", "🍑", "🌺", "🐰", "🦊", "😻",
+                "😂", "🤣", "😭", "😤", "🤭", "🫠", "🫂", "💋",
+            ];
+            const emojiPicker = document.createElement("div");
+            emojiPicker.className = "ebc-emoji-picker";
+            emojiPicker.style.display = "none";
+            for (const em of EMOTES) {
+                const eb = document.createElement("button");
+                eb.textContent = em;
+                eb.addEventListener("click", (ev) => {
+                    var _a, _b;
+                    ev.stopPropagation();
+                    const start = (_a = input.selectionStart) !== null && _a !== void 0 ? _a : input.value.length;
+                    const end = (_b = input.selectionEnd) !== null && _b !== void 0 ? _b : input.value.length;
+                    input.value = input.value.slice(0, start) + em + input.value.slice(end);
+                    const pos = start + em.length;
+                    input.setSelectionRange(pos, pos);
+                    updateCounter();
+                    input.focus();
+                    emojiPicker.style.display = "none";
+                });
+                emojiPicker.appendChild(eb);
+            }
+            const emojiBtn = document.createElement("button");
+            emojiBtn.className = "ebc-beep-win-hbtn";
+            emojiBtn.innerHTML = _mkIconSvg(`<circle cx="8" cy="8" r="6"/><path d="M6 7.5v.5M10 7.5v.5M6 10a2 1.2 0 014 0"/>`);
+            emojiBtn.title = "Insert emoji";
+            emojiBtn.addEventListener("click", (ev) => {
+                ev.stopPropagation();
+                const isOpen = emojiPicker.style.display !== "none";
+                emojiPicker.style.display = isOpen ? "none" : "flex";
+                if (!isOpen) {
+                    const onOutside = (e) => {
+                        if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+                            emojiPicker.style.display = "none";
+                            document.removeEventListener("click", onOutside, true);
+                        }
+                    };
+                    document.addEventListener("click", onOutside, true);
+                }
+            });
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
@@ -25296,8 +25342,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 doSend(); });
             footer.appendChild(qrToggle);
             footer.appendChild(input);
-            footer.appendChild(sendBtn);
             footer.appendChild(charCounter);
+            footer.appendChild(emojiBtn);
+            footer.appendChild(sendBtn);
+            footer.appendChild(emojiPicker); // absolute-positioned, does not affect flex flow
             win.appendChild(footer);
             // ── Quick-reply bar ─────────────────────────────────────────────────
             // renderQR is defined here (after footer) so `input` is in scope.
@@ -34820,7 +34868,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.8";
+    const MOD_VERSION = "5.5.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34831,6 +34879,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.9",
+            changes: [
+                "New: emoji picker in beep window footer — click the smiley button to insert emoji into your message. 32 curated emojis in a floating grid above the footer.",
+                "Fix: character counter (300) is now a proper flex item between the input and emoji button instead of being absolutely positioned, so it no longer overlaps other elements.",
+            ],
+        },
         {
             version: "5.5.8",
             changes: [
