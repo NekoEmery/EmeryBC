@@ -3455,21 +3455,45 @@
     let seqTimeoutId = null;
     let seqDoneCallback = null;
     let seqRestoreFn = null;
-    function isSeqRunning() { return seqRunning; }
-    function setSeqDoneCallback(fn) { seqDoneCallback = fn; }
-    function cancelSequence() {
-        if (!seqRunning)
+    // -- BC-native slow leave ----------------------------------------------------
+    // Sends BC's own SlowLeaveAttempt / SlowLeaveCancel action messages then
+    // calls the done callback after the configured delay.
+    let slowLeaveTimerId = null;
+    let slowLeaveDoneCallback = null;
+    function isSlowLeaveActive() { return slowLeaveTimerId !== null; }
+    function setSlowLeaveDoneCallback(fn) { slowLeaveDoneCallback = fn; }
+    function startBCSlowLeave(durMs) {
+        if (slowLeaveTimerId !== null)
             return;
-        if (seqTimeoutId !== null) {
-            window.clearTimeout(seqTimeoutId);
-            seqTimeoutId = null;
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: "SlowLeaveAttempt",
+                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+            });
         }
-        seqRestoreFn === null || seqRestoreFn === void 0 ? void 0 : seqRestoreFn();
-        seqRestoreFn = null;
-        seqRunning = false;
-        const cb = seqDoneCallback;
-        seqDoneCallback = null;
-        cb === null || cb === void 0 ? void 0 : cb();
+        catch ( /* ignore */_a) { /* ignore */ }
+        slowLeaveTimerId = window.setTimeout(() => {
+            slowLeaveTimerId = null;
+            const cb = slowLeaveDoneCallback;
+            slowLeaveDoneCallback = null;
+            cb === null || cb === void 0 ? void 0 : cb();
+        }, durMs);
+    }
+    function cancelBCSlowLeave() {
+        if (slowLeaveTimerId === null)
+            return;
+        window.clearTimeout(slowLeaveTimerId);
+        slowLeaveTimerId = null;
+        slowLeaveDoneCallback = null;
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: "SlowLeaveCancel",
+                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+            });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Sends the current ActivePose to the room without triggering a full re-render on each step.
     // appearanceBundle should be pre-built once before the sequence starts and reused - sending
@@ -13745,40 +13769,6 @@
         catch (_a) {
             return [];
         }
-    }
-    // -- Slow Leave preset storage -------------------------------------------------
-    const SLOW_LEAVE_PRESET_DEFAULTS = [
-        { label: "Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
-        { label: "Warm", seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
-        { label: "Quiet", seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
-        { label: "Sleepy", seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
-        { label: "Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
-        { label: "Bratty", seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
-        { label: "Custom", seq: "*waves and heads for the door~@{DUR}|leaveroom" },
-    ];
-    function getSlowLeavePresets() {
-        try {
-            const raw = localStorage.getItem("EBC_slowLeavePresets");
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    // Additive migration: append any new defaults not yet in the stored list
-                    for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
-                        if (!parsed.find(p => p.label === def.label))
-                            parsed.push(Object.assign({}, def));
-                    }
-                    return parsed;
-                }
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-        return SLOW_LEAVE_PRESET_DEFAULTS.map(p => (Object.assign({}, p)));
-    }
-    function saveSlowLeavePresets(v) {
-        try {
-            localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Icon ----------------------------------------------------------------------
     const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 90 90">'
@@ -30131,7 +30121,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b, _c, _d, _e;
+            var _a, _b;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -30885,36 +30875,35 @@
             const slLeaveBtn = document.createElement("button");
             slLeaveBtn.className = "ebc-create-btn";
             slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
-            const seqRunning = isSeqRunning();
-            slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
+            const slActive = isSlowLeaveActive();
+            slLeaveBtn.textContent = slActive ? t("sl.cancel") : t("sl.leave");
             slLeaveBtn.title = t("sl.leaveTitle");
             slLeaveBtn.dataset.guideTarget = "btn-slow-leave";
-            if (seqRunning) {
+            if (slActive) {
                 slLeaveBtn.style.background = "#4a1a2a";
                 slLeaveBtn.style.color = "#ff8aaa";
             }
             slLeaveBtn.addEventListener("click", () => {
-                var _a, _b;
-                if (isSeqRunning()) {
-                    cancelSequence();
+                var _a;
+                if (isSlowLeaveActive()) {
+                    cancelBCSlowLeave();
                     slLeaveBtn.textContent = t("sl.leave");
                     slLeaveBtn.style.background = "";
                     slLeaveBtn.style.color = "";
                     return;
                 }
-                const livePresets = getSlowLeavePresets();
-                const durMs = Math.max(500, (parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10)) * 1000);
-                const pIdx = Math.min(livePresets.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
-                const seq = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
-                setSeqDoneCallback(() => {
+                const durMs = Math.max(2000, parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10) * 1000);
+                setSlowLeaveDoneCallback(() => {
                     slLeaveBtn.textContent = t("sl.leave");
                     slLeaveBtn.style.background = "";
                     slLeaveBtn.style.color = "";
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
                 });
                 slLeaveBtn.textContent = t("sl.cancel");
                 slLeaveBtn.style.background = "#4a1a2a";
                 slLeaveBtn.style.color = "#ff8aaa";
-                runSequence(seq);
+                startBCSlowLeave(durMs);
             });
             body.appendChild(slLeaveBtn);
             // ── Slow Leave editor — collapsible accordion card ────────────────────
@@ -30933,53 +30922,9 @@
             slEditorHdr.appendChild(slEditorChev);
             slEditorHdr.appendChild(slEditorLbl);
             slEditorCard.appendChild(slEditorHdr);
-            // Editor body
+            // Editor body — duration slider only
             const slEditorBody = document.createElement("div");
             slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
-            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
-            const slPresetDropdown = document.createElement("select");
-            slPresetDropdown.style.cssText = DD_CSS;
-            const populateSlPresets = () => {
-                var _a;
-                while (slPresetDropdown.firstChild)
-                    slPresetDropdown.removeChild(slPresetDropdown.firstChild);
-                getSlowLeavePresets().forEach((p, i) => {
-                    const o = document.createElement("option");
-                    o.value = String(i);
-                    o.textContent = p.label;
-                    slPresetDropdown.appendChild(o);
-                });
-                slPresetDropdown.value = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
-            };
-            populateSlPresets();
-            slPresetDropdown.addEventListener("change", () => {
-                var _a, _b;
-                try {
-                    localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value);
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-                const lp = getSlowLeavePresets();
-                const pi = parseInt(slPresetDropdown.value, 10);
-                slSeqArea.value = (_b = (_a = lp[pi]) === null || _a === void 0 ? void 0 : _a.seq) !== null && _b !== void 0 ? _b : "";
-            });
-            slEditorBody.appendChild(slPresetDropdown);
-            const slSeqArea = document.createElement("textarea");
-            slSeqArea.rows = 3;
-            slSeqArea.spellcheck = false;
-            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-            slSeqArea.title = t("sl.seqHint");
-            const slSeqInitPresets = getSlowLeavePresets();
-            const slSeqInitIdx = parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10);
-            slSeqArea.value = (_d = (_c = slSeqInitPresets[slSeqInitIdx]) === null || _c === void 0 ? void 0 : _c.seq) !== null && _d !== void 0 ? _d : "";
-            slSeqArea.addEventListener("change", () => {
-                const lp = getSlowLeavePresets();
-                const pi = parseInt(slPresetDropdown.value, 10);
-                if (pi >= 0 && pi < lp.length) {
-                    lp[pi].seq = slSeqArea.value;
-                    saveSlowLeavePresets(lp);
-                }
-            });
-            slEditorBody.appendChild(slSeqArea);
             const slDurRow = document.createElement("div");
             slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
             const slDurLbl = document.createElement("span");
@@ -30991,7 +30936,7 @@
             slDurSlider.min = "2";
             slDurSlider.max = "30";
             slDurSlider.step = "1";
-            slDurSlider.value = (_e = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _e !== void 0 ? _e : "5";
+            slDurSlider.value = (_b = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _b !== void 0 ? _b : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
             slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
@@ -35052,7 +34997,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.9";
+    const MOD_VERSION = "5.7.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35063,6 +35008,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.0",
+            changes: [
+                "Overhaul: Slow Leave now uses BC's own SlowLeaveAttempt / SlowLeaveCancel action messages instead of a custom emote sequence. Clicking the button sends '(Name slowly heads for the door.)' — the same native message BC shows for slowed players — waits the configured duration, then calls ChatRoomLeave(). Clicking again sends '(Name stops heading for the door.)' and cancels. The preset/sequence editor has been removed.",
+            ],
+        },
         {
             version: "5.6.9",
             changes: [
