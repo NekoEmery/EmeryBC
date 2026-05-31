@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.2
+// @version      5.6.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15817,7 +15817,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border: 1px solid #4a2035;
     border-radius: 5px;
     color: #9a6878;
-    font-size: 13px;
+    font-size: 11px;
     cursor: pointer;
     line-height: 1;
     padding: 5px 8px;
@@ -15860,12 +15860,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border: 1px solid #3a1928;
     border-bottom-left-radius: 2px;
 }
+.ebc-beep-ts-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 1px;
+}
+.ebc-beep-msg.sent .ebc-beep-ts-row { justify-content: flex-end; }
 .ebc-beep-ts {
     font-size: 9px;
     color: #7a5a6a;
-    margin-bottom: 1px;
 }
-.ebc-beep-msg.sent .ebc-beep-ts { text-align: right; }
 
 .ebc-beep-win-footer {
     display: flex;
@@ -16148,14 +16153,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
-/* Message wrap — hover target for the inline copy icon */
+/* Message wrap */
 .ebc-beep-msg-wrap { position: relative; }
-/* Copy button — absolutely placed in the bottom-right of the bubble, shown on wrap hover */
+/* Copy button — shown inline beside the timestamp */
 .ebc-bubble-copy-btn {
-    display: none;
-    position: absolute;
-    bottom: 3px;
-    right: 5px;
+    display: inline-block;
+    flex-shrink: 0;
     background: rgba(20, 6, 16, 0.85);
     border: 1px solid #4a2038;
     border-radius: 3px;
@@ -16168,7 +16171,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: color 0.1s, border-color 0.1s;
 }
 .ebc-bubble-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
-.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: block; }
 
 /* "They came online!" transient notice */
 .ebc-beep-online-alert {
@@ -24787,18 +24789,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
             // ── Tiny SVG icon helpers for header/footer buttons ──────────────────
-            const _mkIcon = (...paths) => `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${paths.map(d => `<path d="${d}"/>`).join("")}</svg>`;
             const _mkIconSvg = (inner) => `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${inner}</svg>`;
-            const ICON_BELL = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0");
-            const ICON_MUTED = _mkIcon("M8 2C5.2 2 3 4.2 3 6.5v3L1.5 12h13L13 9.5V6.5C13 4.2 10.8 2 8 2z", "M6.5 12a1.5 1.5 0 003 0", "M3 3l10 10");
-            const ICON_INVITE = _mkIcon("M3 8h10", "M9 5l4 3-4 3");
-            const ICON_TRASH = _mkIcon("M6 3h4", "M3 5h10", "M4 5v7a1 1 0 011 1h6a1 1 0 011-1V5", "M7 7v4", "M9 7v4");
             // Per-person mute toggle — silences beep sounds from this specific person
             const muteBtn = document.createElement("button");
             muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
             const refreshMuteBtn = () => {
                 const muted = isBeepMemberMuted(memberNumber);
-                muteBtn.innerHTML = muted ? ICON_MUTED : ICON_BELL;
+                muteBtn.textContent = muted ? "🔇" : "🔔";
                 muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
                 muteBtn.classList.toggle("muted", muted);
             };
@@ -24813,12 +24810,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // so it can call renderHistory() to refresh the chat after sending.
             const roomInviteBtn = document.createElement("button");
             roomInviteBtn.className = "ebc-beep-win-hbtn";
-            roomInviteBtn.innerHTML = ICON_INVITE;
+            roomInviteBtn.textContent = "📍";
             roomInviteBtn.title = "Send your current room as an invite";
             // Clear conversation button — wipes local history after confirmation
             const clearBtn = document.createElement("button");
             clearBtn.className = "ebc-beep-win-hbtn";
-            clearBtn.innerHTML = ICON_TRASH;
+            clearBtn.textContent = "🗑️";
             clearBtn.title = "Clear conversation";
             clearBtn.addEventListener("click", () => {
                 showConfirmOverlay("Clear all messages with this person? This cannot be undone.", "Cancel", "Clear", () => {
@@ -25030,6 +25027,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     wrap.appendChild(nameLabel);
                     const bubble = document.createElement("div");
                     bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
+                    const tsRow = document.createElement("div");
+                    tsRow.className = "ebc-beep-ts-row";
                     const ts = document.createElement("div");
                     ts.className = "ebc-beep-ts";
                     const d = new Date(e.ts);
@@ -25043,7 +25042,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? timeStr
                         : `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? " " + d.getFullYear() : ""} · ${timeStr}`;
                     ts.textContent = dateStr;
-                    bubble.appendChild(ts);
+                    tsRow.appendChild(ts);
+                    bubble.appendChild(tsRow);
                     // Strip embedded JSON metadata appended by other mods (WCE, FBC, etc.)
                     const cleanMsg = stripBeepMetadata(e.message);
                     // Parse message — may start with "> quote\n" reply prefix
@@ -25160,7 +25160,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                         wrap.appendChild(replyBtn);
                     }
-                    // Copy button — overlaid in the bottom-right corner of the bubble, shown on wrap hover
+                    // Copy button — shown inline beside the timestamp
                     if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                         const copyBtn = document.createElement("button");
                         copyBtn.className = "ebc-bubble-copy-btn";
@@ -25171,7 +25171,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             copyBtn.textContent = "Copied!";
                             window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
                         });
-                        bubble.appendChild(copyBtn);
+                        tsRow.appendChild(copyBtn);
                     }
                     history.appendChild(wrap);
                 }
@@ -25196,7 +25196,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
                     renderHistory();
                     roomInviteBtn.textContent = "✓";
-                    window.setTimeout(() => { roomInviteBtn.innerHTML = ICON_INVITE; }, 1200);
+                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                 }
                 else {
                     // Not in a room — shortcut: join their room if they have one.
@@ -25207,13 +25207,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (friendRoom && friendStatus !== "room") {
                         doJoinRoom(friendRoom);
                         roomInviteBtn.textContent = "→";
-                        window.setTimeout(() => { roomInviteBtn.innerHTML = ICON_INVITE; }, 1200);
+                        window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                     }
                     else {
                         roomInviteBtn.textContent = "×";
                         roomInviteBtn.title = "Neither you nor they are in a room";
                         window.setTimeout(() => {
-                            roomInviteBtn.innerHTML = ICON_INVITE;
+                            roomInviteBtn.textContent = "📍";
                             roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
                         }, 1500);
                     }
@@ -25284,6 +25284,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.addEventListener("input", updateCounter);
             // ── Emoji picker ─────────────────────────────────────────────────────
             const EMOTES = [
+                // Cat faces
+                "🐱", "😺", "😸", "😹", "😻", "😼", "😽", "🙀",
+                "😿", "😾",
                 // Smileys & expressions
                 "😊", "😘", "😍", "🥰", "🤩", "😁", "😄", "😆",
                 "😂", "🤣", "🥹", "🥺", "😢", "😭", "😳", "🙈",
@@ -25300,9 +25303,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Floral & food
                 "🌸", "🌺", "🌹", "🌷", "🌼", "🌻", "💮", "🏵️",
                 "🍒", "🍓", "🍑", "🍭", "🧁", "🎂", "🍰", "🍫",
-                // Cat faces (all of them)
-                "🐱", "😺", "😸", "😹", "😻", "😼", "😽", "🙀",
-                "😿", "😾",
                 // Other animals
                 "🐾", "🐰", "🦊", "🐻", "🐼", "🐨", "🐶", "🐺",
                 "🦝", "🦋", "🌊", "🦄", "🐸", "🐹",
@@ -34890,7 +34890,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.2";
+    const MOD_VERSION = "5.6.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34901,6 +34901,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.3",
+            changes: [
+                "Fix: nickname cache was being overwritten by the raw BC account name whenever a beep was received or a friend came online — nicknames (e.g. Lucy) now persist correctly across beeps and online events.",
+                "Fix: copy button is now always visible beside the timestamp instead of hidden until hover.",
+                "Improvement: cat face emojis moved to the top of the emoji picker.",
+                "Improvement: header buttons (mute, room invite, clear) now use emoji icons (🔔/🔇 📍 🗑️).",
+            ],
+        },
         {
             version: "5.6.2",
             changes: [
@@ -41096,8 +41105,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!fromNum)
                     return next(args);
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
-                if (name)
-                    cacheName(fromNum, name);
+                if (name) {
+                    // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                    cacheAccountName(fromNum, name);
+                    const existingName = getCachedNames()[String(fromNum)];
+                    if (!existingName || existingName === `#${fromNum}`)
+                        cacheName(fromNum, name);
+                }
                 // Non-friend beeps (addon bots, update notices, etc.) always pass through
                 // to BC's native handler so they stay visible regardless of suppress setting.
                 const friendList = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
@@ -41240,8 +41254,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const [data] = args;
                 const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
                 const name = typeof data.MemberName === "string" ? data.MemberName : null;
-                if (num && name)
-                    cacheName(num, name);
+                if (num && name) {
+                    // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                    cacheAccountName(num, name);
+                    const existingName = getCachedNames()[String(num)];
+                    if (!existingName || existingName === `#${num}`)
+                        cacheName(num, name);
+                }
                 try {
                     syncFriendsSince();
                 }
