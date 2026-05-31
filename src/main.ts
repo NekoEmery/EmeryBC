@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.5";
+const MOD_VERSION = "5.4.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.4.6",
+        changes: [
+            "Fix: EBC friends list now stays in sync with BC's native friend list — the AccountQueryResult dedup window was 500 ms, causing rapid BC polls (e.g. while the native friend list screen is open) to be silently dropped and leaving room tags stale. Reduced to 50 ms, which is still enough to prevent the hook/socket double-fire.",
+        ],
+    },
     {
         version: "5.4.5",
         changes: [
@@ -6165,7 +6171,7 @@ function init(): void {
     const handleAccountQueryResult = (raw: unknown): void => {
         try {
             const now = Date.now();
-            if (now - _lastQueryResultTs < 500) return; // dedup if both hook + socket fire
+            if (now - _lastQueryResultTs < 50) return; // dedup if both hook + socket fire (50 ms is enough — they fire ~1 ms apart)
             _lastQueryResultTs = now;
             const data = raw as Record<string, unknown>;
             if (data.Query !== "OnlineFriends") return;
