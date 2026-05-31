@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.5.6
+// @version      5.5.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24787,7 +24787,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
             const refreshMuteBtn = () => {
                 const muted = isBeepMemberMuted(memberNumber);
-                muteBtn.textContent = muted ? "🔇" : "🔔";
+                muteBtn.textContent = muted ? "⊘" : "♪";
                 muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
                 muteBtn.classList.toggle("muted", muted);
             };
@@ -24802,12 +24802,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // so it can call renderHistory() to refresh the chat after sending.
             const roomInviteBtn = document.createElement("button");
             roomInviteBtn.className = "ebc-beep-win-hbtn";
-            roomInviteBtn.textContent = "📍";
+            roomInviteBtn.textContent = "⊕";
             roomInviteBtn.title = "Send your current room as an invite";
             // Clear conversation button — wipes local history after confirmation
             const clearBtn = document.createElement("button");
             clearBtn.className = "ebc-beep-win-hbtn";
-            clearBtn.textContent = "🗑";
+            clearBtn.textContent = "⌫";
             clearBtn.title = "Clear conversation";
             clearBtn.addEventListener("click", () => {
                 showConfirmOverlay("Clear all messages with this person? This cannot be undone.", "Cancel", "Clear", () => {
@@ -25177,7 +25177,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
                     renderHistory();
                     roomInviteBtn.textContent = "✓";
-                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                    window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
                 }
                 else {
                     // Not in a room — shortcut: join their room if they have one.
@@ -25188,13 +25188,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (friendRoom && friendStatus !== "room") {
                         doJoinRoom(friendRoom);
                         roomInviteBtn.textContent = "→";
-                        window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                        window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
                     }
                     else {
-                        roomInviteBtn.textContent = "🚫";
+                        roomInviteBtn.textContent = "×";
                         roomInviteBtn.title = "Neither you nor they are in a room";
                         window.setTimeout(() => {
-                            roomInviteBtn.textContent = "📍";
+                            roomInviteBtn.textContent = "⊕";
                             roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
                         }, 1500);
                     }
@@ -25379,6 +25379,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             win.insertBefore(qrBar, footer);
             syncQrToggle(); // apply initial open/closed state from localStorage
             document.body.appendChild(win);
+            // Now that the window is in the DOM it has real layout — scroll history to bottom.
+            window.requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
             // Centre new user-initiated windows after layout so offsetWidth/Height are real.
             if (!startMinimized) {
                 window.requestAnimationFrame(() => {
@@ -34804,7 +34806,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.6";
+    const MOD_VERSION = "5.5.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34815,6 +34817,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.7",
+            changes: [
+                "Fix: chat messages now correctly start scrolled to the bottom when a conversation window opens — previously the scroll happened before the window was in the DOM so scrollHeight was 0.",
+                "Improvement: header icons (bell, pin, trash) replaced with plain Unicode symbols (♪/⊘, ⊕, ⌫) that render monochrome and fit the dark-pink aesthetic instead of coloured OS emoji.",
+            ],
+        },
         {
             version: "5.5.6",
             changes: [
