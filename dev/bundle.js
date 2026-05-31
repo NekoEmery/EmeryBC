@@ -17288,6 +17288,7 @@
             // Set to true once we've confirmed no saved position exists, so we stop polling storage.
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
+            this.isResizeDragging = false; // true while handle is being dragged — prevents syncToChat overriding height
             this.domSelectedTargets = new Set();
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
@@ -18080,25 +18081,59 @@
             resizeHandle.className = "ebc-resize-handle";
             resizeHandle.title = "Drag to resize · Double-click to restore full height";
             slideContainer.appendChild(resizeHandle);
-            addPointerDown(resizeHandle, (startPos, e) => {
+            // Direct drag handlers — bypasses addPointerDown/addPointerTracking to avoid
+            // any event-ordering issues with BC's global handlers.
+            let dragStartY = 0;
+            let dragStartH = 0;
+            const onResizeMove = (clientY) => {
+                const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+                this.userPanelHeight = newH;
+                slideContainer.style.height = `${newH}px`;
+            };
+            const onResizeEnd = () => {
+                if (!this.isResizeDragging)
+                    return;
+                this.isResizeDragging = false;
+                resizeHandle.classList.remove("active");
+                document.removeEventListener("mousemove", onMouseMove);
+                document.removeEventListener("mouseup", onMouseUp);
+                document.removeEventListener("touchmove", onTouchMove);
+                document.removeEventListener("touchend", onTouchEnd);
+                if (this.userPanelHeight !== null)
+                    try {
+                        localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+            };
+            const onMouseMove = (e) => { onResizeMove(e.clientY); };
+            const onMouseUp = (_e) => { onResizeEnd(); };
+            const onTouchMove = (e) => { if (e.touches.length) {
                 e.preventDefault();
+                onResizeMove(e.touches[0].clientY);
+            } };
+            const onTouchEnd = (_e) => { onResizeEnd(); };
+            resizeHandle.addEventListener("mousedown", (e) => {
+                if (e.button !== 0)
+                    return;
+                e.preventDefault();
+                this.isResizeDragging = true;
+                dragStartY = e.clientY;
+                dragStartH = slideContainer.getBoundingClientRect().height;
                 resizeHandle.classList.add("active");
-                const startY = startPos.clientY;
-                const startH = slideContainer.getBoundingClientRect().height;
-                addPointerTracking((pos) => {
-                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, startH + (pos.clientY - startY)));
-                    this.userPanelHeight = newH;
-                    slideContainer.style.height = `${newH}px`;
-                }, () => {
-                    resizeHandle.classList.remove("active");
-                    if (this.userPanelHeight !== null)
-                        try {
-                            localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                });
-                return true;
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup", onMouseUp);
             });
+            resizeHandle.addEventListener("touchstart", (e) => {
+                if (e.touches.length !== 1)
+                    return;
+                e.preventDefault();
+                this.isResizeDragging = true;
+                dragStartY = e.touches[0].clientY;
+                dragStartH = slideContainer.getBoundingClientRect().height;
+                resizeHandle.classList.add("active");
+                document.addEventListener("touchmove", onTouchMove, { passive: false });
+                document.addEventListener("touchend", onTouchEnd);
+            }, { passive: false });
             resizeHandle.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
                 try {
@@ -18287,19 +18322,26 @@
             const rightOffset = document.documentElement.clientWidth - rect.right;
             // Only write to the DOM when the chat log actually moved or resized —
             // eliminates layout thrashing on every animation frame (pattern from CRABS).
-            if (this.lastRect.top !== rect.top ||
-                this.lastRect.width !== rect.width ||
-                this.lastRect.height !== rect.height ||
-                this.lastRect.right !== rightOffset) {
+            // Round to whole pixels to ignore sub-pixel drift that can cause constant
+            // re-fires (e.g. getBoundingClientRect() returning 4.5 vs 4.500001).
+            const rTop = Math.round(rect.top);
+            const rWidth = Math.round(rect.width);
+            const rHeight = Math.round(rect.height);
+            const rRight = Math.round(rightOffset);
+            if (this.lastRect.top !== rTop ||
+                this.lastRect.width !== rWidth ||
+                this.lastRect.height !== rHeight ||
+                this.lastRect.right !== rRight) {
                 // Cap height so the panel never extends below the visible viewport.
-                const finalH = Math.min(rect.height, Math.max(100, window.innerHeight - rect.top - 8));
+                const finalH = Math.min(rHeight, Math.max(100, window.innerHeight - rTop - 8));
                 const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
-                this.rootEl.style.top = `${rect.top}px`;
-                this.rootEl.style.right = `${rightOffset}px`;
+                this.rootEl.style.top = `${rTop}px`;
+                this.rootEl.style.right = `${rRight}px`;
                 this.rootEl.style.height = `${finalH}px`;
-                if (this.panelEl)
+                // Never override the panel height while the user is dragging the resize handle.
+                if (this.panelEl && !this.isResizeDragging)
                     this.panelEl.style.height = `${panelH}px`;
-                this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
+                this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
                 this.lastCrabsBottom = -1;
@@ -18617,11 +18659,11 @@
             try {
                 (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             try {
                 (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
         }
         startGuide() {
             var _a, _b, _c, _d;
@@ -22444,7 +22486,7 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d, _e, _f, _g;
+            var _a, _b, _c, _d, _f, _g, _h;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -22865,7 +22907,7 @@
                 editor.appendChild(poseSectionLbl);
                 const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_d = combo.stepDelayMs) !== null && _d !== void 0 ? _d : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_e = combo.command) !== null && _e !== void 0 ? _e : "", (_f = combo.announceText) !== null && _f !== void 0 ? _f : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_f = combo.command) !== null && _f !== void 0 ? _f : "", (_g = combo.announceText) !== null && _g !== void 0 ? _g : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 const doSaveCombo = () => {
                     showConfirmOverlay(`Save changes to "${combo.name}"?`, "Cancel", "Save", () => {
@@ -23247,7 +23289,7 @@
                 const seqCmdInp = document.createElement("input");
                 seqCmdInp.type = "text";
                 seqCmdInp.maxLength = 30;
-                seqCmdInp.value = (_g = seq.command) !== null && _g !== void 0 ? _g : "";
+                seqCmdInp.value = (_h = seq.command) !== null && _h !== void 0 ? _h : "";
                 seqCmdInp.className = "ebc-form-input";
                 seqCmdInp.style.cssText = "flex:1;font-size:11px;";
                 seqCmdInp.placeholder = "command (optional)";
@@ -23347,7 +23389,7 @@
             this.renderExpressions(exprCnt);
         }
         renderScenes(body) {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _f;
             const STEP_TYPE_LABELS = {
                 pose: "Pose",
                 equip: "Equip Item", // primary equip type — searches all groups
@@ -23420,7 +23462,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h;
+                var _a, _b, _c, _d, _f, _g, _h, _j;
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
@@ -23441,7 +23483,7 @@
                                 if (r.length > 0)
                                     types = r;
                             }
-                            catch ( /* ignore */_j) { /* ignore */ }
+                            catch ( /* ignore */_k) { /* ignore */ }
                         }
                     }
                     const pickNames = (arr) => Array.isArray(arr)
@@ -23484,24 +23526,24 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_e = (_c = tryVH(a.Config)) !== null && _c !== void 0 ? _c : tryVH((_d = a.Config) === null || _d === void 0 ? void 0 : _d.ArchetypeConfig)) !== null && _e !== void 0 ? _e : { min: 0, max: 100 };
+                        varHeight = (_f = (_c = tryVH(a.Config)) !== null && _c !== void 0 ? _c : tryVH((_d = a.Config) === null || _d === void 0 ? void 0 : _d.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_h = (_g = tryVH((_f = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _f !== void 0 ? _f : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _g !== void 0 ? _g : tryVH(a.VariableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeightConfig);
+                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
                     }
                     const archStr = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     const isTyped = archStr === "typed" || (Array.isArray(a.AllowType) && a.AllowType.length > 0);
                     return { types, varHeight, isTyped };
                 }
-                catch (_k) {
+                catch (_l) {
                     return { types: [], varHeight: null, isTyped: false };
                 }
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+                var _a, _b, _c, _d, _f, _g, _h, _j, _k, _l, _m;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -23592,14 +23634,14 @@
                 let equipAsset = (_d = initStep.assetName) !== null && _d !== void 0 ? _d : "";
                 let equipColorRaw = Array.isArray(initStep.color)
                     ? initStep.color.join(",")
-                    : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
-                let equipPropertyType = (_f = initStep.propertyType) !== null && _f !== void 0 ? _f : "";
+                    : ((_f = initStep.color) !== null && _f !== void 0 ? _f : "");
+                let equipPropertyType = (_g = initStep.propertyType) !== null && _g !== void 0 ? _g : "";
                 let equipHeightModifier = initStep.heightModifier;
-                let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
-                let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
-                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
-                let exprStepPresetId = (_k = initStep.exprPresetId) !== null && _k !== void 0 ? _k : "";
-                let exprStepDurationMs = (_l = initStep.exprDurationMs) !== null && _l !== void 0 ? _l : 5000;
+                let unequipGroup = (_h = initStep.group) !== null && _h !== void 0 ? _h : "";
+                let emoteText = (_j = initStep.text) !== null && _j !== void 0 ? _j : "";
+                let chatFormat = (_k = initStep.chatFormat) !== null && _k !== void 0 ? _k : "";
+                let exprStepPresetId = (_l = initStep.exprPresetId) !== null && _l !== void 0 ? _l : "";
+                let exprStepDurationMs = (_m = initStep.exprDurationMs) !== null && _m !== void 0 ? _m : 5000;
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 // Prevent BC's document-level keyboard handlers from stealing focus
@@ -24404,7 +24446,7 @@
                 eCmdPrefix.textContent = "/";
                 const eCmdInp = Object.assign(document.createElement("input"), {
                     className: "ebc-form-input", type: "text",
-                    value: (_e = scene.command) !== null && _e !== void 0 ? _e : "", placeholder: "optional", maxLength: 30,
+                    value: (_f = scene.command) !== null && _f !== void 0 ? _f : "", placeholder: "optional", maxLength: 30,
                 });
                 eCmdInp.style.flex = "1";
                 const eCmdWrap = document.createElement("div");
@@ -27758,7 +27800,7 @@
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_f) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -28653,7 +28695,7 @@
                 };
                 // ── Whisper Log ───────────────────────────────────────────────────
                 makeInner(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
-                    var _a, _b, _c, _d, _e;
+                    var _a, _b, _c, _d, _f;
                     const partners = getWhisperPartners();
                     if (partners.length === 0) {
                         const empty = document.createElement("div");
@@ -28702,7 +28744,7 @@
                     }
                     cnt.appendChild(partnerList);
                     // Conversation view
-                    const activeName = (_e = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _e !== void 0 ? _e : `#${activePartner}`;
+                    const activeName = (_f = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _f !== void 0 ? _f : `#${activePartner}`;
                     const convLbl = document.createElement("div");
                     convLbl.className = "ebc-section-label";
                     convLbl.textContent = `With ${activeName}`;
@@ -34768,7 +34810,7 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _f;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -34812,7 +34854,7 @@
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -34822,14 +34864,14 @@
             if (puppyTabEl)
                 puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             // Show the Kitty tab only for Lucy (#230466)
-            const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
+            const kittyTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-kitty");
             if (kittyTabEl)
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -34997,7 +35039,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.0";
+    const MOD_VERSION = "5.7.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35008,6 +35050,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.1",
+            changes: [
+                "Fix: resize handle drag now works reliably. Replaced addPointerDown/addPointerTracking with direct element-level event listeners. Added isResizeDragging guard so syncToChat never overrides the panel height mid-drag. Rounded the chat-log rect comparison in syncToChat to whole pixels to prevent sub-pixel float drift from constantly re-firing the height reset.",
+            ],
+        },
         {
             version: "5.7.0",
             changes: [
