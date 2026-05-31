@@ -34545,6 +34545,7 @@
             version: "5.4.8",
             changes: [
                 "Fix: ON/OFF toggle buttons now use flex centering — OFF text was visually off-centre due to browser default button padding.",
+                "Fix: /ebc changelog now only prints the current version's entry instead of the full history.",
             ],
         },
         {
@@ -38817,7 +38818,7 @@
             version: "0.1.5",
             changes: [
                 "Changed /ebc version so it only prints the current addon version.",
-                "Kept the full history on /ebc changelog and /ebc changes.",
+                "Changed /ebc changelog to only show the latest version entry.",
             ],
         },
         {
@@ -38951,15 +38952,15 @@
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
     }
     function showChangelog() {
-        // Iterate oldest→newest so the most recent entry lands at the bottom of the
-        // chat log (where you'd naturally look after scrolling down).
-        for (const entry of CHANGELOG.slice().reverse()) {
-            appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
-            for (const change of entry.changes) {
-                appendLocalLogLine(`- ${change}`, UI.accent);
-            }
+        const latest = CHANGELOG[0];
+        if (!latest) {
+            appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
+            return;
         }
-        appendLocalLogLine(`[EBC] Current version: ${MOD_VERSION}`, UI.gold);
+        appendLocalLogLine(`[EBC] v${latest.version} — what's new:`, UI.gold);
+        for (const change of latest.changes) {
+            appendLocalLogLine(`  - ${change}`, UI.accent);
+        }
     }
     // Last non-Inactive arousal level, so toggling off → on restores it.
     // Defaults to "Manual" if the setting was already Inactive at load time.
