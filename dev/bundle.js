@@ -31018,7 +31018,7 @@
                 slLeaveBtn.style.color = "#ff8aaa";
             }
             slLeaveBtn.addEventListener("click", () => {
-                var _a, _b, _c, _d;
+                var _a, _b, _c, _d, _f, _g;
                 if (isSlowLeaveActive()) {
                     cancelBCSlowLeave();
                     slLeaveBtn.textContent = t("sl.leave");
@@ -31026,16 +31026,30 @@
                     slLeaveBtn.style.color = "";
                     return;
                 }
-                const durMs = Math.max(2000, parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10) * 1000);
+                // Respect BC's own leave guard — locked rooms, restraints that block leaving, etc.
+                try {
+                    const canLeave = (_b = (_a = window).ChatRoomCanLeave) === null || _b === void 0 ? void 0 : _b.call(_a);
+                    if (canLeave === false) {
+                        // Brief red flash so the user knows the click was received but blocked
+                        const prev = slLeaveBtn.style.background;
+                        slLeaveBtn.style.background = "#6a1a2a";
+                        window.setTimeout(() => { slLeaveBtn.style.background = prev; }, 350);
+                        return;
+                    }
+                }
+                catch ( /* ignore — if check unavailable, allow the leave */_h) { /* ignore — if check unavailable, allow the leave */ }
+                const durMs = Math.max(2000, parseInt((_c = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _c !== void 0 ? _c : "5", 10) * 1000);
                 const slps = getSlowLeavePresets();
-                const slpi = Math.min(Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _b !== void 0 ? _b : "0", 10)), slps.length - 1);
-                const intro = (_d = (_c = slps[slpi]) === null || _c === void 0 ? void 0 : _c.intro) !== null && _d !== void 0 ? _d : "";
+                const slpi = Math.min(Math.max(0, parseInt((_d = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _d !== void 0 ? _d : "0", 10)), slps.length - 1);
+                const intro = (_g = (_f = slps[slpi]) === null || _f === void 0 ? void 0 : _f.intro) !== null && _g !== void 0 ? _g : "";
                 setSlowLeaveDoneCallback(() => {
                     slLeaveBtn.textContent = t("sl.leave");
                     slLeaveBtn.style.background = "";
                     slLeaveBtn.style.color = "";
-                    callBC(() => ChatRoomLeave());
+                    // Navigate to lobby FIRST so ChatRoomRun hooks (CRABS etc.) stop running
+                    // before ChatRoomLeave() clears room state — same order as the safeword leave.
                     callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
                 });
                 slLeaveBtn.textContent = t("sl.cancel");
                 slLeaveBtn.style.background = "#4a1a2a";
@@ -35190,7 +35204,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.3";
+    const MOD_VERSION = "5.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35201,6 +35215,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.4",
+            changes: [
+                "Fix: Slow Leave now calls CommonSetScreen() before ChatRoomLeave() — matching the safeword leave pattern. Doing it the other way cleared room state first, causing CRABS and other mods to crash on the next ChatRoomRun frame.",
+                "Fix: Slow Leave button now checks ChatRoomCanLeave() before starting. If BC would block the leave (locked room, restraints, etc.) the button flashes red and does nothing instead of starting a timer that would fail.",
+            ],
+        },
         {
             version: "5.7.3",
             changes: [
