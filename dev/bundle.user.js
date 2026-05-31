@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.7.2
+// @version      5.7.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -18196,8 +18196,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             resizeHandle.className = "ebc-resize-handle";
             resizeHandle.title = "Drag to resize · Double-click to restore full height";
             slideContainer.appendChild(resizeHandle);
-            // Direct drag handlers — bypasses addPointerDown/addPointerTracking to avoid
-            // any event-ordering issues with BC's global handlers.
+            // Pointer Events API — setPointerCapture routes all subsequent pointermove/
+            // pointerup to this element regardless of where the pointer travels.
+            // No document-level listeners needed → immune to stopPropagation from
+            // stopTouchBubble and BC's global canvas handlers.
             let dragStartY = 0;
             let dragStartH = 0;
             const onResizeMove = (clientY) => {
@@ -18210,45 +18212,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 this.isResizeDragging = false;
                 resizeHandle.classList.remove("active");
-                document.removeEventListener("mousemove", onMouseMove);
-                document.removeEventListener("mouseup", onMouseUp);
-                document.removeEventListener("touchmove", onTouchMove);
-                document.removeEventListener("touchend", onTouchEnd);
                 if (this.userPanelHeight !== null)
                     try {
                         localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
             };
-            const onMouseMove = (e) => { onResizeMove(e.clientY); };
-            const onMouseUp = (_e) => { onResizeEnd(); };
-            const onTouchMove = (e) => { if (e.touches.length) {
-                e.preventDefault();
-                onResizeMove(e.touches[0].clientY);
-            } };
-            const onTouchEnd = (_e) => { onResizeEnd(); };
-            resizeHandle.addEventListener("mousedown", (e) => {
+            resizeHandle.addEventListener("pointerdown", (e) => {
                 if (e.button !== 0)
                     return;
                 e.preventDefault();
+                try {
+                    resizeHandle.setPointerCapture(e.pointerId);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
                 this.isResizeDragging = true;
                 dragStartY = e.clientY;
                 dragStartH = slideContainer.getBoundingClientRect().height;
                 resizeHandle.classList.add("active");
-                document.addEventListener("mousemove", onMouseMove);
-                document.addEventListener("mouseup", onMouseUp);
             });
-            resizeHandle.addEventListener("touchstart", (e) => {
-                if (e.touches.length !== 1)
+            resizeHandle.addEventListener("pointermove", (e) => {
+                if (!this.isResizeDragging)
                     return;
                 e.preventDefault();
-                this.isResizeDragging = true;
-                dragStartY = e.touches[0].clientY;
-                dragStartH = slideContainer.getBoundingClientRect().height;
-                resizeHandle.classList.add("active");
-                document.addEventListener("touchmove", onTouchMove, { passive: false });
-                document.addEventListener("touchend", onTouchEnd);
-            }, { passive: false });
+                onResizeMove(e.clientY);
+            });
+            resizeHandle.addEventListener("pointerup", (_e) => {
+                onResizeEnd();
+            });
+            resizeHandle.addEventListener("pointercancel", (_e) => {
+                onResizeEnd();
+            });
             resizeHandle.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
                 try {
@@ -35213,7 +35207,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.2";
+    const MOD_VERSION = "5.7.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35224,6 +35218,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.3",
+            changes: [
+                "Fix: resize handle drag rewritten with Pointer Events API (pointerdown/pointermove/pointerup + setPointerCapture). Pointer capture routes all subsequent events directly to the handle element regardless of where the pointer travels — no document-level listeners needed, immune to stopPropagation from BC global handlers and the container's touch-bubble guard.",
+            ],
+        },
         {
             version: "5.7.2",
             changes: [
