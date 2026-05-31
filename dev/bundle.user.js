@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.1
+// @version      5.6.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25300,9 +25300,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Floral & food
                 "🌸", "🌺", "🌹", "🌷", "🌼", "🌻", "💮", "🏵️",
                 "🍒", "🍓", "🍑", "🍭", "🧁", "🎂", "🍰", "🍫",
-                // Animals
-                "🐱", "😻", "🐾", "🐰", "🦊", "🐻", "🐼", "🐨",
-                "🐶", "🐺", "🦝", "🦋", "🌊", "🦄", "🐸", "🐹",
+                // Cat faces (all of them)
+                "🐱", "😺", "😸", "😹", "😻", "😼", "😽", "🙀",
+                "😿", "😾",
+                // Other animals
+                "🐾", "🐰", "🦊", "🐻", "🐼", "🐨", "🐶", "🐺",
+                "🦝", "🦋", "🌊", "🦄", "🐸", "🐹",
             ];
             const emojiPicker = document.createElement("div");
             emojiPicker.className = "ebc-emoji-picker";
@@ -34887,7 +34890,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.1";
+    const MOD_VERSION = "5.6.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34898,6 +34901,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.2",
+            changes: [
+                "Improvement: all 10 cat face emojis added to the picker (😺 😸 😹 😻 😼 😽 🙀 😿 😾 🐱) — happy, laughing, heart-eyes, wry, kissing, weary, crying, angry.",
+            ],
+        },
         {
             version: "5.6.1",
             changes: [
