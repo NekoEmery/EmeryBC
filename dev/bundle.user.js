@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.4
+// @version      5.6.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14857,6 +14857,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     gap: 3px;
 }
 
+/* -- Panel resize handle (bottom edge drag) -- */
+.ebc-resize-handle {
+    flex-shrink: 0;
+    height: 8px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border-top: 1px solid #2e1424;
+    transition: background 0.12s;
+    user-select: none;
+    touch-action: none;
+}
+.ebc-resize-handle:hover { background: rgba(60,16,40,0.55); }
+.ebc-resize-handle.active { background: rgba(80,20,50,0.75); }
+.ebc-resize-handle::before {
+    content: "";
+    width: 28px;
+    height: 2px;
+    border-radius: 1px;
+    background: #5a3048;
+}
+.ebc-resize-handle:hover::before, .ebc-resize-handle.active::before { background: #cf6f98; }
+
 /* -- Special Thanks tab -- */
 .ebc-thanks-card {
     display: flex;
@@ -17211,6 +17236,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
+    const EBC_PANEL_HEIGHT_KEY = "EBC_panelHeight";
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
         static getOpenBeepWindows() {
@@ -17278,6 +17304,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.timerPoller = null;
             // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
             this.userTabOffset = null;
+            // User-dragged panel height (px). null = fill available space.
+            this.userPanelHeight = null;
             // Set to true once we've confirmed no saved position exists, so we stop polling storage.
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
@@ -18049,6 +18077,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             panel.appendChild(ebcTagsStrip);
             panel.appendChild(body);
             panel.appendChild(footer);
+            // -- Bottom resize handle ------------------------------------------------
+            // Load saved height before first syncToChat fires.
+            this.userPanelHeight = (() => {
+                try {
+                    const v = localStorage.getItem(EBC_PANEL_HEIGHT_KEY);
+                    const n = v ? parseInt(v, 10) : NaN;
+                    return isFinite(n) && n >= 180 ? n : null;
+                }
+                catch (_a) {
+                    return null;
+                }
+            })();
+            const resizeHandle = document.createElement("div");
+            resizeHandle.className = "ebc-resize-handle";
+            resizeHandle.title = "Drag to resize panel · Double-click to restore full height";
+            panel.appendChild(resizeHandle);
+            addPointerDown(resizeHandle, (startPos, e) => {
+                e.preventDefault();
+                resizeHandle.classList.add("active");
+                const startY = startPos.clientY;
+                const startH = this.panelEl.getBoundingClientRect().height;
+                addPointerTracking((pos) => {
+                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, startH + (pos.clientY - startY)));
+                    this.userPanelHeight = newH;
+                    if (this.panelEl)
+                        this.panelEl.style.height = `${newH}px`;
+                }, () => {
+                    resizeHandle.classList.remove("active");
+                    if (this.userPanelHeight !== null)
+                        try {
+                            localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                });
+                return true;
+            });
+            resizeHandle.addEventListener("dblclick", () => {
+                this.userPanelHeight = null;
+                try {
+                    localStorage.removeItem(EBC_PANEL_HEIGHT_KEY);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                // Force syncToChat to re-apply uncapped height on the next tick
+                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            });
             // Move all panel children into the wrapper, then add wrapper to panel.
             while (panel.firstChild)
                 zoomWrapper.appendChild(panel.firstChild);
@@ -18239,11 +18312,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.lastRect.right !== rightOffset) {
                 // Cap height so the panel never extends below the visible viewport.
                 const finalH = Math.min(rect.height, Math.max(100, window.innerHeight - rect.top - 8));
+                const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
                 this.rootEl.style.height = `${finalH}px`;
                 if (this.panelEl)
-                    this.panelEl.style.height = `${finalH}px`;
+                    this.panelEl.style.height = `${panelH}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -18467,7 +18541,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // fully visible (overrides the in-room left:-10px collapsed state).
                 // Centre the panel vertically in the viewport.
                 this.rootEl.classList.add("ebc-roaming");
-                const h = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+                const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+                const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
                 const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
                 this.rootEl.style.top = `${top}px`;
                 this.rootEl.style.right = "0px";
@@ -34986,7 +35061,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.4";
+    const MOD_VERSION = "5.6.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34997,6 +35072,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.5",
+            changes: [
+                "Feature: drag the handle at the bottom edge of the drawer to resize it taller or shorter. Height is saved to localStorage and restored on reload. Double-click the handle to restore full height.",
+            ],
+        },
         {
             version: "5.6.4",
             changes: [
