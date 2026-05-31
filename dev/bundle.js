@@ -11347,14 +11347,65 @@
     // Messages sent while recipient was offline — re-delivered when they come online.
     // BC's server drops beeps to offline players, so we queue them here and resend
     // once we detect the recipient came online via AccountQueryResult.
+    // The queue is persisted to localStorage so it survives page reloads (48h TTL).
     const pendingOfflineMessages = new Map();
+    const pendingOfflineQueuedAt = new Map(); // first-queued timestamp per member
+    const OFFLINE_QUEUE_LS_KEY = "EBC_offlineQueue";
+    const OFFLINE_QUEUE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+    function persistOfflineQueue() {
+        var _a;
+        try {
+            const obj = {};
+            for (const [num, msgs] of pendingOfflineMessages) {
+                obj[String(num)] = { messages: msgs, ts: (_a = pendingOfflineQueuedAt.get(num)) !== null && _a !== void 0 ? _a : Date.now() };
+            }
+            if (Object.keys(obj).length === 0) {
+                localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+            }
+            else {
+                localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // Restore persisted offline queue on module load — discard entries older than 48h.
+    void (function restoreOfflineQueue() {
+        try {
+            const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+            if (!raw)
+                return;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+                return;
+            const now = Date.now();
+            for (const [key, val] of Object.entries(parsed)) {
+                const num = Number(key);
+                if (!num || isNaN(num))
+                    continue;
+                const v = val;
+                if (!Array.isArray(v === null || v === void 0 ? void 0 : v.messages) || typeof (v === null || v === void 0 ? void 0 : v.ts) !== "number")
+                    continue;
+                if (now - v.ts > OFFLINE_QUEUE_TTL_MS)
+                    continue; // expired, discard
+                const msgs = v.messages.filter((m) => typeof m === "string");
+                if (msgs.length === 0)
+                    continue;
+                pendingOfflineMessages.set(num, msgs);
+                pendingOfflineQueuedAt.set(num, v.ts);
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    })();
     function markPendingMessage(memberNumber, message) {
         var _a;
         if (onlineSet.has(memberNumber))
             return;
         const queue = (_a = pendingOfflineMessages.get(memberNumber)) !== null && _a !== void 0 ? _a : [];
+        if (queue.length === 0)
+            pendingOfflineQueuedAt.set(memberNumber, Date.now());
         queue.push(message);
         pendingOfflineMessages.set(memberNumber, queue);
+        persistOfflineQueue();
     }
     // Session cache: EBC version for members we've shared a room with this session
     const ebcVersionCache = new Map();
@@ -11398,9 +11449,12 @@
         }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
+        let queueChanged = false;
         for (const [num, msgs] of pendingOfflineMessages) {
             if (onlineSet.has(num) && !prevOnline.has(num)) {
                 pendingOfflineMessages.delete(num);
+                pendingOfflineQueuedAt.delete(num);
+                queueChanged = true;
                 try {
                     for (const msg of msgs) {
                         ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
@@ -11409,6 +11463,8 @@
                 catch ( /* ignore */_b) { /* ignore */ }
             }
         }
+        if (queueChanged)
+            persistOfflineQueue();
     }
     function getFriendOnlineInfo(memberNumber) {
         return onlineInfo.get(memberNumber);
@@ -34303,7 +34359,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.4";
+    const MOD_VERSION = "5.4.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34314,6 +34370,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.4.5",
+            changes: [
+                "Fix: offline beep queue is now persisted to localStorage so messages queued for offline friends survive page reloads — entries are discarded after 48 hours.",
+            ],
+        },
         {
             version: "5.4.4",
             changes: [
