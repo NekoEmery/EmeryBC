@@ -1005,6 +1005,10 @@ const CSS = `
     flex-shrink: 0;
     width: 26px;
     height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
