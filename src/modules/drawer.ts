@@ -17903,6 +17903,17 @@ export class EBCDrawer {
                 slLeaveBtn.style.color = "";
                 return;
             }
+            // Respect BC's own leave guard — locked rooms, restraints that block leaving, etc.
+            try {
+                const canLeave = (window as unknown as Record<string, () => boolean>).ChatRoomCanLeave?.();
+                if (canLeave === false) {
+                    // Brief red flash so the user knows the click was received but blocked
+                    const prev = slLeaveBtn.style.background;
+                    slLeaveBtn.style.background = "#6a1a2a";
+                    window.setTimeout(() => { slLeaveBtn.style.background = prev; }, 350);
+                    return;
+                }
+            } catch { /* ignore — if check unavailable, allow the leave */ }
             const durMs = Math.max(2000, parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10) * 1000);
             const slps = getSlowLeavePresets();
             const slpi = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slps.length - 1);
@@ -17911,8 +17922,10 @@ export class EBCDrawer {
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
-                callBC(() => ChatRoomLeave());
+                // Navigate to lobby FIRST so ChatRoomRun hooks (CRABS etc.) stop running
+                // before ChatRoomLeave() clears room state — same order as the safeword leave.
                 callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                callBC(() => ChatRoomLeave());
             });
             slLeaveBtn.textContent = t("sl.cancel");
             slLeaveBtn.style.background = "#4a1a2a";

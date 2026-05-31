@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.3";
+const MOD_VERSION = "5.7.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.4",
+        changes: [
+            "Fix: Slow Leave now calls CommonSetScreen() before ChatRoomLeave() — matching the safeword leave pattern. Doing it the other way cleared room state first, causing CRABS and other mods to crash on the next ChatRoomRun frame.",
+            "Fix: Slow Leave button now checks ChatRoomCanLeave() before starting. If BC would block the leave (locked room, restraints, etc.) the button flashes red and does nothing instead of starting a timer that would fail.",
+        ],
+    },
     {
         version: "5.7.3",
         changes: [
