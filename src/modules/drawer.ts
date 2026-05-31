@@ -2546,9 +2546,9 @@ const CSS = `
 .ebc-qr-btn:hover { background: #3a1028; border-color: #cf6f98; color: #e8c8d8; }
 .ebc-qr-gear {
     background: transparent;
-    border: 1px solid #261018;
+    border: 1px solid #4a2038;
     border-radius: 3px;
-    color: #3e1a28;
+    color: #8a5070;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     padding: 2px 5px;
@@ -11999,10 +11999,34 @@ export class EBCDrawer {
         replyBar.appendChild(replyCancel);
         win.appendChild(replyBar);
 
+        // Quick-reply state — declared before the footer so qrToggle (built inside the
+        // footer block) can reference qrBar and syncQrToggle without forward-ref issues.
+        const qrBar = document.createElement("div");
+        qrBar.className = "ebc-qr-bar";
+        let qrEditOpen = false;
+        let qrOpen = false;
+        try { qrOpen = localStorage.getItem("EBC_qrOpen") === "1"; } catch { /* ignore */ }
+
         // Footer
         const footer = document.createElement("div");
         footer.className = "ebc-beep-win-footer";
         footer.style.position = "relative";
+
+        // Small ▶/▼ toggle — collapses/expands the quick-reply bar above the footer
+        const qrToggle = document.createElement("button");
+        qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+        const syncQrToggle = (): void => {
+            qrToggle.textContent = qrOpen ? "▼" : "▶";
+            qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
+            qrBar.style.display = qrOpen ? "" : "none";
+        };
+        qrToggle.addEventListener("mouseenter", () => { qrToggle.style.color = "#cf6f98"; qrToggle.style.borderColor = "#cf6f98"; });
+        qrToggle.addEventListener("mouseleave", () => { qrToggle.style.color = "#7a4060"; qrToggle.style.borderColor = "#3a1928"; });
+        qrToggle.addEventListener("click", () => {
+            qrOpen = !qrOpen;
+            try { localStorage.setItem("EBC_qrOpen", qrOpen ? "1" : "0"); } catch { /* ignore */ }
+            syncQrToggle();
+        });
 
         const input = document.createElement("input");
         input.className = "ebc-beep-win-input";
@@ -12012,12 +12036,12 @@ export class EBCDrawer {
 
         // Character counter — overlaid absolutely inside the footer (which is position:relative)
         const charCounter = document.createElement("span");
-        charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1a28;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
+        charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4055;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
         charCounter.textContent = "300";
         const updateCounter = (): void => {
             const rem = 300 - input.value.length;
             charCounter.textContent = String(rem);
-            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#b06020" : "#3a1a28";
+            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#c07030" : "#7a4055";
         };
         input.addEventListener("input", updateCounter);
 
@@ -12032,24 +12056,22 @@ export class EBCDrawer {
             clearReply();
             sendBeep(memberNumber, full);
             input.value = "";
+            updateCounter();
             renderHistory();
         };
 
         sendBtn.addEventListener("click", doSend);
         input.addEventListener("keydown", (e: KeyboardEvent) => { if (e.key === "Enter") doSend(); });
 
+        footer.appendChild(qrToggle);
         footer.appendChild(input);
         footer.appendChild(sendBtn);
         footer.appendChild(charCounter);
         win.appendChild(footer);
 
         // ── Quick-reply bar ─────────────────────────────────────────────────
-        // Built after footer so `input` is already in scope.
-        // Inserted before footer via insertBefore so it sits visually above the input.
-        const qrBar = document.createElement("div");
-        qrBar.className = "ebc-qr-bar";
-        let qrEditOpen = false;
-
+        // renderQR is defined here (after footer) so `input` is in scope.
+        // qrBar / qrEditOpen / qrOpen are declared before the footer (so qrToggle can reference them).
         const renderQR = (): void => {
             while (qrBar.firstChild) qrBar.removeChild(qrBar.firstChild);
             const replies = getQuickReplies();
@@ -12061,7 +12083,7 @@ export class EBCDrawer {
                     btn.className = "ebc-qr-btn";
                     btn.textContent = text.length > 22 ? text.slice(0, 20) + "…" : text;
                     btn.title = text;
-                    btn.addEventListener("click", () => { input.value = text; input.focus(); });
+                    btn.addEventListener("click", () => { input.value = text; updateCounter(); input.focus(); });
                     qrBar.appendChild(btn);
                 }
                 const gearBtn = document.createElement("button");
@@ -12140,6 +12162,7 @@ export class EBCDrawer {
         };
         renderQR();
         win.insertBefore(qrBar, footer);
+        syncQrToggle(); // apply initial open/closed state from localStorage
 
         document.body.appendChild(win);
         // Centre new user-initiated windows after layout so offsetWidth/Height are real.

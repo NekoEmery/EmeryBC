@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.9";
+const MOD_VERSION = "5.5.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.0",
+        changes: [
+            "Fix: character counter in beep windows is now much easier to see — resting colour changed from near-black to a visible rose tone; amber/red warning thresholds remain.",
+            "New: quick-reply buttons are now hidden by default — a small ▶ toggle button in the footer reveals/hides them; state persists across sessions.",
+            "Fix: ⚙ gear icon on the quick-reply bar is now visible instead of nearly invisible.",
+        ],
+    },
     {
         version: "5.4.9",
         changes: [
