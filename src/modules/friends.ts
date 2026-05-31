@@ -188,6 +188,11 @@ function markPendingMessage(memberNumber: number, message: string): void {
     persistOfflineQueue();
 }
 
+// Timestamp when this module was first loaded — used to add a startup grace
+// window before offline messages are re-delivered so EBC's burst of beeps
+// doesn't stack on top of BC's own login traffic and trip the rate limiter.
+const _moduleLoadTime = Date.now();
+
 // Session cache: EBC version for members we've shared a room with this session
 const ebcVersionCache = new Map<number, string>();
 
@@ -230,17 +235,28 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
 
     // Re-deliver any messages that were sent while the recipient was offline.
     // BC drops beeps to offline players, so we resend the originals now that they're back.
+    // Messages are staggered 350 ms apart to avoid burst-sending.  A startup grace
+    // window (up to 10 s after module load) adds extra headroom so EBC's re-delivery
+    // doesn't compound with BC's own login traffic and trip the server rate limiter.
     let queueChanged = false;
+    const ageMs = Date.now() - _moduleLoadTime;
+    const startupGrace = ageMs < 10_000 ? 10_000 - ageMs : 0;
+    let redeliverySlot = 0; // incremented per message across all recipients
+
     for (const [num, msgs] of pendingOfflineMessages) {
         if (onlineSet.has(num) && !prevOnline.has(num)) {
             pendingOfflineMessages.delete(num);
             pendingOfflineQueuedAt.delete(num);
             queueChanged = true;
-            try {
-                for (const msg of msgs) {
-                    ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
-                }
-            } catch { /* ignore */ }
+            for (const msg of msgs) {
+                const delay = startupGrace + redeliverySlot * 350;
+                redeliverySlot++;
+                window.setTimeout(() => {
+                    try {
+                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                    } catch { /* ignore */ }
+                }, delay);
+            }
         }
     }
     if (queueChanged) persistOfflineQueue();

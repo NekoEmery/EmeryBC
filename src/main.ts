@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.1";
+const MOD_VERSION = "5.5.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.2",
+        changes: [
+            "Fix: offline beep re-delivery no longer causes ErrorRateLimited disconnects — messages are now staggered 350 ms apart instead of burst-sent in a synchronous loop. A startup grace window (up to 10 s after page load) adds extra headroom so re-delivery doesn't compound with BC's own login traffic.",
+        ],
+    },
     {
         version: "5.5.1",
         changes: [
