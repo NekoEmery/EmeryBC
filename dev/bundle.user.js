@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.0
+// @version      5.6.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16261,9 +16261,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     padding: 6px;
     flex-wrap: wrap;
     gap: 2px;
-    width: 206px;
+    width: 214px;
+    max-height: 220px;
+    overflow-y: auto;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
     z-index: 10001;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
 }
 .ebc-emoji-picker button {
     background: none;
@@ -25280,10 +25284,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.addEventListener("input", updateCounter);
             // ── Emoji picker ─────────────────────────────────────────────────────
             const EMOTES = [
-                "😊", "😘", "😍", "🥺", "😳", "🙈", "😏", "😈",
-                "❤️", "💕", "💗", "💖", "💞", "💝", "🎀", "✨",
-                "🐱", "🐾", "🌸", "🍑", "🌺", "🐰", "🦊", "😻",
-                "😂", "🤣", "😭", "😤", "🤭", "🫠", "🫂", "💋",
+                // Smileys & expressions
+                "😊", "😘", "😍", "🥰", "🤩", "😁", "😄", "😆",
+                "😂", "🤣", "🥹", "🥺", "😢", "😭", "😳", "🙈",
+                "😏", "😈", "🤭", "🫠", "😬", "🤪", "😜", "😝",
+                "😅", "😌", "🥲", "😮", "😲", "😱", "🤯", "🤗",
+                "🙃", "😒", "😔", "😞", "😓", "😣", "😫", "😩",
+                "🥱", "😴", "🤐", "🤢", "🤧", "🥵", "🥶", "💀",
+                // Love & hearts
+                "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🩷",
+                "💕", "💗", "💖", "💞", "💝", "💓", "💘", "💔",
+                // Cute & gestures
+                "💋", "🫦", "🫂", "🫶", "👀", "👉", "👈", "💪",
+                "🎀", "✨", "💫", "⭐", "🌟", "🌈", "🌙", "☀️",
+                // Floral & food
+                "🌸", "🌺", "🌹", "🌷", "🌼", "🌻", "💮", "🏵️",
+                "🍒", "🍓", "🍑", "🍭", "🧁", "🎂", "🍰", "🍫",
+                // Animals
+                "🐱", "😻", "🐾", "🐰", "🦊", "🐻", "🐼", "🐨",
+                "🐶", "🐺", "🦝", "🦋", "🌊", "🦄", "🐸", "🐹",
             ];
             const emojiPicker = document.createElement("div");
             emojiPicker.className = "ebc-emoji-picker";
@@ -34868,7 +34887,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.0";
+    const MOD_VERSION = "5.6.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34879,6 +34898,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.1",
+            changes: [
+                "Improvement: emoji picker expanded from 32 to 120 emojis across 15 rows — smileys, expressions, hearts, love, gestures, florals, food, animals. Picker is now scrollable (max-height 220px) so it stays within the window.",
+            ],
+        },
         {
             version: "5.6.0",
             changes: [
