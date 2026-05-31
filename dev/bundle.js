@@ -15822,6 +15822,7 @@
 }
 
 .ebc-beep-msg {
+    position: relative;
     font-size: 10px;
     line-height: 1.5;
     padding: 4px 7px;
@@ -16132,23 +16133,25 @@
 
 /* Message wrap — hover target for the inline copy icon */
 .ebc-beep-msg-wrap { position: relative; }
-/* Inline copy button — sits right after the name, revealed on wrap hover */
+/* Copy button — absolutely placed in the bottom-right of the bubble, shown on wrap hover */
 .ebc-bubble-copy-btn {
     display: none;
-    background: transparent;
-    border: 1px solid #3a1928;
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+    background: rgba(20, 6, 16, 0.85);
+    border: 1px solid #4a2038;
     border-radius: 3px;
-    color: #6a4058;
+    color: #9a6070;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
+    font-size: 8px;
     cursor: pointer;
     padding: 1px 4px;
-    line-height: 1.3;
-    flex-shrink: 0;
+    line-height: 1.4;
     transition: color 0.1s, border-color 0.1s;
 }
-.ebc-bubble-copy-btn:hover { color: #cf6f98; }
-.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: inline-block; }
+.ebc-bubble-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
+.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: block; }
 
 /* "They came online!" transient notice */
 .ebc-beep-online-alert {
@@ -24652,10 +24655,6 @@
                     return;
                 doJoinRoom(rName);
             });
-            // Chips row — privacy indicator + room space, populated by updateStatus()
-            const roomDrawerChips = document.createElement("div");
-            roomDrawerChips.className = "ebc-beep-room-drawer-chips";
-            roomDrawerChips.style.display = "none";
             // Copy room name button
             const roomDrawerCopy = document.createElement("button");
             roomDrawerCopy.className = "ebc-beep-room-drawer-copy";
@@ -24671,7 +24670,6 @@
                 roomDrawerCopy.textContent = "Copied ✓";
                 window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
             });
-            roomDrawerInner.appendChild(roomDrawerChips);
             roomDrawerInner.appendChild(roomDrawerCopy);
             roomDrawerInner.appendChild(roomDrawerJoin);
             roomDrawer.appendChild(roomDrawerInner);
@@ -24719,42 +24717,12 @@
                 _prevStatus = s;
                 updateTitle();
                 const info = getFriendOnlineInfo(memberNumber);
-                // ── Room drawer chips (privacy + space) ──────────────────────────
-                // Friendly names for BC's internal room-space identifiers.
-                const SPACE_NAMES = {
-                    BDSM: "BDSM", X: "Club X", Nerd: "Nerd", Music: "Music",
-                    Medical: "Medical", Pet: "Pet Play", Asylum: "Asylum",
-                    School: "School", Pandora: "Pandora's Box", Cheerleader: "Cheerleader",
-                    Sports: "Sports", Fantasy: "Fantasy", SciFi: "Sci-Fi",
-                    Loge: "Loge", Casino: "Casino", Island: "Island",
-                    Laboratory: "Laboratory", GrandBallroom: "Grand Ballroom",
-                    TeaRoom: "Tea Room", Arcade: "Arcade",
-                    Festival: "Festival", Workshop: "Workshop",
-                };
-                const friendlySpace = (s) => { var _a; return (_a = SPACE_NAMES[s]) !== null && _a !== void 0 ? _a : s; };
-                while (roomDrawerChips.firstChild)
-                    roomDrawerChips.removeChild(roomDrawerChips.firstChild);
-                const makeChip = (text) => {
-                    const c = document.createElement("span");
-                    c.className = "ebc-beep-room-drawer-chip";
-                    c.textContent = text;
-                    return c;
-                };
                 if (info === null || info === void 0 ? void 0 : info.roomName) {
                     roomBar.textContent = `📍 ${info.roomName}`;
                     roomBar.title = info.roomName;
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
-                    roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                    // Only show a chip when there is a meaningful space name — "Public" is already
-                    // implied by the presence of the Join button, so no chip = less clutter.
-                    if (info.roomSpace) {
-                        roomDrawerChips.appendChild(makeChip(friendlySpace(info.roomSpace)));
-                        roomDrawerChips.style.display = "";
-                    }
-                    else {
-                        roomDrawerChips.style.display = "none";
-                    }
+                    roomDrawerJoin.style.display = "";
                     roomDrawerCopy.style.display = "";
                 }
                 else if (info && isInCurrentRoom(memberNumber)) {
@@ -24766,15 +24734,12 @@
                         roomBar.style.display = "";
                         roomDrawer.style.display = "";
                         roomDrawerJoin.style.display = "none"; // already in the same room
-                        roomDrawerChips.appendChild(makeChip("Same room"));
-                        roomDrawerChips.style.display = "";
                         roomDrawerCopy.style.display = "";
                     }
                     else {
                         roomBar.style.display = "none";
                         roomDrawer.classList.remove("open");
                         roomDrawer.style.display = "none";
-                        roomDrawerChips.style.display = "none";
                         roomDrawerCopy.style.display = "none";
                     }
                 }
@@ -24785,8 +24750,6 @@
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // can't join by name
-                    roomDrawerChips.appendChild(makeChip("🔒 Private"));
-                    roomDrawerChips.style.display = "";
                     roomDrawerCopy.style.display = "none";
                 }
                 else {
@@ -24794,7 +24757,6 @@
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
-                    roomDrawerChips.style.display = "none";
                     roomDrawerCopy.style.display = "none";
                 }
             };
@@ -25166,7 +25128,7 @@
                         replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                         wrap.appendChild(replyBtn);
                     }
-                    // Inline copy icon — appended to the nameLabel, hidden until wrap is hovered
+                    // Copy button — overlaid in the bottom-right corner of the bubble, shown on wrap hover
                     if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                         const copyBtn = document.createElement("button");
                         copyBtn.className = "ebc-bubble-copy-btn";
@@ -25177,7 +25139,7 @@
                             copyBtn.textContent = "Copied!";
                             window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
                         });
-                        nameLabel.appendChild(copyBtn);
+                        bubble.appendChild(copyBtn);
                     }
                     history.appendChild(wrap);
                 }
@@ -34825,7 +34787,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.5";
+    const MOD_VERSION = "5.5.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34836,6 +34798,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.6",
+            changes: [
+                "Improvement: copy button is now overlaid in the bottom-right corner of the chat bubble itself (position: absolute inside the bubble) instead of sitting beside the name — cleaner look.",
+            ],
+        },
         {
             version: "5.5.5",
             changes: [
