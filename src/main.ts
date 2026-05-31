@@ -14,7 +14,7 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.9";
+const MOD_VERSION = "5.6.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.6.0",
+        changes: [
+            "Fix: BC in-game nicknames (e.g. 'Lucy' for someone named 'Lucas') now persist correctly in the friends list. AccountQueryResult only provides the raw account name, never the nickname — caching it unconditionally was silently overwriting the cached nickname every time a friend appeared online. The account name is now stored separately for the subtitle display; the display-name cache is only written if no better entry exists.",
+        ],
+    },
     {
         version: "5.5.9",
         changes: [
@@ -6275,7 +6281,17 @@ function init(): void {
             for (const r of results) {
                 const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                 const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                if (n && name) cacheName(n, name);
+                if (n && name) {
+                    // MemberName is always the raw BC account name — cache it for the
+                    // "show account name alongside nickname" subtitle feature.
+                    cacheAccountName(n, name);
+                    // Only write the display-name cache if we have no better entry yet.
+                    // AccountQueryResult never includes in-game nicknames, so blindly
+                    // caching MemberName here would overwrite a nickname ("Lucy") with
+                    // the account name ("Lucas") every time the friend goes online.
+                    const existing = getCachedNames()[String(n)];
+                    if (!existing || existing === `#${n}`) cacheName(n, name);
+                }
             }
             updateOnlineFriends(results);
             try { syncFriendsSince(); } catch { /* ignore */ }
