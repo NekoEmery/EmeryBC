@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.4";
+const MOD_VERSION = "5.5.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.5",
+        changes: [
+            "Fix: clear conversation confirm overlay was broken — callback was passed as the wrong argument, causing a TypeError. Cancel/Clear buttons now work correctly.",
+            "Fix: copy button now shows 'Copy' text with a small border instead of the ⎘ icon.",
+        ],
+    },
     {
         version: "5.5.4",
         changes: [

@@ -2688,18 +2688,20 @@ const CSS = `
 
 /* Message wrap — hover target for the inline copy icon */
 .ebc-beep-msg-wrap { position: relative; }
-/* Inline copy icon — sits right after the name, revealed on wrap hover */
+/* Inline copy button — sits right after the name, revealed on wrap hover */
 .ebc-bubble-copy-btn {
     display: none;
     background: transparent;
-    border: none;
-    color: #5a3848;
-    font-size: 11px;
+    border: 1px solid #3a1928;
+    border-radius: 3px;
+    color: #6a4058;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
     cursor: pointer;
-    padding: 0 2px;
-    line-height: 1;
+    padding: 1px 4px;
+    line-height: 1.3;
     flex-shrink: 0;
-    transition: color 0.1s;
+    transition: color 0.1s, border-color 0.1s;
 }
 .ebc-bubble-copy-btn:hover { color: #cf6f98; }
 .ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: inline-block; }
@@ -11798,10 +11800,14 @@ export class EBCDrawer {
         clearBtn.textContent = "🗑";
         clearBtn.title = "Clear conversation";
         clearBtn.addEventListener("click", () => {
-            showConfirmOverlay("Clear all messages with this person? This cannot be undone.", () => {
-                clearConversation(memberNumber);
-                renderHistory();
-            });
+            showConfirmOverlay(
+                "Clear all messages with this person? This cannot be undone.",
+                "Cancel", "Clear",
+                () => {
+                    clearConversation(memberNumber);
+                    renderHistory();
+                },
+            );
         });
 
         const minimizeBtn = document.createElement("button");
@@ -12147,12 +12153,12 @@ export class EBCDrawer {
                 if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                     const copyBtn = document.createElement("button");
                     copyBtn.className = "ebc-bubble-copy-btn";
-                    copyBtn.textContent = "⎘";
+                    copyBtn.textContent = "Copy";
                     copyBtn.title = "Copy message";
                     copyBtn.addEventListener("click", () => {
                         navigator.clipboard.writeText(msgBody).catch(() => {});
-                        copyBtn.textContent = "✓";
-                        window.setTimeout(() => { copyBtn.textContent = "⎘"; }, 1200);
+                        copyBtn.textContent = "Copied!";
+                        window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
                     });
                     nameLabel.appendChild(copyBtn);
                 }
