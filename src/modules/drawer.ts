@@ -565,6 +565,8 @@ const CSS = `
     top: 0;
     width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
     height: 100%;  /* full chat log height — no vertical conflict with tab */
+    display: flex;
+    flex-direction: column;
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -590,7 +592,8 @@ const CSS = `
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
@@ -1397,15 +1400,12 @@ const CSS = `
 }
 
 /* -- Panel resize handle (bottom edge drag) -- */
-/* Sits as a direct child of #emerybc-panel (outside .ebc-panel and zoomWrapper)
-   so it is never clipped by overflow:hidden and is unaffected by the zoom transform. */
+/* Sits as the last flex child of #emerybc-panel (outside .ebc-panel and zoomWrapper)
+   so it is never clipped by overflow:hidden and is unaffected by the zoom transform.
+   flex-shrink:0 keeps it at a fixed 14px; .ebc-panel (flex:1) takes the rest. */
 .ebc-resize-handle {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     height: 14px;
-    z-index: 2;
     cursor: ns-resize;
     display: flex;
     align-items: center;
