@@ -2378,6 +2378,7 @@ const CSS = `
 }
 
 .ebc-beep-msg {
+    position: relative;
     font-size: 10px;
     line-height: 1.5;
     padding: 4px 7px;
@@ -2688,23 +2689,25 @@ const CSS = `
 
 /* Message wrap — hover target for the inline copy icon */
 .ebc-beep-msg-wrap { position: relative; }
-/* Inline copy button — sits right after the name, revealed on wrap hover */
+/* Copy button — absolutely placed in the bottom-right of the bubble, shown on wrap hover */
 .ebc-bubble-copy-btn {
     display: none;
-    background: transparent;
-    border: 1px solid #3a1928;
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+    background: rgba(20, 6, 16, 0.85);
+    border: 1px solid #4a2038;
     border-radius: 3px;
-    color: #6a4058;
+    color: #9a6070;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
+    font-size: 8px;
     cursor: pointer;
     padding: 1px 4px;
-    line-height: 1.3;
-    flex-shrink: 0;
+    line-height: 1.4;
     transition: color 0.1s, border-color 0.1s;
 }
-.ebc-bubble-copy-btn:hover { color: #cf6f98; }
-.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: inline-block; }
+.ebc-bubble-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
+.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: block; }
 
 /* "They came online!" transient notice */
 .ebc-beep-online-alert {
@@ -11618,11 +11621,6 @@ export class EBCDrawer {
             doJoinRoom(rName);
         });
 
-        // Chips row — privacy indicator + room space, populated by updateStatus()
-        const roomDrawerChips = document.createElement("div");
-        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
-        roomDrawerChips.style.display = "none";
-
         // Copy room name button
         const roomDrawerCopy = document.createElement("button");
         roomDrawerCopy.className = "ebc-beep-room-drawer-copy";
@@ -11637,7 +11635,6 @@ export class EBCDrawer {
             window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
         });
 
-        roomDrawerInner.appendChild(roomDrawerChips);
         roomDrawerInner.appendChild(roomDrawerCopy);
         roomDrawerInner.appendChild(roomDrawerJoin);
         roomDrawer.appendChild(roomDrawerInner);
@@ -11688,42 +11685,12 @@ export class EBCDrawer {
 
             const info = getFriendOnlineInfo(memberNumber);
 
-            // ── Room drawer chips (privacy + space) ──────────────────────────
-            // Friendly names for BC's internal room-space identifiers.
-            const SPACE_NAMES: Record<string, string> = {
-                BDSM: "BDSM", X: "Club X", Nerd: "Nerd", Music: "Music",
-                Medical: "Medical", Pet: "Pet Play", Asylum: "Asylum",
-                School: "School", Pandora: "Pandora's Box", Cheerleader: "Cheerleader",
-                Sports: "Sports", Fantasy: "Fantasy", SciFi: "Sci-Fi",
-                Loge: "Loge", Casino: "Casino", Island: "Island",
-                Laboratory: "Laboratory", GrandBallroom: "Grand Ballroom",
-                TeaRoom: "Tea Room", Arcade: "Arcade",
-                Festival: "Festival", Workshop: "Workshop",
-            };
-            const friendlySpace = (s: string): string => SPACE_NAMES[s] ?? s;
-
-            while (roomDrawerChips.firstChild) roomDrawerChips.removeChild(roomDrawerChips.firstChild);
-            const makeChip = (text: string): HTMLElement => {
-                const c = document.createElement("span");
-                c.className = "ebc-beep-room-drawer-chip";
-                c.textContent = text;
-                return c;
-            };
-
             if (info?.roomName) {
                 roomBar.textContent = `📍 ${info.roomName}`;
                 roomBar.title = info.roomName;
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
-                roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                // Only show a chip when there is a meaningful space name — "Public" is already
-                // implied by the presence of the Join button, so no chip = less clutter.
-                if (info.roomSpace) {
-                    roomDrawerChips.appendChild(makeChip(friendlySpace(info.roomSpace)));
-                    roomDrawerChips.style.display = "";
-                } else {
-                    roomDrawerChips.style.display = "none";
-                }
+                roomDrawerJoin.style.display = "";
                 roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name — use our tracked name.
@@ -11734,14 +11701,11 @@ export class EBCDrawer {
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
-                    roomDrawerChips.appendChild(makeChip("Same room"));
-                    roomDrawerChips.style.display = "";
                     roomDrawerCopy.style.display = "";
                 } else {
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
-                    roomDrawerChips.style.display = "none";
                     roomDrawerCopy.style.display = "none";
                 }
             } else if (info?.isPrivate) {
@@ -11751,15 +11715,12 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
-                roomDrawerChips.appendChild(makeChip("🔒 Private"));
-                roomDrawerChips.style.display = "";
                 roomDrawerCopy.style.display = "none";
             } else {
                 // Private is falsy and no room name = friend is in the lobby
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
-                roomDrawerChips.style.display = "none";
                 roomDrawerCopy.style.display = "none";
             }
         };
@@ -12149,7 +12110,7 @@ export class EBCDrawer {
                     wrap.appendChild(replyBtn);
                 }
 
-                // Inline copy icon — appended to the nameLabel, hidden until wrap is hovered
+                // Copy button — overlaid in the bottom-right corner of the bubble, shown on wrap hover
                 if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                     const copyBtn = document.createElement("button");
                     copyBtn.className = "ebc-bubble-copy-btn";
@@ -12160,7 +12121,7 @@ export class EBCDrawer {
                         copyBtn.textContent = "Copied!";
                         window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
                     });
-                    nameLabel.appendChild(copyBtn);
+                    bubble.appendChild(copyBtn);
                 }
 
                 history.appendChild(wrap);
