@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.4.8
+// @version      5.4.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15870,6 +15870,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     background: transparent; /* let the outer window rgba show through instead of stacking */
 }
 .ebc-beep-win.minimized .ebc-beep-win-history,
+.ebc-beep-win.minimized .ebc-beep-offline-banner,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-room-drawer,
@@ -15904,6 +15905,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-inbox-card:hover      { background: #1e0e18; border-color: #4c2537; }
 .ebc-inbox-card.unread     { border-color: #3a1a28; background: #1c0c16; }
 .ebc-inbox-card.unread:hover { background: #2a1020; border-color: #cf6f98; }
+
+.ebc-beep-offline-banner {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #7a5565;
+    background: #140810;
+    border-top: 1px solid #221018;
+    padding: 5px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
 
 .ebc-beep-reply-bar {
     display: flex;
@@ -24473,6 +24486,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
             if (startMinimized)
                 win.classList.add("minimized");
+            // Offline indicator banner — created here (before updateStatus) so it's captured
+            // by the closure. Appended to win after the history div.
+            const offlineBanner = document.createElement("div");
+            offlineBanner.className = "ebc-beep-offline-banner";
+            offlineBanner.textContent = "📭 They're offline — you can still send a message and they'll receive it when they come back online";
             // Join a room by name — shared by the room pill header click and the Join → card button.
             // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
             // leave the current room (if any) and then send a ChatRoomJoin socket event.
@@ -24567,6 +24585,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const updateStatus = () => {
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
+                offlineBanner.style.display = s === "away" ? "" : "none";
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
                 const info = getFriendOnlineInfo(memberNumber);
                 if (info === null || info === void 0 ? void 0 : info.roomName) {
@@ -24749,6 +24768,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const history = document.createElement("div");
             history.className = "ebc-beep-win-history";
             win.appendChild(history);
+            win.appendChild(offlineBanner);
             // Reply state
             let replyText = "";
             const clearReply = () => {
@@ -25007,6 +25027,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.type = "text";
             input.placeholder = t("users.typeMessage");
             input.maxLength = 300;
+            // Character counter — overlaid absolutely inside the footer (which is position:relative)
+            const charCounter = document.createElement("span");
+            charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1a28;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
+            charCounter.textContent = "300";
+            const updateCounter = () => {
+                const rem = 300 - input.value.length;
+                charCounter.textContent = String(rem);
+                charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#b06020" : "#3a1a28";
+            };
+            input.addEventListener("input", updateCounter);
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
@@ -25025,6 +25055,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 doSend(); });
             footer.appendChild(input);
             footer.appendChild(sendBtn);
+            footer.appendChild(charCounter);
             win.appendChild(footer);
             // ── Quick-reply bar ─────────────────────────────────────────────────
             // Built after footer so `input` is already in scope.
@@ -34547,7 +34578,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.8";
+    const MOD_VERSION = "5.4.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34558,6 +34589,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.4.9",
+            changes: [
+                "New: offline indicator banner in beep windows — a subtle notice appears below the message history when the recipient is offline, explaining that messages are queued and delivered when they return.",
+                "New: character counter in beep windows — shows remaining characters (out of 300) overlaid on the input; turns amber below 40, red below 10.",
+            ],
+        },
         {
             version: "5.4.8",
             changes: [
