@@ -14009,6 +14009,8 @@
     top: 0;
     width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
     height: 100%;  /* full chat log height — no vertical conflict with tab */
+    display: flex;
+    flex-direction: column;
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -14034,7 +14036,8 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
@@ -14841,15 +14844,12 @@
 }
 
 /* -- Panel resize handle (bottom edge drag) -- */
-/* Sits as a direct child of #emerybc-panel (outside .ebc-panel and zoomWrapper)
-   so it is never clipped by overflow:hidden and is unaffected by the zoom transform. */
+/* Sits as the last flex child of #emerybc-panel (outside .ebc-panel and zoomWrapper)
+   so it is never clipped by overflow:hidden and is unaffected by the zoom transform.
+   flex-shrink:0 keeps it at a fixed 14px; .ebc-panel (flex:1) takes the rest. */
 .ebc-resize-handle {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     height: 14px;
-    z-index: 2;
     cursor: ns-resize;
     display: flex;
     align-items: center;
@@ -35052,7 +35052,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.8";
+    const MOD_VERSION = "5.6.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35063,6 +35063,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.9",
+            changes: [
+                "Fix: resize handle is now a proper flex child of the slide container instead of position:absolute — eliminates overlap with panel content (footer text no longer hidden behind it) and fixes drag resize which was blocked by hit-test ambiguity with .ebc-panel at the same Y coordinates.",
+            ],
+        },
         {
             version: "5.6.8",
             changes: [
