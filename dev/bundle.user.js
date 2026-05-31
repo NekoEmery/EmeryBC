@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.6.7
+// @version      5.6.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25562,7 +25562,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         btn.className = "ebc-qr-btn";
                         btn.textContent = text.length > 22 ? text.slice(0, 20) + "…" : text;
                         btn.title = text;
-                        btn.addEventListener("click", () => { input.value = text; updateCounter(); input.focus(); });
+                        btn.addEventListener("click", () => { input.value = text; doSend(); });
                         qrBar.appendChild(btn);
                     }
                     const gearBtn = document.createElement("button");
@@ -35069,7 +35069,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.6.7";
+    const MOD_VERSION = "5.6.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35080,6 +35080,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.6.8",
+            changes: [
+                "Improvement: clicking a quick-reply button now sends the message immediately instead of just filling the input box.",
+            ],
+        },
         {
             version: "5.6.7",
             changes: [
