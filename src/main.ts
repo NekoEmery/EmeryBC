@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.6.5";
+const MOD_VERSION = "5.6.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.6.6",
+        changes: [
+            "Fix: quick action sidebar buttons (EAR, TAIL, etc.) now hide when BC's 'Show/hide character icons' eye toggle is active, matching the badge and WCE icon behaviour.",
+        ],
+    },
     {
         version: "5.6.5",
         changes: [
@@ -5807,7 +5813,10 @@ function init(): void {
                 try { drawPresenceMarker(badgeArgs as unknown[]); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
-        try { if (getActionButtonsVisible()) drawActionButtons(); } catch { /* ignore */ }
+        try {
+            const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
+            if (getActionButtonsVisible() && !iconsHidden) drawActionButtons();
+        } catch { /* ignore */ }
         return result;
     });
 
@@ -5815,7 +5824,8 @@ function init(): void {
         // Block all BC click handling while drag mode is active to prevent
         // click-through to character tabs and other BC canvas interactions.
         if (getBadgeDragMode()) return;
-        try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
+        const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
+        try { if (!iconsHidden && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
