@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.8";
+const MOD_VERSION = "5.5.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.9",
+        changes: [
+            "New: emoji picker in beep window footer — click the smiley button to insert emoji into your message. 32 curated emojis in a floating grid above the footer.",
+            "Fix: character counter (300) is now a proper flex item between the input and emoji button instead of being absolutely positioned, so it no longer overlaps other elements.",
+        ],
+    },
     {
         version: "5.5.8",
         changes: [
