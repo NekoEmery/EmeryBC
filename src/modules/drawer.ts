@@ -11714,10 +11714,14 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                // Combine privacy + space into one chip ("🌐 Public · Club X") to avoid confusing raw codes
-                const spaceLabel = info.roomSpace ? ` · ${friendlySpace(info.roomSpace)}` : "";
-                roomDrawerChips.appendChild(makeChip(`🌐 Public${spaceLabel}`));
-                roomDrawerChips.style.display = "";
+                // Only show a chip when there is a meaningful space name — "Public" is already
+                // implied by the presence of the Join button, so no chip = less clutter.
+                if (info.roomSpace) {
+                    roomDrawerChips.appendChild(makeChip(friendlySpace(info.roomSpace)));
+                    roomDrawerChips.style.display = "";
+                } else {
+                    roomDrawerChips.style.display = "none";
+                }
                 roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name — use our tracked name.
@@ -11728,7 +11732,7 @@ export class EBCDrawer {
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
-                    roomDrawerChips.appendChild(makeChip("📍 Same room"));
+                    roomDrawerChips.appendChild(makeChip("Same room"));
                     roomDrawerChips.style.display = "";
                     roomDrawerCopy.style.display = "";
                 } else {
