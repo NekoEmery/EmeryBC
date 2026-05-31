@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
@@ -2327,12 +2327,28 @@ const CSS = `
 
 .ebc-beep-win-title {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+}
+.ebc-beep-win-title-primary {
     font-size: 11px;
     font-weight: bold;
     color: #cf6f98;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.ebc-beep-win-title-sub {
+    font-size: 8px;
+    color: #7a5060;
+    font-weight: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
 }
 
 .ebc-beep-win-hbtn {
@@ -2438,6 +2454,7 @@ const CSS = `
 .ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-room-drawer,
 .ebc-beep-win.minimized .ebc-qr-bar,
+.ebc-beep-win.minimized .ebc-beep-online-alert,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -2621,7 +2638,7 @@ const CSS = `
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 90px; }
+.ebc-beep-room-drawer.open { max-height: 130px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -2655,6 +2672,52 @@ const CSS = `
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
+.ebc-beep-room-drawer-copy {
+    background: transparent;
+    border: 1px solid #4a2038;
+    border-radius: 4px;
+    color: #9a6080;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 3px 0;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
+
+/* Message wrap — gives us a hover target for the copy button */
+.ebc-beep-msg-wrap { position: relative; }
+.ebc-beep-copy-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid #3a1928;
+    border-radius: 3px;
+    color: #5a3040;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 1px 5px;
+    cursor: pointer;
+    align-self: flex-end;
+    margin-top: 2px;
+    transition: color 0.1s, border-color 0.1s;
+}
+.ebc-beep-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
+.ebc-beep-msg-wrap:hover .ebc-beep-copy-btn { display: block; }
+
+/* "They came online!" transient notice */
+.ebc-beep-online-alert {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #70c890;
+    background: #081408;
+    border-top: 1px solid #0e2210;
+    padding: 4px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    animation: ebc-fadein 0.3s ease;
+}
+@keyframes ebc-fadein { from { opacity: 0; } to { opacity: 1; } }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -11469,6 +11532,15 @@ export class EBCDrawer {
         offlineBanner.className = "ebc-beep-offline-banner";
         offlineBanner.textContent = "📭 They're offline — you can still send a message and they'll receive it when they come back online";
 
+        // "Came online" transient notice — declared here so updateStatus() can reference it.
+        // Appended right after offlineBanner.
+        const onlineAlert = document.createElement("div");
+        onlineAlert.className = "ebc-beep-online-alert";
+        onlineAlert.textContent = "✓ They just came online!";
+        onlineAlert.style.display = "none";
+        let _onlineAlertTimer: ReturnType<typeof setTimeout> | null = null;
+        let _prevStatus: string | null = null;
+
         // Join a room by name — shared by the room pill header click and the Join → card button.
         // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
         // leave the current room (if any) and then send a ChatRoomJoin socket event.
@@ -11501,7 +11573,26 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-beep-win-title";
-        title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+        const titlePrimary = document.createElement("span");
+        titlePrimary.className = "ebc-beep-win-title-primary";
+        const titleSub = document.createElement("span");
+        titleSub.className = "ebc-beep-win-title-sub";
+        titleSub.style.display = "none";
+        title.appendChild(titlePrimary);
+        title.appendChild(titleSub);
+        const updateTitle = (): void => {
+            const displayName = resolveName(memberNumber);
+            const acctName    = getAccountName(memberNumber);
+            const hasNick     = acctName !== null && acctName !== displayName;
+            titlePrimary.textContent = `${displayName} #${memberNumber}`;
+            if (hasNick) {
+                titleSub.textContent   = acctName!;
+                titleSub.style.display = "";
+            } else {
+                titleSub.style.display = "none";
+            }
+        };
+        updateTitle();
 
         // Slim room bar — click/tap to toggle the info drawer below it.
         const roomBar = document.createElement("div");
@@ -11526,6 +11617,27 @@ export class EBCDrawer {
             doJoinRoom(rName);
         });
 
+        // Chips row — privacy indicator + room space, populated by updateStatus()
+        const roomDrawerChips = document.createElement("div");
+        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
+        roomDrawerChips.style.display = "none";
+
+        // Copy room name button
+        const roomDrawerCopy = document.createElement("button");
+        roomDrawerCopy.className = "ebc-beep-room-drawer-copy";
+        roomDrawerCopy.textContent = "Copy room name";
+        roomDrawerCopy.style.display = "none";
+        roomDrawerCopy.addEventListener("click", (e: Event) => {
+            e.stopPropagation();
+            const rName = getFriendOnlineInfo(memberNumber)?.roomName;
+            if (!rName) return;
+            navigator.clipboard.writeText(rName).catch(() => {});
+            roomDrawerCopy.textContent = "Copied ✓";
+            window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
+        });
+
+        roomDrawerInner.appendChild(roomDrawerChips);
+        roomDrawerInner.appendChild(roomDrawerCopy);
         roomDrawerInner.appendChild(roomDrawerJoin);
         roomDrawer.appendChild(roomDrawerInner);
 
@@ -11559,14 +11671,41 @@ export class EBCDrawer {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
             offlineBanner.style.display = s === "away" ? "" : "none";
-            title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+
+            // Online alert — flash briefly when they come back from offline
+            if (_prevStatus === "away" && s !== "away") {
+                onlineAlert.style.display = "";
+                if (_onlineAlertTimer !== null) clearTimeout(_onlineAlertTimer);
+                _onlineAlertTimer = window.setTimeout(() => {
+                    onlineAlert.style.display = "none";
+                    _onlineAlertTimer = null;
+                }, 5000);
+            }
+            _prevStatus = s;
+
+            updateTitle();
+
             const info = getFriendOnlineInfo(memberNumber);
+
+            // ── Room drawer chips (privacy + space) ──────────────────────────
+            while (roomDrawerChips.firstChild) roomDrawerChips.removeChild(roomDrawerChips.firstChild);
+            const makeChip = (text: string): HTMLElement => {
+                const c = document.createElement("span");
+                c.className = "ebc-beep-room-drawer-chip";
+                c.textContent = text;
+                return c;
+            };
+
             if (info?.roomName) {
                 roomBar.textContent = `📍 ${info.roomName}`;
                 roomBar.title = info.roomName;
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
+                roomDrawerChips.appendChild(makeChip("🌐 Public"));
+                if (info.roomSpace) roomDrawerChips.appendChild(makeChip(info.roomSpace));
+                roomDrawerChips.style.display = "";
+                roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name — use our tracked name.
                 const sameRoomName = getCurrentRoomName();
@@ -11576,10 +11715,15 @@ export class EBCDrawer {
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
+                    roomDrawerChips.appendChild(makeChip("📍 Same room"));
+                    roomDrawerChips.style.display = "";
+                    roomDrawerCopy.style.display = "";
                 } else {
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
+                    roomDrawerChips.style.display = "none";
+                    roomDrawerCopy.style.display = "none";
                 }
             } else if (info?.isPrivate) {
                 // BC sets Private: true when the friend is in a private/restricted room.
@@ -11588,11 +11732,16 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
+                roomDrawerChips.appendChild(makeChip("🔒 Private"));
+                roomDrawerChips.style.display = "";
+                roomDrawerCopy.style.display = "none";
             } else {
                 // Private is falsy and no room name = friend is in the lobby
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
+                roomDrawerChips.style.display = "none";
+                roomDrawerCopy.style.display = "none";
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
@@ -11625,6 +11774,18 @@ export class EBCDrawer {
         roomInviteBtn.className = "ebc-beep-win-hbtn";
         roomInviteBtn.textContent = "📍";
         roomInviteBtn.title = "Send your current room as an invite";
+
+        // Clear conversation button — wipes local history after confirmation
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "ebc-beep-win-hbtn";
+        clearBtn.textContent = "🗑";
+        clearBtn.title = "Clear conversation";
+        clearBtn.addEventListener("click", () => {
+            showConfirmOverlay("Clear all messages with this person? This cannot be undone.", () => {
+                clearConversation(memberNumber);
+                renderHistory();
+            });
+        });
 
         const minimizeBtn = document.createElement("button");
         minimizeBtn.className = "ebc-beep-win-hbtn";
@@ -11670,6 +11831,7 @@ export class EBCDrawer {
         header.appendChild(unreadDot);
         header.appendChild(muteBtn);
         header.appendChild(roomInviteBtn);
+        header.appendChild(clearBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
@@ -11743,6 +11905,7 @@ export class EBCDrawer {
         history.className = "ebc-beep-win-history";
         win.appendChild(history);
         win.appendChild(offlineBanner);
+        win.appendChild(onlineAlert);
 
         // Reply state
         let replyText = "";
@@ -11783,6 +11946,7 @@ export class EBCDrawer {
             for (const e of entries) {
                 const isSent = e.from === self;
                 const wrap = document.createElement("div");
+                wrap.className = "ebc-beep-msg-wrap";
                 wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
 
                 const bubbleMember = isSent ? self : e.from;
@@ -11938,6 +12102,21 @@ export class EBCDrawer {
                     replyBtn.textContent = t("users.reply");
                     replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                     wrap.appendChild(replyBtn);
+                }
+
+                // Copy button — visible on hover for all messages
+                // Only show for plain text (skip invite/decline cards where it makes less sense)
+                if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
+                    const copyBtn = document.createElement("button");
+                    copyBtn.className = "ebc-beep-copy-btn";
+                    copyBtn.textContent = "⎘ Copy";
+                    copyBtn.title = "Copy message text";
+                    copyBtn.addEventListener("click", () => {
+                        navigator.clipboard.writeText(msgBody).catch(() => {});
+                        copyBtn.textContent = "✓ Copied";
+                        window.setTimeout(() => { copyBtn.textContent = "⎘ Copy"; }, 1200);
+                    });
+                    wrap.appendChild(copyBtn);
                 }
 
                 history.appendChild(wrap);

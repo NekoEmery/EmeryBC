@@ -526,6 +526,18 @@ export function getConversation(memberNumber: number): BeepEntry[] {
     );
 }
 
+/** Removes all beep history entries between the local player and the given member. */
+export function clearConversation(memberNumber: number): void {
+    const self = Player.MemberNumber ?? 0;
+    const store = getSettings();
+    const history = getBeepHistory();
+    store.beepHistory = history.filter(e =>
+        !((e.from === memberNumber && e.to === self) ||
+          (e.from === self && e.to === memberNumber))
+    );
+    sync();
+}
+
 // -- Character bundle store ----------------------------------------------------
 // Stores stripped raw server bundles so profiles can be opened via CharacterLoadOnline.
 //

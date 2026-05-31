@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.0";
+const MOD_VERSION = "5.5.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.1",
+        changes: [
+            "New: nickname display in beep window headers — when someone has a nickname their display name is shown prominently with their account name in smaller text beneath it.",
+            "New: copy button on message bubbles — hover any message to reveal a ⎘ Copy button that copies the text to clipboard.",
+            "New: room info chips in the room drawer — shows 🌐 Public / 🔒 Private indicator and room space; public rooms also get a 'Copy room name' button.",
+            "New: online alert — a green ✓ banner briefly appears in the chat when the other person comes back online while the window is open.",
+            "New: clear conversation button (🗑) in the beep window header — wipes the local message history for that person after confirmation.",
+        ],
+    },
     {
         version: "5.5.0",
         changes: [
