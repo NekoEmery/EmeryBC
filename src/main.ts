@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.6.2";
+const MOD_VERSION = "5.6.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.6.3",
+        changes: [
+            "Fix: nickname cache was being overwritten by the raw BC account name whenever a beep was received or a friend came online — nicknames (e.g. Lucy) now persist correctly across beeps and online events.",
+            "Fix: copy button is now always visible beside the timestamp instead of hidden until hover.",
+            "Improvement: cat face emojis moved to the top of the emoji picker.",
+            "Improvement: header buttons (mute, room invite, clear) now use emoji icons (🔔/🔇 📍 🗑️).",
+        ],
+    },
     {
         version: "5.6.2",
         changes: [
@@ -6154,7 +6163,12 @@ function init(): void {
                 : (parseInt(String(beep.MemberNumber), 10) || 0);
             if (!fromNum) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
-            if (name) cacheName(fromNum, name);
+            if (name) {
+                // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                cacheAccountName(fromNum, name);
+                const existingName = getCachedNames()[String(fromNum)];
+                if (!existingName || existingName === `#${fromNum}`) cacheName(fromNum, name);
+            }
 
             // Non-friend beeps (addon bots, update notices, etc.) always pass through
             // to BC's native handler so they stay visible regardless of suppress setting.
@@ -6271,7 +6285,12 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
             const name = typeof data.MemberName === "string" ? data.MemberName : null;
-            if (num && name) cacheName(num, name);
+            if (num && name) {
+                // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                cacheAccountName(num, name);
+                const existingName = getCachedNames()[String(num)];
+                if (!existingName || existingName === `#${num}`) cacheName(num, name);
+            }
             try { syncFriendsSince(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return next(args);
