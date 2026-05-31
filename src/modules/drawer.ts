@@ -3901,6 +3901,7 @@ export class EBCDrawer {
     // Set to true once we've confirmed no saved position exists, so we stop polling storage.
     private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
+    private isResizeDragging = false; // true while handle is being dragged — prevents syncToChat overriding height
     private domSelectedTargets = new Set<number>();
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
@@ -4816,25 +4817,53 @@ export class EBCDrawer {
         resizeHandle.title = "Drag to resize · Double-click to restore full height";
         slideContainer.appendChild(resizeHandle);
 
-        addPointerDown(resizeHandle, (startPos, e) => {
+        // Direct drag handlers — bypasses addPointerDown/addPointerTracking to avoid
+        // any event-ordering issues with BC's global handlers.
+        let dragStartY = 0;
+        let dragStartH = 0;
+
+        const onResizeMove = (clientY: number): void => {
+            const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+            this.userPanelHeight = newH;
+            slideContainer.style.height = `${newH}px`;
+        };
+        const onResizeEnd = (): void => {
+            if (!this.isResizeDragging) return;
+            this.isResizeDragging = false;
+            resizeHandle.classList.remove("active");
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup",   onMouseUp);
+            document.removeEventListener("touchmove", onTouchMove);
+            document.removeEventListener("touchend",  onTouchEnd);
+            if (this.userPanelHeight !== null)
+                try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
+        };
+        const onMouseMove = (e: MouseEvent):  void => { onResizeMove(e.clientY); };
+        const onMouseUp   = (_e: MouseEvent): void => { onResizeEnd(); };
+        const onTouchMove = (e: TouchEvent):  void => { if (e.touches.length) { e.preventDefault(); onResizeMove(e.touches[0].clientY); } };
+        const onTouchEnd  = (_e: TouchEvent): void => { onResizeEnd(); };
+
+        resizeHandle.addEventListener("mousedown", (e: MouseEvent) => {
+            if (e.button !== 0) return;
             e.preventDefault();
+            this.isResizeDragging = true;
+            dragStartY = e.clientY;
+            dragStartH = slideContainer.getBoundingClientRect().height;
             resizeHandle.classList.add("active");
-            const startY = startPos.clientY;
-            const startH = slideContainer.getBoundingClientRect().height;
-            addPointerTracking(
-                (pos) => {
-                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, startH + (pos.clientY - startY)));
-                    this.userPanelHeight = newH;
-                    slideContainer.style.height = `${newH}px`;
-                },
-                () => {
-                    resizeHandle.classList.remove("active");
-                    if (this.userPanelHeight !== null)
-                        try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
-                },
-            );
-            return true;
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup",   onMouseUp);
         });
+
+        resizeHandle.addEventListener("touchstart", (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+            this.isResizeDragging = true;
+            dragStartY = e.touches[0].clientY;
+            dragStartH = slideContainer.getBoundingClientRect().height;
+            resizeHandle.classList.add("active");
+            document.addEventListener("touchmove", onTouchMove, { passive: false });
+            document.addEventListener("touchend",  onTouchEnd);
+        }, { passive: false });
 
         resizeHandle.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
@@ -5027,20 +5056,27 @@ export class EBCDrawer {
 
         // Only write to the DOM when the chat log actually moved or resized —
         // eliminates layout thrashing on every animation frame (pattern from CRABS).
+        // Round to whole pixels to ignore sub-pixel drift that can cause constant
+        // re-fires (e.g. getBoundingClientRect() returning 4.5 vs 4.500001).
+        const rTop    = Math.round(rect.top);
+        const rWidth  = Math.round(rect.width);
+        const rHeight = Math.round(rect.height);
+        const rRight  = Math.round(rightOffset);
         if (
-            this.lastRect.top    !== rect.top    ||
-            this.lastRect.width  !== rect.width  ||
-            this.lastRect.height !== rect.height ||
-            this.lastRect.right  !== rightOffset
+            this.lastRect.top    !== rTop    ||
+            this.lastRect.width  !== rWidth  ||
+            this.lastRect.height !== rHeight ||
+            this.lastRect.right  !== rRight
         ) {
             // Cap height so the panel never extends below the visible viewport.
-            const finalH = Math.min(rect.height, Math.max(100, window.innerHeight - rect.top - 8));
+            const finalH = Math.min(rHeight, Math.max(100, window.innerHeight - rTop - 8));
             const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
-            this.rootEl.style.top    = `${rect.top}px`;
-            this.rootEl.style.right  = `${rightOffset}px`;
+            this.rootEl.style.top    = `${rTop}px`;
+            this.rootEl.style.right  = `${rRight}px`;
             this.rootEl.style.height = `${finalH}px`;
-            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
-            this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
+            // Never override the panel height while the user is dragging the resize handle.
+            if (this.panelEl && !this.isResizeDragging) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
+            this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick
             this.lastCrabsBottom = -1;
