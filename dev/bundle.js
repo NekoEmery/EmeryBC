@@ -3456,44 +3456,92 @@
     let seqDoneCallback = null;
     let seqRestoreFn = null;
     // -- BC-native slow leave ----------------------------------------------------
-    // Sends BC's own SlowLeaveAttempt / SlowLeaveCancel action messages then
-    // calls the done callback after the configured delay.
-    let slowLeaveTimerId = null;
+    // Two-stage approach with optional intro emote:
+    //   t=0           : send intro emote (if any), show Crawl status icon
+    //   t=INTRO_DELAY : send SlowLeaveAttempt action message
+    //   t=INTRO_DELAY+durMs : fire done callback (leave room)
+    //   cancel        : clear timers, send SlowLeaveCancel only if attempt was sent, clear Crawl
+    const INTRO_DELAY_MS = 1200;
+    let slowLeaveActive = false; // true from start until cancel/done
+    let slowLeaveAttemptSent = false; // true once SlowLeaveAttempt has been sent
+    let slowLeaveIntroId = null;
+    let slowLeaveLeaveId = null;
     let slowLeaveDoneCallback = null;
-    function isSlowLeaveActive() { return slowLeaveTimerId !== null; }
+    function isSlowLeaveActive() { return slowLeaveActive; }
     function setSlowLeaveDoneCallback(fn) { slowLeaveDoneCallback = fn; }
-    function startBCSlowLeave(durMs) {
-        if (slowLeaveTimerId !== null)
-            return;
+    function bcStatusUpdate(status) {
+        var _a, _b;
         try {
-            ServerSend("ChatRoomChat", {
-                Type: "Action",
-                Content: "SlowLeaveAttempt",
-                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
-            });
+            (_b = (_a = window).ChatRoomStatusUpdate) === null || _b === void 0 ? void 0 : _b.call(_a, status);
         }
-        catch ( /* ignore */_a) { /* ignore */ }
-        slowLeaveTimerId = window.setTimeout(() => {
-            slowLeaveTimerId = null;
-            const cb = slowLeaveDoneCallback;
-            slowLeaveDoneCallback = null;
-            cb === null || cb === void 0 ? void 0 : cb();
-        }, durMs);
+        catch ( /* ignore */_c) { /* ignore */ }
+    }
+    function startBCSlowLeave(durMs, introEmote = "") {
+        if (slowLeaveActive)
+            return;
+        slowLeaveActive = true;
+        slowLeaveAttemptSent = false;
+        bcStatusUpdate("Crawl");
+        const sendAttemptThenLeave = () => {
+            slowLeaveIntroId = null;
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: "SlowLeaveAttempt",
+                    Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+                });
+                slowLeaveAttemptSent = true;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            slowLeaveLeaveId = window.setTimeout(() => {
+                slowLeaveLeaveId = null;
+                slowLeaveActive = false;
+                slowLeaveAttemptSent = false;
+                const cb = slowLeaveDoneCallback;
+                slowLeaveDoneCallback = null;
+                cb === null || cb === void 0 ? void 0 : cb();
+            }, durMs);
+        };
+        const intro = introEmote.trim().replace(/^\*/, "").trim();
+        if (intro) {
+            try {
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: intro, Dictionary: [] });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
+        }
+        else {
+            sendAttemptThenLeave();
+        }
     }
     function cancelBCSlowLeave() {
-        if (slowLeaveTimerId === null)
+        if (!slowLeaveActive)
             return;
-        window.clearTimeout(slowLeaveTimerId);
-        slowLeaveTimerId = null;
-        slowLeaveDoneCallback = null;
-        try {
-            ServerSend("ChatRoomChat", {
-                Type: "Action",
-                Content: "SlowLeaveCancel",
-                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
-            });
+        if (slowLeaveIntroId !== null) {
+            window.clearTimeout(slowLeaveIntroId);
+            slowLeaveIntroId = null;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        if (slowLeaveLeaveId !== null) {
+            window.clearTimeout(slowLeaveLeaveId);
+            slowLeaveLeaveId = null;
+        }
+        slowLeaveActive = false;
+        slowLeaveDoneCallback = null;
+        bcStatusUpdate("");
+        if (slowLeaveAttemptSent) {
+            slowLeaveAttemptSent = false;
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: "SlowLeaveCancel",
+                    Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        else {
+            slowLeaveAttemptSent = false;
+        }
     }
     // Sends the current ActivePose to the room without triggering a full re-render on each step.
     // appearanceBundle should be pre-built once before the sequence starts and reused - sending
@@ -13769,6 +13817,56 @@
         catch (_a) {
             return [];
         }
+    }
+    // -- Slow Leave preset storage -------------------------------------------------
+    const SLOW_LEAVE_PRESET_DEFAULTS = [
+        { label: "Classic", intro: "smiles and gives a little wave~" },
+        { label: "Warm", intro: "gives everyone a warm hug before leaving~" },
+        { label: "Quiet", intro: "" },
+        { label: "Sleepy", intro: "yawns softly and stretches~" },
+        { label: "Playful", intro: "bounces happily and waves her tail~" },
+        { label: "Bratty", intro: "stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much." },
+        { label: "Custom", intro: "" },
+    ];
+    function extractIntroFromSeq(seq) {
+        for (const step of seq.split("|")) {
+            const s = step.trim();
+            if (s.startsWith("*")) {
+                const atIdx = s.lastIndexOf("@");
+                const raw = atIdx > 0 ? s.slice(0, atIdx).trim() : s;
+                return raw.replace(/^\*/, "").trim();
+            }
+        }
+        return "";
+    }
+    function getSlowLeavePresets() {
+        try {
+            const raw = localStorage.getItem("EBC_slowLeavePresets");
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Migrate old seq-based format to intro format
+                    const migrated = parsed.map(p => ({
+                        label: p.label,
+                        intro: p.intro !== undefined ? p.intro : (p.seq ? extractIntroFromSeq(p.seq) : ""),
+                    }));
+                    // Additive migration: append any new defaults not yet in the stored list
+                    for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
+                        if (!migrated.find(p => p.label === def.label))
+                            migrated.push(Object.assign({}, def));
+                    }
+                    return migrated;
+                }
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return SLOW_LEAVE_PRESET_DEFAULTS.map(p => (Object.assign({}, p)));
+    }
+    function saveSlowLeavePresets(v) {
+        try {
+            localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Icon ----------------------------------------------------------------------
     const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 90 90">'
@@ -30163,7 +30261,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b;
+            var _a, _b, _c, _d, _f;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -30926,7 +31024,7 @@
                 slLeaveBtn.style.color = "#ff8aaa";
             }
             slLeaveBtn.addEventListener("click", () => {
-                var _a;
+                var _a, _b, _c, _d;
                 if (isSlowLeaveActive()) {
                     cancelBCSlowLeave();
                     slLeaveBtn.textContent = t("sl.leave");
@@ -30935,17 +31033,20 @@
                     return;
                 }
                 const durMs = Math.max(2000, parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10) * 1000);
+                const slps = getSlowLeavePresets();
+                const slpi = Math.min(Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _b !== void 0 ? _b : "0", 10)), slps.length - 1);
+                const intro = (_d = (_c = slps[slpi]) === null || _c === void 0 ? void 0 : _c.intro) !== null && _d !== void 0 ? _d : "";
                 setSlowLeaveDoneCallback(() => {
                     slLeaveBtn.textContent = t("sl.leave");
                     slLeaveBtn.style.background = "";
                     slLeaveBtn.style.color = "";
-                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
                     callBC(() => ChatRoomLeave());
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
                 });
                 slLeaveBtn.textContent = t("sl.cancel");
                 slLeaveBtn.style.background = "#4a1a2a";
                 slLeaveBtn.style.color = "#ff8aaa";
-                startBCSlowLeave(durMs);
+                startBCSlowLeave(durMs, intro);
             });
             body.appendChild(slLeaveBtn);
             // ── Slow Leave editor — collapsible accordion card ────────────────────
@@ -30964,9 +31065,65 @@
             slEditorHdr.appendChild(slEditorChev);
             slEditorHdr.appendChild(slEditorLbl);
             slEditorCard.appendChild(slEditorHdr);
-            // Editor body — duration slider only
+            // Editor body — preset selector + intro emote + duration slider
             const slEditorBody = document.createElement("div");
             slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
+            // Preset selector
+            const slPresets = getSlowLeavePresets();
+            const slSavedIdx = Math.min(Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _b !== void 0 ? _b : "0", 10)), slPresets.length - 1);
+            const slPresetRow = document.createElement("div");
+            slPresetRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+            const slPresetLbl = document.createElement("span");
+            slPresetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+            slPresetLbl.textContent = "✦";
+            slPresetLbl.title = "Leave style preset";
+            const slPresetSel = document.createElement("select");
+            slPresetSel.style.cssText = "flex:1;background:#1b0d17;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:2px 4px;font-size:11px;cursor:pointer;min-width:0;";
+            for (let _pi = 0; _pi < slPresets.length; _pi++) {
+                const _opt = document.createElement("option");
+                _opt.value = String(_pi);
+                _opt.textContent = slPresets[_pi].label;
+                if (_pi === slSavedIdx)
+                    _opt.selected = true;
+                slPresetSel.appendChild(_opt);
+            }
+            slPresetRow.appendChild(slPresetLbl);
+            slPresetRow.appendChild(slPresetSel);
+            slEditorBody.appendChild(slPresetRow);
+            // Intro emote input
+            const slIntroRow = document.createElement("div");
+            slIntroRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+            const slIntroLbl = document.createElement("span");
+            slIntroLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+            slIntroLbl.textContent = "✉";
+            slIntroLbl.title = "Intro emote sent just before the leave message";
+            const slIntroInput = document.createElement("input");
+            slIntroInput.type = "text";
+            slIntroInput.style.cssText = "flex:1;background:#150a10;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:3px 5px;font-size:11px;min-width:0;";
+            slIntroInput.placeholder = "intro emote (optional)";
+            slIntroInput.value = (_d = (_c = slPresets[slSavedIdx]) === null || _c === void 0 ? void 0 : _c.intro) !== null && _d !== void 0 ? _d : "";
+            slIntroRow.appendChild(slIntroLbl);
+            slIntroRow.appendChild(slIntroInput);
+            slEditorBody.appendChild(slIntroRow);
+            slPresetSel.addEventListener("change", () => {
+                var _a, _b;
+                const _idx = parseInt(slPresetSel.value, 10);
+                const _ps = getSlowLeavePresets();
+                slIntroInput.value = (_b = (_a = _ps[_idx]) === null || _a === void 0 ? void 0 : _a.intro) !== null && _b !== void 0 ? _b : "";
+                try {
+                    localStorage.setItem("EBC_slowLeavePresetIdx", String(_idx));
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            });
+            slIntroInput.addEventListener("change", () => {
+                const _idx = parseInt(slPresetSel.value, 10);
+                const _ps = getSlowLeavePresets();
+                if (_ps[_idx]) {
+                    _ps[_idx].intro = slIntroInput.value.trim();
+                    saveSlowLeavePresets(_ps);
+                }
+            });
+            // Duration slider
             const slDurRow = document.createElement("div");
             slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
             const slDurLbl = document.createElement("span");
@@ -30978,7 +31135,7 @@
             slDurSlider.min = "2";
             slDurSlider.max = "30";
             slDurSlider.step = "1";
-            slDurSlider.value = (_b = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _b !== void 0 ? _b : "5";
+            slDurSlider.value = (_f = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _f !== void 0 ? _f : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
             slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
@@ -35039,7 +35196,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.1";
+    const MOD_VERSION = "5.7.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35050,6 +35207,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.2",
+            changes: [
+                "Fix: Slow Leave presets (Classic, Warm, Quiet, Sleepy, Playful, Bratty, Custom) are back in the settings accordion with a dropdown to select the style and an editable intro emote field. The intro emote is sent as a * emote ~1.2s before the leave message, matching the natural feel of each style.",
+                "Fix: Slow Leave no longer spams SlowLeaveAttempt/SlowLeaveCancel. Active state is now tracked with a dedicated boolean so two-stage timers can't cause double-starts. SlowLeaveCancel is only sent if SlowLeaveAttempt was actually dispatched.",
+                "Fix: Slow Leave done callback now calls ChatRoomLeave() before CommonSetScreen() matching BC's own leave order so the leave is reliably processed.",
+                "New: Slow Leave shows BC's crawl status icon (the visual indicator near the character) while the timer is active, cleared on cancel or done.",
+            ],
+        },
         {
             version: "5.7.1",
             changes: [
