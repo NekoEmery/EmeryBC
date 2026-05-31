@@ -12269,9 +12269,12 @@ export class EBCDrawer {
             // Floral & food
             "🌸","🌺","🌹","🌷","🌼","🌻","💮","🏵️",
             "🍒","🍓","🍑","🍭","🧁","🎂","🍰","🍫",
-            // Animals
-            "🐱","😻","🐾","🐰","🦊","🐻","🐼","🐨",
-            "🐶","🐺","🦝","🦋","🌊","🦄","🐸","🐹",
+            // Cat faces (all of them)
+            "🐱","😺","😸","😹","😻","😼","😽","🙀",
+            "😿","😾",
+            // Other animals
+            "🐾","🐰","🦊","🐻","🐼","🐨","🐶","🐺",
+            "🦝","🦋","🌊","🦄","🐸","🐹",
         ];
         const emojiPicker = document.createElement("div");
         emojiPicker.className = "ebc-emoji-picker";
