@@ -136,13 +136,56 @@ const onlineInfo = new Map<number, FriendOnlineInfo>();
 // Messages sent while recipient was offline — re-delivered when they come online.
 // BC's server drops beeps to offline players, so we queue them here and resend
 // once we detect the recipient came online via AccountQueryResult.
+// The queue is persisted to localStorage so it survives page reloads (48h TTL).
 const pendingOfflineMessages = new Map<number, string[]>();
+const pendingOfflineQueuedAt = new Map<number, number>(); // first-queued timestamp per member
+
+const OFFLINE_QUEUE_LS_KEY  = "EBC_offlineQueue";
+const OFFLINE_QUEUE_TTL_MS  = 48 * 60 * 60 * 1000; // 48 hours
+
+function persistOfflineQueue(): void {
+    try {
+        const obj: Record<string, { messages: string[]; ts: number }> = {};
+        for (const [num, msgs] of pendingOfflineMessages) {
+            obj[String(num)] = { messages: msgs, ts: pendingOfflineQueuedAt.get(num) ?? Date.now() };
+        }
+        if (Object.keys(obj).length === 0) {
+            localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+        } else {
+            localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+        }
+    } catch { /* ignore */ }
+}
+
+// Restore persisted offline queue on module load — discard entries older than 48h.
+void (function restoreOfflineQueue() {
+    try {
+        const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+        const now = Date.now();
+        for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+            const num = Number(key);
+            if (!num || isNaN(num)) continue;
+            const v = val as { messages?: unknown; ts?: unknown };
+            if (!Array.isArray(v?.messages) || typeof v?.ts !== "number") continue;
+            if (now - v.ts > OFFLINE_QUEUE_TTL_MS) continue; // expired, discard
+            const msgs = (v.messages as unknown[]).filter((m): m is string => typeof m === "string");
+            if (msgs.length === 0) continue;
+            pendingOfflineMessages.set(num, msgs);
+            pendingOfflineQueuedAt.set(num, v.ts);
+        }
+    } catch { /* ignore */ }
+})();
 
 function markPendingMessage(memberNumber: number, message: string): void {
     if (onlineSet.has(memberNumber)) return;
     const queue = pendingOfflineMessages.get(memberNumber) ?? [];
+    if (queue.length === 0) pendingOfflineQueuedAt.set(memberNumber, Date.now());
     queue.push(message);
     pendingOfflineMessages.set(memberNumber, queue);
+    persistOfflineQueue();
 }
 
 // Session cache: EBC version for members we've shared a room with this session
@@ -187,9 +230,12 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
 
     // Re-deliver any messages that were sent while the recipient was offline.
     // BC drops beeps to offline players, so we resend the originals now that they're back.
+    let queueChanged = false;
     for (const [num, msgs] of pendingOfflineMessages) {
         if (onlineSet.has(num) && !prevOnline.has(num)) {
             pendingOfflineMessages.delete(num);
+            pendingOfflineQueuedAt.delete(num);
+            queueChanged = true;
             try {
                 for (const msg of msgs) {
                     ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
@@ -197,6 +243,7 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             } catch { /* ignore */ }
         }
     }
+    if (queueChanged) persistOfflineQueue();
 }
 
 export function getFriendOnlineInfo(memberNumber: number): FriendOnlineInfo | undefined {

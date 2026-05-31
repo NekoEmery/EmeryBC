@@ -11347,14 +11347,65 @@
     // Messages sent while recipient was offline — re-delivered when they come online.
     // BC's server drops beeps to offline players, so we queue them here and resend
     // once we detect the recipient came online via AccountQueryResult.
+    // The queue is persisted to localStorage so it survives page reloads (48h TTL).
     const pendingOfflineMessages = new Map();
+    const pendingOfflineQueuedAt = new Map(); // first-queued timestamp per member
+    const OFFLINE_QUEUE_LS_KEY = "EBC_offlineQueue";
+    const OFFLINE_QUEUE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+    function persistOfflineQueue() {
+        var _a;
+        try {
+            const obj = {};
+            for (const [num, msgs] of pendingOfflineMessages) {
+                obj[String(num)] = { messages: msgs, ts: (_a = pendingOfflineQueuedAt.get(num)) !== null && _a !== void 0 ? _a : Date.now() };
+            }
+            if (Object.keys(obj).length === 0) {
+                localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+            }
+            else {
+                localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // Restore persisted offline queue on module load — discard entries older than 48h.
+    void (function restoreOfflineQueue() {
+        try {
+            const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+            if (!raw)
+                return;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+                return;
+            const now = Date.now();
+            for (const [key, val] of Object.entries(parsed)) {
+                const num = Number(key);
+                if (!num || isNaN(num))
+                    continue;
+                const v = val;
+                if (!Array.isArray(v === null || v === void 0 ? void 0 : v.messages) || typeof (v === null || v === void 0 ? void 0 : v.ts) !== "number")
+                    continue;
+                if (now - v.ts > OFFLINE_QUEUE_TTL_MS)
+                    continue; // expired, discard
+                const msgs = v.messages.filter((m) => typeof m === "string");
+                if (msgs.length === 0)
+                    continue;
+                pendingOfflineMessages.set(num, msgs);
+                pendingOfflineQueuedAt.set(num, v.ts);
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    })();
     function markPendingMessage(memberNumber, message) {
         var _a;
         if (onlineSet.has(memberNumber))
             return;
         const queue = (_a = pendingOfflineMessages.get(memberNumber)) !== null && _a !== void 0 ? _a : [];
+        if (queue.length === 0)
+            pendingOfflineQueuedAt.set(memberNumber, Date.now());
         queue.push(message);
         pendingOfflineMessages.set(memberNumber, queue);
+        persistOfflineQueue();
     }
     // Session cache: EBC version for members we've shared a room with this session
     const ebcVersionCache = new Map();
@@ -11377,6 +11428,7 @@
             onlineInfo.set(n, {
                 roomName: typeof r.ChatRoomName === "string" ? r.ChatRoomName : undefined,
                 roomSpace: typeof r.ChatRoomSpace === "string" ? r.ChatRoomSpace : undefined,
+                isPrivate: r.Private === true,
             });
         }
         // Record last-seen for anyone who just went offline — batched into a single
@@ -11397,9 +11449,12 @@
         }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
+        let queueChanged = false;
         for (const [num, msgs] of pendingOfflineMessages) {
             if (onlineSet.has(num) && !prevOnline.has(num)) {
                 pendingOfflineMessages.delete(num);
+                pendingOfflineQueuedAt.delete(num);
+                queueChanged = true;
                 try {
                     for (const msg of msgs) {
                         ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
@@ -11408,6 +11463,8 @@
                 catch ( /* ignore */_b) { /* ignore */ }
             }
         }
+        if (queueChanged)
+            persistOfflineQueue();
     }
     function getFriendOnlineInfo(memberNumber) {
         return onlineInfo.get(memberNumber);
@@ -24442,17 +24499,16 @@
                         roomDrawer.style.display = "none";
                     }
                 }
-                else if (info) {
-                    // No visible room name — BC omits ChatRoomName for both private rooms and lobby,
-                    // so match BC's own behaviour and show "Private room".
+                else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
+                    // BC sets Private: true when the friend is in a private/restricted room.
                     roomBar.textContent = "📍 Private room";
                     roomBar.title = "Friend is in a private room";
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
-                    roomDrawerJoin.style.display = "none"; // can't join a private room by name
+                    roomDrawerJoin.style.display = "none"; // can't join by name
                 }
                 else {
-                    // offline
+                    // Private is falsy and no room name = friend is in the lobby
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
@@ -26376,14 +26432,14 @@
                             roomTagEl.title = displayName;
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#081a10;color:#70c890;border:1px solid #1a5a30;`;
                         }
-                        else {
-                            // No visible room name — BC doesn't distinguish private room from lobby
-                            // in AccountQueryResult, so match BC's own behaviour: show "Private room".
+                        else if (info.isPrivate) {
+                            // BC sets Private: true when the friend is in a private/restricted room.
                             roomTagEl = document.createElement("span");
                             roomTagEl.textContent = "Private room";
                             roomTagEl.title = "Friend is in a private room";
                             roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;background:#1a0d18;color:#b07898;border:1px solid #3a1528;`;
                         }
+                        // Private falsy and no room name = lobby, no tag
                     }
                     // Last-seen timestamp for away/offline friends
                     let lsEl = null;
@@ -34303,7 +34359,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.1";
+    const MOD_VERSION = "5.4.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34315,9 +34371,33 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.4.5",
+            changes: [
+                "Fix: offline beep queue is now persisted to localStorage so messages queued for offline friends survive page reloads — entries are discarded after 48 hours.",
+            ],
+        },
+        {
+            version: "5.4.4",
+            changes: [
+                "Fix: private room detection now reads the dedicated Private field from BC's AccountQueryResult — the server sets Private: true for friends in private/restricted rooms and omits it for lobby. Both ChatRoomName and ChatRoomSpace are null for both private rooms and lobby, so this is the only reliable signal.",
+            ],
+        },
+        {
+            version: "5.4.3",
+            changes: [
+                "Fix: attempted private room detection via ChatRoomSpace presence — this was also unreliable as the server sends null for both fields in private rooms and lobby (superseded by 5.4.4).",
+            ],
+        },
+        {
+            version: "5.4.2",
+            changes: [
+                "Fix: lobby friends no longer show 'Private room' — attempted ChatRoomName === \"\" check but this misses cases where BC omits the field entirely for private rooms (superseded by 5.4.3).",
+            ],
+        },
+        {
             version: "5.4.1",
             changes: [
-                "Fix: 'Private room' label correctly restored for online friends with no visible room name — BC omits ChatRoomName entirely for both private rooms and lobby, so the two are indistinguishable; we now match BC's own UI by showing 'Private room' for any online friend without a visible room name.",
+                "Fix: attempted to restore 'Private room' label by showing it for all online friends with no visible room name — this incorrectly showed 'Private room' for lobby friends too (superseded by 5.4.2).",
             ],
         },
         {
