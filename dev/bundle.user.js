@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.5.3
+// @version      5.5.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24761,10 +24761,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                    // Combine privacy + space into one chip ("🌐 Public · Club X") to avoid confusing raw codes
-                    const spaceLabel = info.roomSpace ? ` · ${friendlySpace(info.roomSpace)}` : "";
-                    roomDrawerChips.appendChild(makeChip(`🌐 Public${spaceLabel}`));
-                    roomDrawerChips.style.display = "";
+                    // Only show a chip when there is a meaningful space name — "Public" is already
+                    // implied by the presence of the Join button, so no chip = less clutter.
+                    if (info.roomSpace) {
+                        roomDrawerChips.appendChild(makeChip(friendlySpace(info.roomSpace)));
+                        roomDrawerChips.style.display = "";
+                    }
+                    else {
+                        roomDrawerChips.style.display = "none";
+                    }
                     roomDrawerCopy.style.display = "";
                 }
                 else if (info && isInCurrentRoom(memberNumber)) {
@@ -24776,7 +24781,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomBar.style.display = "";
                         roomDrawer.style.display = "";
                         roomDrawerJoin.style.display = "none"; // already in the same room
-                        roomDrawerChips.appendChild(makeChip("📍 Same room"));
+                        roomDrawerChips.appendChild(makeChip("Same room"));
                         roomDrawerChips.style.display = "";
                         roomDrawerCopy.style.display = "";
                     }
@@ -34835,7 +34840,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.3";
+    const MOD_VERSION = "5.5.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34846,6 +34851,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.4",
+            changes: [
+                "Fix: room drawer no longer shows a confusing 🌐 Public chip — the Join button already implies it's public. Only the space name chip (e.g. 'Club X') is shown when applicable; 🔒 Private still appears for private rooms.",
+            ],
+        },
         {
             version: "5.5.3",
             changes: [
