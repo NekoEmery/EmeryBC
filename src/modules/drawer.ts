@@ -2433,6 +2433,7 @@ const CSS = `
     background: transparent; /* let the outer window rgba show through instead of stacking */
 }
 .ebc-beep-win.minimized .ebc-beep-win-history,
+.ebc-beep-win.minimized .ebc-beep-offline-banner,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-room-drawer,
@@ -2467,6 +2468,18 @@ const CSS = `
 .ebc-inbox-card:hover      { background: #1e0e18; border-color: #4c2537; }
 .ebc-inbox-card.unread     { border-color: #3a1a28; background: #1c0c16; }
 .ebc-inbox-card.unread:hover { background: #2a1020; border-color: #cf6f98; }
+
+.ebc-beep-offline-banner {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #7a5565;
+    background: #140810;
+    border-top: 1px solid #221018;
+    padding: 5px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
 
 .ebc-beep-reply-bar {
     display: flex;
@@ -11450,6 +11463,12 @@ export class EBCDrawer {
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
+        // Offline indicator banner — created here (before updateStatus) so it's captured
+        // by the closure. Appended to win after the history div.
+        const offlineBanner = document.createElement("div");
+        offlineBanner.className = "ebc-beep-offline-banner";
+        offlineBanner.textContent = "📭 They're offline — you can still send a message and they'll receive it when they come back online";
+
         // Join a room by name — shared by the room pill header click and the Join → card button.
         // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
         // leave the current room (if any) and then send a ChatRoomJoin socket event.
@@ -11539,6 +11558,7 @@ export class EBCDrawer {
         const updateStatus = (): void => {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
+            offlineBanner.style.display = s === "away" ? "" : "none";
             title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
             const info = getFriendOnlineInfo(memberNumber);
             if (info?.roomName) {
@@ -11722,6 +11742,7 @@ export class EBCDrawer {
         const history = document.createElement("div");
         history.className = "ebc-beep-win-history";
         win.appendChild(history);
+        win.appendChild(offlineBanner);
 
         // Reply state
         let replyText = "";
@@ -11989,6 +12010,17 @@ export class EBCDrawer {
         input.placeholder = t("users.typeMessage");
         input.maxLength = 300;
 
+        // Character counter — overlaid absolutely inside the footer (which is position:relative)
+        const charCounter = document.createElement("span");
+        charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1a28;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
+        charCounter.textContent = "300";
+        const updateCounter = (): void => {
+            const rem = 300 - input.value.length;
+            charCounter.textContent = String(rem);
+            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#b06020" : "#3a1a28";
+        };
+        input.addEventListener("input", updateCounter);
+
         const sendBtn = document.createElement("button");
         sendBtn.className = "ebc-beep-win-send";
         sendBtn.textContent = "Send";
@@ -12008,6 +12040,7 @@ export class EBCDrawer {
 
         footer.appendChild(input);
         footer.appendChild(sendBtn);
+        footer.appendChild(charCounter);
         win.appendChild(footer);
 
         // ── Quick-reply bar ─────────────────────────────────────────────────

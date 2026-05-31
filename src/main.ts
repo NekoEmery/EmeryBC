@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.8";
+const MOD_VERSION = "5.4.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.4.9",
+        changes: [
+            "New: offline indicator banner in beep windows — a subtle notice appears below the message history when the recipient is offline, explaining that messages are queued and delivered when they return.",
+            "New: character counter in beep windows — shows remaining characters (out of 300) overlaid on the input; turns amber below 40, red below 10.",
+        ],
+    },
     {
         version: "5.4.8",
         changes: [
