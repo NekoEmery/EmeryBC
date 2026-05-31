@@ -2799,18 +2799,44 @@ const CSS = `
     background: #1e0d1a;
     border: 1px solid #5a2840;
     border-radius: 8px;
-    padding: 6px;
-    flex-wrap: wrap;
-    gap: 2px;
-    width: 214px;
-    max-height: 220px;
-    overflow-y: auto;
+    width: 252px;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
     z-index: 10001;
+    overflow: hidden;
+    flex-direction: column;
+}
+.ebc-emoji-tabs {
+    display: flex;
+    background: #180c14;
+    border-bottom: 1px solid #3a1828;
+    flex-shrink: 0;
+}
+.ebc-emoji-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: #7a5060;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 5px 1px;
+    line-height: 1;
+    transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+.ebc-emoji-tab:hover { background: rgba(60,16,40,0.6); color: #cf8098; }
+.ebc-emoji-tab.active { color: #cf6f98; border-bottom-color: #cf6f98; }
+.ebc-emoji-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    padding: 5px;
+    max-height: 190px;
+    overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
 }
-.ebc-emoji-picker button {
+.ebc-emoji-body button {
     background: none;
     border: none;
     font-size: 16px;
@@ -2820,7 +2846,15 @@ const CSS = `
     transition: background 0.1s;
     line-height: 1;
 }
-.ebc-emoji-picker button:hover { background: #3a1028 !important; filter: none !important; }
+.ebc-emoji-body button.ebc-text-emote {
+    font-size: 9.5px;
+    font-family: "Trebuchet MS", serif;
+    color: #d0a8b8;
+    padding: 3px 6px;
+    white-space: nowrap;
+    line-height: 1.6;
+}
+.ebc-emoji-body button:hover { background: #3a1028 !important; filter: none !important; }
 
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
@@ -12251,49 +12285,114 @@ export class EBCDrawer {
         input.addEventListener("input", updateCounter);
 
         // ── Emoji picker ─────────────────────────────────────────────────────
-        const EMOTES = [
-            // Cat faces
-            "🐱","😺","😸","😹","😻","😼","😽","🙀",
-            "😿","😾",
-            // Smileys & expressions
-            "😊","😘","😍","🥰","🤩","😁","😄","😆",
-            "😂","🤣","🥹","🥺","😢","😭","😳","🙈",
-            "😏","😈","🤭","🫠","😬","🤪","😜","😝",
-            "😅","😌","🥲","😮","😲","😱","🤯","🤗",
-            "🙃","😒","😔","😞","😓","😣","😫","😩",
-            "🥱","😴","🤐","🤢","🤧","🥵","🥶","💀",
-            // Love & hearts
-            "❤️","🧡","💛","💚","💙","💜","🖤","🩷",
-            "💕","💗","💖","💞","💝","💓","💘","💔",
-            // Cute & gestures
-            "💋","🫦","🫂","🫶","👀","👉","👈","💪",
-            "🎀","✨","💫","⭐","🌟","🌈","🌙","☀️",
-            // Floral & food
-            "🌸","🌺","🌹","🌷","🌼","🌻","💮","🏵️",
-            "🍒","🍓","🍑","🍭","🧁","🎂","🍰","🍫",
-            // Other animals
-            "🐾","🐰","🦊","🐻","🐼","🐨","🐶","🐺",
-            "🦝","🦋","🌊","🦄","🐸","🐹",
+        const EMOTE_CATS: Array<{ icon: string; label: string; items: string[]; text?: true }> = [
+            {
+                icon: "🐱", label: "Cats",
+                items: ["🐱","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
+            },
+            {
+                icon: "😊", label: "Faces",
+                items: [
+                    "😊","😘","😍","🥰","🤩","😁","😄","😆",
+                    "😂","🤣","🥹","🥺","😢","😭","😳","🙈",
+                    "😏","😈","🤭","🫠","😬","🤪","😜","😝",
+                    "😅","😌","🥲","😮","😲","😱","🤯","🤗",
+                    "🙃","😒","😔","😞","😓","😣","😫","😩",
+                    "🥱","😴","🤐","🤢","🤧","🥵","🥶","💀",
+                ],
+            },
+            {
+                icon: "❤️", label: "Hearts",
+                items: [
+                    "❤️","🧡","💛","💚","💙","💜","🖤","🩷",
+                    "💕","💗","💖","💞","💝","💓","💘","💔",
+                    "💋","🫦","🫂","🫶",
+                ],
+            },
+            {
+                icon: "✨", label: "Sparkles",
+                items: [
+                    "✨","💫","⭐","🌟","🌈","🌙","☀️","🎀",
+                    "👀","👉","👈","💪","🫶","🙌","👏","🤝",
+                ],
+            },
+            {
+                icon: "🌸", label: "Floral & Food",
+                items: [
+                    "🌸","🌺","🌹","🌷","🌼","🌻","💮","🏵️",
+                    "🍒","🍓","🍑","🍭","🧁","🎂","🍰","🍫",
+                ],
+            },
+            {
+                icon: "🐾", label: "Animals",
+                items: [
+                    "🐾","🐰","🦊","🐻","🐼","🐨","🐶","🐺",
+                    "🦝","🦋","🌊","🦄","🐸","🐹","🐭","🐯",
+                ],
+            },
+            {
+                icon: "OwO", label: "Text emotes", text: true,
+                items: [
+                    "OwO","UwU",">w<","^w^","=w=","qwq","TwT","nwn",
+                    "<.<",">.>",">.<",">_<","o.o","o_o","-.-",">///<",
+                    ":3",";3","c:","cx",":P",":D","xD",";)",":)",":(",
+                    "^_^","^.^","^///^","(*^ω^*)","(≧◡≦)","(◕‿◕)✧",
+                    "(づ◕‿◕)づ","(✿◠‿◠)","( ˘ω˘)","(╹ω╹)",
+                    "(⌒ω⌒)","(≧ω≦)","(◠‿◠✿)","♡","~nya~","~mew~",
+                ],
+            },
         ];
+
         const emojiPicker = document.createElement("div");
         emojiPicker.className = "ebc-emoji-picker";
         emojiPicker.style.display = "none";
-        for (const em of EMOTES) {
-            const eb = document.createElement("button");
-            eb.textContent = em;
-            eb.addEventListener("click", (ev) => {
-                ev.stopPropagation();
-                const start = input.selectionStart ?? input.value.length;
-                const end   = input.selectionEnd   ?? input.value.length;
-                input.value = input.value.slice(0, start) + em + input.value.slice(end);
-                const pos = start + em.length;
-                input.setSelectionRange(pos, pos);
-                updateCounter();
-                input.focus();
-                emojiPicker.style.display = "none";
-            });
-            emojiPicker.appendChild(eb);
-        }
+
+        const emojiTabs = document.createElement("div");
+        emojiTabs.className = "ebc-emoji-tabs";
+
+        const emojiBody = document.createElement("div");
+        emojiBody.className = "ebc-emoji-body";
+
+        const renderEmoteCat = (idx: number): void => {
+            while (emojiBody.firstChild) emojiBody.removeChild(emojiBody.firstChild);
+            const cat = EMOTE_CATS[idx];
+            for (const em of cat.items) {
+                const eb = document.createElement("button");
+                if (cat.text) eb.className = "ebc-text-emote";
+                eb.textContent = em;
+                eb.title = em;
+                eb.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    const start = input.selectionStart ?? input.value.length;
+                    const end   = input.selectionEnd   ?? input.value.length;
+                    input.value = input.value.slice(0, start) + em + input.value.slice(end);
+                    const pos = start + em.length;
+                    input.setSelectionRange(pos, pos);
+                    updateCounter();
+                    input.focus();
+                    emojiPicker.style.display = "none";
+                });
+                emojiBody.appendChild(eb);
+            }
+            emojiBody.scrollTop = 0;
+            for (let i = 0; i < emojiTabs.children.length; i++) {
+                emojiTabs.children[i].classList.toggle("active", i === idx);
+            }
+        };
+
+        EMOTE_CATS.forEach((cat, i) => {
+            const tab = document.createElement("button");
+            tab.className = "ebc-emoji-tab" + (i === 0 ? " active" : "");
+            tab.textContent = cat.icon;
+            tab.title = cat.label;
+            if (cat.text) tab.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
+            tab.addEventListener("click", (ev) => { ev.stopPropagation(); renderEmoteCat(i); });
+            emojiTabs.appendChild(tab);
+        });
+
+        renderEmoteCat(0);
+        emojiPicker.appendChild(emojiTabs);
+        emojiPicker.appendChild(emojiBody);
 
         const emojiBtn = document.createElement("button");
         emojiBtn.className = "ebc-beep-win-hbtn";
