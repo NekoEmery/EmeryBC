@@ -11736,7 +11736,7 @@ export class EBCDrawer {
         muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
         const refreshMuteBtn = (): void => {
             const muted = isBeepMemberMuted(memberNumber);
-            muteBtn.textContent = muted ? "🔇" : "🔔";
+            muteBtn.textContent = muted ? "⊘" : "♪";
             muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
             muteBtn.classList.toggle("muted", muted);
         };
@@ -11752,13 +11752,13 @@ export class EBCDrawer {
         // so it can call renderHistory() to refresh the chat after sending.
         const roomInviteBtn = document.createElement("button");
         roomInviteBtn.className = "ebc-beep-win-hbtn";
-        roomInviteBtn.textContent = "📍";
+        roomInviteBtn.textContent = "⊕";
         roomInviteBtn.title = "Send your current room as an invite";
 
         // Clear conversation button — wipes local history after confirmation
         const clearBtn = document.createElement("button");
         clearBtn.className = "ebc-beep-win-hbtn";
-        clearBtn.textContent = "🗑";
+        clearBtn.textContent = "⌫";
         clearBtn.title = "Clear conversation";
         clearBtn.addEventListener("click", () => {
             showConfirmOverlay(
@@ -12144,7 +12144,7 @@ export class EBCDrawer {
                 sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
                 renderHistory();
                 roomInviteBtn.textContent = "✓";
-                window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
             } else {
                 // Not in a room — shortcut: join their room if they have one.
                 // Guard: if friend status is "room" they're already with us, so we ARE
@@ -12154,12 +12154,12 @@ export class EBCDrawer {
                 if (friendRoom && friendStatus !== "room") {
                     doJoinRoom(friendRoom);
                     roomInviteBtn.textContent = "→";
-                    window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
+                    window.setTimeout(() => { roomInviteBtn.textContent = "⊕"; }, 1200);
                 } else {
-                    roomInviteBtn.textContent = "🚫";
+                    roomInviteBtn.textContent = "×";
                     roomInviteBtn.title = "Neither you nor they are in a room";
                     window.setTimeout(() => {
-                        roomInviteBtn.textContent = "📍";
+                        roomInviteBtn.textContent = "⊕";
                         roomInviteBtn.title = "Send your current room as an invite (or join theirs)";
                     }, 1500);
                 }
@@ -12349,6 +12349,8 @@ export class EBCDrawer {
         syncQrToggle(); // apply initial open/closed state from localStorage
 
         document.body.appendChild(win);
+        // Now that the window is in the DOM it has real layout — scroll history to bottom.
+        window.requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
         // Centre new user-initiated windows after layout so offsetWidth/Height are real.
         if (!startMinimized) {
             window.requestAnimationFrame(() => {

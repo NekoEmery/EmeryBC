@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.6";
+const MOD_VERSION = "5.5.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.7",
+        changes: [
+            "Fix: chat messages now correctly start scrolled to the bottom when a conversation window opens — previously the scroll happened before the window was in the DOM so scrollHeight was 0.",
+            "Improvement: header icons (bell, pin, trash) replaced with plain Unicode symbols (♪/⊘, ⊕, ⌫) that render monochrome and fit the dark-pink aesthetic instead of coloured OS emoji.",
+        ],
+    },
     {
         version: "5.5.6",
         changes: [
