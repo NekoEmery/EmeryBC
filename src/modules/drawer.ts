@@ -1397,26 +1397,32 @@ const CSS = `
 }
 
 /* -- Panel resize handle (bottom edge drag) -- */
+/* Sits as a direct child of #emerybc-panel (outside .ebc-panel and zoomWrapper)
+   so it is never clipped by overflow:hidden and is unaffected by the zoom transform. */
 .ebc-resize-handle {
-    flex-shrink: 0;
-    height: 8px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 14px;
+    z-index: 2;
     cursor: ns-resize;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border-top: 1px solid #2e1424;
+    background: rgba(14, 5, 11, 0.92);
+    border-top: 1px solid #3a1828;
     transition: background 0.12s;
     user-select: none;
     touch-action: none;
 }
-.ebc-resize-handle:hover { background: rgba(60,16,40,0.55); }
-.ebc-resize-handle.active { background: rgba(80,20,50,0.75); }
+.ebc-resize-handle:hover { background: rgba(50,12,34,0.97); }
+.ebc-resize-handle.active { background: rgba(70,18,46,1); }
 .ebc-resize-handle::before {
     content: "";
-    width: 28px;
-    height: 2px;
-    border-radius: 1px;
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
     background: #5a3048;
 }
 .ebc-resize-handle:hover::before, .ebc-resize-handle.active::before { background: #cf6f98; }
@@ -4782,7 +4788,16 @@ export class EBCDrawer {
         panel.appendChild(body);
         panel.appendChild(footer);
 
+        // Move all panel children into the wrapper, then add wrapper to panel.
+        while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
+        panel.appendChild(zoomWrapper);
+
         // -- Bottom resize handle ------------------------------------------------
+        // Attached directly to slideContainer (#emerybc-panel) — NOT inside .ebc-panel
+        // or zoomWrapper — so it is never clipped by overflow:hidden and is never
+        // affected by the zoom transform.  position:absolute; bottom:0 keeps it pinned
+        // to the bottom edge of the panel regardless of its height.
+
         // Load saved height before first syncToChat fires.
         this.userPanelHeight = (() => {
             try {
@@ -4794,19 +4809,19 @@ export class EBCDrawer {
 
         const resizeHandle = document.createElement("div");
         resizeHandle.className = "ebc-resize-handle";
-        resizeHandle.title = "Drag to resize panel · Double-click to restore full height";
-        panel.appendChild(resizeHandle);
+        resizeHandle.title = "Drag to resize · Double-click to restore full height";
+        slideContainer.appendChild(resizeHandle);
 
         addPointerDown(resizeHandle, (startPos, e) => {
             e.preventDefault();
             resizeHandle.classList.add("active");
-            const startY  = startPos.clientY;
-            const startH  = (this.panelEl as HTMLElement).getBoundingClientRect().height;
+            const startY = startPos.clientY;
+            const startH = slideContainer.getBoundingClientRect().height;
             addPointerTracking(
                 (pos) => {
                     const newH = Math.max(180, Math.min(window.innerHeight * 0.95, startH + (pos.clientY - startY)));
                     this.userPanelHeight = newH;
-                    if (this.panelEl) this.panelEl.style.height = `${newH}px`;
+                    slideContainer.style.height = `${newH}px`;
                 },
                 () => {
                     resizeHandle.classList.remove("active");
@@ -4820,13 +4835,8 @@ export class EBCDrawer {
         resizeHandle.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
             try { localStorage.removeItem(EBC_PANEL_HEIGHT_KEY); } catch { /* ignore */ }
-            // Force syncToChat to re-apply uncapped height on the next tick
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
         });
-
-        // Move all panel children into the wrapper, then add wrapper to panel.
-        while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
-        panel.appendChild(zoomWrapper);
 
         // Guide is now a detached side panel (created dynamically in startGuide).
         this.guideEl = null;

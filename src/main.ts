@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.6.6";
+const MOD_VERSION = "5.6.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.6.7",
+        changes: [
+            "Fix: resize handle moved outside the zoom wrapper and anchored to the slide container with position:absolute — it is no longer clipped by overflow:hidden and is unaffected by the panel zoom transform. Handle height increased to 14 px for easier grabbing.",
+        ],
+    },
     {
         version: "5.6.6",
         changes: [
