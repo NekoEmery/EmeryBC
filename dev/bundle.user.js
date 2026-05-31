@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.4.7
+// @version      5.4.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14442,6 +14442,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     flex-shrink: 0;
     width: 26px;
     height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -34543,7 +34547,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.7";
+    const MOD_VERSION = "5.4.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34554,6 +34558,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.4.8",
+            changes: [
+                "Fix: ON/OFF toggle buttons now use flex centering — OFF text was visually off-centre due to browser default button padding.",
+            ],
+        },
         {
             version: "5.4.7",
             changes: [
