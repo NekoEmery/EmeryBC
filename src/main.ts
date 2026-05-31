@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.1";
+const MOD_VERSION = "5.7.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.2",
+        changes: [
+            "Fix: Slow Leave presets (Classic, Warm, Quiet, Sleepy, Playful, Bratty, Custom) are back in the settings accordion with a dropdown to select the style and an editable intro emote field. The intro emote is sent as a * emote ~1.2s before the leave message, matching the natural feel of each style.",
+            "Fix: Slow Leave no longer spams SlowLeaveAttempt/SlowLeaveCancel. Active state is now tracked with a dedicated boolean so two-stage timers can't cause double-starts. SlowLeaveCancel is only sent if SlowLeaveAttempt was actually dispatched.",
+            "Fix: Slow Leave done callback now calls ChatRoomLeave() before CommonSetScreen() matching BC's own leave order so the leave is reliably processed.",
+            "New: Slow Leave shows BC's crawl status icon (the visual indicator near the character) while the timer is active, cleared on cancel or done.",
+        ],
+    },
     {
         version: "5.7.1",
         changes: [

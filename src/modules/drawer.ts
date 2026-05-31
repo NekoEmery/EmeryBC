@@ -319,33 +319,50 @@ function getGroupAssets(group: string): string[] {
 // -- Slow Leave preset storage -------------------------------------------------
 
 const SLOW_LEAVE_PRESET_DEFAULTS = [
-    { label: "Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
-    { label: "Warm",    seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
-    { label: "Quiet",   seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
-    { label: "Sleepy",  seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
-    { label: "Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
-    { label: "Bratty",  seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
-    { label: "Custom",  seq: "*waves and heads for the door~@{DUR}|leaveroom" },
+    { label: "Classic", intro: "smiles and gives a little wave~" },
+    { label: "Warm",    intro: "gives everyone a warm hug before leaving~" },
+    { label: "Quiet",   intro: "" },
+    { label: "Sleepy",  intro: "yawns softly and stretches~" },
+    { label: "Playful", intro: "bounces happily and waves her tail~" },
+    { label: "Bratty",  intro: "stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much." },
+    { label: "Custom",  intro: "" },
 ];
 
-function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
+function extractIntroFromSeq(seq: string): string {
+    for (const step of seq.split("|")) {
+        const s = step.trim();
+        if (s.startsWith("*")) {
+            const atIdx = s.lastIndexOf("@");
+            const raw = atIdx > 0 ? s.slice(0, atIdx).trim() : s;
+            return raw.replace(/^\*/, "").trim();
+        }
+    }
+    return "";
+}
+
+function getSlowLeavePresets(): Array<{ label: string; intro: string }> {
     try {
         const raw = localStorage.getItem("EBC_slowLeavePresets");
         if (raw) {
-            const parsed = JSON.parse(raw) as Array<{ label: string; seq: string }>;
+            const parsed = JSON.parse(raw) as Array<{ label: string; intro?: string; seq?: string }>;
             if (Array.isArray(parsed) && parsed.length > 0) {
+                // Migrate old seq-based format to intro format
+                const migrated = parsed.map(p => ({
+                    label: p.label,
+                    intro: p.intro !== undefined ? p.intro : (p.seq ? extractIntroFromSeq(p.seq) : ""),
+                }));
                 // Additive migration: append any new defaults not yet in the stored list
                 for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
-                    if (!parsed.find(p => p.label === def.label)) parsed.push({ ...def });
+                    if (!migrated.find(p => p.label === def.label)) migrated.push({ ...def });
                 }
-                return parsed;
+                return migrated;
             }
         }
     } catch { /* ignore */ }
     return SLOW_LEAVE_PRESET_DEFAULTS.map(p => ({ ...p }));
 }
 
-function saveSlowLeavePresets(v: Array<{ label: string; seq: string }>): void {
+function saveSlowLeavePresets(v: Array<{ label: string; intro: string }>): void {
     try { localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v)); } catch { /* ignore */ }
 }
 
@@ -17891,17 +17908,20 @@ export class EBCDrawer {
                 return;
             }
             const durMs = Math.max(2000, parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10) * 1000);
+            const slps = getSlowLeavePresets();
+            const slpi = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slps.length - 1);
+            const intro = slps[slpi]?.intro ?? "";
             setSlowLeaveDoneCallback(() => {
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
-                callBC(() => CommonSetScreen("Online", "ChatSearch"));
                 callBC(() => ChatRoomLeave());
+                callBC(() => CommonSetScreen("Online", "ChatSearch"));
             });
             slLeaveBtn.textContent = t("sl.cancel");
             slLeaveBtn.style.background = "#4a1a2a";
             slLeaveBtn.style.color = "#ff8aaa";
-            startBCSlowLeave(durMs);
+            startBCSlowLeave(durMs, intro);
         });
         body.appendChild(slLeaveBtn);
 
@@ -17927,10 +17947,59 @@ export class EBCDrawer {
         slEditorHdr.appendChild(slEditorLbl);
         slEditorCard.appendChild(slEditorHdr);
 
-        // Editor body — duration slider only
+        // Editor body — preset selector + intro emote + duration slider
         const slEditorBody = document.createElement("div");
         slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
 
+        // Preset selector
+        const slPresets = getSlowLeavePresets();
+        const slSavedIdx = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slPresets.length - 1);
+        const slPresetRow = document.createElement("div");
+        slPresetRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slPresetLbl = document.createElement("span");
+        slPresetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slPresetLbl.textContent = "✦";
+        slPresetLbl.title = "Leave style preset";
+        const slPresetSel = document.createElement("select");
+        slPresetSel.style.cssText = "flex:1;background:#1b0d17;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:2px 4px;font-size:11px;cursor:pointer;min-width:0;";
+        for (let _pi = 0; _pi < slPresets.length; _pi++) {
+            const _opt = document.createElement("option");
+            _opt.value = String(_pi);
+            _opt.textContent = slPresets[_pi].label;
+            if (_pi === slSavedIdx) _opt.selected = true;
+            slPresetSel.appendChild(_opt);
+        }
+        slPresetRow.appendChild(slPresetLbl); slPresetRow.appendChild(slPresetSel);
+        slEditorBody.appendChild(slPresetRow);
+
+        // Intro emote input
+        const slIntroRow = document.createElement("div");
+        slIntroRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slIntroLbl = document.createElement("span");
+        slIntroLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slIntroLbl.textContent = "✉";
+        slIntroLbl.title = "Intro emote sent just before the leave message";
+        const slIntroInput = document.createElement("input");
+        slIntroInput.type = "text";
+        slIntroInput.style.cssText = "flex:1;background:#150a10;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:3px 5px;font-size:11px;min-width:0;";
+        slIntroInput.placeholder = "intro emote (optional)";
+        slIntroInput.value = slPresets[slSavedIdx]?.intro ?? "";
+        slIntroRow.appendChild(slIntroLbl); slIntroRow.appendChild(slIntroInput);
+        slEditorBody.appendChild(slIntroRow);
+
+        slPresetSel.addEventListener("change", () => {
+            const _idx = parseInt(slPresetSel.value, 10);
+            const _ps = getSlowLeavePresets();
+            slIntroInput.value = _ps[_idx]?.intro ?? "";
+            try { localStorage.setItem("EBC_slowLeavePresetIdx", String(_idx)); } catch { /* ignore */ }
+        });
+        slIntroInput.addEventListener("change", () => {
+            const _idx = parseInt(slPresetSel.value, 10);
+            const _ps = getSlowLeavePresets();
+            if (_ps[_idx]) { _ps[_idx].intro = slIntroInput.value.trim(); saveSlowLeavePresets(_ps); }
+        });
+
+        // Duration slider
         const slDurRow = document.createElement("div");
         slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
         const slDurLbl = document.createElement("span");
