@@ -2453,6 +2453,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Quick replies -------------------------------------------------------------
+    // Configurable one-click phrases shown as buttons inside beep windows.
+    // Clicking inserts the text into the input so the user can review/edit before sending.
+    const DEFAULT_QUICK_REPLIES = ["brb", "in character", "busy, back soon"];
+    function getQuickReplies() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.quickReplies;
+            if (Array.isArray(v))
+                return v;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return [...DEFAULT_QUICK_REPLIES];
+    }
+    function saveQuickReplies(replies) {
+        try {
+            const store = getSettings();
+            store.quickReplies = replies;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Action buttons sidebar visibility ----------------------------------------
     function getActionButtonsVisible() {
         var _a;
@@ -15830,6 +15852,7 @@
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-room-drawer,
+.ebc-beep-win.minimized .ebc-qr-bar,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -15889,6 +15912,55 @@
     padding: 0 2px;
     flex-shrink: 0;
 }
+
+/* -- Quick-reply bar (inside beep windows) ---------------------------------- */
+.ebc-qr-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 5px;
+    border-top: 1px solid #2a1320;
+    flex-shrink: 0;
+    min-height: 26px;
+}
+.ebc-qr-bar.edit-mode {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 3px;
+    padding-bottom: 7px;
+}
+.ebc-qr-btn {
+    background: #1e0818;
+    border: 1px solid #4a2538;
+    border-radius: 3px;
+    color: #b07898;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.ebc-qr-btn:hover { background: #3a1028; border-color: #cf6f98; color: #e8c8d8; }
+.ebc-qr-gear {
+    background: transparent;
+    border: 1px solid #261018;
+    border-radius: 3px;
+    color: #3e1a28;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 5px;
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.1s, border-color 0.1s;
+}
+.ebc-qr-gear:hover { color: #cf6f98; border-color: #4a2538; }
 .ebc-beep-reply-cancel:hover { color: #cf6f98; }
 
 .ebc-beep-quote {
@@ -24933,6 +25005,101 @@
             footer.appendChild(input);
             footer.appendChild(sendBtn);
             win.appendChild(footer);
+            // ── Quick-reply bar ─────────────────────────────────────────────────
+            // Built after footer so `input` is already in scope.
+            // Inserted before footer via insertBefore so it sits visually above the input.
+            const qrBar = document.createElement("div");
+            qrBar.className = "ebc-qr-bar";
+            let qrEditOpen = false;
+            const renderQR = () => {
+                while (qrBar.firstChild)
+                    qrBar.removeChild(qrBar.firstChild);
+                const replies = getQuickReplies();
+                if (!qrEditOpen) {
+                    qrBar.className = "ebc-qr-bar";
+                    for (const text of replies) {
+                        const btn = document.createElement("button");
+                        btn.className = "ebc-qr-btn";
+                        btn.textContent = text.length > 22 ? text.slice(0, 20) + "…" : text;
+                        btn.title = text;
+                        btn.addEventListener("click", () => { input.value = text; input.focus(); });
+                        qrBar.appendChild(btn);
+                    }
+                    const gearBtn = document.createElement("button");
+                    gearBtn.className = "ebc-qr-gear";
+                    gearBtn.textContent = "⚙";
+                    gearBtn.title = "Edit quick replies";
+                    gearBtn.addEventListener("click", () => { qrEditOpen = true; renderQR(); });
+                    qrBar.appendChild(gearBtn);
+                }
+                else {
+                    // Edit mode — column list of existing replies + add form
+                    qrBar.className = "ebc-qr-bar edit-mode";
+                    const currentReplies = getQuickReplies();
+                    for (let i = 0; i < currentReplies.length; i++) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:4px;min-width:0;";
+                        const lbl = document.createElement("span");
+                        lbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#c8a0b0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                        lbl.textContent = currentReplies[i];
+                        const del = document.createElement("button");
+                        del.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4a2030;border-radius:3px;color:#7a5060;font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;cursor:pointer;padding:1px 5px;transition:color 0.1s,border-color 0.1s;";
+                        del.textContent = "×";
+                        del.title = "Remove";
+                        del.addEventListener("mouseenter", () => { del.style.color = "#cf6f98"; del.style.borderColor = "#cf6f98"; });
+                        del.addEventListener("mouseleave", () => { del.style.color = "#7a5060"; del.style.borderColor = "#4a2030"; });
+                        del.addEventListener("click", () => {
+                            saveQuickReplies(getQuickReplies().filter((_, idx) => idx !== i));
+                            renderQR();
+                        });
+                        row.appendChild(lbl);
+                        row.appendChild(del);
+                        qrBar.appendChild(row);
+                    }
+                    // Add-new row
+                    const addRow = document.createElement("div");
+                    addRow.style.cssText = "display:flex;gap:4px;margin-top:1px;";
+                    const addInput = document.createElement("input");
+                    addInput.type = "text";
+                    addInput.maxLength = 100;
+                    addInput.placeholder = "New quick reply…";
+                    addInput.style.cssText = "flex:1;min-width:0;background:rgba(30,13,26,0.58);border:1px solid #4a2840;border-radius:3px;color:#e8d0d8;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;outline:none;transition:border-color 0.1s;";
+                    addInput.addEventListener("focus", () => { addInput.style.borderColor = "#cf6f98"; });
+                    addInput.addEventListener("blur", () => { addInput.style.borderColor = "#4a2840"; });
+                    addInput.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter")
+                        doQRAdd(); });
+                    const doQRAdd = () => {
+                        const text = addInput.value.trim();
+                        if (!text)
+                            return;
+                        saveQuickReplies([...getQuickReplies(), text]);
+                        renderQR();
+                        window.setTimeout(() => {
+                            const fresh = qrBar.querySelector("input[type=text]");
+                            if (fresh)
+                                fresh.focus();
+                        }, 0);
+                    };
+                    const addBtn = document.createElement("button");
+                    addBtn.textContent = "+ Add";
+                    addBtn.style.cssText = "background:#1e0818;border:1px solid #4a2538;border-radius:3px;color:#b07898;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                    addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#3a1028"; addBtn.style.borderColor = "#cf6f98"; addBtn.style.color = "#e8c8d8"; });
+                    addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#1e0818"; addBtn.style.borderColor = "#4a2538"; addBtn.style.color = "#b07898"; });
+                    addBtn.addEventListener("click", doQRAdd);
+                    const doneBtn = document.createElement("button");
+                    doneBtn.textContent = "Done";
+                    doneBtn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:3px;color:#7a5a6a;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:color 0.1s,border-color 0.1s;";
+                    doneBtn.addEventListener("mouseenter", () => { doneBtn.style.color = "#cf6f98"; doneBtn.style.borderColor = "#cf6f98"; });
+                    doneBtn.addEventListener("mouseleave", () => { doneBtn.style.color = "#7a5a6a"; doneBtn.style.borderColor = "#3a1928"; });
+                    doneBtn.addEventListener("click", () => { qrEditOpen = false; renderQR(); });
+                    addRow.appendChild(addInput);
+                    addRow.appendChild(addBtn);
+                    addRow.appendChild(doneBtn);
+                    qrBar.appendChild(addRow);
+                }
+            };
+            renderQR();
+            win.insertBefore(qrBar, footer);
             document.body.appendChild(win);
             // Centre new user-initiated windows after layout so offsetWidth/Height are real.
             if (!startMinimized) {
@@ -34359,7 +34526,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.4.6";
+    const MOD_VERSION = "5.4.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34370,6 +34537,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.4.7",
+            changes: [
+                "New: quick-reply buttons in every beep window — configurable one-click phrases that insert into the input so you can review before sending. Defaults: brb / in character / busy, back soon. Click ⚙ to add, remove, or reorder. Saved to your EBC settings and synced across devices.",
+            ],
+        },
         {
             version: "5.4.6",
             changes: [
