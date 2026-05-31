@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.5.2
+// @version      5.5.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2473,7 +2473,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Quick replies -------------------------------------------------------------
     // Configurable one-click phrases shown as buttons inside beep windows.
     // Clicking inserts the text into the input so the user can review/edit before sending.
-    const DEFAULT_QUICK_REPLIES = ["brb", "in character", "busy, back soon"];
+    const DEFAULT_QUICK_REPLIES = ["brb", "busy, back soon", "hello ^^"];
     function getQuickReplies() {
         var _a;
         try {
@@ -16024,9 +16024,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-qr-btn:hover { background: #3a1028; border-color: #cf6f98; color: #e8c8d8; }
 .ebc-qr-gear {
     background: transparent;
-    border: 1px solid #4a2038;
+    border: 1px solid #8a4060;
     border-radius: 3px;
-    color: #8a5070;
+    color: #c09098;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     padding: 2px 5px;
@@ -16147,24 +16147,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
-/* Message wrap — gives us a hover target for the copy button */
+/* Message wrap — hover target for the inline copy icon */
 .ebc-beep-msg-wrap { position: relative; }
-.ebc-beep-copy-btn {
+/* Inline copy icon — sits right after the name, revealed on wrap hover */
+.ebc-bubble-copy-btn {
     display: none;
     background: transparent;
-    border: 1px solid #3a1928;
-    border-radius: 3px;
-    color: #5a3040;
-    font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    padding: 1px 5px;
+    border: none;
+    color: #5a3848;
+    font-size: 11px;
     cursor: pointer;
-    align-self: flex-end;
-    margin-top: 2px;
-    transition: color 0.1s, border-color 0.1s;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.1s;
 }
-.ebc-beep-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
-.ebc-beep-msg-wrap:hover .ebc-beep-copy-btn { display: block; }
+.ebc-bubble-copy-btn:hover { color: #cf6f98; }
+.ebc-beep-msg-wrap:hover .ebc-bubble-copy-btn { display: inline-block; }
 
 /* "They came online!" transient notice */
 .ebc-beep-online-alert {
@@ -24736,6 +24735,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 updateTitle();
                 const info = getFriendOnlineInfo(memberNumber);
                 // ── Room drawer chips (privacy + space) ──────────────────────────
+                // Friendly names for BC's internal room-space identifiers.
+                const SPACE_NAMES = {
+                    BDSM: "BDSM", X: "Club X", Nerd: "Nerd", Music: "Music",
+                    Medical: "Medical", Pet: "Pet Play", Asylum: "Asylum",
+                    School: "School", Pandora: "Pandora's Box", Cheerleader: "Cheerleader",
+                    Sports: "Sports", Fantasy: "Fantasy", SciFi: "Sci-Fi",
+                    Loge: "Loge", Casino: "Casino", Island: "Island",
+                    Laboratory: "Laboratory", GrandBallroom: "Grand Ballroom",
+                    TeaRoom: "Tea Room", Arcade: "Arcade",
+                    Festival: "Festival", Workshop: "Workshop",
+                };
+                const friendlySpace = (s) => { var _a; return (_a = SPACE_NAMES[s]) !== null && _a !== void 0 ? _a : s; };
                 while (roomDrawerChips.firstChild)
                     roomDrawerChips.removeChild(roomDrawerChips.firstChild);
                 const makeChip = (text) => {
@@ -24750,9 +24761,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
-                    roomDrawerChips.appendChild(makeChip("🌐 Public"));
-                    if (info.roomSpace)
-                        roomDrawerChips.appendChild(makeChip(info.roomSpace));
+                    // Combine privacy + space into one chip ("🌐 Public · Club X") to avoid confusing raw codes
+                    const spaceLabel = info.roomSpace ? ` · ${friendlySpace(info.roomSpace)}` : "";
+                    roomDrawerChips.appendChild(makeChip(`🌐 Public${spaceLabel}`));
                     roomDrawerChips.style.display = "";
                     roomDrawerCopy.style.display = "";
                 }
@@ -24993,24 +25004,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     wrap.className = "ebc-beep-msg-wrap";
                     wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
                     const bubbleMember = isSent ? self : e.from;
-                    const nameLabel = document.createElement("div");
                     // For sent messages read directly from Player so no other addon's
                     // nickname hooks can bleed into the display name.
                     const bubbleName = isSent
                         ? ((_b = Player.Nickname) === null || _b === void 0 ? void 0 : _b.trim()) || Player.Name || "You"
                         : resolveName(bubbleMember);
-                    nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
-                    nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+                    // Name row — flex so we can add the account-name sub-text and copy icon inline
+                    const nameLabel = document.createElement("div");
+                    nameLabel.style.cssText = "display:flex;align-items:baseline;gap:3px;margin-bottom:2px;padding:0 3px;min-width:0;flex-wrap:nowrap;";
+                    const nameText = document.createElement("span");
+                    nameText.textContent = `${bubbleName} #${bubbleMember}`;
+                    nameText.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    // Account name sub-text — only for received messages where it differs from display name
+                    if (!isSent) {
+                        const acctName = getAccountName(bubbleMember);
+                        if (acctName && acctName !== bubbleName) {
+                            const acctSub = document.createElement("span");
+                            acctSub.textContent = acctName;
+                            acctSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3848;font-weight:normal;white-space:nowrap;flex-shrink:0;";
+                            nameLabel.appendChild(nameText);
+                            nameLabel.appendChild(acctSub);
+                        }
+                        else {
+                            nameLabel.appendChild(nameText);
+                        }
+                    }
+                    else {
+                        nameLabel.appendChild(nameText);
+                    }
                     // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                     const vipEntry = VIP_MEMBERS[bubbleMember];
                     if (vipEntry) {
-                        applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
+                        applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
                     }
                     else if (bubbleMember === self) {
-                        applyGradientText(nameLabel, "#cf6f98", "#8090d0");
+                        applyGradientText(nameText, "#cf6f98", "#8090d0");
                     }
                     else {
-                        nameLabel.style.color = isSent ? "#e090b8" : "#80c0e0";
+                        nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
                     }
                     wrap.appendChild(nameLabel);
                     const bubble = document.createElement("div");
@@ -25145,19 +25176,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                         wrap.appendChild(replyBtn);
                     }
-                    // Copy button — visible on hover for all messages
-                    // Only show for plain text (skip invite/decline cards where it makes less sense)
+                    // Inline copy icon — appended to the nameLabel, hidden until wrap is hovered
                     if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                         const copyBtn = document.createElement("button");
-                        copyBtn.className = "ebc-beep-copy-btn";
-                        copyBtn.textContent = "⎘ Copy";
-                        copyBtn.title = "Copy message text";
+                        copyBtn.className = "ebc-bubble-copy-btn";
+                        copyBtn.textContent = "⎘";
+                        copyBtn.title = "Copy message";
                         copyBtn.addEventListener("click", () => {
                             navigator.clipboard.writeText(msgBody).catch(() => { });
-                            copyBtn.textContent = "✓ Copied";
-                            window.setTimeout(() => { copyBtn.textContent = "⎘ Copy"; }, 1200);
+                            copyBtn.textContent = "✓";
+                            window.setTimeout(() => { copyBtn.textContent = "⎘"; }, 1200);
                         });
-                        wrap.appendChild(copyBtn);
+                        nameLabel.appendChild(copyBtn);
                     }
                     history.appendChild(wrap);
                 }
@@ -25256,12 +25286,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.maxLength = 300;
             // Character counter — overlaid absolutely inside the footer (which is position:relative)
             const charCounter = document.createElement("span");
-            charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4055;pointer-events:none;user-select:none;transition:color 0.15s;min-width:14px;text-align:right;";
+            charCounter.style.cssText = "position:absolute;top:50%;transform:translateY(-50%);right:58px;font-family:'Trebuchet MS',serif;font-size:10px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;min-width:16px;text-align:right;";
             charCounter.textContent = "300";
             const updateCounter = () => {
                 const rem = 300 - input.value.length;
                 charCounter.textContent = String(rem);
-                charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#c07030" : "#7a4055";
+                charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
             };
             input.addEventListener("input", updateCounter);
             const sendBtn = document.createElement("button");
@@ -34805,7 +34835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.5.2";
+    const MOD_VERSION = "5.5.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -34816,6 +34846,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.5.3",
+            changes: [
+                "Fix: character counter is now clearly visible — brighter colour (#a07080) and 10px font instead of near-invisible 9px.",
+                "Fix: ⚙ gear icon is now properly visible with higher-contrast colour and border.",
+                "Fix: default quick-reply phrases changed to brb / busy, back soon / hello ^^ — the old ones were unhelpful.",
+                "Fix: room drawer space chip no longer shows raw BC codes like 'X' — now shows the friendly name (e.g. 'Club X') merged into the 🌐 Public chip.",
+                "Fix: copy button moved from a hover element below the bubble to an inline ⎘ icon beside the sender name — much cleaner.",
+                "Fix: received message bubbles now show the account name in small text beside the sender nickname when the two differ, matching the header behaviour.",
+            ],
+        },
         {
             version: "5.5.2",
             changes: [
