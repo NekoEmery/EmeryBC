@@ -18179,52 +18179,37 @@
             resizeHandle.className = "ebc-resize-handle";
             resizeHandle.title = "Drag to resize · Double-click to restore full height";
             slideContainer.appendChild(resizeHandle);
-            // Pointer Events API — setPointerCapture routes all subsequent pointermove/
-            // pointerup to this element regardless of where the pointer travels.
-            // No document-level listeners needed → immune to stopPropagation from
-            // stopTouchBubble and BC's global canvas handlers.
+            // Use the same addPointerDown / addPointerTracking pattern as the tab drag
+            // (which is known-working). Pointer Events API + setPointerCapture was used
+            // before but pointercancel fires when the pointer leaves the element on some
+            // setups, killing the drag immediately. addPointerTracking registers document-
+            // level capture-phase touchmove listeners that bypass stopTouchBubble on
+            // slideContainer, and plain document-level mousemove for desktop.
             let dragStartY = 0;
             let dragStartH = 0;
-            const onResizeMove = (clientY) => {
-                const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
-                this.userPanelHeight = newH;
-                slideContainer.style.height = `${newH}px`;
-            };
-            const onResizeEnd = () => {
-                if (!this.isResizeDragging)
-                    return;
-                this.isResizeDragging = false;
-                resizeHandle.classList.remove("active");
-                if (this.userPanelHeight !== null)
-                    try {
-                        localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-            };
-            resizeHandle.addEventListener("pointerdown", (e) => {
-                if (e.button !== 0)
-                    return;
+            addPointerDown(resizeHandle, (pos, e) => {
                 e.preventDefault();
-                try {
-                    resizeHandle.setPointerCapture(e.pointerId);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
                 this.isResizeDragging = true;
-                dragStartY = e.clientY;
+                dragStartY = pos.clientY;
                 dragStartH = slideContainer.getBoundingClientRect().height;
                 resizeHandle.classList.add("active");
-            });
-            resizeHandle.addEventListener("pointermove", (e) => {
-                if (!this.isResizeDragging)
-                    return;
-                e.preventDefault();
-                onResizeMove(e.clientY);
-            });
-            resizeHandle.addEventListener("pointerup", (_e) => {
-                onResizeEnd();
-            });
-            resizeHandle.addEventListener("pointercancel", (_e) => {
-                onResizeEnd();
+                addPointerTracking((movePos) => {
+                    if (!this.isResizeDragging)
+                        return;
+                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (movePos.clientY - dragStartY)));
+                    this.userPanelHeight = newH;
+                    slideContainer.style.height = `${newH}px`;
+                }, () => {
+                    if (!this.isResizeDragging)
+                        return;
+                    this.isResizeDragging = false;
+                    resizeHandle.classList.remove("active");
+                    if (this.userPanelHeight !== null)
+                        try {
+                            localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                });
             });
             resizeHandle.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
@@ -18751,11 +18736,11 @@
             try {
                 (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             try {
                 (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
         }
         startGuide() {
             var _a, _b, _c, _d;
@@ -22578,7 +22563,7 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -22999,7 +22984,7 @@
                 editor.appendChild(poseSectionLbl);
                 const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_d = combo.stepDelayMs) !== null && _d !== void 0 ? _d : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_f = combo.command) !== null && _f !== void 0 ? _f : "", (_g = combo.announceText) !== null && _g !== void 0 ? _g : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_e = combo.command) !== null && _e !== void 0 ? _e : "", (_f = combo.announceText) !== null && _f !== void 0 ? _f : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 const doSaveCombo = () => {
                     showConfirmOverlay(`Save changes to "${combo.name}"?`, "Cancel", "Save", () => {
@@ -23381,7 +23366,7 @@
                 const seqCmdInp = document.createElement("input");
                 seqCmdInp.type = "text";
                 seqCmdInp.maxLength = 30;
-                seqCmdInp.value = (_h = seq.command) !== null && _h !== void 0 ? _h : "";
+                seqCmdInp.value = (_g = seq.command) !== null && _g !== void 0 ? _g : "";
                 seqCmdInp.className = "ebc-form-input";
                 seqCmdInp.style.cssText = "flex:1;font-size:11px;";
                 seqCmdInp.placeholder = "command (optional)";
@@ -23481,7 +23466,7 @@
             this.renderExpressions(exprCnt);
         }
         renderScenes(body) {
-            var _a, _b, _c, _d, _f;
+            var _a, _b, _c, _d, _e;
             const STEP_TYPE_LABELS = {
                 pose: "Pose",
                 equip: "Equip Item", // primary equip type — searches all groups
@@ -23554,7 +23539,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _f, _g, _h, _j;
+                var _a, _b, _c, _d, _e, _f, _g, _h;
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
@@ -23575,7 +23560,7 @@
                                 if (r.length > 0)
                                     types = r;
                             }
-                            catch ( /* ignore */_k) { /* ignore */ }
+                            catch ( /* ignore */_j) { /* ignore */ }
                         }
                     }
                     const pickNames = (arr) => Array.isArray(arr)
@@ -23618,24 +23603,24 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_f = (_c = tryVH(a.Config)) !== null && _c !== void 0 ? _c : tryVH((_d = a.Config) === null || _d === void 0 ? void 0 : _d.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
+                        varHeight = (_e = (_c = tryVH(a.Config)) !== null && _c !== void 0 ? _c : tryVH((_d = a.Config) === null || _d === void 0 ? void 0 : _d.ArchetypeConfig)) !== null && _e !== void 0 ? _e : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
+                        varHeight = (_h = (_g = tryVH((_f = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _f !== void 0 ? _f : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _g !== void 0 ? _g : tryVH(a.VariableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeightConfig);
                     }
                     const archStr = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     const isTyped = archStr === "typed" || (Array.isArray(a.AllowType) && a.AllowType.length > 0);
                     return { types, varHeight, isTyped };
                 }
-                catch (_l) {
+                catch (_k) {
                     return { types: [], varHeight: null, isTyped: false };
                 }
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _f, _g, _h, _j, _k, _l, _m;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -23726,14 +23711,14 @@
                 let equipAsset = (_d = initStep.assetName) !== null && _d !== void 0 ? _d : "";
                 let equipColorRaw = Array.isArray(initStep.color)
                     ? initStep.color.join(",")
-                    : ((_f = initStep.color) !== null && _f !== void 0 ? _f : "");
-                let equipPropertyType = (_g = initStep.propertyType) !== null && _g !== void 0 ? _g : "";
+                    : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
+                let equipPropertyType = (_f = initStep.propertyType) !== null && _f !== void 0 ? _f : "";
                 let equipHeightModifier = initStep.heightModifier;
-                let unequipGroup = (_h = initStep.group) !== null && _h !== void 0 ? _h : "";
-                let emoteText = (_j = initStep.text) !== null && _j !== void 0 ? _j : "";
-                let chatFormat = (_k = initStep.chatFormat) !== null && _k !== void 0 ? _k : "";
-                let exprStepPresetId = (_l = initStep.exprPresetId) !== null && _l !== void 0 ? _l : "";
-                let exprStepDurationMs = (_m = initStep.exprDurationMs) !== null && _m !== void 0 ? _m : 5000;
+                let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
+                let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
+                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
+                let exprStepPresetId = (_k = initStep.exprPresetId) !== null && _k !== void 0 ? _k : "";
+                let exprStepDurationMs = (_l = initStep.exprDurationMs) !== null && _l !== void 0 ? _l : 5000;
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 // Prevent BC's document-level keyboard handlers from stealing focus
@@ -24538,7 +24523,7 @@
                 eCmdPrefix.textContent = "/";
                 const eCmdInp = Object.assign(document.createElement("input"), {
                     className: "ebc-form-input", type: "text",
-                    value: (_f = scene.command) !== null && _f !== void 0 ? _f : "", placeholder: "optional", maxLength: 30,
+                    value: (_e = scene.command) !== null && _e !== void 0 ? _e : "", placeholder: "optional", maxLength: 30,
                 });
                 eCmdInp.style.flex = "1";
                 const eCmdWrap = document.createElement("div");
@@ -27892,7 +27877,7 @@
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_f) { /* ignore */ }
+                        catch ( /* ignore */_e) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -28787,7 +28772,7 @@
                 };
                 // ── Whisper Log ───────────────────────────────────────────────────
                 makeInner(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
-                    var _a, _b, _c, _d, _f;
+                    var _a, _b, _c, _d, _e;
                     const partners = getWhisperPartners();
                     if (partners.length === 0) {
                         const empty = document.createElement("div");
@@ -28836,7 +28821,7 @@
                     }
                     cnt.appendChild(partnerList);
                     // Conversation view
-                    const activeName = (_f = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _f !== void 0 ? _f : `#${activePartner}`;
+                    const activeName = (_e = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _e !== void 0 ? _e : `#${activePartner}`;
                     const convLbl = document.createElement("div");
                     convLbl.className = "ebc-section-label";
                     convLbl.textContent = `With ${activeName}`;
@@ -30255,7 +30240,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b, _c, _d, _f;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -31018,7 +31003,7 @@
                 slLeaveBtn.style.color = "#ff8aaa";
             }
             slLeaveBtn.addEventListener("click", () => {
-                var _a, _b, _c, _d, _f, _g;
+                var _a, _b, _c, _d, _e, _f;
                 if (isSlowLeaveActive()) {
                     cancelBCSlowLeave();
                     slLeaveBtn.textContent = t("sl.leave");
@@ -31037,11 +31022,11 @@
                         return;
                     }
                 }
-                catch ( /* ignore — if check unavailable, allow the leave */_h) { /* ignore — if check unavailable, allow the leave */ }
+                catch ( /* ignore — if check unavailable, allow the leave */_g) { /* ignore — if check unavailable, allow the leave */ }
                 const durMs = Math.max(2000, parseInt((_c = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _c !== void 0 ? _c : "5", 10) * 1000);
                 const slps = getSlowLeavePresets();
                 const slpi = Math.min(Math.max(0, parseInt((_d = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _d !== void 0 ? _d : "0", 10)), slps.length - 1);
-                const intro = (_g = (_f = slps[slpi]) === null || _f === void 0 ? void 0 : _f.intro) !== null && _g !== void 0 ? _g : "";
+                const intro = (_f = (_e = slps[slpi]) === null || _e === void 0 ? void 0 : _e.intro) !== null && _f !== void 0 ? _f : "";
                 setSlowLeaveDoneCallback(() => {
                     slLeaveBtn.textContent = t("sl.leave");
                     slLeaveBtn.style.background = "";
@@ -31143,7 +31128,7 @@
             slDurSlider.min = "2";
             slDurSlider.max = "30";
             slDurSlider.step = "1";
-            slDurSlider.value = (_f = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _f !== void 0 ? _f : "5";
+            slDurSlider.value = (_e = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _e !== void 0 ? _e : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
             slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
@@ -34975,7 +34960,7 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d, _f;
+            var _a, _b, _c, _d, _e;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -35019,7 +35004,7 @@
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -35029,14 +35014,14 @@
             if (puppyTabEl)
                 puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             // Show the Kitty tab only for Lucy (#230466)
-            const kittyTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-kitty");
+            const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
             if (kittyTabEl)
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_h) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -35204,7 +35189,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.6";
+    const MOD_VERSION = "5.7.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35215,6 +35200,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.7",
+            changes: [
+                "Fix: resize handle drag rewritten again — replaced Pointer Events API (setPointerCapture) with the same addPointerDown / addPointerTracking pattern used by the tab drag, which is known to work. pointercancel was firing and killing the drag before any movement registered.",
+            ],
+        },
         {
             version: "5.7.6",
             changes: [
