@@ -18263,23 +18263,34 @@
             // On mousedown the bar flashes bright pink and shows the live height so we
             // can see whether the event actually fires regardless of what the panel does.
             const startResizeDrag = (startClientY) => {
+                var _a, _b;
                 this.isResizeDragging = true;
                 dragStartY = startClientY;
-                dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
+                dragStartH = slideContainer.getBoundingClientRect().height
+                    || parseInt(slideContainer.style.height, 10)
+                    || parseInt(String((_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.style.height) !== null && _b !== void 0 ? _b : ""), 10)
+                    || 400;
                 resizeHandle.classList.add("active");
+                // Show live height during drag so the effect is unmissable
+                resizeHandle.textContent = "↕ " + Math.round(dragStartH) + "px";
             };
             const doResizeMove = (clientY) => {
                 if (!this.isResizeDragging)
                     return;
-                const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+                // DOWN = smaller (collapses toward bottom), UP = bigger — matches "drag shade down to close" intuition
+                const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH - (clientY - dragStartY)));
                 this.userPanelHeight = newH;
                 slideContainer.style.height = `${newH}px`;
+                if (this.rootEl)
+                    this.rootEl.style.height = `${newH}px`; // shrink outer container too
+                resizeHandle.textContent = "↕ " + Math.round(newH) + "px";
             };
             const endResizeDrag = () => {
                 if (!this.isResizeDragging)
                     return;
                 this.isResizeDragging = false;
                 resizeHandle.classList.remove("active");
+                resizeHandle.textContent = "";
                 if (this.userPanelHeight !== null)
                     try {
                         localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
@@ -18530,10 +18541,12 @@
                 const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
                 this.rootEl.style.top = `${rTop}px`;
                 this.rootEl.style.right = `${rRight}px`;
-                this.rootEl.style.height = `${finalH}px`;
-                // Never override the panel height while the user is dragging the resize handle.
-                if (this.panelEl && !this.isResizeDragging)
-                    this.panelEl.style.height = `${panelH}px`;
+                // Never override heights while the user is dragging the resize handle.
+                if (!this.isResizeDragging) {
+                    this.rootEl.style.height = `${finalH}px`;
+                    if (this.panelEl)
+                        this.panelEl.style.height = `${panelH}px`;
+                }
                 this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -35305,7 +35318,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.1";
+    const MOD_VERSION = "5.8.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35317,9 +35330,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "5.8.2",
+            changes: [
+                "Fix: resize direction inverted — drag DOWN to shrink the panel, drag UP to grow it (matches 'pull shade down to close' intuition). Also now resizes rootEl height alongside the panel so nothing fights the change. syncToChat guarded for both rootEl and panelEl during drag. Live '↕ Xpx' readout on the handle during drag confirms the height is changing.",
+            ],
+        },
+        {
             version: "5.8.1",
             changes: [
-                "Fix: resize handle drag now works. Root cause: previous bubble-phase document mousemove listeners were being blocked. Rewrote using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel) with stopImmediatePropagation on start to prevent interference.",
+                "Fix: resize handle drag events now work — rewrote using capture-phase document listeners with stopImmediatePropagation to bypass BC interference.",
             ],
         },
         {
