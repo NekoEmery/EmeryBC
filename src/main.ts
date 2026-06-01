@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.8";
+const MOD_VERSION = "5.7.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.9",
+        changes: [
+            "Fix: EBC version badges in the friend/room list now survive script reloads. The version cache is persisted to localStorage (48-hour TTL) so badges reappear immediately on reload without needing to re-enter a shared room.",
+        ],
+    },
     {
         version: "5.7.8",
         changes: [

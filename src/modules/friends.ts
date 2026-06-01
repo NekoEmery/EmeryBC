@@ -193,11 +193,42 @@ function markPendingMessage(memberNumber: number, message: string): void {
 // doesn't stack on top of BC's own login traffic and trip the rate limiter.
 const _moduleLoadTime = Date.now();
 
-// Session cache: EBC version for members we've shared a room with this session
-const ebcVersionCache = new Map<number, string>();
+// Persistent EBC version cache — survives script reloads.
+// Stored as { [memberNumber]: { v: string, ts: number } } in localStorage.
+// Entries older than 48 hours are pruned on load and on write.
+const EBC_VER_CACHE_KEY = "EBC_ebcVersionCache";
+const EBC_VER_TTL_MS    = 48 * 3600 * 1000;
+
+type VerCacheStore = Record<string, { v: string; ts: number }>;
+
+function loadVerCacheStore(): VerCacheStore {
+    try {
+        const raw = localStorage.getItem(EBC_VER_CACHE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw) as VerCacheStore;
+        const now = Date.now();
+        let pruned = false;
+        for (const key of Object.keys(parsed)) {
+            if (now - (parsed[key]?.ts ?? 0) > EBC_VER_TTL_MS) { delete parsed[key]; pruned = true; }
+        }
+        if (pruned) try { localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(parsed)); } catch { /* ignore */ }
+        return parsed;
+    } catch { return {}; }
+}
+
+// In-memory mirror populated from localStorage on module load
+const ebcVersionCache = new Map<number, string>(
+    Object.entries(loadVerCacheStore()).map(([k, e]) => [Number(k), e.v])
+);
 
 export function cacheEBCVersion(memberNumber: number, version: string): void {
+    if (ebcVersionCache.get(memberNumber) === version) return; // no-op if unchanged
     ebcVersionCache.set(memberNumber, version);
+    try {
+        const store = loadVerCacheStore();
+        store[String(memberNumber)] = { v: version, ts: Date.now() };
+        localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(store));
+    } catch { /* ignore */ }
 }
 
 export function getEBCVersion(memberNumber: number): string | null {
