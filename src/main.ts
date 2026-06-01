@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.9";
+const MOD_VERSION = "5.8.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.0",
+        changes: [
+            "Fix (attempt 4): resize handle rewrites using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel). stopImmediatePropagation on start events prevents interference. Handle turns bright pink and shows live px height while dragging as a diagnostic to confirm the event chain works.",
+        ],
+    },
     {
         version: "5.7.9",
         changes: [

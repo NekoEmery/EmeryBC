@@ -4843,28 +4843,73 @@ export class EBCDrawer {
         let dragStartY = 0;
         let dragStartH = 0;
 
-        addPointerDown(resizeHandle, (pos, e) => {
-            e.preventDefault();
+        // Resize drag — use capture-phase document listeners so nothing can block them.
+        // On mousedown the bar flashes bright pink and shows the live height so we
+        // can see whether the event actually fires regardless of what the panel does.
+        const startResizeDrag = (startClientY: number): void => {
             this.isResizeDragging = true;
-            dragStartY = pos.clientY;
-            dragStartH = slideContainer.getBoundingClientRect().height;
+            dragStartY = startClientY;
+            dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
             resizeHandle.classList.add("active");
-            addPointerTracking(
-                (movePos) => {
-                    if (!this.isResizeDragging) return;
-                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (movePos.clientY - dragStartY)));
-                    this.userPanelHeight = newH;
-                    slideContainer.style.height = `${newH}px`;
-                },
-                () => {
-                    if (!this.isResizeDragging) return;
-                    this.isResizeDragging = false;
-                    resizeHandle.classList.remove("active");
-                    if (this.userPanelHeight !== null)
-                        try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
-                },
-            );
+            resizeHandle.style.background = "#cf1a60";
+            resizeHandle.style.color      = "#fff";
+            resizeHandle.textContent      = Math.round(dragStartH) + "px";
+        };
+        const doResizeMove = (clientY: number): void => {
+            if (!this.isResizeDragging) return;
+            const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+            this.userPanelHeight = newH;
+            slideContainer.style.height    = `${newH}px`;
+            resizeHandle.textContent       = Math.round(newH) + "px";
+        };
+        const endResizeDrag = (): void => {
+            if (!this.isResizeDragging) return;
+            this.isResizeDragging = false;
+            resizeHandle.classList.remove("active");
+            resizeHandle.style.background = "";
+            resizeHandle.style.color      = "";
+            resizeHandle.textContent      = "";
+            if (this.userPanelHeight !== null)
+                try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
+        };
+
+        // Mouse — capture phase bypasses any document-level stopImmediatePropagation
+        resizeHandle.addEventListener("mousedown", (e: MouseEvent) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            startResizeDrag(e.clientY);
+            const onMove = (me: MouseEvent): void => { me.preventDefault(); doResizeMove(me.clientY); };
+            const onUp   = (): void => {
+                document.removeEventListener("mousemove", onMove, true);
+                document.removeEventListener("mouseup",   onUp,   true);
+                endResizeDrag();
+            };
+            document.addEventListener("mousemove", onMove, true);
+            document.addEventListener("mouseup",   onUp,   true);
         });
+
+        // Touch — capture phase bypasses stopTouchBubble on slideContainer
+        resizeHandle.addEventListener("touchstart", (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            startResizeDrag(e.touches[0].clientY);
+            const onMove = (te: TouchEvent): void => {
+                if (te.cancelable) te.preventDefault();
+                const t = te.touches[0] ?? te.changedTouches[0];
+                if (t) doResizeMove(t.clientY);
+            };
+            const onEnd = (): void => {
+                document.removeEventListener("touchmove",   onMove, true);
+                document.removeEventListener("touchend",    onEnd,  true);
+                document.removeEventListener("touchcancel", onEnd,  true);
+                endResizeDrag();
+            };
+            document.addEventListener("touchmove",   onMove, { passive: false, capture: true });
+            document.addEventListener("touchend",    onEnd,  { capture: true });
+            document.addEventListener("touchcancel", onEnd,  { capture: true });
+        }, { passive: false });
 
         resizeHandle.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
