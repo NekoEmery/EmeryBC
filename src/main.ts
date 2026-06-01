@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.4";
+const MOD_VERSION = "5.7.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.5",
+        changes: [
+            "Fix: seed BC's TextLookup with a fallback for 'ResponseRoomLocked' — prevents the yellow 'MISSING TEXT IN Text_ChatRoom.csv' banner that appeared when trying to join a locked room in BC versions where this localization key is absent.",
+        ],
+    },
     {
         version: "5.7.4",
         changes: [
@@ -5827,7 +5833,14 @@ function init(): void {
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
 
-
+    // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
+    // Only fills in keys that are genuinely missing — never overwrites properly localised values.
+    try {
+        const lk = (window as unknown as Record<string, unknown>).TextLookup as Map<string, string> | undefined;
+        if (lk instanceof Map) {
+            if (!lk.has("ResponseRoomLocked")) lk.set("ResponseRoomLocked", "This room is locked.");
+        }
+    } catch { /* ignore */ }
 
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
     // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
