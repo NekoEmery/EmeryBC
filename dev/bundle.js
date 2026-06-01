@@ -35204,7 +35204,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.5";
+    const MOD_VERSION = "5.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35215,6 +35215,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.6",
+            changes: [
+                "Fix: hook TextGet to provide fallback text for 'ResponseRoomLocked' — eliminates the yellow 'MISSING TEXT IN Text_ChatRoom.csv' banner when joining a locked room. The hook intercepts at point-of-use so it works regardless of CSV load timing.",
+            ],
+        },
         {
             version: "5.7.5",
             changes: [
@@ -40986,7 +40992,7 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
         // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
-        // Only fills in keys that are genuinely missing — never overwrites properly localised values.
+        // This is a best-effort early seed; the TextGet hook below is the definitive fix.
         try {
             const lk = window.TextLookup;
             if (lk instanceof Map) {
@@ -41002,6 +41008,22 @@
         // so the entire hook chain (BCX, CRABS, etc.) is also skipped for that frame.
         modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
             return next(args);
+        });
+        // Provide fallback text for localisation keys that are absent in some BC versions.
+        // TextGet returns "MISSING TEXT IN '...': key" when a key is not in TextLookup —
+        // intercepting here is timing-independent and catches cases where the seed above
+        // ran before TextLookup was initialised or before BC's CSV loading completed.
+        tryHookFunction(modAPI, "TextGet", 1, (args, next) => {
+            const result = next(args);
+            if (typeof result === "string" && result.startsWith("MISSING TEXT IN")) {
+                const key = args[0];
+                const FALLBACKS = {
+                    ResponseRoomLocked: "This room is locked.",
+                };
+                if (Object.prototype.hasOwnProperty.call(FALLBACKS, key))
+                    return FALLBACKS[key];
+            }
+            return result;
         });
         // Canvas sidebar action buttons.
         // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
