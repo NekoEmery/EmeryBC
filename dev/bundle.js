@@ -14167,8 +14167,8 @@
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
-    height: 100%;  /* full chat log height — no vertical conflict with tab */
+    width: var(--ebc-pw, min(390px, calc(100vw - 44px))) !important; /* never overflow on narrow phone screens */
+    height: var(--ebc-ph, 100%) !important;  /* full chat log height — no vertical conflict with tab */
     display: flex;
     flex-direction: column;
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -15030,6 +15030,22 @@
     background: #5a3048;
 }
 .ebc-resize-handle:hover::before, .ebc-resize-handle.active::before { background: #cf6f98; }
+
+.ebc-resize-handle-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 2;
+    user-select: none;
+    touch-action: none;
+    background: transparent;
+    transition: background 0.12s;
+}
+.ebc-resize-handle-left:hover { background: rgba(207,111,152,0.18); }
+.ebc-resize-handle-left.active { background: rgba(207,111,152,0.28); }
 
 /* -- Special Thanks tab -- */
 .ebc-thanks-card {
@@ -17459,6 +17475,8 @@
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
             this.isResizeDragging = false; // true while handle is being dragged — prevents syncToChat overriding height
+            this.isWidthDragging = false;
+            this.userPanelWidth = null;
             this.domSelectedTargets = new Set();
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
@@ -18259,30 +18277,29 @@
             // slideContainer, and plain document-level mousemove for desktop.
             let dragStartY = 0;
             let dragStartH = 0;
-            // Resize drag — use capture-phase document listeners so nothing can block them.
-            // On mousedown the bar flashes bright pink and shows the live height so we
-            // can see whether the event actually fires regardless of what the panel does.
+            // ── Height resize (bottom handle) ────────────────────────────────────────
+            // CSS variable --ebc-ph controls panel height with !important so nothing
+            // can fight it. We use window+document capture-phase listeners to ensure
+            // mousemove is never swallowed by BC's own document-level handlers.
             const startResizeDrag = (startClientY) => {
                 var _a, _b;
                 this.isResizeDragging = true;
                 dragStartY = startClientY;
                 dragStartH = slideContainer.getBoundingClientRect().height
-                    || parseInt(slideContainer.style.height, 10)
-                    || parseInt(String((_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.style.height) !== null && _b !== void 0 ? _b : ""), 10)
-                    || 400;
+                    || parseInt(String((_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.style.height) !== null && _b !== void 0 ? _b : ""), 10) || 400;
                 resizeHandle.classList.add("active");
-                // Show live height during drag so the effect is unmissable
                 resizeHandle.textContent = "↕ " + Math.round(dragStartH) + "px";
             };
             const doResizeMove = (clientY) => {
                 if (!this.isResizeDragging)
                     return;
-                // DOWN = smaller (collapses toward bottom), UP = bigger — matches "drag shade down to close" intuition
+                // Drag DOWN = shrink, drag UP = grow
                 const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH - (clientY - dragStartY)));
                 this.userPanelHeight = newH;
-                slideContainer.style.height = `${newH}px`;
+                if (this.panelEl)
+                    this.panelEl.style.setProperty("--ebc-ph", `${newH}px`);
                 if (this.rootEl)
-                    this.rootEl.style.height = `${newH}px`; // shrink outer container too
+                    this.rootEl.style.height = `${newH}px`;
                 resizeHandle.textContent = "↕ " + Math.round(newH) + "px";
             };
             const endResizeDrag = () => {
@@ -18297,36 +18314,48 @@
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
             };
-            // Mouse — capture phase bypasses any document-level stopImmediatePropagation
+            let lastMoveY = -1;
             resizeHandle.addEventListener("mousedown", (e) => {
                 if (e.button !== 0)
                     return;
                 e.preventDefault();
                 e.stopImmediatePropagation();
+                lastMoveY = -1;
                 startResizeDrag(e.clientY);
-                const onMove = (me) => { me.preventDefault(); doResizeMove(me.clientY); };
+                const onMove = (me) => {
+                    if (me.clientY === lastMoveY)
+                        return;
+                    lastMoveY = me.clientY;
+                    doResizeMove(me.clientY);
+                };
                 const onUp = () => {
+                    window.removeEventListener("mousemove", onMove, true);
                     document.removeEventListener("mousemove", onMove, true);
+                    window.removeEventListener("mouseup", onUp, true);
                     document.removeEventListener("mouseup", onUp, true);
                     endResizeDrag();
                 };
+                window.addEventListener("mousemove", onMove, true);
                 document.addEventListener("mousemove", onMove, true);
+                window.addEventListener("mouseup", onUp, true);
                 document.addEventListener("mouseup", onUp, true);
             });
-            // Touch — capture phase bypasses stopTouchBubble on slideContainer
             resizeHandle.addEventListener("touchstart", (e) => {
                 if (e.touches.length !== 1)
                     return;
                 e.preventDefault();
                 e.stopImmediatePropagation();
+                lastMoveY = -1;
                 startResizeDrag(e.touches[0].clientY);
                 const onMove = (te) => {
                     var _a;
+                    const t = (_a = te.touches[0]) !== null && _a !== void 0 ? _a : te.changedTouches[0];
+                    if (!t || t.clientY === lastMoveY)
+                        return;
+                    lastMoveY = t.clientY;
                     if (te.cancelable)
                         te.preventDefault();
-                    const t = (_a = te.touches[0]) !== null && _a !== void 0 ? _a : te.changedTouches[0];
-                    if (t)
-                        doResizeMove(t.clientY);
+                    doResizeMove(t.clientY);
                 };
                 const onEnd = () => {
                     document.removeEventListener("touchmove", onMove, true);
@@ -18345,6 +18374,115 @@
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            });
+            // ── Width resize (left-side handle) ──────────────────────────────────────
+            const EBC_PANEL_WIDTH_KEY = "EBC_panelWidth";
+            this.userPanelWidth = (() => {
+                try {
+                    const v = localStorage.getItem(EBC_PANEL_WIDTH_KEY);
+                    const n = v ? parseInt(v, 10) : NaN;
+                    return isFinite(n) && n >= 200 ? n : null;
+                }
+                catch (_a) {
+                    return null;
+                }
+            })();
+            if (this.userPanelWidth !== null && this.panelEl) {
+                this.panelEl.style.setProperty("--ebc-pw", `${this.userPanelWidth}px`);
+            }
+            const widthHandle = document.createElement("div");
+            widthHandle.className = "ebc-resize-handle-left";
+            widthHandle.title = "Drag to resize width · Double-click to restore default";
+            slideContainer.appendChild(widthHandle);
+            let dragStartX = 0;
+            let dragStartW = 0;
+            let lastMoveX = -1;
+            const startWidthDrag = (startClientX) => {
+                this.isWidthDragging = true;
+                dragStartX = startClientX;
+                dragStartW = slideContainer.getBoundingClientRect().width || 390;
+                widthHandle.classList.add("active");
+            };
+            const doWidthMove = (clientX) => {
+                if (!this.isWidthDragging)
+                    return;
+                // Drag LEFT = wider, drag RIGHT = narrower
+                const newW = Math.max(200, Math.min(Math.round(window.innerWidth * 0.9), dragStartW - (clientX - dragStartX)));
+                this.userPanelWidth = newW;
+                if (this.panelEl)
+                    this.panelEl.style.setProperty("--ebc-pw", `${newW}px`);
+            };
+            const endWidthDrag = () => {
+                if (!this.isWidthDragging)
+                    return;
+                this.isWidthDragging = false;
+                widthHandle.classList.remove("active");
+                if (this.userPanelWidth !== null)
+                    try {
+                        localStorage.setItem(EBC_PANEL_WIDTH_KEY, String(Math.round(this.userPanelWidth)));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+            };
+            widthHandle.addEventListener("mousedown", (e) => {
+                if (e.button !== 0)
+                    return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                lastMoveX = -1;
+                startWidthDrag(e.clientX);
+                const onMove = (me) => {
+                    if (me.clientX === lastMoveX)
+                        return;
+                    lastMoveX = me.clientX;
+                    doWidthMove(me.clientX);
+                };
+                const onUp = () => {
+                    window.removeEventListener("mousemove", onMove, true);
+                    document.removeEventListener("mousemove", onMove, true);
+                    window.removeEventListener("mouseup", onUp, true);
+                    document.removeEventListener("mouseup", onUp, true);
+                    endWidthDrag();
+                };
+                window.addEventListener("mousemove", onMove, true);
+                document.addEventListener("mousemove", onMove, true);
+                window.addEventListener("mouseup", onUp, true);
+                document.addEventListener("mouseup", onUp, true);
+            });
+            widthHandle.addEventListener("touchstart", (e) => {
+                if (e.touches.length !== 1)
+                    return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                lastMoveX = -1;
+                startWidthDrag(e.touches[0].clientX);
+                const onMove = (te) => {
+                    var _a;
+                    const t = (_a = te.touches[0]) !== null && _a !== void 0 ? _a : te.changedTouches[0];
+                    if (!t || t.clientX === lastMoveX)
+                        return;
+                    lastMoveX = t.clientX;
+                    if (te.cancelable)
+                        te.preventDefault();
+                    doWidthMove(t.clientX);
+                };
+                const onEnd = () => {
+                    document.removeEventListener("touchmove", onMove, true);
+                    document.removeEventListener("touchend", onEnd, true);
+                    document.removeEventListener("touchcancel", onEnd, true);
+                    endWidthDrag();
+                };
+                document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+                document.addEventListener("touchend", onEnd, { capture: true });
+                document.addEventListener("touchcancel", onEnd, { capture: true });
+            }, { passive: false });
+            widthHandle.addEventListener("dblclick", () => {
+                this.userPanelWidth = null;
+                if (this.panelEl)
+                    this.panelEl.style.removeProperty("--ebc-pw");
+                try {
+                    localStorage.removeItem(EBC_PANEL_WIDTH_KEY);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
             });
             // Guide is now a detached side panel (created dynamically in startGuide).
             this.guideEl = null;
@@ -18541,11 +18679,13 @@
                 const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
                 this.rootEl.style.top = `${rTop}px`;
                 this.rootEl.style.right = `${rRight}px`;
-                // Never override heights while the user is dragging the resize handle.
-                if (!this.isResizeDragging) {
-                    this.rootEl.style.height = `${finalH}px`;
-                    if (this.panelEl)
-                        this.panelEl.style.height = `${panelH}px`;
+                this.rootEl.style.height = `${finalH}px`;
+                if (this.panelEl) {
+                    this.panelEl.style.setProperty("--ebc-ph", `${panelH}px`);
+                    // preserve user width if set
+                    const uw = this.userPanelWidth;
+                    if (uw !== null)
+                        this.panelEl.style.setProperty("--ebc-pw", `${uw}px`);
                 }
                 this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
                 this.positioned = true;
@@ -35318,7 +35458,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.2";
+    const MOD_VERSION = "5.8.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35329,6 +35469,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.3",
+            changes: [
+                "Panel resize overhaul: height is now controlled via CSS variable --ebc-ph !important so nothing can fight it. Width resize added via a left-edge drag handle (--ebc-pw). Both handles use window+document capture-phase listeners for reliability, persist to localStorage, and support double-click to reset. syncToChat updated to set CSS variables instead of inline height.",
+            ],
+        },
         {
             version: "5.8.2",
             changes: [
