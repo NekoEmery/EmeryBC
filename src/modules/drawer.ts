@@ -4849,19 +4849,28 @@ export class EBCDrawer {
         const startResizeDrag = (startClientY: number): void => {
             this.isResizeDragging = true;
             dragStartY = startClientY;
-            dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
+            dragStartH = slideContainer.getBoundingClientRect().height
+                || parseInt(slideContainer.style.height, 10)
+                || parseInt(String(this.rootEl?.style.height ?? ""), 10)
+                || 400;
             resizeHandle.classList.add("active");
+            // Show live height during drag so the effect is unmissable
+            resizeHandle.textContent = "↕ " + Math.round(dragStartH) + "px";
         };
         const doResizeMove = (clientY: number): void => {
             if (!this.isResizeDragging) return;
-            const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+            // DOWN = smaller (collapses toward bottom), UP = bigger — matches "drag shade down to close" intuition
+            const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH - (clientY - dragStartY)));
             this.userPanelHeight = newH;
             slideContainer.style.height = `${newH}px`;
+            if (this.rootEl) this.rootEl.style.height = `${newH}px`; // shrink outer container too
+            resizeHandle.textContent = "↕ " + Math.round(newH) + "px";
         };
         const endResizeDrag = (): void => {
             if (!this.isResizeDragging) return;
             this.isResizeDragging = false;
             resizeHandle.classList.remove("active");
+            resizeHandle.textContent = "";
             if (this.userPanelHeight !== null)
                 try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
         };
@@ -5110,11 +5119,13 @@ export class EBCDrawer {
             // Cap height so the panel never extends below the visible viewport.
             const finalH = Math.min(rHeight, Math.max(100, window.innerHeight - rTop - 8));
             const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
-            this.rootEl.style.top    = `${rTop}px`;
-            this.rootEl.style.right  = `${rRight}px`;
-            this.rootEl.style.height = `${finalH}px`;
-            // Never override the panel height while the user is dragging the resize handle.
-            if (this.panelEl && !this.isResizeDragging) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
+            this.rootEl.style.top   = `${rTop}px`;
+            this.rootEl.style.right = `${rRight}px`;
+            // Never override heights while the user is dragging the resize handle.
+            if (!this.isResizeDragging) {
+                this.rootEl.style.height = `${finalH}px`;
+                if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
+            }
             this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick

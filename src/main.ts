@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.1";
+const MOD_VERSION = "5.8.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "5.8.2",
+        changes: [
+            "Fix: resize direction inverted — drag DOWN to shrink the panel, drag UP to grow it (matches 'pull shade down to close' intuition). Also now resizes rootEl height alongside the panel so nothing fights the change. syncToChat guarded for both rootEl and panelEl during drag. Live '↕ Xpx' readout on the handle during drag confirms the height is changing.",
+        ],
+    },
+    {
         version: "5.8.1",
         changes: [
-            "Fix: resize handle drag now works. Root cause: previous bubble-phase document mousemove listeners were being blocked. Rewrote using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel) with stopImmediatePropagation on start to prevent interference.",
+            "Fix: resize handle drag events now work — rewrote using capture-phase document listeners with stopImmediatePropagation to bypass BC interference.",
         ],
     },
     {
