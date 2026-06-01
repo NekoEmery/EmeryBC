@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.7.4
+// @version      5.7.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -35221,7 +35221,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.4";
+    const MOD_VERSION = "5.7.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35232,6 +35232,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.5",
+            changes: [
+                "Fix: seed BC's TextLookup with a fallback for 'ResponseRoomLocked' — prevents the yellow 'MISSING TEXT IN Text_ChatRoom.csv' banner that appeared when trying to join a locked room in BC versions where this localization key is absent.",
+            ],
+        },
         {
             version: "5.7.4",
             changes: [
@@ -40996,6 +41002,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lastArousalActive = active;
         }
         catch ( /* ignore */_b) { /* ignore */ }
+        // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
+        // Only fills in keys that are genuinely missing — never overwrites properly localised values.
+        try {
+            const lk = window.TextLookup;
+            if (lk instanceof Map) {
+                if (!lk.has("ResponseRoomLocked"))
+                    lk.set("ResponseRoomLocked", "This room is locked.");
+            }
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -41055,12 +41071,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             initDragListener();
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -41624,7 +41640,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -41730,7 +41746,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
