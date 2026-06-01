@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.2";
+const MOD_VERSION = "5.8.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.3",
+        changes: [
+            "Panel resize overhaul: height is now controlled via CSS variable --ebc-ph !important so nothing can fight it. Width resize added via a left-edge drag handle (--ebc-pw). Both handles use window+document capture-phase listeners for reliability, persist to localStorage, and support double-click to reset. syncToChat updated to set CSS variables instead of inline height.",
+        ],
+    },
     {
         version: "5.8.2",
         changes: [
