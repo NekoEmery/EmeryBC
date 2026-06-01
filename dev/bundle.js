@@ -18259,30 +18259,81 @@
             // slideContainer, and plain document-level mousemove for desktop.
             let dragStartY = 0;
             let dragStartH = 0;
-            addPointerDown(resizeHandle, (pos, e) => {
-                e.preventDefault();
+            // Resize drag — use capture-phase document listeners so nothing can block them.
+            // On mousedown the bar flashes bright pink and shows the live height so we
+            // can see whether the event actually fires regardless of what the panel does.
+            const startResizeDrag = (startClientY) => {
                 this.isResizeDragging = true;
-                dragStartY = pos.clientY;
-                dragStartH = slideContainer.getBoundingClientRect().height;
+                dragStartY = startClientY;
+                dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
                 resizeHandle.classList.add("active");
-                addPointerTracking((movePos) => {
-                    if (!this.isResizeDragging)
-                        return;
-                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (movePos.clientY - dragStartY)));
-                    this.userPanelHeight = newH;
-                    slideContainer.style.height = `${newH}px`;
-                }, () => {
-                    if (!this.isResizeDragging)
-                        return;
-                    this.isResizeDragging = false;
-                    resizeHandle.classList.remove("active");
-                    if (this.userPanelHeight !== null)
-                        try {
-                            localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                });
+                resizeHandle.style.background = "#cf1a60";
+                resizeHandle.style.color = "#fff";
+                resizeHandle.textContent = Math.round(dragStartH) + "px";
+            };
+            const doResizeMove = (clientY) => {
+                if (!this.isResizeDragging)
+                    return;
+                const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
+                this.userPanelHeight = newH;
+                slideContainer.style.height = `${newH}px`;
+                resizeHandle.textContent = Math.round(newH) + "px";
+            };
+            const endResizeDrag = () => {
+                if (!this.isResizeDragging)
+                    return;
+                this.isResizeDragging = false;
+                resizeHandle.classList.remove("active");
+                resizeHandle.style.background = "";
+                resizeHandle.style.color = "";
+                resizeHandle.textContent = "";
+                if (this.userPanelHeight !== null)
+                    try {
+                        localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+            };
+            // Mouse — capture phase bypasses any document-level stopImmediatePropagation
+            resizeHandle.addEventListener("mousedown", (e) => {
+                if (e.button !== 0)
+                    return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                startResizeDrag(e.clientY);
+                const onMove = (me) => { me.preventDefault(); doResizeMove(me.clientY); };
+                const onUp = () => {
+                    document.removeEventListener("mousemove", onMove, true);
+                    document.removeEventListener("mouseup", onUp, true);
+                    endResizeDrag();
+                };
+                document.addEventListener("mousemove", onMove, true);
+                document.addEventListener("mouseup", onUp, true);
             });
+            // Touch — capture phase bypasses stopTouchBubble on slideContainer
+            resizeHandle.addEventListener("touchstart", (e) => {
+                if (e.touches.length !== 1)
+                    return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                startResizeDrag(e.touches[0].clientY);
+                const onMove = (te) => {
+                    var _a;
+                    if (te.cancelable)
+                        te.preventDefault();
+                    const t = (_a = te.touches[0]) !== null && _a !== void 0 ? _a : te.changedTouches[0];
+                    if (t)
+                        doResizeMove(t.clientY);
+                };
+                const onEnd = () => {
+                    document.removeEventListener("touchmove", onMove, true);
+                    document.removeEventListener("touchend", onEnd, true);
+                    document.removeEventListener("touchcancel", onEnd, true);
+                    endResizeDrag();
+                };
+                document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+                document.addEventListener("touchend", onEnd, { capture: true });
+                document.addEventListener("touchcancel", onEnd, { capture: true });
+            }, { passive: false });
             resizeHandle.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
                 try {
@@ -35261,7 +35312,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.9";
+    const MOD_VERSION = "5.8.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35272,6 +35323,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.0",
+            changes: [
+                "Fix (attempt 4): resize handle rewrites using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel). stopImmediatePropagation on start events prevents interference. Handle turns bright pink and shows live px height while dragging as a diagnostic to confirm the event chain works.",
+            ],
+        },
         {
             version: "5.7.9",
             changes: [
