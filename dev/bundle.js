@@ -833,7 +833,7 @@
         }));
     }
     function applyOutfit(outfit) {
-        var _a, _b;
+        var _a, _b, _c;
         if (outfitApplyPending) {
             localNotice$2("An outfit swap is already in progress.", "#ffb7c7");
             return;
@@ -887,6 +887,39 @@
                     nextAppearance.push(_cloned);
             }
         }
+        // Respect BC locks — items with a padlock or in an owner/lover-blocked zone must
+        // survive the outfit swap.  We collect these from the PRE-swap appearance and
+        // force-restore them after everything else has been built, so they always win over
+        // outfit items, preserve-flags, and the whitelist above.
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            const prop = currentItem.Property;
+            const isLocked = (prop === null || prop === void 0 ? void 0 : prop.LockedBy) != null;
+            let isBlocked = false;
+            if (!isLocked) {
+                try {
+                    const w = window;
+                    isBlocked = !!((_a = w.InventoryGroupIsBlocked) === null || _a === void 0 ? void 0 : _a.call(w, Player, group));
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+            }
+            if (!isLocked && !isBlocked)
+                continue;
+            // Force-restore this item verbatim (with its lock properties intact)
+            const restoredProp = currentItem.Property ? Object.assign({}, currentItem.Property) : undefined;
+            const restoredItem = {
+                Asset: currentItem.Asset,
+                Color: currentItem.Color,
+                Difficulty: currentItem.Difficulty,
+                Property: restoredProp,
+                Craft: currentItem.Craft,
+            };
+            const existingIdx = nextAppearance.findIndex(i => i.Asset.Group.Name === group);
+            if (existingIdx >= 0)
+                nextAppearance[existingIdx] = restoredItem;
+            else
+                nextAppearance.push(restoredItem);
+        }
         Player.Appearance = nextAppearance;
         sanitizeLiveAppearance();
         sendRoomAppearanceUpdate();
@@ -903,7 +936,7 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                     }, 100);
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
         }
         // Apply nickname — outfit-specific takes priority, falls back to default
         const nickToApply = outfit.nickname || getDefaultNickname();
@@ -914,12 +947,12 @@
                 if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
                     updater.QueueData({ Nickname: nickToApply });
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
         }
         // Apply title — outfit-specific takes priority, falls back to default title
         // "__clear__" sentinel = explicitly remove the title (set to "")
         // ""  = no preference configured → don't touch the title
-        const titleRaw = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : "";
+        const titleRaw = (_c = (_b = outfit.title) !== null && _b !== void 0 ? _b : getDefaultTitle()) !== null && _c !== void 0 ? _c : "";
         if (titleRaw) {
             try {
                 const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
@@ -928,7 +961,7 @@
                 if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
                     updater2.QueueData({ Title: bcTitle });
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
         }
         // Let the appearance update hit the send queue before we add the optional emote.
         window.setTimeout(() => {
@@ -35189,7 +35222,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.7";
+    const MOD_VERSION = "5.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35200,6 +35233,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.8",
+            changes: [
+                "Fix: outfit changes now respect BC locks. Items with an active padlock (Property.LockedBy) and items in owner/lover-blocked zones are force-restored after the new appearance is built, so they survive any outfit swap regardless of preserve flags or whitelist settings.",
+            ],
+        },
         {
             version: "5.7.7",
             changes: [
