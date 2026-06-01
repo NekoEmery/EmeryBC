@@ -18267,9 +18267,6 @@
                 dragStartY = startClientY;
                 dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
                 resizeHandle.classList.add("active");
-                resizeHandle.style.background = "#cf1a60";
-                resizeHandle.style.color = "#fff";
-                resizeHandle.textContent = Math.round(dragStartH) + "px";
             };
             const doResizeMove = (clientY) => {
                 if (!this.isResizeDragging)
@@ -18277,16 +18274,12 @@
                 const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
                 this.userPanelHeight = newH;
                 slideContainer.style.height = `${newH}px`;
-                resizeHandle.textContent = Math.round(newH) + "px";
             };
             const endResizeDrag = () => {
                 if (!this.isResizeDragging)
                     return;
                 this.isResizeDragging = false;
                 resizeHandle.classList.remove("active");
-                resizeHandle.style.background = "";
-                resizeHandle.style.color = "";
-                resizeHandle.textContent = "";
                 if (this.userPanelHeight !== null)
                     try {
                         localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight)));
@@ -35312,7 +35305,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.0";
+    const MOD_VERSION = "5.8.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35324,9 +35317,9 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "5.8.0",
+            version: "5.8.1",
             changes: [
-                "Fix (attempt 4): resize handle rewrites using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel). stopImmediatePropagation on start events prevents interference. Handle turns bright pink and shows live px height while dragging as a diagnostic to confirm the event chain works.",
+                "Fix: resize handle drag now works. Root cause: previous bubble-phase document mousemove listeners were being blocked. Rewrote using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel) with stopImmediatePropagation on start to prevent interference.",
             ],
         },
         {
