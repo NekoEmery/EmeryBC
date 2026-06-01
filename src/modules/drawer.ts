@@ -4851,24 +4851,17 @@ export class EBCDrawer {
             dragStartY = startClientY;
             dragStartH = slideContainer.getBoundingClientRect().height || parseInt(slideContainer.style.height, 10) || 400;
             resizeHandle.classList.add("active");
-            resizeHandle.style.background = "#cf1a60";
-            resizeHandle.style.color      = "#fff";
-            resizeHandle.textContent      = Math.round(dragStartH) + "px";
         };
         const doResizeMove = (clientY: number): void => {
             if (!this.isResizeDragging) return;
             const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
             this.userPanelHeight = newH;
-            slideContainer.style.height    = `${newH}px`;
-            resizeHandle.textContent       = Math.round(newH) + "px";
+            slideContainer.style.height = `${newH}px`;
         };
         const endResizeDrag = (): void => {
             if (!this.isResizeDragging) return;
             this.isResizeDragging = false;
             resizeHandle.classList.remove("active");
-            resizeHandle.style.background = "";
-            resizeHandle.style.color      = "";
-            resizeHandle.textContent      = "";
             if (this.userPanelHeight !== null)
                 try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
         };

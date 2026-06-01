@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.0";
+const MOD_VERSION = "5.8.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.8.0",
+        version: "5.8.1",
         changes: [
-            "Fix (attempt 4): resize handle rewrites using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel). stopImmediatePropagation on start events prevents interference. Handle turns bright pink and shows live px height while dragging as a diagnostic to confirm the event chain works.",
+            "Fix: resize handle drag now works. Root cause: previous bubble-phase document mousemove listeners were being blocked. Rewrote using direct capture-phase document listeners (mousedown → document capture mousemove/mouseup; touchstart → document capture touchmove/touchend/touchcancel) with stopImmediatePropagation on start to prevent interference.",
         ],
     },
     {
