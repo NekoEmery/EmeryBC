@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.7.8
+// @version      5.7.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11555,10 +11555,49 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // window before offline messages are re-delivered so EBC's burst of beeps
     // doesn't stack on top of BC's own login traffic and trip the rate limiter.
     const _moduleLoadTime = Date.now();
-    // Session cache: EBC version for members we've shared a room with this session
-    const ebcVersionCache = new Map();
+    // Persistent EBC version cache — survives script reloads.
+    // Stored as { [memberNumber]: { v: string, ts: number } } in localStorage.
+    // Entries older than 48 hours are pruned on load and on write.
+    const EBC_VER_CACHE_KEY = "EBC_ebcVersionCache";
+    const EBC_VER_TTL_MS = 48 * 3600 * 1000;
+    function loadVerCacheStore() {
+        var _a, _b;
+        try {
+            const raw = localStorage.getItem(EBC_VER_CACHE_KEY);
+            if (!raw)
+                return {};
+            const parsed = JSON.parse(raw);
+            const now = Date.now();
+            let pruned = false;
+            for (const key of Object.keys(parsed)) {
+                if (now - ((_b = (_a = parsed[key]) === null || _a === void 0 ? void 0 : _a.ts) !== null && _b !== void 0 ? _b : 0) > EBC_VER_TTL_MS) {
+                    delete parsed[key];
+                    pruned = true;
+                }
+            }
+            if (pruned)
+                try {
+                    localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(parsed));
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            return parsed;
+        }
+        catch (_d) {
+            return {};
+        }
+    }
+    // In-memory mirror populated from localStorage on module load
+    const ebcVersionCache = new Map(Object.entries(loadVerCacheStore()).map(([k, e]) => [Number(k), e.v]));
     function cacheEBCVersion(memberNumber, version) {
+        if (ebcVersionCache.get(memberNumber) === version)
+            return; // no-op if unchanged
         ebcVersionCache.set(memberNumber, version);
+        try {
+            const store = loadVerCacheStore();
+            store[String(memberNumber)] = { v: version, ts: Date.now() };
+            localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(store));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     function getEBCVersion(memberNumber) {
         var _a;
@@ -35239,7 +35278,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.7.8";
+    const MOD_VERSION = "5.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35250,6 +35289,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.7.9",
+            changes: [
+                "Fix: EBC version badges in the friend/room list now survive script reloads. The version cache is persisted to localStorage (48-hour TTL) so badges reappear immediately on reload without needing to re-enter a shared room.",
+            ],
+        },
         {
             version: "5.7.8",
             changes: [
