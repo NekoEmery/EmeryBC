@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.7.7";
+const MOD_VERSION = "5.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.7.8",
+        changes: [
+            "Fix: outfit changes now respect BC locks. Items with an active padlock (Property.LockedBy) and items in owner/lover-blocked zones are force-restored after the new appearance is built, so they survive any outfit swap regardless of preserve flags or whitelist settings.",
+        ],
+    },
     {
         version: "5.7.7",
         changes: [

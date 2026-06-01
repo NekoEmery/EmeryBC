@@ -342,6 +342,36 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
         }
     }
 
+    // Respect BC locks — items with a padlock or in an owner/lover-blocked zone must
+    // survive the outfit swap.  We collect these from the PRE-swap appearance and
+    // force-restore them after everything else has been built, so they always win over
+    // outfit items, preserve-flags, and the whitelist above.
+    for (const currentItem of Player.Appearance) {
+        const group = currentItem.Asset.Group.Name;
+        const prop = currentItem.Property as Record<string, unknown> | undefined;
+        const isLocked = prop?.LockedBy != null;
+        let isBlocked = false;
+        if (!isLocked) {
+            try {
+                const w = window as unknown as Record<string, unknown>;
+                isBlocked = !!(w.InventoryGroupIsBlocked as ((c: unknown, g: string) => boolean) | undefined)?.(Player, group);
+            } catch { /* ignore */ }
+        }
+        if (!isLocked && !isBlocked) continue;
+        // Force-restore this item verbatim (with its lock properties intact)
+        const restoredProp = currentItem.Property ? { ...(currentItem.Property as Record<string, unknown>) } : undefined;
+        const restoredItem: Item = {
+            Asset: currentItem.Asset,
+            Color: currentItem.Color,
+            Difficulty: currentItem.Difficulty,
+            Property: restoredProp,
+            Craft: currentItem.Craft,
+        };
+        const existingIdx = nextAppearance.findIndex(i => i.Asset.Group.Name === group);
+        if (existingIdx >= 0) nextAppearance[existingIdx] = restoredItem;
+        else nextAppearance.push(restoredItem);
+    }
+
     Player.Appearance = nextAppearance;
     sanitizeLiveAppearance();
     sendRoomAppearanceUpdate();
