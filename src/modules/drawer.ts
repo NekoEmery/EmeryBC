@@ -4834,48 +4834,36 @@ export class EBCDrawer {
         resizeHandle.title = "Drag to resize · Double-click to restore full height";
         slideContainer.appendChild(resizeHandle);
 
-        // Pointer Events API — setPointerCapture routes all subsequent pointermove/
-        // pointerup to this element regardless of where the pointer travels.
-        // No document-level listeners needed → immune to stopPropagation from
-        // stopTouchBubble and BC's global canvas handlers.
+        // Use the same addPointerDown / addPointerTracking pattern as the tab drag
+        // (which is known-working). Pointer Events API + setPointerCapture was used
+        // before but pointercancel fires when the pointer leaves the element on some
+        // setups, killing the drag immediately. addPointerTracking registers document-
+        // level capture-phase touchmove listeners that bypass stopTouchBubble on
+        // slideContainer, and plain document-level mousemove for desktop.
         let dragStartY = 0;
         let dragStartH = 0;
 
-        const onResizeMove = (clientY: number): void => {
-            const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (clientY - dragStartY)));
-            this.userPanelHeight = newH;
-            slideContainer.style.height = `${newH}px`;
-        };
-        const onResizeEnd = (): void => {
-            if (!this.isResizeDragging) return;
-            this.isResizeDragging = false;
-            resizeHandle.classList.remove("active");
-            if (this.userPanelHeight !== null)
-                try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
-        };
-
-        resizeHandle.addEventListener("pointerdown", (e: PointerEvent) => {
-            if (e.button !== 0) return;
+        addPointerDown(resizeHandle, (pos, e) => {
             e.preventDefault();
-            try { resizeHandle.setPointerCapture(e.pointerId); } catch { /* ignore */ }
             this.isResizeDragging = true;
-            dragStartY = e.clientY;
+            dragStartY = pos.clientY;
             dragStartH = slideContainer.getBoundingClientRect().height;
             resizeHandle.classList.add("active");
-        });
-
-        resizeHandle.addEventListener("pointermove", (e: PointerEvent) => {
-            if (!this.isResizeDragging) return;
-            e.preventDefault();
-            onResizeMove(e.clientY);
-        });
-
-        resizeHandle.addEventListener("pointerup", (_e: PointerEvent) => {
-            onResizeEnd();
-        });
-
-        resizeHandle.addEventListener("pointercancel", (_e: PointerEvent) => {
-            onResizeEnd();
+            addPointerTracking(
+                (movePos) => {
+                    if (!this.isResizeDragging) return;
+                    const newH = Math.max(180, Math.min(window.innerHeight * 0.95, dragStartH + (movePos.clientY - dragStartY)));
+                    this.userPanelHeight = newH;
+                    slideContainer.style.height = `${newH}px`;
+                },
+                () => {
+                    if (!this.isResizeDragging) return;
+                    this.isResizeDragging = false;
+                    resizeHandle.classList.remove("active");
+                    if (this.userPanelHeight !== null)
+                        try { localStorage.setItem(EBC_PANEL_HEIGHT_KEY, String(Math.round(this.userPanelHeight))); } catch { /* ignore */ }
+                },
+            );
         });
 
         resizeHandle.addEventListener("dblclick", () => {
