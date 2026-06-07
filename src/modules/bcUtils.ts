@@ -19,6 +19,22 @@ export function initSettings(): void {
     for (const [k, v] of Object.entries(src)) {
         if (k !== "_d") _mem[k] = v;
     }
+    // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
+    // Player.OnlineSettings before settings were moved to ExtensionSettings.
+    // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
+    // shows up as a /!\ warning mark over the player's head.  Remove the stale key.
+    try {
+        const onlineSettings = (Player as unknown as Record<string, unknown>).OnlineSettings as
+            Record<string, unknown> | undefined;
+        if (onlineSettings && "EmeryBC" in onlineSettings) {
+            delete onlineSettings["EmeryBC"];
+            try {
+                const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerSettingsSync;
+                if (typeof syncFn === "function") (syncFn as () => void)();
+            } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+
     // One-time migration: pull kitty data that may still be in localStorage
     // from before it was moved into ExtensionSettings in v4.6.1.
     _migrateKittyFromLocalStorage();

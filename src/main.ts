@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.8";
+const MOD_VERSION = "5.8.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.9",
+        changes: [
+            "Fix: /!\\ warning mark above head caused by stale 'EmeryBC' key left in Player.OnlineSettings from very old EBC versions. BC's PreferenceInitPlayer warns about unknown OnlineSettings keys and shows a warning indicator. initSettings() now deletes the orphaned key and syncs on first load.",
+        ],
+    },
     {
         version: "5.8.8",
         changes: [
