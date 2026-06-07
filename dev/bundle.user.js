@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.9.5
+// @version      5.9.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -4277,8 +4277,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // /ebc release - removes restraint items, skips protected locks and whitelisted slots
     function releaseRestraints() {
-        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
-        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
+        // Only respect ownership locks — NOT the outfit whitelist.
+        // The whitelist protects slots from outfit AUTO-CHANGES; it should not block
+        // an explicit "release all restraints" command.
+        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item));
+        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item));
         if (toRemove.length === 0) {
             const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
             localNotice(skipped.length > 0
@@ -4299,10 +4302,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         callBC(() => ServerPlayerAppearanceSync());
         localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
     }
-    // Returns un-protected restraint items currently worn by the player.
+    // Returns restraint items currently worn by the player that can be explicitly removed.
+    // Respects ownership locks but not the outfit whitelist (whitelist = auto-change only).
     function getPlayerRestraints() {
         return Player.Appearance
-            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
             .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
     }
     // Returns locked (non-protected) items currently worn by the player.
@@ -28614,7 +28618,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.5";
+    const MOD_VERSION = "5.9.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28625,6 +28629,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.6",
+            changes: [
+                "Fix: Release Restraints skipped slots that were in the outfit whitelist. The whitelist is meant to protect slots from outfit auto-changes, not from explicit 'release all' commands. releaseRestraints and getPlayerRestraints now only respect ownership locks (owner/lover/family/exclusive padlocks), not the whitelist.",
+            ],
+        },
         {
             version: "5.9.5",
             changes: [
