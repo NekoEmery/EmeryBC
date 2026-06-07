@@ -70,8 +70,8 @@
         // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
         // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
         try {
-            if (Array.isArray(_mem.peopleMet) && _mem.peopleMet.length > 300) {
-                _mem.peopleMet.splice(0, _mem.peopleMet.length - 300);
+            if (Array.isArray(_mem.peopleMet) && _mem.peopleMet.length > 150) {
+                _mem.peopleMet.splice(0, _mem.peopleMet.length - 150);
             }
             if (Array.isArray(_mem.beepHistory) && _mem.beepHistory.length > 100) {
                 _mem.beepHistory.splice(0, _mem.beepHistory.length - 100);
@@ -2566,18 +2566,39 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    const PEOPLE_MET_CAP = 300; // reduced from 2000 — at ~27 bytes/entry, 2000 = ~54 KB
+    // Server (cross-device via ExtensionSettings): last 150 entries only.
+    // localStorage (this device): full unbounded history.
+    // getPeopleMet() merges both so the DEV panel shows everything available.
+    const PEOPLE_MET_SERVER_CAP = 150;
+    const PEOPLE_MET_LOCAL_KEY = "EBC_peopleMet_local";
     // Debounce handle for batching multiple recordPersonMet calls into one server sync.
     let peopleMetSyncTimer = null;
     function schedulePeopleMetSync() {
         if (peopleMetSyncTimer !== null)
-            return; // already queued
-        peopleMetSyncTimer = setTimeout(() => {
-            peopleMetSyncTimer = null;
-            syncSettings();
-        }, 3000); // wait 3 s then send one sync for all changes
+            return;
+        peopleMetSyncTimer = setTimeout(() => { peopleMetSyncTimer = null; syncSettings(); }, 3000);
     }
-    function getPeopleMet() {
+    // -- localStorage helpers (no size limit, device-only) -------------------------
+    function _pmLocalLoad() {
+        try {
+            const raw = localStorage.getItem(PEOPLE_MET_LOCAL_KEY);
+            if (!raw)
+                return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function _pmLocalSave(list) {
+        try {
+            localStorage.setItem(PEOPLE_MET_LOCAL_KEY, JSON.stringify(list));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Server helpers (capped, cross-device) ------------------------------------
+    function _pmServerLoad() {
         var _a;
         try {
             const raw = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.peopleMet;
@@ -2587,23 +2608,78 @@
             return [];
         }
     }
+    // On first load: migrate any existing server peopleMet into localStorage so
+    // the user doesn't lose their history when upgrading to the hybrid model.
+    let _pmMigrated = false;
+    function migratePeopleMetToLocal() {
+        if (_pmMigrated)
+            return;
+        _pmMigrated = true;
+        try {
+            const server = _pmServerLoad();
+            if (server.length === 0)
+                return;
+            const local = _pmLocalLoad();
+            const localNums = new Set(local.map(p => p.n));
+            let changed = false;
+            for (const p of server) {
+                if (!localNums.has(p.n)) {
+                    local.push(p);
+                    localNums.add(p.n);
+                    changed = true;
+                }
+            }
+            if (changed)
+                _pmLocalSave(local);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Returns the full merged list (local ∪ server). Prefer local copy when both have the same member. */
+    function getPeopleMet() {
+        const local = _pmLocalLoad();
+        const server = _pmServerLoad();
+        const localNums = new Set(local.map(p => p.n));
+        const merged = [...local];
+        for (const p of server) {
+            if (!localNums.has(p.n))
+                merged.push(p); // add cross-device entries missing locally
+        }
+        return merged;
+    }
     function recordPersonMet(memberNumber, name) {
         try {
-            const store = getSettings();
-            const list = getPeopleMet();
-            const existing = list.find(p => p.n === memberNumber);
-            if (existing) {
-                if (existing.name === name)
-                    return; // nothing changed — skip sync entirely
-                existing.name = name;
+            // 1. Update localStorage (full device history, no cap)
+            const local = _pmLocalLoad();
+            const localIdx = local.findIndex(p => p.n === memberNumber);
+            if (localIdx >= 0) {
+                if (local[localIdx].name === name) {
+                    // No change at all — skip everything including server sync
+                    return;
+                }
+                local[localIdx].name = name;
             }
             else {
-                if (list.length >= PEOPLE_MET_CAP)
-                    list.splice(0, list.length - PEOPLE_MET_CAP + 1);
-                list.push({ n: memberNumber, name });
+                local.push({ n: memberNumber, name });
             }
-            store.peopleMet = list;
-            schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
+            _pmLocalSave(local);
+            // 2. Update server list (most recent PEOPLE_MET_SERVER_CAP entries only)
+            const store = getSettings();
+            const server = _pmServerLoad();
+            const sIdx = server.findIndex(p => p.n === memberNumber);
+            if (sIdx >= 0) {
+                server[sIdx].name = name;
+                // Move to end so it stays in the "most recent" window
+                const [entry] = server.splice(sIdx, 1);
+                server.push(entry);
+            }
+            else {
+                server.push({ n: memberNumber, name });
+            }
+            if (server.length > PEOPLE_MET_SERVER_CAP) {
+                server.splice(0, server.length - PEOPLE_MET_SERVER_CAP);
+            }
+            store.peopleMet = server;
+            schedulePeopleMetSync();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -2611,9 +2687,13 @@
         try {
             const store = getSettings();
             store.peopleMet = [];
+            try {
+                localStorage.removeItem(PEOPLE_MET_LOCAL_KEY);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             syncSettings();
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     function getBadgeStyle() {
         var _a;
@@ -28605,7 +28685,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.7";
+    const MOD_VERSION = "5.9.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28616,6 +28696,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.8",
+            changes: [
+                "Feature: peopleMet now uses a hybrid storage model. Server (cross-device): last 150 people met, ~4 KB. localStorage (this device): full unlimited history. getPeopleMet() merges both so the DEV panel shows everyone. On first load, existing server data is migrated into localStorage so nothing is lost.",
+            ],
+        },
         {
             version: "5.9.7",
             changes: [
@@ -34648,6 +34734,12 @@
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
             migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => { });
+            // One-time migration: copy existing server peopleMet into localStorage
+            // so the user's history isn't lost on the first run of the hybrid model.
+            try {
+                migratePeopleMetToLocal();
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
             // Seed default badge settings for first-time users.
             window.setTimeout(() => { try {
                 seedDefaultBadgeSettings();
@@ -35191,7 +35283,7 @@
                 }
             }
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -35297,7 +35389,7 @@
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_g) { /* ignore */ }
+        catch ( /* ignore */_h) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
