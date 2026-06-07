@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.9.8
+// @version      5.9.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28702,7 +28702,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.8";
+    const MOD_VERSION = "5.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28713,6 +28713,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.9",
+            changes: [
+                "Fix: quick keys sidebar now hides automatically when a character tab is open and reappears when it is closed. Previously the sidebar would draw over the character menu overlay.",
+            ],
+        },
         {
             version: "5.9.8",
             changes: [
@@ -34702,7 +34708,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_b) { /* ignore */ }
             try {
                 const iconsHidden = !!(window.ChatRoomHideIconState);
-                if (getActionButtonsVisible() && !iconsHidden)
+                const charMenuOpen = !!(window.CurrentCharacter);
+                if (getActionButtonsVisible() && !iconsHidden && !charMenuOpen)
                     drawActionButtons();
             }
             catch ( /* ignore */_c) { /* ignore */ }
@@ -34714,8 +34721,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (getBadgeDragMode())
                 return;
             const iconsHidden = !!(window.ChatRoomHideIconState);
+            const charMenuOpen = !!(window.CurrentCharacter);
             try {
-                if (!iconsHidden && handleActionButtonClick())
+                if (!iconsHidden && !charMenuOpen && handleActionButtonClick())
                     return;
             }
             catch ( /* ignore */_a) { /* ignore */ }
