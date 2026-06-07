@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.9.3";
+const MOD_VERSION = "5.9.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.9.4",
+        changes: [
+            "Fix: removed Dexie/IndexedDB entirely. Eight suppression attempts across multiple versions all failed to prevent Chrome from leaking raw IDB Event objects as unhandled Promise rejections. The in-session memory cache still works for all same-session lookups. The old IDB database is cleaned up on first load.",
+        ],
+    },
     {
         version: "5.9.3",
         changes: [

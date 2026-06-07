@@ -2,7 +2,6 @@
 // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
 // so it's available across devices on next login.
 
-import { db } from "./db";
 import { getSettings, syncSettings } from "./bcUtils";
 
 /**
@@ -610,41 +609,25 @@ const sessionCharacterBundles = new Map<number, unknown>();
 
 /**
  * Store the raw server bundle for an online character.
- * Input must already be a plain deep-copied object (caller used structuredClone).
- * Session cache is updated synchronously; IndexedDB write is fire-and-forget async.
+ * Session cache only — IndexedDB was removed (caused persistent
+ * "[object Event]" unhandled rejections in Chrome that couldn't be suppressed).
  */
 export function storeRawBundle(data: unknown): void {
     try {
         const d = data as Record<string, unknown>;
         const num = typeof d.MemberNumber === "number" ? d.MemberNumber : 0;
         if (!num) return;
-        // Shallow-clone and strip large/sensitive fields before storing
         const bundle: Record<string, unknown> = { ...d };
         for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
-        // Tier 1: session memory (sync — always available immediately)
         sessionCharacterBundles.set(num, bundle);
-        // Tier 2: IndexedDB via Dexie (async, fire-and-forget — no localStorage quota risk)
-        db.bundles.put({ num, data: bundle, ts: Date.now() }).catch(() => {});
     } catch { /* ignore */ }
 }
 
 /**
- * Retrieve a stored bundle. Checks the session cache first (sync-fast path),
- * then falls back to IndexedDB for bundles from previous sessions.
+ * Retrieve a stored bundle — session cache only.
  */
 export async function getCharacterBundle(memberNumber: number): Promise<unknown | null> {
-    // Tier 1: session memory
-    const mem = sessionCharacterBundles.get(memberNumber);
-    if (mem != null) return mem;
-    // Tier 2: IndexedDB (previous sessions)
-    try {
-        const row = await db.bundles.get(memberNumber);
-        if (row) {
-            sessionCharacterBundles.set(memberNumber, row.data); // promote to session cache
-            return row.data;
-        }
-    } catch { /* ignore */ }
-    return null;
+    return sessionCharacterBundles.get(memberNumber) ?? null;
 }
 
 // -- Sending -------------------------------------------------------------------
