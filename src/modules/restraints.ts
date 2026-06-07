@@ -56,11 +56,14 @@ function localNotice(msg: string, color = UI.accent): void {
 
 // /ebc release - removes restraint items, skips protected locks and whitelisted slots
 export function releaseRestraints(): void {
+    // Only respect ownership locks — NOT the outfit whitelist.
+    // The whitelist protects slots from outfit AUTO-CHANGES; it should not block
+    // an explicit "release all restraints" command.
     const toRemove = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item)
     );
     const skipped = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item)
     );
 
     if (toRemove.length === 0) {
@@ -92,10 +95,11 @@ export function releaseRestraints(): void {
     localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
 }
 
-// Returns un-protected restraint items currently worn by the player.
+// Returns restraint items currently worn by the player that can be explicitly removed.
+// Respects ownership locks but not the outfit whitelist (whitelist = auto-change only).
 export function getPlayerRestraints(): Array<{ group: string; name: string }> {
     return Player.Appearance
-        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
+        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
         .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
 }
 
