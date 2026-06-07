@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.9.8";
+const MOD_VERSION = "5.9.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.9.9",
+        changes: [
+            "Fix: quick keys sidebar now hides automatically when a character tab is open and reappears when it is closed. Previously the sidebar would draw over the character menu overlay.",
+        ],
+    },
     {
         version: "5.9.8",
         changes: [
@@ -6053,7 +6059,8 @@ function init(): void {
         } catch { /* ignore */ }
         try {
             const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-            if (getActionButtonsVisible() && !iconsHidden) drawActionButtons();
+            const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
+            if (getActionButtonsVisible() && !iconsHidden && !charMenuOpen) drawActionButtons();
         } catch { /* ignore */ }
         return result;
     });
@@ -6063,7 +6070,8 @@ function init(): void {
         // click-through to character tabs and other BC canvas interactions.
         if (getBadgeDragMode()) return;
         const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-        try { if (!iconsHidden && handleActionButtonClick()) return; } catch { /* ignore */ }
+        const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
+        try { if (!iconsHidden && !charMenuOpen && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
