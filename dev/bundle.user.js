@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.9.4
+// @version      5.9.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -82,6 +82,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         catch ( /* ignore */_c) { /* ignore */ }
+        // Prune oversized data accumulated by old EBC versions:
+        // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
+        // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
+        try {
+            if (Array.isArray(_mem.beepHistory) && _mem.beepHistory.length > 100) {
+                _mem.beepHistory.splice(0, _mem.beepHistory.length - 100);
+            }
+            for (const key of ["friendNames", "friendAccountNames"]) {
+                const d = _mem[key];
+                if (d && typeof d === "object" && !Array.isArray(d)) {
+                    const keys = Object.keys(d);
+                    if (keys.length > 500) {
+                        for (const k of keys.slice(0, keys.length - 500))
+                            delete d[k];
+                    }
+                }
+            }
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
         // One-time migration: pull kitty data that may still be in localStorage
         // from before it was moved into ExtensionSettings in v4.6.1.
         _migrateKittyFromLocalStorage();
@@ -4784,11 +4803,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const v = getSettings().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
+    const MAX_NAME_CACHE = 500;
+    function _evictNameCache(dict) {
+        const keys = Object.keys(dict);
+        if (keys.length > MAX_NAME_CACHE) {
+            // Remove oldest entries (first keys inserted)
+            for (const k of keys.slice(0, keys.length - MAX_NAME_CACHE))
+                delete dict[k];
+        }
+    }
     function cacheName(memberNumber, name) {
         const store = getSettings();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
-        store.friendNames[String(memberNumber)] = name;
+        const d = store.friendNames;
+        d[String(memberNumber)] = name;
+        _evictNameCache(d);
         // Sync is deferred — name cache is saved alongside the next real operation
     }
     // -- Account name cache --------------------------------------------------------
@@ -4803,7 +4833,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const store = getSettings();
         if (!store.friendAccountNames || typeof store.friendAccountNames !== "object")
             store.friendAccountNames = {};
-        store.friendAccountNames[String(memberNumber)] = accountName;
+        const d = store.friendAccountNames;
+        d[String(memberNumber)] = accountName;
+        _evictNameCache(d);
     }
     /** Returns the cached BC account name for this member, or null if unknown. */
     function getAccountName(memberNumber) {
@@ -5253,7 +5285,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         sync();
     }
     // -- Beep history --------------------------------------------------------------
-    const MAX_ENTRIES$2 = 300;
+    const MAX_ENTRIES$2 = 100; // reduced from 300 — each message can be 200-500 bytes
     function getBeepHistory() {
         const v = getSettings().beepHistory;
         return Array.isArray(v) ? v : [];
@@ -5261,7 +5293,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function addBeepEntry(entry) {
         const store = getSettings();
         const history = getBeepHistory();
-        history.push(entry);
+        // Strip mod metadata and truncate before persisting — WCE/FBC append large
+        // JSON blobs to messages that bloat the stored history significantly.
+        const cleaned = stripBeepMetadata(entry.message).slice(0, 200);
+        history.push(Object.assign(Object.assign({}, entry), { message: cleaned }));
         if (history.length > MAX_ENTRIES$2)
             history.splice(0, history.length - MAX_ENTRIES$2);
         store.beepHistory = history;
@@ -28579,7 +28614,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.4";
+    const MOD_VERSION = "5.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28590,6 +28625,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.5",
+            changes: [
+                "Fix: EBC ExtensionSettings was 152 KB (over the 180 KB total budget). Root causes: beepHistory capped at 300 entries with raw mod-metadata-bloated messages; friendNames/friendAccountNames were unbounded. Fixes: beepHistory now capped at 100 entries and messages are stripped of mod metadata + truncated to 200 chars before saving; name caches evict oldest entries beyond 500. One-time pruning pass on first load cleans up existing bloat immediately.",
+            ],
+        },
         {
             version: "5.9.4",
             changes: [
