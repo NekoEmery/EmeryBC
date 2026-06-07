@@ -40,8 +40,8 @@ export function initSettings(): void {
     // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
     // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
     try {
-        if (Array.isArray(_mem.peopleMet) && (_mem.peopleMet as unknown[]).length > 300) {
-            (_mem.peopleMet as unknown[]).splice(0, (_mem.peopleMet as unknown[]).length - 300);
+        if (Array.isArray(_mem.peopleMet) && (_mem.peopleMet as unknown[]).length > 150) {
+            (_mem.peopleMet as unknown[]).splice(0, (_mem.peopleMet as unknown[]).length - 150);
         }
         if (Array.isArray(_mem.beepHistory) && (_mem.beepHistory as unknown[]).length > 100) {
             (_mem.beepHistory as unknown[]).splice(0, (_mem.beepHistory as unknown[]).length - 100);
