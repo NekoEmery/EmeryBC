@@ -66,9 +66,13 @@
         }
         catch ( /* ignore */_c) { /* ignore */ }
         // Prune oversized data accumulated by old EBC versions:
+        // - peopleMet capped at 300 entries (was 2000, ~27 bytes/entry = 54 KB)
         // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
         // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
         try {
+            if (Array.isArray(_mem.peopleMet) && _mem.peopleMet.length > 300) {
+                _mem.peopleMet.splice(0, _mem.peopleMet.length - 300);
+            }
             if (Array.isArray(_mem.beepHistory) && _mem.beepHistory.length > 100) {
                 _mem.beepHistory.splice(0, _mem.beepHistory.length - 100);
             }
@@ -2562,7 +2566,7 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    const PEOPLE_MET_CAP = 2000;
+    const PEOPLE_MET_CAP = 300; // reduced from 2000 — at ~27 bytes/entry, 2000 = ~54 KB
     // Debounce handle for batching multiple recordPersonMet calls into one server sync.
     let peopleMetSyncTimer = null;
     function schedulePeopleMetSync() {
@@ -28601,7 +28605,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.6";
+    const MOD_VERSION = "5.9.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28612,6 +28616,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.7",
+            changes: [
+                "Fix: peopleMet was 54 KB (2000 entries × ~27 bytes). Cap reduced from 2000 → 300 entries. With existing pruning for beepHistory/friendNames, EBC total should drop from ~131 KB to ~85 KB.",
+            ],
+        },
         {
             version: "5.9.6",
             changes: [
