@@ -38,12 +38,15 @@ try {
 
 export const db = new EBCDatabase();
 
+// Catch ALL internal Dexie/IDB errors before they escape as unhandled rejections.
+// db.on("error") fires for errors inside Dexie transactions that are not caught by
+// a per-operation .catch().  Without this hook those errors become raw IDBRequest
+// Event objects thrown as unhandled Promise rejections — showing up as "[object Event]"
+// in BC's error reporter.  The hook must be attached before db.open() is called.
+try { db.on("error", () => {}); } catch { /* ignore — Dexie unavailable */ }
+try { db.on("blocked", () => {}); } catch { /* ignore */ }
+
 // Eagerly open the database and silently swallow any failure.
-// On Android/mobile browsers IndexedDB can fail immediately (storage restrictions,
-// private-browsing mode, quota errors) and Dexie rejects its internal open promise
-// with a raw IDBRequest error Event — which shows up as "[object Event]" in BC's
-// unhandled-rejection reporter.  By calling open().catch() up-front we guarantee
-// that rejection is always handled before any table operation creates its own chain.
 db.open().catch(() => {});
 
 // Migrate existing localStorage bundles into IndexedDB (one-time, runs on startup).

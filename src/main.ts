@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.9";
+const MOD_VERSION = "5.9.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.9.0",
+        changes: [
+            "Fix: [object Event] unhandled rejection persisted because BC's error handler runs before EBC's window.addEventListener suppressor (BC registers first at page load). Root fix: attach db.on('error') and db.on('blocked') to Dexie before db.open() so internal IDB transaction errors are swallowed inside Dexie itself, never reaching the Promise rejection layer.",
+        ],
+    },
     {
         version: "5.8.9",
         changes: [
