@@ -14251,6 +14251,7 @@ export class EBCDrawer {
                 friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "var(--ebc-bg-darker)"; friendProfBtn.style.borderColor = "var(--ebc-border-light)"; });
                 friendProfBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
+                    try {
                     const w2 = window as unknown as Record<string, unknown>;
                     const loadChar   = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                     const hideEls    = w2.ChatRoomHideElements as (() => void) | undefined;
@@ -14281,6 +14282,7 @@ export class EBCDrawer {
                         } catch { /* ignore */ }
                     }
                     try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
+                    } catch { /* ignore — prevent unhandled rejection from async listener */ }
                 });
                 // Beep button — does NOT toggle expand
                 const unread = this.beepUnread.get(num) ?? 0;
@@ -15707,6 +15709,7 @@ export class EBCDrawer {
                         btn.addEventListener("mouseenter", () => { btn.style.background = "#2a0e1e"; btn.style.borderColor = "#cf6f98"; });
                         btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.borderColor = "#3a1928"; });
                         btn.addEventListener("click", async () => {
+                          try {
                             const w          = window as unknown as Record<string, unknown>;
                             const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                             const hideEls    = w.ChatRoomHideElements           as (() => void) | undefined;
@@ -15736,6 +15739,7 @@ export class EBCDrawer {
                                 try { const C = loadOnline(bundle, memberNumber); if (C) { openProfile(C); return; } } catch { /* ignore */ }
                             }
                             try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
                         });
                         return btn;
                     };
@@ -16247,6 +16251,7 @@ export class EBCDrawer {
                         profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
                         profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", async () => {
+                          try {
                             const w = window as unknown as Record<string, unknown>;
                             const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                             const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
@@ -16286,6 +16291,7 @@ export class EBCDrawer {
                             }
 
                             try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
                         });
 
                         row.appendChild(nameSpan);

@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.4";
+const MOD_VERSION = "5.8.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.5",
+        changes: [
+            "Fix: unhandled promise rejection '[object Event]' on Android/mobile. Two causes fixed: (1) three async profile-view click handlers in drawer.ts lacked a top-level try-catch so any uncaught error became an unhandled rejection; (2) added a global unhandledrejection listener that suppresses raw IDB Event rejections before BC's error reporter sees them.",
+        ],
+    },
     {
         version: "5.8.4",
         changes: [
@@ -5865,6 +5871,22 @@ function seedDefaultBadgeSettings(): void {
 }
 
 function init(): void {
+    // Suppress raw IDB error Events that Dexie can leak on Android Chrome as
+    // unhandled promise rejections.  These show up as "[object Event]" in BC's
+    // error reporter and are not actionable — they just mean IndexedDB is
+    // unavailable on this device/session (private mode, quota, etc.).
+    // All EBC code that uses IndexedDB already has its own try/catch; this is
+    // a belt-and-suspenders backstop so BC's reporter never sees them.
+    try {
+        window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
+            try {
+                if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
+                    e.preventDefault();
+                }
+            } catch { /* ignore */ }
+        });
+    } catch { /* ignore */ }
+
     // Initialise compressed ExtensionSettings first — all modules read from here
     initSettings();
 
