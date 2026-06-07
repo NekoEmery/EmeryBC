@@ -343,7 +343,7 @@ export interface PersonMet {
     name: string;
 }
 
-const PEOPLE_MET_CAP = 2000;
+const PEOPLE_MET_CAP = 300; // reduced from 2000 — at ~27 bytes/entry, 2000 = ~54 KB
 
 // Debounce handle for batching multiple recordPersonMet calls into one server sync.
 let peopleMetSyncTimer: ReturnType<typeof setTimeout> | null = null;
