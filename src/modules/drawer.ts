@@ -99,7 +99,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -6244,7 +6244,8 @@ export class EBCDrawer {
 
         const exportBadgeCode = (): string => {
             try {
-                const store = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined) ?? {};
+                // Read from the live in-memory store (getSettings()) — always up to date
+                const store = getSettings();
                 const settings: Record<string, unknown> = {};
                 for (const k of BADGE_KEYS) {
                     if (k in store) settings[k] = store[k];
@@ -6258,9 +6259,12 @@ export class EBCDrawer {
             if (!trimmed.startsWith(BADGE_CODE_PREFIX)) throw new Error("Invalid");
             const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length))))) as Record<string, unknown>;
             if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("Invalid");
-            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+            // Write to the in-memory store (_mem) — syncSettings() flushes _mem →
+            // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
+            // syncSettings() would overwrite it with the old _mem values.
+            const mem = getSettings();
             for (const k of BADGE_KEYS) {
-                if (k in incoming) store[k] = incoming[k];
+                if (k in incoming) mem[k] = incoming[k];
             }
             syncSettings();
         };

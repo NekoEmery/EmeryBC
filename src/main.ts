@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.9.2";
+const MOD_VERSION = "5.9.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.9.3",
+        changes: [
+            "Fix: EBC tag settings Export/Import was broken. Import wrote directly to Player.ExtensionSettings.EmeryBC, then syncSettings() called flushToExtensionSettings() which copied the old in-memory store (_mem) back over it, erasing the import. Fixed by writing imports into getSettings() (_mem) directly so the flush carries the new values to ExtensionSettings instead of overwriting them.",
+        ],
+    },
     {
         version: "5.9.2",
         changes: [
