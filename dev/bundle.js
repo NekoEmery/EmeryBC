@@ -27390,58 +27390,61 @@
                     friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "var(--ebc-bg-darker)"; friendProfBtn.style.borderColor = "var(--ebc-border-light)"; });
                     friendProfBtn.addEventListener("click", async (e) => {
                         e.stopPropagation();
-                        const w2 = window;
-                        const loadChar = w2.InformationSheetLoadCharacter;
-                        const hideEls = w2.ChatRoomHideElements;
-                        const loadOnline = w2.CharacterLoadOnline;
-                        const roomChars = w2.ChatRoomCharacter;
-                        const openProfile = (C) => {
-                            var _a;
-                            this.close();
-                            if (w2.CurrentScreen === "ChatRoom") {
+                        try {
+                            const w2 = window;
+                            const loadChar = w2.InformationSheetLoadCharacter;
+                            const hideEls = w2.ChatRoomHideElements;
+                            const loadOnline = w2.CharacterLoadOnline;
+                            const roomChars = w2.ChatRoomCharacter;
+                            const openProfile = (C) => {
+                                var _a;
+                                this.close();
+                                if (w2.CurrentScreen === "ChatRoom") {
+                                    try {
+                                        hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                    }
+                                    catch ( /* ignore */_b) { /* ignore */ }
+                                    try {
+                                        const bgData = (_a = w2.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
+                                        if (bgData)
+                                            w2.ChatRoomBackground = bgData;
+                                    }
+                                    catch ( /* ignore */_c) { /* ignore */ }
+                                }
+                                loadChar(C);
+                            };
+                            if (!loadChar || !loadOnline) {
                                 try {
-                                    hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                    navigator.clipboard.writeText(String(num));
+                                }
+                                catch ( /* ignore */_a) { /* ignore */ }
+                                return;
+                            }
+                            const inRoom = Array.isArray(roomChars) ? roomChars.find(c => c.MemberNumber === num) : undefined;
+                            if (inRoom) {
+                                try {
+                                    openProfile(inRoom);
+                                    return;
                                 }
                                 catch ( /* ignore */_b) { /* ignore */ }
+                            }
+                            const bundle = await getCharacterBundle(num);
+                            if (bundle) {
                                 try {
-                                    const bgData = (_a = w2.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
-                                    if (bgData)
-                                        w2.ChatRoomBackground = bgData;
+                                    const C = loadOnline(bundle, num);
+                                    if (C) {
+                                        openProfile(C);
+                                        return;
+                                    }
                                 }
                                 catch ( /* ignore */_c) { /* ignore */ }
                             }
-                            loadChar(C);
-                        };
-                        if (!loadChar || !loadOnline) {
                             try {
                                 navigator.clipboard.writeText(String(num));
                             }
-                            catch ( /* ignore */_a) { /* ignore */ }
-                            return;
+                            catch ( /* ignore */_d) { /* ignore */ }
                         }
-                        const inRoom = Array.isArray(roomChars) ? roomChars.find(c => c.MemberNumber === num) : undefined;
-                        if (inRoom) {
-                            try {
-                                openProfile(inRoom);
-                                return;
-                            }
-                            catch ( /* ignore */_b) { /* ignore */ }
-                        }
-                        const bundle = await getCharacterBundle(num);
-                        if (bundle) {
-                            try {
-                                const C = loadOnline(bundle, num);
-                                if (C) {
-                                    openProfile(C);
-                                    return;
-                                }
-                            }
-                            catch ( /* ignore */_c) { /* ignore */ }
-                        }
-                        try {
-                            navigator.clipboard.writeText(String(num));
-                        }
-                        catch ( /* ignore */_d) { /* ignore */ }
+                        catch ( /* ignore — prevent unhandled rejection from async listener */_e) { /* ignore — prevent unhandled rejection from async listener */ }
                     });
                     // Beep button — does NOT toggle expand
                     const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
@@ -28878,60 +28881,63 @@
                             btn.addEventListener("mouseenter", () => { btn.style.background = "#2a0e1e"; btn.style.borderColor = "#cf6f98"; });
                             btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.borderColor = "#3a1928"; });
                             btn.addEventListener("click", async () => {
-                                const w = window;
-                                const loadChar = w.InformationSheetLoadCharacter;
-                                const hideEls = w.ChatRoomHideElements;
-                                const loadOnline = w.CharacterLoadOnline;
-                                const roomChars = w.ChatRoomCharacter;
-                                if (!loadChar || !loadOnline) {
-                                    try {
-                                        navigator.clipboard.writeText(String(memberNumber));
-                                    }
-                                    catch ( /* ignore */_a) { /* ignore */ }
-                                    return;
-                                }
-                                const openProfile = (C) => {
-                                    var _a;
-                                    this.close();
-                                    if (w.CurrentScreen === "ChatRoom") {
+                                try {
+                                    const w = window;
+                                    const loadChar = w.InformationSheetLoadCharacter;
+                                    const hideEls = w.ChatRoomHideElements;
+                                    const loadOnline = w.CharacterLoadOnline;
+                                    const roomChars = w.ChatRoomCharacter;
+                                    if (!loadChar || !loadOnline) {
                                         try {
-                                            hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                            navigator.clipboard.writeText(String(memberNumber));
+                                        }
+                                        catch ( /* ignore */_a) { /* ignore */ }
+                                        return;
+                                    }
+                                    const openProfile = (C) => {
+                                        var _a;
+                                        this.close();
+                                        if (w.CurrentScreen === "ChatRoom") {
+                                            try {
+                                                hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                            }
+                                            catch ( /* ignore */_b) { /* ignore */ }
+                                            try {
+                                                const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
+                                                if (bgData)
+                                                    w.ChatRoomBackground = bgData;
+                                            }
+                                            catch ( /* ignore */_c) { /* ignore */ }
+                                        }
+                                        loadChar(C);
+                                    };
+                                    const inRoom = Array.isArray(roomChars)
+                                        ? roomChars.find(c => c.MemberNumber === memberNumber)
+                                        : undefined;
+                                    if (inRoom) {
+                                        try {
+                                            openProfile(inRoom);
+                                            return;
                                         }
                                         catch ( /* ignore */_b) { /* ignore */ }
+                                    }
+                                    const bundle = await getCharacterBundle(memberNumber);
+                                    if (bundle) {
                                         try {
-                                            const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
-                                            if (bgData)
-                                                w.ChatRoomBackground = bgData;
+                                            const C = loadOnline(bundle, memberNumber);
+                                            if (C) {
+                                                openProfile(C);
+                                                return;
+                                            }
                                         }
                                         catch ( /* ignore */_c) { /* ignore */ }
                                     }
-                                    loadChar(C);
-                                };
-                                const inRoom = Array.isArray(roomChars)
-                                    ? roomChars.find(c => c.MemberNumber === memberNumber)
-                                    : undefined;
-                                if (inRoom) {
                                     try {
-                                        openProfile(inRoom);
-                                        return;
+                                        navigator.clipboard.writeText(String(memberNumber));
                                     }
-                                    catch ( /* ignore */_b) { /* ignore */ }
+                                    catch ( /* ignore */_d) { /* ignore */ }
                                 }
-                                const bundle = await getCharacterBundle(memberNumber);
-                                if (bundle) {
-                                    try {
-                                        const C = loadOnline(bundle, memberNumber);
-                                        if (C) {
-                                            openProfile(C);
-                                            return;
-                                        }
-                                    }
-                                    catch ( /* ignore */_c) { /* ignore */ }
-                                }
-                                try {
-                                    navigator.clipboard.writeText(String(memberNumber));
-                                }
-                                catch ( /* ignore */_d) { /* ignore */ }
+                                catch ( /* ignore — prevent unhandled rejection from async listener */_e) { /* ignore — prevent unhandled rejection from async listener */ }
                             });
                             return btn;
                         };
@@ -29481,60 +29487,63 @@
                             profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
                             profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                             profBtn.addEventListener("click", async () => {
-                                const w = window;
-                                const loadChar = w.InformationSheetLoadCharacter;
-                                const hideEls = w.ChatRoomHideElements;
-                                const loadOnline = w.CharacterLoadOnline;
-                                const roomChars = w.ChatRoomCharacter;
-                                const openProfile = (C) => {
-                                    var _a;
-                                    this.close();
-                                    if (w.CurrentScreen === "ChatRoom") {
+                                try {
+                                    const w = window;
+                                    const loadChar = w.InformationSheetLoadCharacter;
+                                    const hideEls = w.ChatRoomHideElements;
+                                    const loadOnline = w.CharacterLoadOnline;
+                                    const roomChars = w.ChatRoomCharacter;
+                                    const openProfile = (C) => {
+                                        var _a;
+                                        this.close();
+                                        if (w.CurrentScreen === "ChatRoom") {
+                                            try {
+                                                hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                            }
+                                            catch ( /* ignore */_b) { /* ignore */ }
+                                            try {
+                                                const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
+                                                if (bgData)
+                                                    w.ChatRoomBackground = bgData;
+                                            }
+                                            catch ( /* ignore */_c) { /* ignore */ }
+                                        }
+                                        loadChar(C);
+                                    };
+                                    if (!loadChar || !loadOnline) {
                                         try {
-                                            hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                            navigator.clipboard.writeText(String(person.n));
+                                        }
+                                        catch ( /* ignore */_a) { /* ignore */ }
+                                        return;
+                                    }
+                                    const inRoom = Array.isArray(roomChars)
+                                        ? roomChars.find(c => c.MemberNumber === person.n)
+                                        : undefined;
+                                    if (inRoom) {
+                                        try {
+                                            openProfile(inRoom);
+                                            return;
                                         }
                                         catch ( /* ignore */_b) { /* ignore */ }
+                                    }
+                                    const bundle = await getCharacterBundle(person.n);
+                                    if (bundle) {
                                         try {
-                                            const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
-                                            if (bgData)
-                                                w.ChatRoomBackground = bgData;
+                                            const C = loadOnline(bundle, person.n);
+                                            if (C) {
+                                                openProfile(C);
+                                                return;
+                                            }
                                         }
                                         catch ( /* ignore */_c) { /* ignore */ }
                                     }
-                                    loadChar(C);
-                                };
-                                if (!loadChar || !loadOnline) {
                                     try {
                                         navigator.clipboard.writeText(String(person.n));
                                     }
-                                    catch ( /* ignore */_a) { /* ignore */ }
-                                    return;
+                                    catch ( /* ignore */_d) { /* ignore */ }
                                 }
-                                const inRoom = Array.isArray(roomChars)
-                                    ? roomChars.find(c => c.MemberNumber === person.n)
-                                    : undefined;
-                                if (inRoom) {
-                                    try {
-                                        openProfile(inRoom);
-                                        return;
-                                    }
-                                    catch ( /* ignore */_b) { /* ignore */ }
-                                }
-                                const bundle = await getCharacterBundle(person.n);
-                                if (bundle) {
-                                    try {
-                                        const C = loadOnline(bundle, person.n);
-                                        if (C) {
-                                            openProfile(C);
-                                            return;
-                                        }
-                                    }
-                                    catch ( /* ignore */_c) { /* ignore */ }
-                                }
-                                try {
-                                    navigator.clipboard.writeText(String(person.n));
-                                }
-                                catch ( /* ignore */_d) { /* ignore */ }
+                                catch ( /* ignore — prevent unhandled rejection from async listener */_e) { /* ignore — prevent unhandled rejection from async listener */ }
                             });
                             row.appendChild(nameSpan);
                             row.appendChild(numSpan);
@@ -35170,7 +35179,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.4";
+    const MOD_VERSION = "5.8.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35181,6 +35190,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.5",
+            changes: [
+                "Fix: unhandled promise rejection '[object Event]' on Android/mobile. Two causes fixed: (1) three async profile-view click handlers in drawer.ts lacked a top-level try-catch so any uncaught error became an unhandled rejection; (2) added a global unhandledrejection listener that suppresses raw IDB Event rejections before BC's error reporter sees them.",
+            ],
+        },
         {
             version: "5.8.4",
             changes: [
@@ -40988,6 +41003,23 @@
     }
     function init() {
         var _a;
+        // Suppress raw IDB error Events that Dexie can leak on Android Chrome as
+        // unhandled promise rejections.  These show up as "[object Event]" in BC's
+        // error reporter and are not actionable — they just mean IndexedDB is
+        // unavailable on this device/session (private mode, quota, etc.).
+        // All EBC code that uses IndexedDB already has its own try/catch; this is
+        // a belt-and-suspenders backstop so BC's reporter never sees them.
+        try {
+            window.addEventListener("unhandledrejection", (e) => {
+                try {
+                    if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
+                        e.preventDefault();
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
         // Initialise compressed ExtensionSettings first — all modules read from here
         initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -40998,7 +41030,7 @@
             if (active && active !== "Inactive")
                 lastArousalActive = active;
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
         // This is a best-effort early seed; the TextGet hook below is the definitive fix.
         try {
@@ -41008,7 +41040,7 @@
                     lk.set("ResponseRoomLocked", "This room is locked.");
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -41084,12 +41116,12 @@
         try {
             initDragListener();
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -41653,7 +41685,7 @@
                 }
             }
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -41759,7 +41791,7 @@
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_g) { /* ignore */ }
+        catch ( /* ignore */_h) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
