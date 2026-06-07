@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.8.6
+// @version      5.8.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11329,6 +11329,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
         }
     }
+    // Register a global suppressor for raw IDB/Dexie error Events BEFORE the database
+    // is created.  Dexie can leak a raw IDBRequest error Event as an unhandled promise
+    // rejection even after db.open().catch() is attached — the suppressor must be in
+    // place before any IDB operation creates its first internal promise chain.
+    // This runs at module-load time so it is always earlier than init().
+    try {
+        window.addEventListener("unhandledrejection", (e) => {
+            try {
+                if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
+                    e.preventDefault();
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        });
+    }
+    catch ( /* ignore */_a) { /* ignore */ }
     const db = new EBCDatabase();
     // Eagerly open the database and silently swallow any failure.
     // On Android/mobile browsers IndexedDB can fail immediately (storage restrictions,
@@ -35199,7 +35215,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.6";
+    const MOD_VERSION = "5.8.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35210,6 +35226,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.7",
+            changes: [
+                "Fix: [object Event] unhandled rejection still appeared on v5.8.6 because the suppressor was registered in init() — too late, since Dexie opens the database at module-load time before init() runs. Moved the unhandledrejection suppressor to db.ts so it is registered before any IDB operation.",
+            ],
+        },
         {
             version: "5.8.6",
             changes: [
@@ -41028,24 +41050,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }
     function init() {
+        // Note: the unhandledrejection suppressor for IDB/Dexie [object Event] errors
+        // is registered in db.ts at module-load time, before any IDB operations.
         var _a;
-        // Suppress raw IDB error Events that Dexie can leak on Android Chrome as
-        // unhandled promise rejections.  These show up as "[object Event]" in BC's
-        // error reporter and are not actionable — they just mean IndexedDB is
-        // unavailable on this device/session (private mode, quota, etc.).
-        // All EBC code that uses IndexedDB already has its own try/catch; this is
-        // a belt-and-suspenders backstop so BC's reporter never sees them.
-        try {
-            window.addEventListener("unhandledrejection", (e) => {
-                try {
-                    if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
-                        e.preventDefault();
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
         // Initialise compressed ExtensionSettings first — all modules read from here
         initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -41056,7 +41063,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (active && active !== "Inactive")
                 lastArousalActive = active;
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
         // This is a best-effort early seed; the TextGet hook below is the definitive fix.
         try {
@@ -41066,7 +41073,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     lk.set("ResponseRoomLocked", "This room is locked.");
             }
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -41142,12 +41149,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             initDragListener();
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -41711,7 +41718,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
         }
-        catch ( /* ignore */_g) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -41817,7 +41824,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_h) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
         // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
         // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
         setInterval(() => {
