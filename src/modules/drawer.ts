@@ -2319,7 +2319,8 @@ const CSS = `
 /* -- Beep window -- */
 .ebc-beep-win {
     position: fixed;
-    width: 300px;
+    width: min(320px, calc(100vw - 16px)); /* never overflow on narrow screens */
+    max-width: calc(100vw - 16px);
     height: 380px;
     background: rgba(19,8,16,0.94);
     backdrop-filter: blur(4px);
@@ -2332,7 +2333,7 @@ const CSS = `
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     font-family: "Trebuchet MS", serif;
     bottom: 80px;
-    right: 340px;
+    right: min(340px, calc(100vw - 336px)); /* keep window on-screen on narrow devices */
     overflow: hidden;
 }
 
@@ -2437,10 +2438,11 @@ const CSS = `
 
 .ebc-beep-win-footer {
     display: flex;
-    gap: 5px;
-    padding: 7px 8px;
+    gap: 4px;
+    padding: 6px 7px;
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
+    min-width: 0;
 }
 
 .ebc-beep-win-input {
@@ -2463,9 +2465,10 @@ const CSS = `
     color: #cf6f98;
     font-size: 11px;
     font-family: "Trebuchet MS", serif;
-    padding: 4px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 .ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
