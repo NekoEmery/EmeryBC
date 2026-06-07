@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.9.2
+// @version      5.9.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -19650,9 +19650,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "versionTextOffsetX", "versionTextOffsetY",
             ];
             const exportBadgeCode = () => {
-                var _a;
                 try {
-                    const store = (_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {};
+                    // Read from the live in-memory store (getSettings()) — always up to date
+                    const store = getSettings();
                     const settings = {};
                     for (const k of BADGE_KEYS) {
                         if (k in store)
@@ -19660,7 +19660,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     return BADGE_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(settings))));
                 }
-                catch (_b) {
+                catch (_a) {
                     return "";
                 }
             };
@@ -19671,10 +19671,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length)))));
                 if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))
                     throw new Error("Invalid");
-                const store = Player.ExtensionSettings.EmeryBC;
+                // Write to the in-memory store (_mem) — syncSettings() flushes _mem →
+                // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
+                // syncSettings() would overwrite it with the old _mem values.
+                const mem = getSettings();
                 for (const k of BADGE_KEYS) {
                     if (k in incoming)
-                        store[k] = incoming[k];
+                        mem[k] = incoming[k];
                 }
                 syncSettings();
             };
@@ -35250,7 +35253,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.2";
+    const MOD_VERSION = "5.9.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35261,6 +35264,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.3",
+            changes: [
+                "Fix: EBC tag settings Export/Import was broken. Import wrote directly to Player.ExtensionSettings.EmeryBC, then syncSettings() called flushToExtensionSettings() which copied the old in-memory store (_mem) back over it, erasing the import. Fixed by writing imports into getSettings() (_mem) directly so the flush carries the new values to ExtensionSettings instead of overwriting them.",
+            ],
+        },
         {
             version: "5.9.2",
             changes: [
