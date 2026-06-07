@@ -35,6 +35,25 @@ export function initSettings(): void {
         }
     } catch { /* ignore */ }
 
+    // Prune oversized data accumulated by old EBC versions:
+    // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
+    // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
+    try {
+        if (Array.isArray(_mem.beepHistory) && (_mem.beepHistory as unknown[]).length > 100) {
+            (_mem.beepHistory as unknown[]).splice(0, (_mem.beepHistory as unknown[]).length - 100);
+        }
+        for (const key of ["friendNames", "friendAccountNames"] as const) {
+            const d = _mem[key];
+            if (d && typeof d === "object" && !Array.isArray(d)) {
+                const keys = Object.keys(d as Record<string, unknown>);
+                if (keys.length > 500) {
+                    for (const k of keys.slice(0, keys.length - 500))
+                        delete (d as Record<string, unknown>)[k];
+                }
+            }
+        }
+    } catch { /* ignore */ }
+
     // One-time migration: pull kitty data that may still be in localStorage
     // from before it was moved into ExtensionSettings in v4.6.1.
     _migrateKittyFromLocalStorage();

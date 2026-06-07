@@ -58,10 +58,21 @@ export function getCachedNames(): Record<string, string> {
     return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
 }
 
+const MAX_NAME_CACHE = 500;
+function _evictNameCache(dict: Record<string, string>): void {
+    const keys = Object.keys(dict);
+    if (keys.length > MAX_NAME_CACHE) {
+        // Remove oldest entries (first keys inserted)
+        for (const k of keys.slice(0, keys.length - MAX_NAME_CACHE)) delete dict[k];
+    }
+}
+
 export function cacheName(memberNumber: number, name: string): void {
     const store = getSettings();
     if (!store.friendNames || typeof store.friendNames !== "object") store.friendNames = {};
-    (store.friendNames as Record<string, string>)[String(memberNumber)] = name;
+    const d = store.friendNames as Record<string, string>;
+    d[String(memberNumber)] = name;
+    _evictNameCache(d);
     // Sync is deferred — name cache is saved alongside the next real operation
 }
 
@@ -78,7 +89,9 @@ export function getCachedAccountNames(): Record<string, string> {
 export function cacheAccountName(memberNumber: number, accountName: string): void {
     const store = getSettings();
     if (!store.friendAccountNames || typeof store.friendAccountNames !== "object") store.friendAccountNames = {};
-    (store.friendAccountNames as Record<string, string>)[String(memberNumber)] = accountName;
+    const d = store.friendAccountNames as Record<string, string>;
+    d[String(memberNumber)] = accountName;
+    _evictNameCache(d);
 }
 
 /** Returns the cached BC account name for this member, or null if unknown. */
@@ -548,7 +561,7 @@ export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): vo
 
 // -- Beep history --------------------------------------------------------------
 
-const MAX_ENTRIES = 300;
+const MAX_ENTRIES = 100; // reduced from 300 — each message can be 200-500 bytes
 
 export function getBeepHistory(): BeepEntry[] {
     const v = getSettings().beepHistory;
@@ -558,7 +571,10 @@ export function getBeepHistory(): BeepEntry[] {
 export function addBeepEntry(entry: BeepEntry): void {
     const store = getSettings();
     const history = getBeepHistory();
-    history.push(entry);
+    // Strip mod metadata and truncate before persisting — WCE/FBC append large
+    // JSON blobs to messages that bloat the stored history significantly.
+    const cleaned = stripBeepMetadata(entry.message).slice(0, 200);
+    history.push({ ...entry, message: cleaned });
     if (history.length > MAX_ENTRIES) history.splice(0, history.length - MAX_ENTRIES);
     store.beepHistory = history;
     sync();
