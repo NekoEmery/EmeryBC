@@ -74,9 +74,13 @@ export function releaseRestraints(): void {
         return;
     }
 
-    for (const item of toRemove) {
-        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore — mod hook may throw */ }
-    }
+    // Direct array filter bypasses InventoryRemove's internal BC lock checks which
+    // can silently refuse removal even for unlocked items (locked room, permissions, etc.).
+    const removeGroups = new Set(toRemove.map(item => item.Asset.Group.Name));
+    Player.Appearance = Player.Appearance.filter(
+        item => !removeGroups.has(item.Asset.Group.Name)
+    );
+
     if (skipped.length > 0) {
         const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
         localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
@@ -104,14 +108,16 @@ export function getPlayerLockedItems(): Array<{ group: string; name: string }> {
 
 // Removes specific items by group name from the player. Returns count removed.
 export function removePlayerSpecificItems(groups: string[]): number {
-    let count = 0;
-    for (const group of groups) {
-        try { InventoryRemove(Player, group, false); count++; } catch { /* ignore */ }
-    }
+    const groupSet = new Set(groups);
+    const before = Player.Appearance.length;
+    Player.Appearance = Player.Appearance.filter(
+        item => !groupSet.has(item.Asset.Group.Name)
+    );
+    const count = before - Player.Appearance.length;
     if (count > 0) {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        try { CharacterRefresh(Player, false); } catch { /* ignore */ }
+        try { ChatRoomCharacterUpdate(Player); } catch { /* ignore */ }
+        try { ServerPlayerAppearanceSync(); } catch { /* ignore */ }
     }
     return count;
 }

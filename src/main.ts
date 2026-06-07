@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.7";
+const MOD_VERSION = "5.8.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.8",
+        changes: [
+            "Fix: Release Restraints and the self-pick specific-item remover now directly filter Player.Appearance instead of calling InventoryRemove. InventoryRemove respects BC's internal lock/permission checks and silently refuses removal in certain situations (locked room, BC permissions). Direct array filtering matches how the safeword escape already works.",
+        ],
+    },
     {
         version: "5.8.7",
         changes: [
