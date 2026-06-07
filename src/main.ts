@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.9.1";
+const MOD_VERSION = "5.9.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.9.2",
+        changes: [
+            "Fix: add Dexie.on('error') static global hook — catches errors from all Dexie instances before they escape into the Promise system. Previous fix (db.on('error')) was instance-level only. Now all four suppression layers are active: Dexie.on, db.on, db.open().catch, and window.unhandledrejection.",
+        ],
+    },
     {
         version: "5.9.1",
         changes: [
