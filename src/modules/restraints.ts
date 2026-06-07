@@ -56,11 +56,14 @@ function localNotice(msg: string, color = UI.accent): void {
 
 // /ebc release - removes restraint items, skips protected locks and whitelisted slots
 export function releaseRestraints(): void {
+    // Only respect ownership locks — NOT the outfit whitelist.
+    // The whitelist protects slots from outfit AUTO-CHANGES; it should not block
+    // an explicit "release all restraints" command.
     const toRemove = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item)
     );
     const skipped = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item)
     );
 
     if (toRemove.length === 0) {
@@ -74,9 +77,13 @@ export function releaseRestraints(): void {
         return;
     }
 
-    for (const item of toRemove) {
-        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore — mod hook may throw */ }
-    }
+    // Direct array filter bypasses InventoryRemove's internal BC lock checks which
+    // can silently refuse removal even for unlocked items (locked room, permissions, etc.).
+    const removeGroups = new Set(toRemove.map(item => item.Asset.Group.Name));
+    Player.Appearance = Player.Appearance.filter(
+        item => !removeGroups.has(item.Asset.Group.Name)
+    );
+
     if (skipped.length > 0) {
         const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
         localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
@@ -88,10 +95,11 @@ export function releaseRestraints(): void {
     localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
 }
 
-// Returns un-protected restraint items currently worn by the player.
+// Returns restraint items currently worn by the player that can be explicitly removed.
+// Respects ownership locks but not the outfit whitelist (whitelist = auto-change only).
 export function getPlayerRestraints(): Array<{ group: string; name: string }> {
     return Player.Appearance
-        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
+        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
         .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
 }
 
@@ -104,14 +112,16 @@ export function getPlayerLockedItems(): Array<{ group: string; name: string }> {
 
 // Removes specific items by group name from the player. Returns count removed.
 export function removePlayerSpecificItems(groups: string[]): number {
-    let count = 0;
-    for (const group of groups) {
-        try { InventoryRemove(Player, group, false); count++; } catch { /* ignore */ }
-    }
+    const groupSet = new Set(groups);
+    const before = Player.Appearance.length;
+    Player.Appearance = Player.Appearance.filter(
+        item => !groupSet.has(item.Asset.Group.Name)
+    );
+    const count = before - Player.Appearance.length;
     if (count > 0) {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        try { CharacterRefresh(Player, false); } catch { /* ignore */ }
+        try { ChatRoomCharacterUpdate(Player); } catch { /* ignore */ }
+        try { ServerPlayerAppearanceSync(); } catch { /* ignore */ }
     }
     return count;
 }

@@ -2,7 +2,6 @@
 // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
 // so it's available across devices on next login.
 
-import { db } from "./db";
 import { getSettings, syncSettings } from "./bcUtils";
 
 /**
@@ -59,10 +58,21 @@ export function getCachedNames(): Record<string, string> {
     return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
 }
 
+const MAX_NAME_CACHE = 500;
+function _evictNameCache(dict: Record<string, string>): void {
+    const keys = Object.keys(dict);
+    if (keys.length > MAX_NAME_CACHE) {
+        // Remove oldest entries (first keys inserted)
+        for (const k of keys.slice(0, keys.length - MAX_NAME_CACHE)) delete dict[k];
+    }
+}
+
 export function cacheName(memberNumber: number, name: string): void {
     const store = getSettings();
     if (!store.friendNames || typeof store.friendNames !== "object") store.friendNames = {};
-    (store.friendNames as Record<string, string>)[String(memberNumber)] = name;
+    const d = store.friendNames as Record<string, string>;
+    d[String(memberNumber)] = name;
+    _evictNameCache(d);
     // Sync is deferred — name cache is saved alongside the next real operation
 }
 
@@ -79,7 +89,9 @@ export function getCachedAccountNames(): Record<string, string> {
 export function cacheAccountName(memberNumber: number, accountName: string): void {
     const store = getSettings();
     if (!store.friendAccountNames || typeof store.friendAccountNames !== "object") store.friendAccountNames = {};
-    (store.friendAccountNames as Record<string, string>)[String(memberNumber)] = accountName;
+    const d = store.friendAccountNames as Record<string, string>;
+    d[String(memberNumber)] = accountName;
+    _evictNameCache(d);
 }
 
 /** Returns the cached BC account name for this member, or null if unknown. */
@@ -136,20 +148,99 @@ const onlineInfo = new Map<number, FriendOnlineInfo>();
 // Messages sent while recipient was offline — re-delivered when they come online.
 // BC's server drops beeps to offline players, so we queue them here and resend
 // once we detect the recipient came online via AccountQueryResult.
+// The queue is persisted to localStorage so it survives page reloads (48h TTL).
 const pendingOfflineMessages = new Map<number, string[]>();
+const pendingOfflineQueuedAt = new Map<number, number>(); // first-queued timestamp per member
+
+const OFFLINE_QUEUE_LS_KEY  = "EBC_offlineQueue";
+const OFFLINE_QUEUE_TTL_MS  = 48 * 60 * 60 * 1000; // 48 hours
+
+function persistOfflineQueue(): void {
+    try {
+        const obj: Record<string, { messages: string[]; ts: number }> = {};
+        for (const [num, msgs] of pendingOfflineMessages) {
+            obj[String(num)] = { messages: msgs, ts: pendingOfflineQueuedAt.get(num) ?? Date.now() };
+        }
+        if (Object.keys(obj).length === 0) {
+            localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+        } else {
+            localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+        }
+    } catch { /* ignore */ }
+}
+
+// Restore persisted offline queue on module load — discard entries older than 48h.
+void (function restoreOfflineQueue() {
+    try {
+        const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+        const now = Date.now();
+        for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+            const num = Number(key);
+            if (!num || isNaN(num)) continue;
+            const v = val as { messages?: unknown; ts?: unknown };
+            if (!Array.isArray(v?.messages) || typeof v?.ts !== "number") continue;
+            if (now - v.ts > OFFLINE_QUEUE_TTL_MS) continue; // expired, discard
+            const msgs = (v.messages as unknown[]).filter((m): m is string => typeof m === "string");
+            if (msgs.length === 0) continue;
+            pendingOfflineMessages.set(num, msgs);
+            pendingOfflineQueuedAt.set(num, v.ts);
+        }
+    } catch { /* ignore */ }
+})();
 
 function markPendingMessage(memberNumber: number, message: string): void {
     if (onlineSet.has(memberNumber)) return;
     const queue = pendingOfflineMessages.get(memberNumber) ?? [];
+    if (queue.length === 0) pendingOfflineQueuedAt.set(memberNumber, Date.now());
     queue.push(message);
     pendingOfflineMessages.set(memberNumber, queue);
+    persistOfflineQueue();
 }
 
-// Session cache: EBC version for members we've shared a room with this session
-const ebcVersionCache = new Map<number, string>();
+// Timestamp when this module was first loaded — used to add a startup grace
+// window before offline messages are re-delivered so EBC's burst of beeps
+// doesn't stack on top of BC's own login traffic and trip the rate limiter.
+const _moduleLoadTime = Date.now();
+
+// Persistent EBC version cache — survives script reloads.
+// Stored as { [memberNumber]: { v: string, ts: number } } in localStorage.
+// Entries older than 48 hours are pruned on load and on write.
+const EBC_VER_CACHE_KEY = "EBC_ebcVersionCache";
+const EBC_VER_TTL_MS    = 48 * 3600 * 1000;
+
+type VerCacheStore = Record<string, { v: string; ts: number }>;
+
+function loadVerCacheStore(): VerCacheStore {
+    try {
+        const raw = localStorage.getItem(EBC_VER_CACHE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw) as VerCacheStore;
+        const now = Date.now();
+        let pruned = false;
+        for (const key of Object.keys(parsed)) {
+            if (now - (parsed[key]?.ts ?? 0) > EBC_VER_TTL_MS) { delete parsed[key]; pruned = true; }
+        }
+        if (pruned) try { localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(parsed)); } catch { /* ignore */ }
+        return parsed;
+    } catch { return {}; }
+}
+
+// In-memory mirror populated from localStorage on module load
+const ebcVersionCache = new Map<number, string>(
+    Object.entries(loadVerCacheStore()).map(([k, e]) => [Number(k), e.v])
+);
 
 export function cacheEBCVersion(memberNumber: number, version: string): void {
+    if (ebcVersionCache.get(memberNumber) === version) return; // no-op if unchanged
     ebcVersionCache.set(memberNumber, version);
+    try {
+        const store = loadVerCacheStore();
+        store[String(memberNumber)] = { v: version, ts: Date.now() };
+        localStorage.setItem(EBC_VER_CACHE_KEY, JSON.stringify(store));
+    } catch { /* ignore */ }
 }
 
 export function getEBCVersion(memberNumber: number): string | null {
@@ -187,16 +278,31 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
 
     // Re-deliver any messages that were sent while the recipient was offline.
     // BC drops beeps to offline players, so we resend the originals now that they're back.
+    // Messages are staggered 350 ms apart to avoid burst-sending.  A startup grace
+    // window (up to 10 s after module load) adds extra headroom so EBC's re-delivery
+    // doesn't compound with BC's own login traffic and trip the server rate limiter.
+    let queueChanged = false;
+    const ageMs = Date.now() - _moduleLoadTime;
+    const startupGrace = ageMs < 10_000 ? 10_000 - ageMs : 0;
+    let redeliverySlot = 0; // incremented per message across all recipients
+
     for (const [num, msgs] of pendingOfflineMessages) {
         if (onlineSet.has(num) && !prevOnline.has(num)) {
             pendingOfflineMessages.delete(num);
-            try {
-                for (const msg of msgs) {
-                    ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
-                }
-            } catch { /* ignore */ }
+            pendingOfflineQueuedAt.delete(num);
+            queueChanged = true;
+            for (const msg of msgs) {
+                const delay = startupGrace + redeliverySlot * 350;
+                redeliverySlot++;
+                window.setTimeout(() => {
+                    try {
+                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                    } catch { /* ignore */ }
+                }, delay);
+            }
         }
     }
+    if (queueChanged) persistOfflineQueue();
 }
 
 export function getFriendOnlineInfo(memberNumber: number): FriendOnlineInfo | undefined {
@@ -455,7 +561,7 @@ export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): vo
 
 // -- Beep history --------------------------------------------------------------
 
-const MAX_ENTRIES = 300;
+const MAX_ENTRIES = 100; // reduced from 300 — each message can be 200-500 bytes
 
 export function getBeepHistory(): BeepEntry[] {
     const v = getSettings().beepHistory;
@@ -465,7 +571,10 @@ export function getBeepHistory(): BeepEntry[] {
 export function addBeepEntry(entry: BeepEntry): void {
     const store = getSettings();
     const history = getBeepHistory();
-    history.push(entry);
+    // Strip mod metadata and truncate before persisting — WCE/FBC append large
+    // JSON blobs to messages that bloat the stored history significantly.
+    const cleaned = stripBeepMetadata(entry.message).slice(0, 200);
+    history.push({ ...entry, message: cleaned });
     if (history.length > MAX_ENTRIES) history.splice(0, history.length - MAX_ENTRIES);
     store.beepHistory = history;
     sync();
@@ -477,6 +586,18 @@ export function getConversation(memberNumber: number): BeepEntry[] {
         (e.from === memberNumber && e.to === self) ||
         (e.from === self && e.to === memberNumber),
     );
+}
+
+/** Removes all beep history entries between the local player and the given member. */
+export function clearConversation(memberNumber: number): void {
+    const self = Player.MemberNumber ?? 0;
+    const store = getSettings();
+    const history = getBeepHistory();
+    store.beepHistory = history.filter(e =>
+        !((e.from === memberNumber && e.to === self) ||
+          (e.from === self && e.to === memberNumber))
+    );
+    sync();
 }
 
 // -- Character bundle store ----------------------------------------------------
@@ -504,41 +625,25 @@ const sessionCharacterBundles = new Map<number, unknown>();
 
 /**
  * Store the raw server bundle for an online character.
- * Input must already be a plain deep-copied object (caller used structuredClone).
- * Session cache is updated synchronously; IndexedDB write is fire-and-forget async.
+ * Session cache only — IndexedDB was removed (caused persistent
+ * "[object Event]" unhandled rejections in Chrome that couldn't be suppressed).
  */
 export function storeRawBundle(data: unknown): void {
     try {
         const d = data as Record<string, unknown>;
         const num = typeof d.MemberNumber === "number" ? d.MemberNumber : 0;
         if (!num) return;
-        // Shallow-clone and strip large/sensitive fields before storing
         const bundle: Record<string, unknown> = { ...d };
         for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
-        // Tier 1: session memory (sync — always available immediately)
         sessionCharacterBundles.set(num, bundle);
-        // Tier 2: IndexedDB via Dexie (async, fire-and-forget — no localStorage quota risk)
-        db.bundles.put({ num, data: bundle, ts: Date.now() }).catch(() => {});
     } catch { /* ignore */ }
 }
 
 /**
- * Retrieve a stored bundle. Checks the session cache first (sync-fast path),
- * then falls back to IndexedDB for bundles from previous sessions.
+ * Retrieve a stored bundle — session cache only.
  */
 export async function getCharacterBundle(memberNumber: number): Promise<unknown | null> {
-    // Tier 1: session memory
-    const mem = sessionCharacterBundles.get(memberNumber);
-    if (mem != null) return mem;
-    // Tier 2: IndexedDB (previous sessions)
-    try {
-        const row = await db.bundles.get(memberNumber);
-        if (row) {
-            sessionCharacterBundles.set(memberNumber, row.data); // promote to session cache
-            return row.data;
-        }
-    } catch { /* ignore */ }
-    return null;
+    return sessionCharacterBundles.get(memberNumber) ?? null;
 }
 
 // -- Sending -------------------------------------------------------------------

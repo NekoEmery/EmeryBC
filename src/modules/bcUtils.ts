@@ -19,6 +19,45 @@ export function initSettings(): void {
     for (const [k, v] of Object.entries(src)) {
         if (k !== "_d") _mem[k] = v;
     }
+    // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
+    // Player.OnlineSettings before settings were moved to ExtensionSettings.
+    // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
+    // shows up as a /!\ warning mark over the player's head.  Remove the stale key.
+    try {
+        const onlineSettings = (Player as unknown as Record<string, unknown>).OnlineSettings as
+            Record<string, unknown> | undefined;
+        if (onlineSettings && "EmeryBC" in onlineSettings) {
+            delete onlineSettings["EmeryBC"];
+            try {
+                const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerSettingsSync;
+                if (typeof syncFn === "function") (syncFn as () => void)();
+            } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+
+    // Prune oversized data accumulated by old EBC versions:
+    // - peopleMet capped at 300 entries (was 2000, ~27 bytes/entry = 54 KB)
+    // - beepHistory capped at 100 entries (was 300, each up to 500+ bytes)
+    // - friendNames / friendAccountNames capped at 500 entries each (were unbounded)
+    try {
+        if (Array.isArray(_mem.peopleMet) && (_mem.peopleMet as unknown[]).length > 150) {
+            (_mem.peopleMet as unknown[]).splice(0, (_mem.peopleMet as unknown[]).length - 150);
+        }
+        if (Array.isArray(_mem.beepHistory) && (_mem.beepHistory as unknown[]).length > 100) {
+            (_mem.beepHistory as unknown[]).splice(0, (_mem.beepHistory as unknown[]).length - 100);
+        }
+        for (const key of ["friendNames", "friendAccountNames"] as const) {
+            const d = _mem[key];
+            if (d && typeof d === "object" && !Array.isArray(d)) {
+                const keys = Object.keys(d as Record<string, unknown>);
+                if (keys.length > 500) {
+                    for (const k of keys.slice(0, keys.length - 500))
+                        delete (d as Record<string, unknown>)[k];
+                }
+            }
+        }
+    } catch { /* ignore */ }
+
     // One-time migration: pull kitty data that may still be in localStorage
     // from before it was moved into ExtensionSettings in v4.6.1.
     _migrateKittyFromLocalStorage();

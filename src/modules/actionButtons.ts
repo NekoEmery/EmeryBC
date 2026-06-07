@@ -163,6 +163,86 @@ let seqRestoreFn: (() => void) | null = null;
 
 export function isSeqRunning(): boolean { return seqRunning; }
 export function setSeqDoneCallback(fn: (() => void) | null): void { seqDoneCallback = fn; }
+
+// -- BC-native slow leave ----------------------------------------------------
+// Two-stage approach with optional intro emote:
+//   t=0           : send intro emote (if any), show Crawl status icon
+//   t=INTRO_DELAY : send SlowLeaveAttempt action message
+//   t=INTRO_DELAY+durMs : fire done callback (leave room)
+//   cancel        : clear timers, send SlowLeaveCancel only if attempt was sent, clear Crawl
+const INTRO_DELAY_MS = 1_200;
+
+let slowLeaveActive       = false;   // true from start until cancel/done
+let slowLeaveAttemptSent  = false;   // true once SlowLeaveAttempt has been sent
+let slowLeaveIntroId: ReturnType<typeof setTimeout> | null = null;
+let slowLeaveLeaveId: ReturnType<typeof setTimeout> | null = null;
+let slowLeaveDoneCallback: (() => void) | null = null;
+
+export function isSlowLeaveActive(): boolean { return slowLeaveActive; }
+export function setSlowLeaveDoneCallback(fn: (() => void) | null): void { slowLeaveDoneCallback = fn; }
+
+function bcStatusUpdate(status: string): void {
+    try { (window as unknown as Record<string, (s: string) => void>).ChatRoomStatusUpdate?.(status); } catch { /* ignore */ }
+}
+
+export function startBCSlowLeave(durMs: number, introEmote = ""): void {
+    if (slowLeaveActive) return;
+    slowLeaveActive = true;
+    slowLeaveAttemptSent = false;
+
+    bcStatusUpdate("Crawl");
+
+    const sendAttemptThenLeave = (): void => {
+        slowLeaveIntroId = null;
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: "SlowLeaveAttempt",
+                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+            });
+            slowLeaveAttemptSent = true;
+        } catch { /* ignore */ }
+        slowLeaveLeaveId = window.setTimeout(() => {
+            slowLeaveLeaveId = null;
+            slowLeaveActive = false;
+            slowLeaveAttemptSent = false;
+            const cb = slowLeaveDoneCallback;
+            slowLeaveDoneCallback = null;
+            cb?.();
+        }, durMs);
+    };
+
+    const intro = introEmote.trim().replace(/^\*/, "").trim();
+    if (intro) {
+        try {
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: intro, Dictionary: [] });
+        } catch { /* ignore */ }
+        slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
+    } else {
+        sendAttemptThenLeave();
+    }
+}
+
+export function cancelBCSlowLeave(): void {
+    if (!slowLeaveActive) return;
+    if (slowLeaveIntroId !== null) { window.clearTimeout(slowLeaveIntroId); slowLeaveIntroId = null; }
+    if (slowLeaveLeaveId !== null) { window.clearTimeout(slowLeaveLeaveId); slowLeaveLeaveId = null; }
+    slowLeaveActive = false;
+    slowLeaveDoneCallback = null;
+    bcStatusUpdate("");
+    if (slowLeaveAttemptSent) {
+        slowLeaveAttemptSent = false;
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: "SlowLeaveCancel",
+                Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+            });
+        } catch { /* ignore */ }
+    } else {
+        slowLeaveAttemptSent = false;
+    }
+}
 export function cancelSequence(): void {
     if (!seqRunning) return;
     if (seqTimeoutId !== null) { window.clearTimeout(seqTimeoutId); seqTimeoutId = null; }

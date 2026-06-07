@@ -1,6 +1,6 @@
 {
   "name": "emerybc",
-  "version": "5.4.4",
+  "version": "5.4.5",
   "description": "Bondage Club addon - action buttons & outfit manager",
   "license": "MIT",
   "scripts": {
@@ -19,7 +19,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "bondage-club-mod-sdk": "^1.2.0",
-    "dexie": "^4.4.2"
+    "bondage-club-mod-sdk": "^1.2.0"
   }
 }

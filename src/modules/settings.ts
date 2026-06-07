@@ -298,6 +298,28 @@ export function setBeepMuted(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Quick replies -------------------------------------------------------------
+// Configurable one-click phrases shown as buttons inside beep windows.
+// Clicking inserts the text into the input so the user can review/edit before sending.
+
+const DEFAULT_QUICK_REPLIES = ["brb", "busy, back soon", "hello ^^"];
+
+export function getQuickReplies(): string[] {
+    try {
+        const v = getSettings()?.quickReplies;
+        if (Array.isArray(v)) return v as string[];
+    } catch { /* ignore */ }
+    return [...DEFAULT_QUICK_REPLIES];
+}
+
+export function saveQuickReplies(replies: string[]): void {
+    try {
+        const store = getSettings();
+        store.quickReplies = replies;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Action buttons sidebar visibility ----------------------------------------
 
 export function getActionButtonsVisible(): boolean {
@@ -321,40 +343,105 @@ export interface PersonMet {
     name: string;
 }
 
-const PEOPLE_MET_CAP = 2000;
+// Server (cross-device via ExtensionSettings): last 150 entries only.
+// localStorage (this device): full unbounded history.
+// getPeopleMet() merges both so the DEV panel shows everything available.
+const PEOPLE_MET_SERVER_CAP = 150;
+const PEOPLE_MET_LOCAL_KEY  = "EBC_peopleMet_local";
 
 // Debounce handle for batching multiple recordPersonMet calls into one server sync.
 let peopleMetSyncTimer: ReturnType<typeof setTimeout> | null = null;
-
 function schedulePeopleMetSync(): void {
-    if (peopleMetSyncTimer !== null) return; // already queued
-    peopleMetSyncTimer = setTimeout(() => {
-        peopleMetSyncTimer = null;
-        syncSettings();
-    }, 3000); // wait 3 s then send one sync for all changes
+    if (peopleMetSyncTimer !== null) return;
+    peopleMetSyncTimer = setTimeout(() => { peopleMetSyncTimer = null; syncSettings(); }, 3000);
 }
 
-export function getPeopleMet(): PersonMet[] {
+// -- localStorage helpers (no size limit, device-only) -------------------------
+function _pmLocalLoad(): PersonMet[] {
+    try {
+        const raw = localStorage.getItem(PEOPLE_MET_LOCAL_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as PersonMet[]) : [];
+    } catch { return []; }
+}
+
+function _pmLocalSave(list: PersonMet[]): void {
+    try { localStorage.setItem(PEOPLE_MET_LOCAL_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
+// -- Server helpers (capped, cross-device) ------------------------------------
+function _pmServerLoad(): PersonMet[] {
     try {
         const raw = getSettings()?.peopleMet;
         return Array.isArray(raw) ? (raw as PersonMet[]) : [];
     } catch { return []; }
 }
 
+// On first load: migrate any existing server peopleMet into localStorage so
+// the user doesn't lose their history when upgrading to the hybrid model.
+let _pmMigrated = false;
+export function migratePeopleMetToLocal(): void {
+    if (_pmMigrated) return;
+    _pmMigrated = true;
+    try {
+        const server = _pmServerLoad();
+        if (server.length === 0) return;
+        const local = _pmLocalLoad();
+        const localNums = new Set(local.map(p => p.n));
+        let changed = false;
+        for (const p of server) {
+            if (!localNums.has(p.n)) { local.push(p); localNums.add(p.n); changed = true; }
+        }
+        if (changed) _pmLocalSave(local);
+    } catch { /* ignore */ }
+}
+
+/** Returns the full merged list (local ∪ server). Prefer local copy when both have the same member. */
+export function getPeopleMet(): PersonMet[] {
+    const local  = _pmLocalLoad();
+    const server = _pmServerLoad();
+    const localNums = new Set(local.map(p => p.n));
+    const merged = [...local];
+    for (const p of server) {
+        if (!localNums.has(p.n)) merged.push(p); // add cross-device entries missing locally
+    }
+    return merged;
+}
+
 export function recordPersonMet(memberNumber: number, name: string): void {
     try {
-        const store = getSettings();
-        const list = getPeopleMet();
-        const existing = list.find(p => p.n === memberNumber);
-        if (existing) {
-            if (existing.name === name) return; // nothing changed — skip sync entirely
-            existing.name = name;
+        // 1. Update localStorage (full device history, no cap)
+        const local = _pmLocalLoad();
+        const localIdx = local.findIndex(p => p.n === memberNumber);
+        if (localIdx >= 0) {
+            if (local[localIdx].name === name) {
+                // No change at all — skip everything including server sync
+                return;
+            }
+            local[localIdx].name = name;
         } else {
-            if (list.length >= PEOPLE_MET_CAP) list.splice(0, list.length - PEOPLE_MET_CAP + 1);
-            list.push({ n: memberNumber, name });
+            local.push({ n: memberNumber, name });
         }
-        store.peopleMet = list;
-        schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
+        _pmLocalSave(local);
+
+        // 2. Update server list (most recent PEOPLE_MET_SERVER_CAP entries only)
+        const store = getSettings();
+        const server = _pmServerLoad();
+        const sIdx = server.findIndex(p => p.n === memberNumber);
+        if (sIdx >= 0) {
+            server[sIdx].name = name;
+            // Move to end so it stays in the "most recent" window
+            const [entry] = server.splice(sIdx, 1);
+            server.push(entry);
+        } else {
+            server.push({ n: memberNumber, name });
+        }
+        if (server.length > PEOPLE_MET_SERVER_CAP) {
+            server.splice(0, server.length - PEOPLE_MET_SERVER_CAP);
+        }
+        store.peopleMet = server;
+        schedulePeopleMetSync();
     } catch { /* ignore */ }
 }
 
@@ -362,6 +449,7 @@ export function clearPeopleMet(): void {
     try {
         const store = getSettings();
         store.peopleMet = [];
+        try { localStorage.removeItem(PEOPLE_MET_LOCAL_KEY); } catch { /* ignore */ }
         syncSettings();
     } catch { /* ignore */ }
 }

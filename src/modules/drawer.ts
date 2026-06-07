@@ -79,6 +79,10 @@ import {
     cancelSequence,
     isSeqRunning,
     setSeqDoneCallback,
+    startBCSlowLeave,
+    cancelBCSlowLeave,
+    isSlowLeaveActive,
+    setSlowLeaveDoneCallback,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -88,14 +92,14 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -315,33 +319,50 @@ function getGroupAssets(group: string): string[] {
 // -- Slow Leave preset storage -------------------------------------------------
 
 const SLOW_LEAVE_PRESET_DEFAULTS = [
-    { label: "Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
-    { label: "Warm",    seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
-    { label: "Quiet",   seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
-    { label: "Sleepy",  seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
-    { label: "Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
-    { label: "Bratty",  seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
-    { label: "Custom",  seq: "*waves and heads for the door~@{DUR}|leaveroom" },
+    { label: "Classic", intro: "smiles and gives a little wave~" },
+    { label: "Warm",    intro: "gives everyone a warm hug before leaving~" },
+    { label: "Quiet",   intro: "" },
+    { label: "Sleepy",  intro: "yawns softly and stretches~" },
+    { label: "Playful", intro: "bounces happily and waves her tail~" },
+    { label: "Bratty",  intro: "stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much." },
+    { label: "Custom",  intro: "" },
 ];
 
-function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
+function extractIntroFromSeq(seq: string): string {
+    for (const step of seq.split("|")) {
+        const s = step.trim();
+        if (s.startsWith("*")) {
+            const atIdx = s.lastIndexOf("@");
+            const raw = atIdx > 0 ? s.slice(0, atIdx).trim() : s;
+            return raw.replace(/^\*/, "").trim();
+        }
+    }
+    return "";
+}
+
+function getSlowLeavePresets(): Array<{ label: string; intro: string }> {
     try {
         const raw = localStorage.getItem("EBC_slowLeavePresets");
         if (raw) {
-            const parsed = JSON.parse(raw) as Array<{ label: string; seq: string }>;
+            const parsed = JSON.parse(raw) as Array<{ label: string; intro?: string; seq?: string }>;
             if (Array.isArray(parsed) && parsed.length > 0) {
+                // Migrate old seq-based format to intro format
+                const migrated = parsed.map(p => ({
+                    label: p.label,
+                    intro: p.intro !== undefined ? p.intro : (p.seq ? extractIntroFromSeq(p.seq) : ""),
+                }));
                 // Additive migration: append any new defaults not yet in the stored list
                 for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
-                    if (!parsed.find(p => p.label === def.label)) parsed.push({ ...def });
+                    if (!migrated.find(p => p.label === def.label)) migrated.push({ ...def });
                 }
-                return parsed;
+                return migrated;
             }
         }
     } catch { /* ignore */ }
     return SLOW_LEAVE_PRESET_DEFAULTS.map(p => ({ ...p }));
 }
 
-function saveSlowLeavePresets(v: Array<{ label: string; seq: string }>): void {
+function saveSlowLeavePresets(v: Array<{ label: string; intro: string }>): void {
     try { localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v)); } catch { /* ignore */ }
 }
 
@@ -565,6 +586,8 @@ const CSS = `
     top: 0;
     width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
     height: 100%;  /* full chat log height — no vertical conflict with tab */
+    display: flex;
+    flex-direction: column;
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -590,7 +613,8 @@ const CSS = `
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
@@ -1005,6 +1029,10 @@ const CSS = `
     flex-shrink: 0;
     width: 26px;
     height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -2291,7 +2319,8 @@ const CSS = `
 /* -- Beep window -- */
 .ebc-beep-win {
     position: fixed;
-    width: 300px;
+    width: min(320px, calc(100vw - 16px)); /* never overflow on narrow screens */
+    max-width: calc(100vw - 16px);
     height: 380px;
     background: rgba(19,8,16,0.94);
     backdrop-filter: blur(4px);
@@ -2304,7 +2333,7 @@ const CSS = `
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     font-family: "Trebuchet MS", serif;
     bottom: 80px;
-    right: 340px;
+    right: min(340px, calc(100vw - 336px)); /* keep window on-screen on narrow devices */
     overflow: hidden;
 }
 
@@ -2323,6 +2352,13 @@ const CSS = `
 
 .ebc-beep-win-title {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+}
+.ebc-beep-win-title-primary {
     font-size: 11px;
     font-weight: bold;
     color: #cf6f98;
@@ -2330,13 +2366,22 @@ const CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.ebc-beep-win-title-sub {
+    font-size: 8px;
+    color: #7a5060;
+    font-weight: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
 
 .ebc-beep-win-hbtn {
     background: rgba(42,14,30,0.58);
     border: 1px solid #4a2035;
     border-radius: 5px;
     color: #9a6878;
-    font-size: 13px;
+    font-size: 11px;
     cursor: pointer;
     line-height: 1;
     padding: 5px 8px;
@@ -2358,6 +2403,7 @@ const CSS = `
 }
 
 .ebc-beep-msg {
+    position: relative;
     font-size: 10px;
     line-height: 1.5;
     padding: 4px 7px;
@@ -2378,19 +2424,25 @@ const CSS = `
     border: 1px solid #3a1928;
     border-bottom-left-radius: 2px;
 }
+.ebc-beep-ts-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 1px;
+}
+.ebc-beep-msg.sent .ebc-beep-ts-row { justify-content: flex-end; }
 .ebc-beep-ts {
     font-size: 9px;
     color: #7a5a6a;
-    margin-bottom: 1px;
 }
-.ebc-beep-msg.sent .ebc-beep-ts { text-align: right; }
 
 .ebc-beep-win-footer {
     display: flex;
-    gap: 5px;
-    padding: 7px 8px;
+    gap: 4px;
+    padding: 6px 7px;
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
+    min-width: 0;
 }
 
 .ebc-beep-win-input {
@@ -2413,9 +2465,10 @@ const CSS = `
     color: #cf6f98;
     font-size: 11px;
     font-family: "Trebuchet MS", serif;
-    padding: 4px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 .ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
@@ -2429,9 +2482,12 @@ const CSS = `
     background: transparent; /* let the outer window rgba show through instead of stacking */
 }
 .ebc-beep-win.minimized .ebc-beep-win-history,
+.ebc-beep-win.minimized .ebc-beep-offline-banner,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-room-bar,
 .ebc-beep-win.minimized .ebc-beep-room-drawer,
+.ebc-beep-win.minimized .ebc-qr-bar,
+.ebc-beep-win.minimized .ebc-beep-online-alert,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
@@ -2463,6 +2519,18 @@ const CSS = `
 .ebc-inbox-card.unread     { border-color: #3a1a28; background: #1c0c16; }
 .ebc-inbox-card.unread:hover { background: #2a1020; border-color: #cf6f98; }
 
+.ebc-beep-offline-banner {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #7a5565;
+    background: #140810;
+    border-top: 1px solid #221018;
+    padding: 5px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
 .ebc-beep-reply-bar {
     display: flex;
     align-items: center;
@@ -2491,6 +2559,55 @@ const CSS = `
     padding: 0 2px;
     flex-shrink: 0;
 }
+
+/* -- Quick-reply bar (inside beep windows) ---------------------------------- */
+.ebc-qr-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 5px;
+    border-top: 1px solid #2a1320;
+    flex-shrink: 0;
+    min-height: 26px;
+}
+.ebc-qr-bar.edit-mode {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 3px;
+    padding-bottom: 7px;
+}
+.ebc-qr-btn {
+    background: #1e0818;
+    border: 1px solid #4a2538;
+    border-radius: 3px;
+    color: #b07898;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.ebc-qr-btn:hover { background: #3a1028; border-color: #cf6f98; color: #e8c8d8; }
+.ebc-qr-gear {
+    background: transparent;
+    border: 1px solid #8a4060;
+    border-radius: 3px;
+    color: #c09098;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 5px;
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.1s, border-color 0.1s;
+}
+.ebc-qr-gear:hover { color: #cf6f98; border-color: #4a2538; }
 .ebc-beep-reply-cancel:hover { color: #cf6f98; }
 
 .ebc-beep-quote {
@@ -2554,7 +2671,7 @@ const CSS = `
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 90px; }
+.ebc-beep-room-drawer.open { max-height: 130px; }
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -2588,6 +2705,52 @@ const CSS = `
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
+.ebc-beep-room-drawer-copy {
+    background: transparent;
+    border: 1px solid #4a2038;
+    border-radius: 4px;
+    color: #9a6080;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    padding: 3px 0;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
+
+/* Message wrap */
+.ebc-beep-msg-wrap { position: relative; }
+/* Copy button — shown inline beside the timestamp */
+.ebc-bubble-copy-btn {
+    display: inline-block;
+    flex-shrink: 0;
+    background: rgba(20, 6, 16, 0.85);
+    border: 1px solid #4a2038;
+    border-radius: 3px;
+    color: #9a6070;
+    font-family: "Trebuchet MS", serif;
+    font-size: 8px;
+    cursor: pointer;
+    padding: 1px 4px;
+    line-height: 1.4;
+    transition: color 0.1s, border-color 0.1s;
+}
+.ebc-bubble-copy-btn:hover { color: #cf6f98; border-color: #cf6f98; }
+
+/* "They came online!" transient notice */
+.ebc-beep-online-alert {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #70c890;
+    background: #081408;
+    border-top: 1px solid #0e2210;
+    padding: 4px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    animation: ebc-fadein 0.3s ease;
+}
+@keyframes ebc-fadein { from { opacity: 0; } to { opacity: 1; } }
 
 .ebc-beep-room-invite-card {
     background: rgba(58,16,40,0.40);
@@ -2663,14 +2826,44 @@ const CSS = `
     background: #1e0d1a;
     border: 1px solid #5a2840;
     border-radius: 8px;
-    padding: 6px;
-    flex-wrap: wrap;
-    gap: 2px;
-    width: 206px;
+    width: 252px;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
     z-index: 10001;
+    overflow: hidden;
+    flex-direction: column;
 }
-.ebc-emoji-picker button {
+.ebc-emoji-tabs {
+    display: flex;
+    background: #180c14;
+    border-bottom: 1px solid #3a1828;
+    flex-shrink: 0;
+}
+.ebc-emoji-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: #7a5060;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 5px 1px;
+    line-height: 1;
+    transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+.ebc-emoji-tab:hover { background: rgba(60,16,40,0.6); color: #cf8098; }
+.ebc-emoji-tab.active { color: #cf6f98; border-bottom-color: #cf6f98; }
+.ebc-emoji-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    padding: 5px;
+    max-height: 190px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+.ebc-emoji-body button {
     background: none;
     border: none;
     font-size: 16px;
@@ -2680,7 +2873,15 @@ const CSS = `
     transition: background 0.1s;
     line-height: 1;
 }
-.ebc-emoji-picker button:hover { background: #3a1028 !important; filter: none !important; }
+.ebc-emoji-body button.ebc-text-emote {
+    font-size: 9.5px;
+    font-family: "Trebuchet MS", serif;
+    color: #d0a8b8;
+    padding: 3px 6px;
+    white-space: nowrap;
+    line-height: 1.6;
+}
+.ebc-emoji-body button:hover { background: #3a1028 !important; filter: none !important; }
 
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
@@ -3619,7 +3820,7 @@ function saveStripTabFilter(key: string, tabs: Set<DrawerTab> | null): void {
 
 
 
-const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
+const EBC_OPEN_BEEP_WINS_KEY  = "EBC_openBeepWins";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -3686,6 +3887,8 @@ export class EBCDrawer {
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
     // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
     private userTabOffset: { x: number; y: number } | null = null;
+    // User-dragged panel height (px). null = fill available space.
+    private userPanelHeight: number | null = null;
     // Set to true once we've confirmed no saved position exists, so we stop polling storage.
     private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
@@ -4579,6 +4782,7 @@ export class EBCDrawer {
         panel.appendChild(ebcTagsStrip);
         panel.appendChild(body);
         panel.appendChild(footer);
+
         // Move all panel children into the wrapper, then add wrapper to panel.
         while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
         panel.appendChild(zoomWrapper);
@@ -4768,19 +4972,26 @@ export class EBCDrawer {
 
         // Only write to the DOM when the chat log actually moved or resized —
         // eliminates layout thrashing on every animation frame (pattern from CRABS).
+        // Round to whole pixels to ignore sub-pixel drift that can cause constant
+        // re-fires (e.g. getBoundingClientRect() returning 4.5 vs 4.500001).
+        const rTop    = Math.round(rect.top);
+        const rWidth  = Math.round(rect.width);
+        const rHeight = Math.round(rect.height);
+        const rRight  = Math.round(rightOffset);
         if (
-            this.lastRect.top    !== rect.top    ||
-            this.lastRect.width  !== rect.width  ||
-            this.lastRect.height !== rect.height ||
-            this.lastRect.right  !== rightOffset
+            this.lastRect.top    !== rTop    ||
+            this.lastRect.width  !== rWidth  ||
+            this.lastRect.height !== rHeight ||
+            this.lastRect.right  !== rRight
         ) {
             // Cap height so the panel never extends below the visible viewport.
-            const finalH = Math.min(rect.height, Math.max(100, window.innerHeight - rect.top - 8));
-            this.rootEl.style.top    = `${rect.top}px`;
-            this.rootEl.style.right  = `${rightOffset}px`;
+            const finalH = Math.min(rHeight, Math.max(100, window.innerHeight - rTop - 8));
+            const panelH = this.userPanelHeight !== null ? Math.min(finalH, this.userPanelHeight) : finalH;
+            this.rootEl.style.top   = `${rTop}px`;
+            this.rootEl.style.right = `${rRight}px`;
             this.rootEl.style.height = `${finalH}px`;
-            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${finalH}px`;
-            this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
+            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
+            this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick
             this.lastCrabsBottom = -1;
@@ -4998,7 +5209,8 @@ export class EBCDrawer {
             // fully visible (overrides the in-room left:-10px collapsed state).
             // Centre the panel vertically in the viewport.
             this.rootEl.classList.add("ebc-roaming");
-            const h = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
             const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
             this.rootEl.style.top    = `${top}px`;
             this.rootEl.style.right  = "0px";
@@ -6032,7 +6244,8 @@ export class EBCDrawer {
 
         const exportBadgeCode = (): string => {
             try {
-                const store = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined) ?? {};
+                // Read from the live in-memory store (getSettings()) — always up to date
+                const store = getSettings();
                 const settings: Record<string, unknown> = {};
                 for (const k of BADGE_KEYS) {
                     if (k in store) settings[k] = store[k];
@@ -6046,9 +6259,12 @@ export class EBCDrawer {
             if (!trimmed.startsWith(BADGE_CODE_PREFIX)) throw new Error("Invalid");
             const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length))))) as Record<string, unknown>;
             if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("Invalid");
-            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+            // Write to the in-memory store (_mem) — syncSettings() flushes _mem →
+            // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
+            // syncSettings() would overwrite it with the old _mem values.
+            const mem = getSettings();
             for (const k of BADGE_KEYS) {
-                if (k in incoming) store[k] = incoming[k];
+                if (k in incoming) mem[k] = incoming[k];
             }
             syncSettings();
         };
@@ -11396,6 +11612,21 @@ export class EBCDrawer {
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
+        // Offline indicator banner — created here (before updateStatus) so it's captured
+        // by the closure. Appended to win after the history div.
+        const offlineBanner = document.createElement("div");
+        offlineBanner.className = "ebc-beep-offline-banner";
+        offlineBanner.textContent = "📭 They're offline — you can still send a message and they'll receive it when they come back online";
+
+        // "Came online" transient notice — declared here so updateStatus() can reference it.
+        // Appended right after offlineBanner.
+        const onlineAlert = document.createElement("div");
+        onlineAlert.className = "ebc-beep-online-alert";
+        onlineAlert.textContent = "✓ They just came online!";
+        onlineAlert.style.display = "none";
+        let _onlineAlertTimer: ReturnType<typeof setTimeout> | null = null;
+        let _prevStatus: string | null = null;
+
         // Join a room by name — shared by the room pill header click and the Join → card button.
         // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
         // leave the current room (if any) and then send a ChatRoomJoin socket event.
@@ -11428,7 +11659,26 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-beep-win-title";
-        title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+        const titlePrimary = document.createElement("span");
+        titlePrimary.className = "ebc-beep-win-title-primary";
+        const titleSub = document.createElement("span");
+        titleSub.className = "ebc-beep-win-title-sub";
+        titleSub.style.display = "none";
+        title.appendChild(titlePrimary);
+        title.appendChild(titleSub);
+        const updateTitle = (): void => {
+            const displayName = resolveName(memberNumber);
+            const acctName    = getAccountName(memberNumber);
+            const hasNick     = acctName !== null && acctName !== displayName;
+            titlePrimary.textContent = `${displayName} #${memberNumber}`;
+            if (hasNick) {
+                titleSub.textContent   = acctName!;
+                titleSub.style.display = "";
+            } else {
+                titleSub.style.display = "none";
+            }
+        };
+        updateTitle();
 
         // Slim room bar — click/tap to toggle the info drawer below it.
         const roomBar = document.createElement("div");
@@ -11453,6 +11703,21 @@ export class EBCDrawer {
             doJoinRoom(rName);
         });
 
+        // Copy room name button
+        const roomDrawerCopy = document.createElement("button");
+        roomDrawerCopy.className = "ebc-beep-room-drawer-copy";
+        roomDrawerCopy.textContent = "Copy room name";
+        roomDrawerCopy.style.display = "none";
+        roomDrawerCopy.addEventListener("click", (e: Event) => {
+            e.stopPropagation();
+            const rName = getFriendOnlineInfo(memberNumber)?.roomName;
+            if (!rName) return;
+            navigator.clipboard.writeText(rName).catch(() => {});
+            roomDrawerCopy.textContent = "Copied ✓";
+            window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
+        });
+
+        roomDrawerInner.appendChild(roomDrawerCopy);
         roomDrawerInner.appendChild(roomDrawerJoin);
         roomDrawer.appendChild(roomDrawerInner);
 
@@ -11485,14 +11750,30 @@ export class EBCDrawer {
         const updateStatus = (): void => {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
-            title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+            offlineBanner.style.display = s === "away" ? "" : "none";
+
+            // Online alert — flash briefly when they come back from offline
+            if (_prevStatus === "away" && s !== "away") {
+                onlineAlert.style.display = "";
+                if (_onlineAlertTimer !== null) clearTimeout(_onlineAlertTimer);
+                _onlineAlertTimer = window.setTimeout(() => {
+                    onlineAlert.style.display = "none";
+                    _onlineAlertTimer = null;
+                }, 5000);
+            }
+            _prevStatus = s;
+
+            updateTitle();
+
             const info = getFriendOnlineInfo(memberNumber);
+
             if (info?.roomName) {
                 roomBar.textContent = `📍 ${info.roomName}`;
                 roomBar.title = info.roomName;
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
-                roomDrawerJoin.style.display = ""; // re-show join button (may have been hidden for private room)
+                roomDrawerJoin.style.display = "";
+                roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name — use our tracked name.
                 const sameRoomName = getCurrentRoomName();
@@ -11502,10 +11783,12 @@ export class EBCDrawer {
                     roomBar.style.display = "";
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
+                    roomDrawerCopy.style.display = "";
                 } else {
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
+                    roomDrawerCopy.style.display = "none";
                 }
             } else if (info?.isPrivate) {
                 // BC sets Private: true when the friend is in a private/restricted room.
@@ -11514,11 +11797,13 @@ export class EBCDrawer {
                 roomBar.style.display = "";
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "none"; // can't join by name
+                roomDrawerCopy.style.display = "none";
             } else {
                 // Private is falsy and no room name = friend is in the lobby
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
+                roomDrawerCopy.style.display = "none";
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
@@ -11527,6 +11812,10 @@ export class EBCDrawer {
         // Unread dot (shown on minimized bar)
         const unreadDot = document.createElement("div");
         unreadDot.className = "ebc-beep-win-unread-dot";
+
+        // ── Tiny SVG icon helpers for header/footer buttons ──────────────────
+        const _mkIconSvg = (inner: string) =>
+            `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${inner}</svg>`;
 
         // Per-person mute toggle — silences beep sounds from this specific person
         const muteBtn = document.createElement("button");
@@ -11552,6 +11841,22 @@ export class EBCDrawer {
         roomInviteBtn.textContent = "📍";
         roomInviteBtn.title = "Send your current room as an invite";
 
+        // Clear conversation button — wipes local history after confirmation
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "ebc-beep-win-hbtn";
+        clearBtn.textContent = "🗑️";
+        clearBtn.title = "Clear conversation";
+        clearBtn.addEventListener("click", () => {
+            showConfirmOverlay(
+                "Clear all messages with this person? This cannot be undone.",
+                "Cancel", "Clear",
+                () => {
+                    clearConversation(memberNumber);
+                    renderHistory();
+                },
+            );
+        });
+
         const minimizeBtn = document.createElement("button");
         minimizeBtn.className = "ebc-beep-win-hbtn";
         minimizeBtn.textContent = startMinimized ? "▲" : "–";
@@ -11564,6 +11869,8 @@ export class EBCDrawer {
             minimizeBtn.textContent = entry.minimized ? "▲" : "–";
             minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
             if (!entry.minimized) {
+                // History just became visible — scroll to bottom (scrollHeight is 0 while hidden)
+                window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
                 unreadDot.classList.remove("visible");
                 this.beepUnread.delete(memberNumber);
                 this.refreshTabDot();
@@ -11580,6 +11887,8 @@ export class EBCDrawer {
             win.classList.remove("minimized");
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
+            // History just became visible — scroll to bottom
+            window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
         };
 
         const closeBtn = document.createElement("button");
@@ -11596,6 +11905,7 @@ export class EBCDrawer {
         header.appendChild(unreadDot);
         header.appendChild(muteBtn);
         header.appendChild(roomInviteBtn);
+        header.appendChild(clearBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
@@ -11668,6 +11978,8 @@ export class EBCDrawer {
         const history = document.createElement("div");
         history.className = "ebc-beep-win-history";
         win.appendChild(history);
+        win.appendChild(offlineBanner);
+        win.appendChild(onlineAlert);
 
         // Reply state
         let replyText = "";
@@ -11708,31 +12020,56 @@ export class EBCDrawer {
             for (const e of entries) {
                 const isSent = e.from === self;
                 const wrap = document.createElement("div");
+                wrap.className = "ebc-beep-msg-wrap";
                 wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
 
                 const bubbleMember = isSent ? self : e.from;
-                const nameLabel = document.createElement("div");
                 // For sent messages read directly from Player so no other addon's
                 // nickname hooks can bleed into the display name.
                 const bubbleName = isSent
                     ? ((Player as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || Player.Name || "You"
                     : resolveName(bubbleMember);
-                nameLabel.textContent = `${bubbleName} #${bubbleMember}`;
-                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+
+                // Name row — flex so we can add the account-name sub-text and copy icon inline
+                const nameLabel = document.createElement("div");
+                nameLabel.style.cssText = "display:flex;align-items:baseline;gap:3px;margin-bottom:2px;padding:0 3px;min-width:0;flex-wrap:nowrap;";
+
+                const nameText = document.createElement("span");
+                nameText.textContent = `${bubbleName} #${bubbleMember}`;
+                nameText.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+
+                // Account name sub-text — only for received messages where it differs from display name
+                if (!isSent) {
+                    const acctName = getAccountName(bubbleMember);
+                    if (acctName && acctName !== bubbleName) {
+                        const acctSub = document.createElement("span");
+                        acctSub.textContent = acctName;
+                        acctSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3848;font-weight:normal;white-space:nowrap;flex-shrink:0;";
+                        nameLabel.appendChild(nameText);
+                        nameLabel.appendChild(acctSub);
+                    } else {
+                        nameLabel.appendChild(nameText);
+                    }
+                } else {
+                    nameLabel.appendChild(nameText);
+                }
+
                 // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
                 if (vipEntry) {
-                    applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
+                    applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
                 } else if (bubbleMember === self) {
-                    applyGradientText(nameLabel, "#cf6f98", "#8090d0");
+                    applyGradientText(nameText, "#cf6f98", "#8090d0");
                 } else {
-                    nameLabel.style.color = isSent ? "#e090b8" : "#80c0e0";
+                    nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
                 }
                 wrap.appendChild(nameLabel);
 
                 const bubble = document.createElement("div");
                 bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
 
+                const tsRow = document.createElement("div");
+                tsRow.className = "ebc-beep-ts-row";
                 const ts = document.createElement("div");
                 ts.className = "ebc-beep-ts";
                 const d = new Date(e.ts);
@@ -11746,7 +12083,8 @@ export class EBCDrawer {
                     ? timeStr
                     : `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? " " + d.getFullYear() : ""} · ${timeStr}`;
                 ts.textContent = dateStr;
-                bubble.appendChild(ts);
+                tsRow.appendChild(ts);
+                bubble.appendChild(tsRow);
 
                 // Strip embedded JSON metadata appended by other mods (WCE, FBC, etc.)
                 const cleanMsg = stripBeepMetadata(e.message);
@@ -11865,9 +12203,27 @@ export class EBCDrawer {
                     wrap.appendChild(replyBtn);
                 }
 
+                // Copy button — shown inline beside the timestamp
+                if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
+                    const copyBtn = document.createElement("button");
+                    copyBtn.className = "ebc-bubble-copy-btn";
+                    copyBtn.textContent = "Copy";
+                    copyBtn.title = "Copy message";
+                    copyBtn.addEventListener("click", () => {
+                        navigator.clipboard.writeText(msgBody).catch(() => {});
+                        copyBtn.textContent = "Copied!";
+                        window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
+                    });
+                    tsRow.appendChild(copyBtn);
+                }
+
                 history.appendChild(wrap);
             }
-            requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+            // Only scroll when the window is already in the DOM — the initial call from before
+            // body.appendChild would read scrollHeight=0 (display:none or no layout yet).
+            if (win.isConnected) {
+                requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
+            }
         };
 
         renderHistory();
@@ -11897,7 +12253,7 @@ export class EBCDrawer {
                     roomInviteBtn.textContent = "→";
                     window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
                 } else {
-                    roomInviteBtn.textContent = "🚫";
+                    roomInviteBtn.textContent = "×";
                     roomInviteBtn.title = "Neither you nor they are in a room";
                     window.setTimeout(() => {
                         roomInviteBtn.textContent = "📍";
@@ -11924,16 +12280,180 @@ export class EBCDrawer {
         replyBar.appendChild(replyCancel);
         win.appendChild(replyBar);
 
+        // Quick-reply state — declared before the footer so qrToggle (built inside the
+        // footer block) can reference qrBar and syncQrToggle without forward-ref issues.
+        const qrBar = document.createElement("div");
+        qrBar.className = "ebc-qr-bar";
+        let qrEditOpen = false;
+        let qrOpen = false;
+        try { qrOpen = localStorage.getItem("EBC_qrOpen") === "1"; } catch { /* ignore */ }
+
         // Footer
         const footer = document.createElement("div");
         footer.className = "ebc-beep-win-footer";
         footer.style.position = "relative";
+
+        // Small ▶/▼ toggle — collapses/expands the quick-reply bar above the footer
+        const qrToggle = document.createElement("button");
+        qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+        const syncQrToggle = (): void => {
+            qrToggle.textContent = qrOpen ? "▼" : "▶";
+            qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
+            qrBar.style.display = qrOpen ? "" : "none";
+        };
+        qrToggle.addEventListener("mouseenter", () => { qrToggle.style.color = "#cf6f98"; qrToggle.style.borderColor = "#cf6f98"; });
+        qrToggle.addEventListener("mouseleave", () => { qrToggle.style.color = "#7a4060"; qrToggle.style.borderColor = "#3a1928"; });
+        qrToggle.addEventListener("click", () => {
+            qrOpen = !qrOpen;
+            try { localStorage.setItem("EBC_qrOpen", qrOpen ? "1" : "0"); } catch { /* ignore */ }
+            syncQrToggle();
+        });
 
         const input = document.createElement("input");
         input.className = "ebc-beep-win-input";
         input.type = "text";
         input.placeholder = t("users.typeMessage");
         input.maxLength = 300;
+
+        // Character counter — flex item, sits between input and emoji button
+        const charCounter = document.createElement("span");
+        charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
+        charCounter.textContent = "300";
+        const updateCounter = (): void => {
+            const rem = 300 - input.value.length;
+            charCounter.textContent = String(rem);
+            charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
+        };
+        input.addEventListener("input", updateCounter);
+
+        // ── Emoji picker ─────────────────────────────────────────────────────
+        const EMOTE_CATS: Array<{ icon: string; label: string; items: string[]; text?: true }> = [
+            {
+                icon: "🐱", label: "Cats",
+                items: ["🐱","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
+            },
+            {
+                icon: "😊", label: "Faces",
+                items: [
+                    "😊","😘","😍","🥰","🤩","😁","😄","😆",
+                    "😂","🤣","🥹","🥺","😢","😭","😳","🙈",
+                    "😏","😈","🤭","🫠","😬","🤪","😜","😝",
+                    "😅","😌","🥲","😮","😲","😱","🤯","🤗",
+                    "🙃","😒","😔","😞","😓","😣","😫","😩",
+                    "🥱","😴","🤐","🤢","🤧","🥵","🥶","💀",
+                ],
+            },
+            {
+                icon: "❤️", label: "Hearts",
+                items: [
+                    "❤️","🧡","💛","💚","💙","💜","🖤","🩷",
+                    "💕","💗","💖","💞","💝","💓","💘","💔",
+                    "💋","🫦","🫂","🫶",
+                ],
+            },
+            {
+                icon: "✨", label: "Sparkles",
+                items: [
+                    "✨","💫","⭐","🌟","🌈","🌙","☀️","🎀",
+                    "👀","👉","👈","💪","🫶","🙌","👏","🤝",
+                ],
+            },
+            {
+                icon: "🌸", label: "Floral & Food",
+                items: [
+                    "🌸","🌺","🌹","🌷","🌼","🌻","💮","🏵️",
+                    "🍒","🍓","🍑","🍭","🧁","🎂","🍰","🍫",
+                ],
+            },
+            {
+                icon: "🐾", label: "Animals",
+                items: [
+                    "🐾","🐰","🦊","🐻","🐼","🐨","🐶","🐺",
+                    "🦝","🦋","🌊","🦄","🐸","🐹","🐭","🐯",
+                ],
+            },
+            {
+                icon: "OwO", label: "Text emotes", text: true,
+                items: [
+                    "OwO","UwU",">w<","^w^","=w=","qwq","TwT","nwn",
+                    "<.<",">.>",">.<",">_<","o.o","o_o","-.-",">///<",
+                    ":3",";3","c:","cx",":P",":D","xD",";)",":)",":(",
+                    "^_^","^.^","^///^","(*^ω^*)","(≧◡≦)","(◕‿◕)✧",
+                    "(づ◕‿◕)づ","(✿◠‿◠)","( ˘ω˘)","(╹ω╹)",
+                    "(⌒ω⌒)","(≧ω≦)","(◠‿◠✿)","♡","~nya~","~mew~",
+                ],
+            },
+        ];
+
+        const emojiPicker = document.createElement("div");
+        emojiPicker.className = "ebc-emoji-picker";
+        emojiPicker.style.display = "none";
+
+        const emojiTabs = document.createElement("div");
+        emojiTabs.className = "ebc-emoji-tabs";
+
+        const emojiBody = document.createElement("div");
+        emojiBody.className = "ebc-emoji-body";
+
+        const renderEmoteCat = (idx: number): void => {
+            while (emojiBody.firstChild) emojiBody.removeChild(emojiBody.firstChild);
+            const cat = EMOTE_CATS[idx];
+            for (const em of cat.items) {
+                const eb = document.createElement("button");
+                if (cat.text) eb.className = "ebc-text-emote";
+                eb.textContent = em;
+                eb.title = em;
+                eb.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    const start = input.selectionStart ?? input.value.length;
+                    const end   = input.selectionEnd   ?? input.value.length;
+                    input.value = input.value.slice(0, start) + em + input.value.slice(end);
+                    const pos = start + em.length;
+                    input.setSelectionRange(pos, pos);
+                    updateCounter();
+                    input.focus();
+                    emojiPicker.style.display = "none";
+                });
+                emojiBody.appendChild(eb);
+            }
+            emojiBody.scrollTop = 0;
+            for (let i = 0; i < emojiTabs.children.length; i++) {
+                emojiTabs.children[i].classList.toggle("active", i === idx);
+            }
+        };
+
+        EMOTE_CATS.forEach((cat, i) => {
+            const tab = document.createElement("button");
+            tab.className = "ebc-emoji-tab" + (i === 0 ? " active" : "");
+            tab.textContent = cat.icon;
+            tab.title = cat.label;
+            if (cat.text) tab.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
+            tab.addEventListener("click", (ev) => { ev.stopPropagation(); renderEmoteCat(i); });
+            emojiTabs.appendChild(tab);
+        });
+
+        renderEmoteCat(0);
+        emojiPicker.appendChild(emojiTabs);
+        emojiPicker.appendChild(emojiBody);
+
+        const emojiBtn = document.createElement("button");
+        emojiBtn.className = "ebc-beep-win-hbtn";
+        emojiBtn.innerHTML = _mkIconSvg(`<circle cx="8" cy="8" r="6"/><path d="M6 7.5v.5M10 7.5v.5M6 10a2 1.2 0 014 0"/>`);
+        emojiBtn.title = "Insert emoji";
+        emojiBtn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const isOpen = emojiPicker.style.display !== "none";
+            emojiPicker.style.display = isOpen ? "none" : "flex";
+            if (!isOpen) {
+                const onOutside = (e: MouseEvent): void => {
+                    if (!emojiPicker.contains(e.target as Node) && e.target !== emojiBtn) {
+                        emojiPicker.style.display = "none";
+                        document.removeEventListener("click", onOutside, true);
+                    }
+                };
+                document.addEventListener("click", onOutside, true);
+            }
+        });
 
         const sendBtn = document.createElement("button");
         sendBtn.className = "ebc-beep-win-send";
@@ -11946,17 +12466,119 @@ export class EBCDrawer {
             clearReply();
             sendBeep(memberNumber, full);
             input.value = "";
+            updateCounter();
             renderHistory();
         };
 
         sendBtn.addEventListener("click", doSend);
         input.addEventListener("keydown", (e: KeyboardEvent) => { if (e.key === "Enter") doSend(); });
 
+        footer.appendChild(qrToggle);
         footer.appendChild(input);
+        footer.appendChild(charCounter);
+        footer.appendChild(emojiBtn);
         footer.appendChild(sendBtn);
+        footer.appendChild(emojiPicker); // absolute-positioned, does not affect flex flow
         win.appendChild(footer);
 
+        // ── Quick-reply bar ─────────────────────────────────────────────────
+        // renderQR is defined here (after footer) so `input` is in scope.
+        // qrBar / qrEditOpen / qrOpen are declared before the footer (so qrToggle can reference them).
+        const renderQR = (): void => {
+            while (qrBar.firstChild) qrBar.removeChild(qrBar.firstChild);
+            const replies = getQuickReplies();
+
+            if (!qrEditOpen) {
+                qrBar.className = "ebc-qr-bar";
+                for (const text of replies) {
+                    const btn = document.createElement("button");
+                    btn.className = "ebc-qr-btn";
+                    btn.textContent = text.length > 22 ? text.slice(0, 20) + "…" : text;
+                    btn.title = text;
+                    btn.addEventListener("click", () => { input.value = text; doSend(); });
+                    qrBar.appendChild(btn);
+                }
+                const gearBtn = document.createElement("button");
+                gearBtn.className = "ebc-qr-gear";
+                gearBtn.textContent = "⚙";
+                gearBtn.title = "Edit quick replies";
+                gearBtn.addEventListener("click", () => { qrEditOpen = true; renderQR(); });
+                qrBar.appendChild(gearBtn);
+            } else {
+                // Edit mode — column list of existing replies + add form
+                qrBar.className = "ebc-qr-bar edit-mode";
+                const currentReplies = getQuickReplies();
+                for (let i = 0; i < currentReplies.length; i++) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;min-width:0;";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#c8a0b0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                    lbl.textContent = currentReplies[i];
+                    const del = document.createElement("button");
+                    del.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4a2030;border-radius:3px;color:#7a5060;font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;cursor:pointer;padding:1px 5px;transition:color 0.1s,border-color 0.1s;";
+                    del.textContent = "×";
+                    del.title = "Remove";
+                    del.addEventListener("mouseenter", () => { del.style.color = "#cf6f98"; del.style.borderColor = "#cf6f98"; });
+                    del.addEventListener("mouseleave", () => { del.style.color = "#7a5060"; del.style.borderColor = "#4a2030"; });
+                    del.addEventListener("click", () => {
+                        saveQuickReplies(getQuickReplies().filter((_, idx) => idx !== i));
+                        renderQR();
+                    });
+                    row.appendChild(lbl);
+                    row.appendChild(del);
+                    qrBar.appendChild(row);
+                }
+
+                // Add-new row
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;gap:4px;margin-top:1px;";
+                const addInput = document.createElement("input");
+                addInput.type = "text";
+                addInput.maxLength = 100;
+                addInput.placeholder = "New quick reply…";
+                addInput.style.cssText = "flex:1;min-width:0;background:rgba(30,13,26,0.58);border:1px solid #4a2840;border-radius:3px;color:#e8d0d8;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;outline:none;transition:border-color 0.1s;";
+                addInput.addEventListener("focus", () => { addInput.style.borderColor = "#cf6f98"; });
+                addInput.addEventListener("blur",  () => { addInput.style.borderColor = "#4a2840"; });
+                addInput.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") doQRAdd(); });
+
+                const doQRAdd = (): void => {
+                    const text = addInput.value.trim();
+                    if (!text) return;
+                    saveQuickReplies([...getQuickReplies(), text]);
+                    renderQR();
+                    window.setTimeout(() => {
+                        const fresh = qrBar.querySelector<HTMLInputElement>("input[type=text]");
+                        if (fresh) fresh.focus();
+                    }, 0);
+                };
+
+                const addBtn = document.createElement("button");
+                addBtn.textContent = "+ Add";
+                addBtn.style.cssText = "background:#1e0818;border:1px solid #4a2538;border-radius:3px;color:#b07898;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#3a1028"; addBtn.style.borderColor = "#cf6f98"; addBtn.style.color = "#e8c8d8"; });
+                addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#1e0818"; addBtn.style.borderColor = "#4a2538"; addBtn.style.color = "#b07898"; });
+                addBtn.addEventListener("click", doQRAdd);
+
+                const doneBtn = document.createElement("button");
+                doneBtn.textContent = "Done";
+                doneBtn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:3px;color:#7a5a6a;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:color 0.1s,border-color 0.1s;";
+                doneBtn.addEventListener("mouseenter", () => { doneBtn.style.color = "#cf6f98"; doneBtn.style.borderColor = "#cf6f98"; });
+                doneBtn.addEventListener("mouseleave", () => { doneBtn.style.color = "#7a5a6a"; doneBtn.style.borderColor = "#3a1928"; });
+                doneBtn.addEventListener("click", () => { qrEditOpen = false; renderQR(); });
+
+                addRow.appendChild(addInput);
+                addRow.appendChild(addBtn);
+                addRow.appendChild(doneBtn);
+                qrBar.appendChild(addRow);
+            }
+        };
+        renderQR();
+        win.insertBefore(qrBar, footer);
+        syncQrToggle(); // apply initial open/closed state from localStorage
+
         document.body.appendChild(win);
+        // Now that the window is in the DOM it has real layout — scroll history to bottom.
+        window.requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
         // Centre new user-initiated windows after layout so offsetWidth/Height are real.
         if (!startMinimized) {
             window.requestAnimationFrame(() => {
@@ -13636,6 +14258,7 @@ export class EBCDrawer {
                 friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "var(--ebc-bg-darker)"; friendProfBtn.style.borderColor = "var(--ebc-border-light)"; });
                 friendProfBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
+                    try {
                     const w2 = window as unknown as Record<string, unknown>;
                     const loadChar   = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                     const hideEls    = w2.ChatRoomHideElements as (() => void) | undefined;
@@ -13666,6 +14289,7 @@ export class EBCDrawer {
                         } catch { /* ignore */ }
                     }
                     try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
+                    } catch { /* ignore — prevent unhandled rejection from async listener */ }
                 });
                 // Beep button — does NOT toggle expand
                 const unread = this.beepUnread.get(num) ?? 0;
@@ -15092,6 +15716,7 @@ export class EBCDrawer {
                         btn.addEventListener("mouseenter", () => { btn.style.background = "#2a0e1e"; btn.style.borderColor = "#cf6f98"; });
                         btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; btn.style.borderColor = "#3a1928"; });
                         btn.addEventListener("click", async () => {
+                          try {
                             const w          = window as unknown as Record<string, unknown>;
                             const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                             const hideEls    = w.ChatRoomHideElements           as (() => void) | undefined;
@@ -15121,6 +15746,7 @@ export class EBCDrawer {
                                 try { const C = loadOnline(bundle, memberNumber); if (C) { openProfile(C); return; } } catch { /* ignore */ }
                             }
                             try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
                         });
                         return btn;
                     };
@@ -15632,6 +16258,7 @@ export class EBCDrawer {
                         profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
                         profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", async () => {
+                          try {
                             const w = window as unknown as Record<string, unknown>;
                             const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                             const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
@@ -15671,6 +16298,7 @@ export class EBCDrawer {
                             }
 
                             try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
                         });
 
                         row.appendChild(nameSpan);
@@ -17171,35 +17799,50 @@ export class EBCDrawer {
         const slLeaveBtn = document.createElement("button");
         slLeaveBtn.className = "ebc-create-btn";
         slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        const seqRunning = isSeqRunning();
-        slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
+        const slActive = isSlowLeaveActive();
+        slLeaveBtn.textContent = slActive ? t("sl.cancel") : t("sl.leave");
         slLeaveBtn.title = t("sl.leaveTitle");
         slLeaveBtn.dataset.guideTarget = "btn-slow-leave";
-        if (seqRunning) {
+        if (slActive) {
             slLeaveBtn.style.background = "#4a1a2a";
             slLeaveBtn.style.color = "#ff8aaa";
         }
         slLeaveBtn.addEventListener("click", () => {
-            if (isSeqRunning()) {
-                cancelSequence();
+            if (isSlowLeaveActive()) {
+                cancelBCSlowLeave();
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
                 return;
             }
-            const livePresets = getSlowLeavePresets();
-            const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
-            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
-            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
-            setSeqDoneCallback(() => {
+            // Respect BC's own leave guard — locked rooms, restraints that block leaving, etc.
+            try {
+                const canLeave = (window as unknown as Record<string, () => boolean>).ChatRoomCanLeave?.();
+                if (canLeave === false) {
+                    // Brief red flash so the user knows the click was received but blocked
+                    const prev = slLeaveBtn.style.background;
+                    slLeaveBtn.style.background = "#6a1a2a";
+                    window.setTimeout(() => { slLeaveBtn.style.background = prev; }, 350);
+                    return;
+                }
+            } catch { /* ignore — if check unavailable, allow the leave */ }
+            const durMs = Math.max(2000, parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10) * 1000);
+            const slps = getSlowLeavePresets();
+            const slpi = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slps.length - 1);
+            const intro = slps[slpi]?.intro ?? "";
+            setSlowLeaveDoneCallback(() => {
                 slLeaveBtn.textContent = t("sl.leave");
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
+                // Navigate to lobby FIRST so ChatRoomRun hooks (CRABS etc.) stop running
+                // before ChatRoomLeave() clears room state — same order as the safeword leave.
+                callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                callBC(() => ChatRoomLeave());
             });
             slLeaveBtn.textContent = t("sl.cancel");
             slLeaveBtn.style.background = "#4a1a2a";
             slLeaveBtn.style.color = "#ff8aaa";
-            runSequence(seq);
+            startBCSlowLeave(durMs, intro);
         });
         body.appendChild(slLeaveBtn);
 
@@ -17225,48 +17868,59 @@ export class EBCDrawer {
         slEditorHdr.appendChild(slEditorLbl);
         slEditorCard.appendChild(slEditorHdr);
 
-        // Editor body
+        // Editor body — preset selector + intro emote + duration slider
         const slEditorBody = document.createElement("div");
         slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
 
-        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        // Preset selector
+        const slPresets = getSlowLeavePresets();
+        const slSavedIdx = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slPresets.length - 1);
+        const slPresetRow = document.createElement("div");
+        slPresetRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slPresetLbl = document.createElement("span");
+        slPresetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slPresetLbl.textContent = "✦";
+        slPresetLbl.title = "Leave style preset";
+        const slPresetSel = document.createElement("select");
+        slPresetSel.style.cssText = "flex:1;background:#1b0d17;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:2px 4px;font-size:11px;cursor:pointer;min-width:0;";
+        for (let _pi = 0; _pi < slPresets.length; _pi++) {
+            const _opt = document.createElement("option");
+            _opt.value = String(_pi);
+            _opt.textContent = slPresets[_pi].label;
+            if (_pi === slSavedIdx) _opt.selected = true;
+            slPresetSel.appendChild(_opt);
+        }
+        slPresetRow.appendChild(slPresetLbl); slPresetRow.appendChild(slPresetSel);
+        slEditorBody.appendChild(slPresetRow);
 
-        const slPresetDropdown = document.createElement("select");
-        slPresetDropdown.style.cssText = DD_CSS;
-        const populateSlPresets = (): void => {
-            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
-            getSlowLeavePresets().forEach((p, i) => {
-                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
-            });
-            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
-        };
-        populateSlPresets();
-        slPresetDropdown.addEventListener("change", () => {
-            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            slSeqArea.value = lp[pi]?.seq ?? "";
+        // Intro emote input
+        const slIntroRow = document.createElement("div");
+        slIntroRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slIntroLbl = document.createElement("span");
+        slIntroLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slIntroLbl.textContent = "✉";
+        slIntroLbl.title = "Intro emote sent just before the leave message";
+        const slIntroInput = document.createElement("input");
+        slIntroInput.type = "text";
+        slIntroInput.style.cssText = "flex:1;background:#150a10;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:3px 5px;font-size:11px;min-width:0;";
+        slIntroInput.placeholder = "intro emote (optional)";
+        slIntroInput.value = slPresets[slSavedIdx]?.intro ?? "";
+        slIntroRow.appendChild(slIntroLbl); slIntroRow.appendChild(slIntroInput);
+        slEditorBody.appendChild(slIntroRow);
+
+        slPresetSel.addEventListener("change", () => {
+            const _idx = parseInt(slPresetSel.value, 10);
+            const _ps = getSlowLeavePresets();
+            slIntroInput.value = _ps[_idx]?.intro ?? "";
+            try { localStorage.setItem("EBC_slowLeavePresetIdx", String(_idx)); } catch { /* ignore */ }
         });
-        slEditorBody.appendChild(slPresetDropdown);
-
-        const slSeqArea = document.createElement("textarea");
-        slSeqArea.rows = 3;
-        slSeqArea.spellcheck = false;
-        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-        slSeqArea.title = t("sl.seqHint");
-        const slSeqInitPresets = getSlowLeavePresets();
-        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
-        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
-        slSeqArea.addEventListener("change", () => {
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            if (pi >= 0 && pi < lp.length) {
-                lp[pi].seq = slSeqArea.value;
-                saveSlowLeavePresets(lp);
-            }
+        slIntroInput.addEventListener("change", () => {
+            const _idx = parseInt(slPresetSel.value, 10);
+            const _ps = getSlowLeavePresets();
+            if (_ps[_idx]) { _ps[_idx].intro = slIntroInput.value.trim(); saveSlowLeavePresets(_ps); }
         });
-        slEditorBody.appendChild(slSeqArea);
 
+        // Duration slider
         const slDurRow = document.createElement("div");
         slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
         const slDurLbl = document.createElement("span");

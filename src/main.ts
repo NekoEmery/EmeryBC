@@ -7,14 +7,14 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,8 +23,8 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.4";
-const IS_DEV_BUILD = true; // true on dev branch, false on master
+const MOD_VERSION = "5.4.5";
+const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
 
@@ -37,6 +37,364 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.4.5",
+        changes: [
+            "Release build incorporating all dev improvements since v5.4.4.",
+            "Fix: EBC tag Export/Import now correctly writes to in-memory settings before flushing, so imports are no longer overwritten on the next sync.",
+            "Fix: ExtensionSettings reduced from ~131 KB to ~74 KB. beepHistory capped at 100 entries (stripped of mod metadata), name caches capped at 500 entries, one-time pruning pass on first load.",
+            "Fix: peopleMet now uses hybrid storage — last 150 entries synced cross-device via server, full unlimited history stored in local browser cache.",
+            "Fix: Release Restraints now skips only ownership locks (owner/lover/family/exclusive), not the outfit whitelist. Whitelisted slots are now correctly released by explicit release commands.",
+            "Fix: Outfit changes now preserve items locked by owner/lover/family/exclusive padlocks regardless of what the saved outfit contains.",
+            "Fix: /!\\ warning triangle above head caused by stale 'EmeryBC' key in OnlineSettings from old versions — cleaned up automatically on load.",
+            "Fix: Beep window Send button no longer cut off on tablet/mobile screens.",
+            "Fix: Release Restraints now uses direct array filtering instead of InventoryRemove, which could silently refuse in some BC permission states.",
+            "Fix: EBC version badges now persist across script reloads using a localStorage-backed cache.",
+            "Fix: Removed Dexie/IndexedDB dependency entirely — eliminated a source of unhandled Promise rejections in Chrome.",
+        ],
+    },
+    {
+        version: "5.9.8",
+        changes: [
+            "Feature: peopleMet now uses a hybrid storage model. Server (cross-device): last 150 people met, ~4 KB. localStorage (this device): full unlimited history. getPeopleMet() merges both so the DEV panel shows everyone. On first load, existing server data is migrated into localStorage so nothing is lost.",
+        ],
+    },
+    {
+        version: "5.9.7",
+        changes: [
+            "Fix: peopleMet was 54 KB (2000 entries × ~27 bytes). Cap reduced from 2000 → 300 entries. With existing pruning for beepHistory/friendNames, EBC total should drop from ~131 KB to ~85 KB.",
+        ],
+    },
+    {
+        version: "5.9.6",
+        changes: [
+            "Fix: Release Restraints skipped slots that were in the outfit whitelist. The whitelist is meant to protect slots from outfit auto-changes, not from explicit 'release all' commands. releaseRestraints and getPlayerRestraints now only respect ownership locks (owner/lover/family/exclusive padlocks), not the whitelist.",
+        ],
+    },
+    {
+        version: "5.9.5",
+        changes: [
+            "Fix: EBC ExtensionSettings was 152 KB (over the 180 KB total budget). Root causes: beepHistory capped at 300 entries with raw mod-metadata-bloated messages; friendNames/friendAccountNames were unbounded. Fixes: beepHistory now capped at 100 entries and messages are stripped of mod metadata + truncated to 200 chars before saving; name caches evict oldest entries beyond 500. One-time pruning pass on first load cleans up existing bloat immediately.",
+        ],
+    },
+    {
+        version: "5.9.4",
+        changes: [
+            "Fix: removed Dexie/IndexedDB entirely. Eight suppression attempts across multiple versions all failed to prevent Chrome from leaking raw IDB Event objects as unhandled Promise rejections. The in-session memory cache still works for all same-session lookups. The old IDB database is cleaned up on first load.",
+        ],
+    },
+    {
+        version: "5.9.3",
+        changes: [
+            "Fix: EBC tag settings Export/Import was broken. Import wrote directly to Player.ExtensionSettings.EmeryBC, then syncSettings() called flushToExtensionSettings() which copied the old in-memory store (_mem) back over it, erasing the import. Fixed by writing imports into getSettings() (_mem) directly so the flush carries the new values to ExtensionSettings instead of overwriting them.",
+        ],
+    },
+    {
+        version: "5.9.2",
+        changes: [
+            "Fix: add Dexie.on('error') static global hook — catches errors from all Dexie instances before they escape into the Promise system. Previous fix (db.on('error')) was instance-level only. Now all four suppression layers are active: Dexie.on, db.on, db.open().catch, and window.unhandledrejection.",
+        ],
+    },
+    {
+        version: "5.9.1",
+        changes: [
+            "Fix: /!\\ warning triangle persisted even after 5.8.9 cleanup because PreferenceInitPlayer (BC's OnlineSettings validator) fires before initSettings() finishes. Added a PreferenceInitPlayer hook that deletes the stale 'EmeryBC' key before BC's validator sees it.",
+        ],
+    },
+    {
+        version: "5.9.0",
+        changes: [
+            "Fix: [object Event] unhandled rejection persisted because BC's error handler runs before EBC's window.addEventListener suppressor (BC registers first at page load). Root fix: attach db.on('error') and db.on('blocked') to Dexie before db.open() so internal IDB transaction errors are swallowed inside Dexie itself, never reaching the Promise rejection layer.",
+        ],
+    },
+    {
+        version: "5.8.9",
+        changes: [
+            "Fix: /!\\ warning mark above head caused by stale 'EmeryBC' key left in Player.OnlineSettings from very old EBC versions. BC's PreferenceInitPlayer warns about unknown OnlineSettings keys and shows a warning indicator. initSettings() now deletes the orphaned key and syncs on first load.",
+        ],
+    },
+    {
+        version: "5.8.8",
+        changes: [
+            "Fix: Release Restraints and the self-pick specific-item remover now directly filter Player.Appearance instead of calling InventoryRemove. InventoryRemove respects BC's internal lock/permission checks and silently refuses removal in certain situations (locked room, BC permissions). Direct array filtering matches how the safeword escape already works.",
+        ],
+    },
+    {
+        version: "5.8.7",
+        changes: [
+            "Fix: [object Event] unhandled rejection still appeared on v5.8.6 because the suppressor was registered in init() — too late, since Dexie opens the database at module-load time before init() runs. Moved the unhandledrejection suppressor to db.ts so it is registered before any IDB operation.",
+        ],
+    },
+    {
+        version: "5.8.6",
+        changes: [
+            "Fix: beep window Send button cut off on tablet/mobile. Window width changed to min(320px, 100vw-16px) and right position clamped so it stays fully on-screen on narrow devices. Footer gap and padding tightened; Send button gets white-space:nowrap so it never wraps.",
+        ],
+    },
+    {
+        version: "5.8.5",
+        changes: [
+            "Fix: unhandled promise rejection '[object Event]' on Android/mobile. Two causes fixed: (1) three async profile-view click handlers in drawer.ts lacked a top-level try-catch so any uncaught error became an unhandled rejection; (2) added a global unhandledrejection listener that suppresses raw IDB Event rejections before BC's error reporter sees them.",
+        ],
+    },
+    {
+        version: "5.8.4",
+        changes: [
+            "Removed panel resize handles (bottom height drag and left-side width drag). After six attempts across multiple versions the drag never worked reliably for all users. Panel returns to clean full-height behaviour.",
+        ],
+    },
+    {
+        version: "5.8.3",
+        changes: [
+            "Panel resize overhaul: height is now controlled via CSS variable --ebc-ph !important so nothing can fight it. Width resize added via a left-edge drag handle (--ebc-pw). Both handles use window+document capture-phase listeners for reliability, persist to localStorage, and support double-click to reset. syncToChat updated to set CSS variables instead of inline height.",
+        ],
+    },
+    {
+        version: "5.8.2",
+        changes: [
+            "Fix: resize direction inverted — drag DOWN to shrink the panel, drag UP to grow it (matches 'pull shade down to close' intuition). Also now resizes rootEl height alongside the panel so nothing fights the change. syncToChat guarded for both rootEl and panelEl during drag. Live '↕ Xpx' readout on the handle during drag confirms the height is changing.",
+        ],
+    },
+    {
+        version: "5.8.1",
+        changes: [
+            "Fix: resize handle drag events now work — rewrote using capture-phase document listeners with stopImmediatePropagation to bypass BC interference.",
+        ],
+    },
+    {
+        version: "5.7.9",
+        changes: [
+            "Fix: EBC version badges in the friend/room list now survive script reloads. The version cache is persisted to localStorage (48-hour TTL) so badges reappear immediately on reload without needing to re-enter a shared room.",
+        ],
+    },
+    {
+        version: "5.7.8",
+        changes: [
+            "Fix: outfit changes now respect BC locks. Items with an active padlock (Property.LockedBy) and items in owner/lover-blocked zones are force-restored after the new appearance is built, so they survive any outfit swap regardless of preserve flags or whitelist settings.",
+        ],
+    },
+    {
+        version: "5.7.7",
+        changes: [
+            "Fix: resize handle drag rewritten again — replaced Pointer Events API (setPointerCapture) with the same addPointerDown / addPointerTracking pattern used by the tab drag, which is known to work. pointercancel was firing and killing the drag before any movement registered.",
+        ],
+    },
+    {
+        version: "5.7.6",
+        changes: [
+            "Fix: hook TextGet to provide fallback text for 'ResponseRoomLocked' — eliminates the yellow 'MISSING TEXT IN Text_ChatRoom.csv' banner when joining a locked room. The hook intercepts at point-of-use so it works regardless of CSV load timing.",
+        ],
+    },
+    {
+        version: "5.7.5",
+        changes: [
+            "Fix: seed BC's TextLookup with a fallback for 'ResponseRoomLocked' — prevents the yellow 'MISSING TEXT IN Text_ChatRoom.csv' banner that appeared when trying to join a locked room in BC versions where this localization key is absent.",
+        ],
+    },
+    {
+        version: "5.7.4",
+        changes: [
+            "Fix: Slow Leave now calls CommonSetScreen() before ChatRoomLeave() — matching the safeword leave pattern. Doing it the other way cleared room state first, causing CRABS and other mods to crash on the next ChatRoomRun frame.",
+            "Fix: Slow Leave button now checks ChatRoomCanLeave() before starting. If BC would block the leave (locked room, restraints, etc.) the button flashes red and does nothing instead of starting a timer that would fail.",
+        ],
+    },
+    {
+        version: "5.7.3",
+        changes: [
+            "Fix: resize handle drag rewritten with Pointer Events API (pointerdown/pointermove/pointerup + setPointerCapture). Pointer capture routes all subsequent events directly to the handle element regardless of where the pointer travels — no document-level listeners needed, immune to stopPropagation from BC global handlers and the container's touch-bubble guard.",
+        ],
+    },
+    {
+        version: "5.7.2",
+        changes: [
+            "Fix: Slow Leave presets (Classic, Warm, Quiet, Sleepy, Playful, Bratty, Custom) are back in the settings accordion with a dropdown to select the style and an editable intro emote field. The intro emote is sent as a * emote ~1.2s before the leave message, matching the natural feel of each style.",
+            "Fix: Slow Leave no longer spams SlowLeaveAttempt/SlowLeaveCancel. Active state is now tracked with a dedicated boolean so two-stage timers can't cause double-starts. SlowLeaveCancel is only sent if SlowLeaveAttempt was actually dispatched.",
+            "Fix: Slow Leave done callback now calls ChatRoomLeave() before CommonSetScreen() matching BC's own leave order so the leave is reliably processed.",
+            "New: Slow Leave shows BC's crawl status icon (the visual indicator near the character) while the timer is active, cleared on cancel or done.",
+        ],
+    },
+    {
+        version: "5.7.1",
+        changes: [
+            "Fix: resize handle drag now works reliably. Replaced addPointerDown/addPointerTracking with direct element-level event listeners. Added isResizeDragging guard so syncToChat never overrides the panel height mid-drag. Rounded the chat-log rect comparison in syncToChat to whole pixels to prevent sub-pixel float drift from constantly re-firing the height reset.",
+        ],
+    },
+    {
+        version: "5.7.0",
+        changes: [
+            "Overhaul: Slow Leave now uses BC's own SlowLeaveAttempt / SlowLeaveCancel action messages instead of a custom emote sequence. Clicking the button sends '(Name slowly heads for the door.)' — the same native message BC shows for slowed players — waits the configured duration, then calls ChatRoomLeave(). Clicking again sends '(Name stops heading for the door.)' and cancels. The preset/sequence editor has been removed.",
+        ],
+    },
+    {
+        version: "5.6.9",
+        changes: [
+            "Fix: resize handle is now a proper flex child of the slide container instead of position:absolute — eliminates overlap with panel content (footer text no longer hidden behind it) and fixes drag resize which was blocked by hit-test ambiguity with .ebc-panel at the same Y coordinates.",
+        ],
+    },
+    {
+        version: "5.6.8",
+        changes: [
+            "Improvement: clicking a quick-reply button now sends the message immediately instead of just filling the input box.",
+        ],
+    },
+    {
+        version: "5.6.7",
+        changes: [
+            "Fix: resize handle moved outside the zoom wrapper and anchored to the slide container with position:absolute — it is no longer clipped by overflow:hidden and is unaffected by the panel zoom transform. Handle height increased to 14 px for easier grabbing.",
+        ],
+    },
+    {
+        version: "5.6.6",
+        changes: [
+            "Fix: quick action sidebar buttons (EAR, TAIL, etc.) now hide when BC's 'Show/hide character icons' eye toggle is active, matching the badge and WCE icon behaviour.",
+        ],
+    },
+    {
+        version: "5.6.5",
+        changes: [
+            "Feature: drag the handle at the bottom edge of the drawer to resize it taller or shorter. Height is saved to localStorage and restored on reload. Double-click the handle to restore full height.",
+        ],
+    },
+    {
+        version: "5.6.4",
+        changes: [
+            "Improvement: emoji picker redesigned with category tabs — Cats 🐱, Faces 😊, Hearts ❤️, Sparkles ✨, Floral 🌸, Animals 🐾, and a Text emotes tab (OwO) with 36 unicode emoticons like UwU, >w<, <.<, :3, (≧◡≦), (づ◕‿◕)づ and more.",
+        ],
+    },
+    {
+        version: "5.6.3",
+        changes: [
+            "Fix: nickname cache was being overwritten by the raw BC account name whenever a beep was received or a friend came online — nicknames (e.g. Lucy) now persist correctly across beeps and online events.",
+            "Fix: copy button is now always visible beside the timestamp instead of hidden until hover.",
+            "Improvement: cat face emojis moved to the top of the emoji picker.",
+            "Improvement: header buttons (mute, room invite, clear) now use emoji icons (🔔/🔇 📍 🗑️).",
+        ],
+    },
+    {
+        version: "5.6.2",
+        changes: [
+            "Improvement: all 10 cat face emojis added to the picker (😺 😸 😹 😻 😼 😽 🙀 😿 😾 🐱) — happy, laughing, heart-eyes, wry, kissing, weary, crying, angry.",
+        ],
+    },
+    {
+        version: "5.6.1",
+        changes: [
+            "Improvement: emoji picker expanded from 32 to 120 emojis across 15 rows — smileys, expressions, hearts, love, gestures, florals, food, animals. Picker is now scrollable (max-height 220px) so it stays within the window.",
+        ],
+    },
+    {
+        version: "5.6.0",
+        changes: [
+            "Fix: BC in-game nicknames (e.g. 'Lucy' for someone named 'Lucas') now persist correctly in the friends list. AccountQueryResult only provides the raw account name, never the nickname — caching it unconditionally was silently overwriting the cached nickname every time a friend appeared online. The account name is now stored separately for the subtitle display; the display-name cache is only written if no better entry exists.",
+        ],
+    },
+    {
+        version: "5.5.9",
+        changes: [
+            "New: emoji picker in beep window footer — click the smiley button to insert emoji into your message. 32 curated emojis in a floating grid above the footer.",
+            "Fix: character counter (300) is now a proper flex item between the input and emoji button instead of being absolutely positioned, so it no longer overlaps other elements.",
+        ],
+    },
+    {
+        version: "5.5.8",
+        changes: [
+            "Improvement: header buttons now use clean SVG icons (bell, arrow, trash) instead of emoji or Unicode symbols — monochrome, scale correctly, match the dark-pink aesthetic.",
+            "Fix: chat history now correctly starts scrolled to the bottom — initial render was guarded so it only scrolls after the window is in the DOM; restoring a minimized window now also scrolls to bottom (history was display:none so scrollHeight was 0).",
+        ],
+    },
+    {
+        version: "5.5.7",
+        changes: [
+            "Fix: chat messages now correctly start scrolled to the bottom when a conversation window opens — previously the scroll happened before the window was in the DOM so scrollHeight was 0.",
+            "Improvement: header icons (bell, pin, trash) replaced with plain Unicode symbols (♪/⊘, ⊕, ⌫) that render monochrome and fit the dark-pink aesthetic instead of coloured OS emoji.",
+        ],
+    },
+    {
+        version: "5.5.6",
+        changes: [
+            "Improvement: copy button is now overlaid in the bottom-right corner of the chat bubble itself (position: absolute inside the bubble) instead of sitting beside the name — cleaner look.",
+        ],
+    },
+    {
+        version: "5.5.5",
+        changes: [
+            "Fix: clear conversation confirm overlay was broken — callback was passed as the wrong argument, causing a TypeError. Cancel/Clear buttons now work correctly.",
+            "Fix: copy button now shows 'Copy' text with a small border instead of the ⎘ icon.",
+        ],
+    },
+    {
+        version: "5.5.4",
+        changes: [
+            "Fix: room drawer no longer shows a confusing 🌐 Public chip — the Join button already implies it's public. Only the space name chip (e.g. 'Club X') is shown when applicable; 🔒 Private still appears for private rooms.",
+        ],
+    },
+    {
+        version: "5.5.3",
+        changes: [
+            "Fix: character counter is now clearly visible — brighter colour (#a07080) and 10px font instead of near-invisible 9px.",
+            "Fix: ⚙ gear icon is now properly visible with higher-contrast colour and border.",
+            "Fix: default quick-reply phrases changed to brb / busy, back soon / hello ^^ — the old ones were unhelpful.",
+            "Fix: room drawer space chip no longer shows raw BC codes like 'X' — now shows the friendly name (e.g. 'Club X') merged into the 🌐 Public chip.",
+            "Fix: copy button moved from a hover element below the bubble to an inline ⎘ icon beside the sender name — much cleaner.",
+            "Fix: received message bubbles now show the account name in small text beside the sender nickname when the two differ, matching the header behaviour.",
+        ],
+    },
+    {
+        version: "5.5.2",
+        changes: [
+            "Fix: offline beep re-delivery no longer causes ErrorRateLimited disconnects — messages are now staggered 350 ms apart instead of burst-sent in a synchronous loop. A startup grace window (up to 10 s after page load) adds extra headroom so re-delivery doesn't compound with BC's own login traffic.",
+        ],
+    },
+    {
+        version: "5.5.1",
+        changes: [
+            "New: nickname display in beep window headers — when someone has a nickname their display name is shown prominently with their account name in smaller text beneath it.",
+            "New: copy button on message bubbles — hover any message to reveal a ⎘ Copy button that copies the text to clipboard.",
+            "New: room info chips in the room drawer — shows 🌐 Public / 🔒 Private indicator and room space; public rooms also get a 'Copy room name' button.",
+            "New: online alert — a green ✓ banner briefly appears in the chat when the other person comes back online while the window is open.",
+            "New: clear conversation button (🗑) in the beep window header — wipes the local message history for that person after confirmation.",
+        ],
+    },
+    {
+        version: "5.5.0",
+        changes: [
+            "Fix: character counter in beep windows is now much easier to see — resting colour changed from near-black to a visible rose tone; amber/red warning thresholds remain.",
+            "New: quick-reply buttons are now hidden by default — a small ▶ toggle button in the footer reveals/hides them; state persists across sessions.",
+            "Fix: ⚙ gear icon on the quick-reply bar is now visible instead of nearly invisible.",
+        ],
+    },
+    {
+        version: "5.4.9",
+        changes: [
+            "New: offline indicator banner in beep windows — a subtle notice appears below the message history when the recipient is offline, explaining that messages are queued and delivered when they return.",
+            "New: character counter in beep windows — shows remaining characters (out of 300) overlaid on the input; turns amber below 40, red below 10.",
+        ],
+    },
+    {
+        version: "5.4.8",
+        changes: [
+            "Fix: ON/OFF toggle buttons now use flex centering — OFF text was visually off-centre due to browser default button padding.",
+            "Fix: /ebc changelog now only prints the current version's entry instead of the full history.",
+        ],
+    },
+    {
+        version: "5.4.7",
+        changes: [
+            "New: quick-reply buttons in every beep window — configurable one-click phrases that insert into the input so you can review before sending. Defaults: brb / in character / busy, back soon. Click ⚙ to add, remove, or reorder. Saved to your EBC settings and synced across devices.",
+        ],
+    },
+    {
+        version: "5.4.6",
+        changes: [
+            "Fix: EBC friends list now stays in sync with BC's native friend list — the AccountQueryResult dedup window was 500 ms, causing rapid BC polls (e.g. while the native friend list screen is open) to be silently dropped and leaving room tags stale. Reduced to 50 ms, which is still enough to prevent the hook/socket double-fire.",
+        ],
+    },
+    {
+        version: "5.4.5",
+        changes: [
+            "Fix: offline beep queue is now persisted to localStorage so messages queued for offline friends survive page reloads — entries are discarded after 48 hours.",
+        ],
+    },
     {
         version: "5.4.4",
         changes: [
@@ -4289,7 +4647,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         version: "0.1.5",
         changes: [
             "Changed /ebc version so it only prints the current addon version.",
-            "Kept the full history on /ebc changelog and /ebc changes.",
+            "Changed /ebc changelog to only show the latest version entry.",
         ],
     },
     {
@@ -4421,15 +4779,15 @@ function showVersionInfo(): void {
 }
 
 function showChangelog(): void {
-    // Iterate oldest→newest so the most recent entry lands at the bottom of the
-    // chat log (where you'd naturally look after scrolling down).
-    for (const entry of CHANGELOG.slice().reverse()) {
-        appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
-        for (const change of entry.changes) {
-            appendLocalLogLine(`- ${change}`, UI.accent);
-        }
+    const latest = CHANGELOG[0];
+    if (!latest) {
+        appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
+        return;
     }
-    appendLocalLogLine(`[EBC] Current version: ${MOD_VERSION}`, UI.gold);
+    appendLocalLogLine(`[EBC] v${latest.version} — what's new:`, UI.gold);
+    for (const change of latest.changes) {
+        appendLocalLogLine(`  - ${change}`, UI.accent);
+    }
 }
 
 // Last non-Inactive arousal level, so toggling off → on restores it.
@@ -5607,6 +5965,9 @@ function seedDefaultBadgeSettings(): void {
 }
 
 function init(): void {
+    // Note: the unhandledrejection suppressor for IDB/Dexie [object Event] errors
+    // is registered in db.ts at module-load time, before any IDB operations.
+
     // Initialise compressed ExtensionSettings first — all modules read from here
     initSettings();
 
@@ -5623,7 +5984,36 @@ function init(): void {
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
 
+    // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
+    // This is a best-effort early seed; the TextGet hook below is the definitive fix.
+    try {
+        const lk = (window as unknown as Record<string, unknown>).TextLookup as Map<string, string> | undefined;
+        if (lk instanceof Map) {
+            if (!lk.has("ResponseRoomLocked")) lk.set("ResponseRoomLocked", "This room is locked.");
+        }
+    } catch { /* ignore */ }
 
+    // Remove stale "EmeryBC" key from Player.OnlineSettings BEFORE PreferenceInitPlayer
+    // runs its unknown-key validation.  Old EBC versions wrote settings there; BC now
+    // warns about extra OnlineSettings keys and shows a /!\ indicator.  We hook the
+    // function so the key is gone before BC ever checks — the initSettings() cleanup
+    // alone is too late because PreferenceInitPlayer can fire before initSettings
+    // finishes (or it was already called before init() runs).
+    tryHookFunction(modAPI, "PreferenceInitPlayer", 1, (args, next) => {
+        try {
+            const onlineSettings = (Player as unknown as Record<string, unknown>).OnlineSettings as
+                Record<string, unknown> | undefined;
+            if (onlineSettings && "EmeryBC" in onlineSettings) {
+                delete onlineSettings["EmeryBC"];
+                // Persist the removal — best-effort, errors ignored
+                try {
+                    const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerSettingsSync;
+                    if (typeof syncFn === "function") (syncFn as () => void)();
+                } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
 
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
     // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
@@ -5637,6 +6027,22 @@ function init(): void {
             clearLeavePending();         // new room data arrived — stop guarding
         }
         return next(args);
+    });
+
+    // Provide fallback text for localisation keys that are absent in some BC versions.
+    // TextGet returns "MISSING TEXT IN '...': key" when a key is not in TextLookup —
+    // intercepting here is timing-independent and catches cases where the seed above
+    // ran before TextLookup was initialised or before BC's CSV loading completed.
+    tryHookFunction(modAPI, "TextGet", 1, (args, next) => {
+        const result = next(args) as string;
+        if (typeof result === "string" && result.startsWith("MISSING TEXT IN")) {
+            const key = args[0] as string;
+            const FALLBACKS: Record<string, string> = {
+                ResponseRoomLocked: "This room is locked.",
+            };
+            if (Object.prototype.hasOwnProperty.call(FALLBACKS, key)) return FALLBACKS[key];
+        }
+        return result;
     });
 
     // Canvas sidebar action buttons.
@@ -5661,7 +6067,10 @@ function init(): void {
                 try { drawPresenceMarker(badgeArgs as unknown[]); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
-        try { if (getActionButtonsVisible()) drawActionButtons(); } catch { /* ignore */ }
+        try {
+            const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
+            if (getActionButtonsVisible() && !iconsHidden) drawActionButtons();
+        } catch { /* ignore */ }
         return result;
     });
 
@@ -5669,7 +6078,8 @@ function init(): void {
         // Block all BC click handling while drag mode is active to prevent
         // click-through to character tabs and other BC canvas interactions.
         if (getBadgeDragMode()) return;
-        try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
+        const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
+        try { if (!iconsHidden && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
@@ -5692,6 +6102,9 @@ function init(): void {
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
+        // One-time migration: copy existing server peopleMet into localStorage
+        // so the user's history isn't lost on the first run of the hybrid model.
+        try { migratePeopleMetToLocal(); } catch { /* ignore */ }
         // Seed default badge settings for first-time users.
         window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
     } catch (err) {
@@ -6029,7 +6442,12 @@ function init(): void {
                 : (parseInt(String(beep.MemberNumber), 10) || 0);
             if (!fromNum) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
-            if (name) cacheName(fromNum, name);
+            if (name) {
+                // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                cacheAccountName(fromNum, name);
+                const existingName = getCachedNames()[String(fromNum)];
+                if (!existingName || existingName === `#${fromNum}`) cacheName(fromNum, name);
+            }
 
             // Non-friend beeps (addon bots, update notices, etc.) always pass through
             // to BC's native handler so they stay visible regardless of suppress setting.
@@ -6146,7 +6564,12 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
             const name = typeof data.MemberName === "string" ? data.MemberName : null;
-            if (num && name) cacheName(num, name);
+            if (num && name) {
+                // MemberName is always the raw BC account name — never overwrite a cached nickname with it.
+                cacheAccountName(num, name);
+                const existingName = getCachedNames()[String(num)];
+                if (!existingName || existingName === `#${num}`) cacheName(num, name);
+            }
             try { syncFriendsSince(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return next(args);
@@ -6159,7 +6582,7 @@ function init(): void {
     const handleAccountQueryResult = (raw: unknown): void => {
         try {
             const now = Date.now();
-            if (now - _lastQueryResultTs < 500) return; // dedup if both hook + socket fire
+            if (now - _lastQueryResultTs < 50) return; // dedup if both hook + socket fire (50 ms is enough — they fire ~1 ms apart)
             _lastQueryResultTs = now;
             const data = raw as Record<string, unknown>;
             if (data.Query !== "OnlineFriends") return;
@@ -6168,7 +6591,17 @@ function init(): void {
             for (const r of results) {
                 const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                 const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                if (n && name) cacheName(n, name);
+                if (n && name) {
+                    // MemberName is always the raw BC account name — cache it for the
+                    // "show account name alongside nickname" subtitle feature.
+                    cacheAccountName(n, name);
+                    // Only write the display-name cache if we have no better entry yet.
+                    // AccountQueryResult never includes in-game nicknames, so blindly
+                    // caching MemberName here would overwrite a nickname ("Lucy") with
+                    // the account name ("Lucas") every time the friend goes online.
+                    const existing = getCachedNames()[String(n)];
+                    if (!existing || existing === `#${n}`) cacheName(n, name);
+                }
             }
             updateOnlineFriends(results);
             try { syncFriendsSince(); } catch { /* ignore */ }
