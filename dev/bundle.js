@@ -11349,12 +11349,20 @@
     }
     catch ( /* ignore */_a) { /* ignore */ }
     const db = new EBCDatabase();
+    // Catch ALL internal Dexie/IDB errors before they escape as unhandled rejections.
+    // db.on("error") fires for errors inside Dexie transactions that are not caught by
+    // a per-operation .catch().  Without this hook those errors become raw IDBRequest
+    // Event objects thrown as unhandled Promise rejections — showing up as "[object Event]"
+    // in BC's error reporter.  The hook must be attached before db.open() is called.
+    try {
+        db.on("error", () => { });
+    }
+    catch ( /* ignore — Dexie unavailable */_b) { /* ignore — Dexie unavailable */ }
+    try {
+        db.on("blocked", () => { });
+    }
+    catch ( /* ignore */_c) { /* ignore */ }
     // Eagerly open the database and silently swallow any failure.
-    // On Android/mobile browsers IndexedDB can fail immediately (storage restrictions,
-    // private-browsing mode, quota errors) and Dexie rejects its internal open promise
-    // with a raw IDBRequest error Event — which shows up as "[object Event]" in BC's
-    // unhandled-rejection reporter.  By calling open().catch() up-front we guarantee
-    // that rejection is always handled before any table operation creates its own chain.
     db.open().catch(() => { });
     // Migrate existing localStorage bundles into IndexedDB (one-time, runs on startup).
     // Cleans up localStorage entries after a successful migration.
@@ -35218,7 +35226,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.9";
+    const MOD_VERSION = "5.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35229,6 +35237,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.0",
+            changes: [
+                "Fix: [object Event] unhandled rejection persisted because BC's error handler runs before EBC's window.addEventListener suppressor (BC registers first at page load). Root fix: attach db.on('error') and db.on('blocked') to Dexie before db.open() so internal IDB transaction errors are swallowed inside Dexie itself, never reaching the Promise rejection layer.",
+            ],
+        },
         {
             version: "5.8.9",
             changes: [
