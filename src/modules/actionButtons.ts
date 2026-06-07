@@ -620,6 +620,11 @@ export function initDragListener(): void {
         return;
     }
     const onDown = (e: MouseEvent | TouchEvent): void => {
+        // Don't allow repositioning while a character tab is open — the sidebar
+        // is invisible then and getSidebarMaxX() can't find the chat log, so
+        // the chat-overlap clamp breaks and the panel can end up stuck behind chat.
+        const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
+        if (charMenuOpen) return;
         const pt = "touches" in e ? (e as TouchEvent).touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
         if (isInGrip(x, y)) {

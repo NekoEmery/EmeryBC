@@ -4050,6 +4050,12 @@
             return;
         }
         const onDown = (e) => {
+            // Don't allow repositioning while a character tab is open — the sidebar
+            // is invisible then and getSidebarMaxX() can't find the chat log, so
+            // the chat-overlap clamp breaks and the panel can end up stuck behind chat.
+            const charMenuOpen = !!(window.CurrentCharacter);
+            if (charMenuOpen)
+                return;
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
             if (isInGrip(x, y)) {
@@ -28685,7 +28691,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.9";
+    const MOD_VERSION = "6.1.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28696,6 +28702,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.0",
+            changes: [
+                "Fix: quick keys sidebar drag handle is now disabled while a character tab is open. Previously the grip zone remained active while the sidebar was invisible, allowing it to be dragged to a position behind the chat box where getSidebarMaxX() could not enforce the chat-overlap clamp.",
+            ],
+        },
         {
             version: "5.9.9",
             changes: [
