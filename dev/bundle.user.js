@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.8.7
+// @version      5.8.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -4250,12 +4250,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 : "No restraints found to remove.", UI.textMuted);
             return;
         }
-        for (const item of toRemove) {
-            try {
-                InventoryRemove(Player, item.Asset.Group.Name, false);
-            }
-            catch ( /* ignore — mod hook may throw */_a) { /* ignore — mod hook may throw */ }
-        }
+        // Direct array filter bypasses InventoryRemove's internal BC lock checks which
+        // can silently refuse removal even for unlocked items (locked room, permissions, etc.).
+        const removeGroups = new Set(toRemove.map(item => item.Asset.Group.Name));
+        Player.Appearance = Player.Appearance.filter(item => !removeGroups.has(item.Asset.Group.Name));
         if (skipped.length > 0) {
             const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
             localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
@@ -4279,18 +4277,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // Removes specific items by group name from the player. Returns count removed.
     function removePlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
+        const groupSet = new Set(groups);
+        const before = Player.Appearance.length;
+        Player.Appearance = Player.Appearance.filter(item => !groupSet.has(item.Asset.Group.Name));
+        const count = before - Player.Appearance.length;
+        if (count > 0) {
             try {
-                InventoryRemove(Player, group, false);
-                count++;
+                CharacterRefresh(Player, false);
             }
             catch ( /* ignore */_a) { /* ignore */ }
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
+            try {
+                ChatRoomCharacterUpdate(Player);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            try {
+                ServerPlayerAppearanceSync();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         return count;
     }
@@ -35215,7 +35218,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.7";
+    const MOD_VERSION = "5.8.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35226,6 +35229,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.8",
+            changes: [
+                "Fix: Release Restraints and the self-pick specific-item remover now directly filter Player.Appearance instead of calling InventoryRemove. InventoryRemove respects BC's internal lock/permission checks and silently refuses removal in certain situations (locked room, BC permissions). Direct array filtering matches how the safeword escape already works.",
+            ],
+        },
         {
             version: "5.8.7",
             changes: [
