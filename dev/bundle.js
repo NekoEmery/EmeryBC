@@ -11332,11 +11332,24 @@
             });
         }
     }
-    // Register a global suppressor for raw IDB/Dexie error Events BEFORE the database
-    // is created.  Dexie can leak a raw IDBRequest error Event as an unhandled promise
-    // rejection even after db.open().catch() is attached — the suppressor must be in
-    // place before any IDB operation creates its first internal promise chain.
-    // This runs at module-load time so it is always earlier than init().
+    // ── Global Dexie error suppression ───────────────────────────────────────────
+    // Dexie can leak raw IDBRequest error Events as unhandled Promise rejections in
+    // certain Chrome versions.  We suppress them at every level available:
+    //
+    //  1. Dexie.on("error") — static global hook, catches errors from ALL Dexie
+    //     instances before they escape into the Promise system.
+    //  2. db.on("error")    — instance-level hook for this specific database.
+    //  3. db.open().catch() — handles the initial open rejection.
+    //  4. window.addEventListener("unhandledrejection") — last-resort backstop;
+    //     registered here (module-load time) so it is always earlier than init().
+    //
+    // All four layers are needed because different Chrome versions trigger different
+    // code paths inside Dexie's internal promise machinery.
+    try {
+        Dexie.on("error", () => { });
+    }
+    catch ( /* ignore */_a) { /* ignore */ }
+    // window handler registered before the db instance is created
     try {
         window.addEventListener("unhandledrejection", (e) => {
             try {
@@ -11347,22 +11360,16 @@
             catch ( /* ignore */_a) { /* ignore */ }
         });
     }
-    catch ( /* ignore */_a) { /* ignore */ }
+    catch ( /* ignore */_b) { /* ignore */ }
     const db = new EBCDatabase();
-    // Catch ALL internal Dexie/IDB errors before they escape as unhandled rejections.
-    // db.on("error") fires for errors inside Dexie transactions that are not caught by
-    // a per-operation .catch().  Without this hook those errors become raw IDBRequest
-    // Event objects thrown as unhandled Promise rejections — showing up as "[object Event]"
-    // in BC's error reporter.  The hook must be attached before db.open() is called.
     try {
         db.on("error", () => { });
     }
-    catch ( /* ignore — Dexie unavailable */_b) { /* ignore — Dexie unavailable */ }
+    catch ( /* ignore */_c) { /* ignore */ }
     try {
         db.on("blocked", () => { });
     }
-    catch ( /* ignore */_c) { /* ignore */ }
-    // Eagerly open the database and silently swallow any failure.
+    catch ( /* ignore */_d) { /* ignore */ }
     db.open().catch(() => { });
     // Migrate existing localStorage bundles into IndexedDB (one-time, runs on startup).
     // Cleans up localStorage entries after a successful migration.
@@ -35226,7 +35233,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.1";
+    const MOD_VERSION = "5.9.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35237,6 +35244,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.2",
+            changes: [
+                "Fix: add Dexie.on('error') static global hook — catches errors from all Dexie instances before they escape into the Promise system. Previous fix (db.on('error')) was instance-level only. Now all four suppression layers are active: Dexie.on, db.on, db.open().catch, and window.unhandledrejection.",
+            ],
+        },
         {
             version: "5.9.1",
             changes: [
