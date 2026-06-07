@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      5.8.8
+// @version      5.8.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -65,6 +65,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (k !== "_d")
                 _mem[k] = v;
         }
+        // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
+        // Player.OnlineSettings before settings were moved to ExtensionSettings.
+        // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
+        // shows up as a /!\ warning mark over the player's head.  Remove the stale key.
+        try {
+            const onlineSettings = Player.OnlineSettings;
+            if (onlineSettings && "EmeryBC" in onlineSettings) {
+                delete onlineSettings["EmeryBC"];
+                try {
+                    const syncFn = window.ServerPlayerSettingsSync;
+                    if (typeof syncFn === "function")
+                        syncFn();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
         // One-time migration: pull kitty data that may still be in localStorage
         // from before it was moved into ExtensionSettings in v4.6.1.
         _migrateKittyFromLocalStorage();
@@ -35218,7 +35235,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.8";
+    const MOD_VERSION = "5.8.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35229,6 +35246,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.9",
+            changes: [
+                "Fix: /!\\ warning mark above head caused by stale 'EmeryBC' key left in Player.OnlineSettings from very old EBC versions. BC's PreferenceInitPlayer warns about unknown OnlineSettings keys and shows a warning indicator. initSettings() now deletes the orphaned key and syncs on first load.",
+            ],
+        },
         {
             version: "5.8.8",
             changes: [
