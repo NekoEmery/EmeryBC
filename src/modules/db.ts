@@ -21,6 +21,21 @@ class EBCDatabase extends Dexie {
     }
 }
 
+// Register a global suppressor for raw IDB/Dexie error Events BEFORE the database
+// is created.  Dexie can leak a raw IDBRequest error Event as an unhandled promise
+// rejection even after db.open().catch() is attached — the suppressor must be in
+// place before any IDB operation creates its first internal promise chain.
+// This runs at module-load time so it is always earlier than init().
+try {
+    window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
+        try {
+            if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
+                e.preventDefault();
+            }
+        } catch { /* ignore */ }
+    });
+} catch { /* ignore */ }
+
 export const db = new EBCDatabase();
 
 // Eagerly open the database and silently swallow any failure.

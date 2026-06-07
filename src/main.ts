@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.8.6";
+const MOD_VERSION = "5.8.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.8.7",
+        changes: [
+            "Fix: [object Event] unhandled rejection still appeared on v5.8.6 because the suppressor was registered in init() — too late, since Dexie opens the database at module-load time before init() runs. Moved the unhandledrejection suppressor to db.ts so it is registered before any IDB operation.",
+        ],
+    },
     {
         version: "5.8.6",
         changes: [
@@ -5877,21 +5883,8 @@ function seedDefaultBadgeSettings(): void {
 }
 
 function init(): void {
-    // Suppress raw IDB error Events that Dexie can leak on Android Chrome as
-    // unhandled promise rejections.  These show up as "[object Event]" in BC's
-    // error reporter and are not actionable — they just mean IndexedDB is
-    // unavailable on this device/session (private mode, quota, etc.).
-    // All EBC code that uses IndexedDB already has its own try/catch; this is
-    // a belt-and-suspenders backstop so BC's reporter never sees them.
-    try {
-        window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
-            try {
-                if (e.reason instanceof Event || String(e.reason) === "[object Event]") {
-                    e.preventDefault();
-                }
-            } catch { /* ignore */ }
-        });
-    } catch { /* ignore */ }
+    // Note: the unhandledrejection suppressor for IDB/Dexie [object Event] errors
+    // is registered in db.ts at module-load time, before any IDB operations.
 
     // Initialise compressed ExtensionSettings first — all modules read from here
     initSettings();
