@@ -15902,7 +15902,8 @@
 /* -- Beep window -- */
 .ebc-beep-win {
     position: fixed;
-    width: 300px;
+    width: min(320px, calc(100vw - 16px)); /* never overflow on narrow screens */
+    max-width: calc(100vw - 16px);
     height: 380px;
     background: rgba(19,8,16,0.94);
     backdrop-filter: blur(4px);
@@ -15915,7 +15916,7 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     font-family: "Trebuchet MS", serif;
     bottom: 80px;
-    right: 340px;
+    right: min(340px, calc(100vw - 336px)); /* keep window on-screen on narrow devices */
     overflow: hidden;
 }
 
@@ -16020,10 +16021,11 @@
 
 .ebc-beep-win-footer {
     display: flex;
-    gap: 5px;
-    padding: 7px 8px;
+    gap: 4px;
+    padding: 6px 7px;
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
+    min-width: 0;
 }
 
 .ebc-beep-win-input {
@@ -16046,9 +16048,10 @@
     color: #cf6f98;
     font-size: 11px;
     font-family: "Trebuchet MS", serif;
-    padding: 4px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 .ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
@@ -35179,7 +35182,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.8.5";
+    const MOD_VERSION = "5.8.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35190,6 +35193,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.8.6",
+            changes: [
+                "Fix: beep window Send button cut off on tablet/mobile. Window width changed to min(320px, 100vw-16px) and right position clamped so it stays fully on-screen on narrow devices. Footer gap and padding tightened; Send button gets white-space:nowrap so it never wraps.",
+            ],
+        },
         {
             version: "5.8.5",
             changes: [
