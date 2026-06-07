@@ -35226,7 +35226,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "5.9.0";
+    const MOD_VERSION = "5.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -35237,6 +35237,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "5.9.1",
+            changes: [
+                "Fix: /!\\ warning triangle persisted even after 5.8.9 cleanup because PreferenceInitPlayer (BC's OnlineSettings validator) fires before initSettings() finishes. Added a PreferenceInitPlayer hook that deletes the stale 'EmeryBC' key before BC's validator sees it.",
+            ],
+        },
         {
             version: "5.9.0",
             changes: [
@@ -41103,6 +41109,29 @@
             }
         }
         catch ( /* ignore */_c) { /* ignore */ }
+        // Remove stale "EmeryBC" key from Player.OnlineSettings BEFORE PreferenceInitPlayer
+        // runs its unknown-key validation.  Old EBC versions wrote settings there; BC now
+        // warns about extra OnlineSettings keys and shows a /!\ indicator.  We hook the
+        // function so the key is gone before BC ever checks — the initSettings() cleanup
+        // alone is too late because PreferenceInitPlayer can fire before initSettings
+        // finishes (or it was already called before init() runs).
+        tryHookFunction(modAPI, "PreferenceInitPlayer", 1, (args, next) => {
+            try {
+                const onlineSettings = Player.OnlineSettings;
+                if (onlineSettings && "EmeryBC" in onlineSettings) {
+                    delete onlineSettings["EmeryBC"];
+                    // Persist the removal — best-effort, errors ignored
+                    try {
+                        const syncFn = window.ServerPlayerSettingsSync;
+                        if (typeof syncFn === "function")
+                            syncFn();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return next(args);
+        });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
