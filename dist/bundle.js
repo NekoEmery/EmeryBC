@@ -4919,6 +4919,7 @@
         var _a;
         return (_a = getCachedAccountNames()[String(memberNumber)]) !== null && _a !== void 0 ? _a : null;
     }
+    function flushNameCache() { sync(); }
     function resolveName(memberNumber) {
         var _a, _b, _c, _d;
         try {
@@ -28691,7 +28692,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.0";
+    const MOD_VERSION = "6.1.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28702,6 +28703,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.1",
+            changes: [
+                "Fix: player names were not reliably resolved and could show as '#MemberNumber' after a reload. Three root causes fixed: (1) cacheName() wrote to in-memory store only — flushNameCache() is now called after ChatRoomSync so the name cache is persisted to ExtensionSettings immediately; (2) ChatRoomSyncMemberJoin never cached the joining member's name, so anyone who joined mid-session was unknown to resolveName(); (3) CharacterRefresh called recordPersonMet() but not cacheName(), so the display-name lookup (friendNames) was never populated from live character data.",
+            ],
+        },
         {
             version: "6.1.0",
             changes: [
@@ -34908,6 +34915,10 @@
                             }
                         }
                     }
+                // Flush name cache to ExtensionSettings so it persists across reloads.
+                // cacheName() only writes to _mem; without this flush the entries are lost
+                // if nothing else triggers syncSettings() before the session ends.
+                flushNameCache();
             }
             catch ( /* ignore */_m) { /* ignore */ }
             return result;
@@ -35051,6 +35062,14 @@
                         storeRawBundle(structuredClone(c));
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    // Cache the joining member's display name so resolveName() works
+                    // even after they leave. The raw server bundle has Nickname and Name.
+                    const nick = typeof (c === null || c === void 0 ? void 0 : c.Nickname) === "string" ? c.Nickname.trim() : "";
+                    const acct = typeof (c === null || c === void 0 ? void 0 : c.Name) === "string" ? c.Name : "";
+                    const displayName = nick || acct || String(num);
+                    cacheName(num, displayName);
+                    if (acct)
+                        cacheAccountName(num, acct);
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
@@ -35091,6 +35110,12 @@
                             const displayName = C.Nickname;
                             const name = (displayName === null || displayName === void 0 ? void 0 : displayName.trim()) || ((_a = C.Name) !== null && _a !== void 0 ? _a : "") || String(C.MemberNumber);
                             recordPersonMet(C.MemberNumber, name);
+                            // Also populate friendNames so resolveName() can find this person
+                            // even when they're no longer in the room. recordPersonMet writes
+                            // to peopleMet but resolveName() reads from friendNames only.
+                            cacheName(C.MemberNumber, name);
+                            if (C.Name)
+                                cacheAccountName(C.MemberNumber, C.Name);
                         }
                         catch ( /* ignore */_c) { /* ignore */ }
                     }
