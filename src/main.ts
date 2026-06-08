@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.3";
+const MOD_VERSION = "6.1.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.4",
+        changes: [
+            "Fix: friends list showing '#MemberNumber' as primary name with real name in muted secondary text. resolveName() now falls back to the cached account name (friendAccountNames) before returning '#number', so friends always show their real BC name even if the display-name cache hasn't been populated for them yet.",
+        ],
+    },
     {
         version: "6.1.3",
         changes: [

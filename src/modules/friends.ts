@@ -116,7 +116,14 @@ export function resolveName(memberNumber: number): string {
             return name;
         }
     } catch { /* ignore */ }
-    return getCachedNames()[String(memberNumber)] ?? `#${memberNumber}`;
+    // Prefer cached display name, then cached account name, then #number fallback.
+    // Account name is used as fallback so friends show their real name even if the
+    // display-name cache (friendNames) hasn't been populated yet for this member.
+    const displayName = getCachedNames()[String(memberNumber)];
+    if (displayName) return displayName;
+    const accountName = getCachedAccountNames()[String(memberNumber)];
+    if (accountName) return accountName;
+    return `#${memberNumber}`;
 }
 
 // -- Friend list ---------------------------------------------------------------
