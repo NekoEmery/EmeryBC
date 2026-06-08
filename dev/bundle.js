@@ -3338,9 +3338,9 @@
     // room and how long active restraints have been present.
     // Per-item timestamps are persisted in ExtensionSettings so they survive
     // offline sessions and page reloads.
-    // Collar/leash/neck items are tracked per-slot but do NOT count toward the
-    // overall "Bound" timer — wearing a collar alone should not say you are bound.
-    const NECK_GROUPS$1 = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
+    // Default groups excluded from the bound timer (collar/neck worn alone ≠ "bound").
+    // Users can override this per group via setTimerGroupExcluded().
+    const DEFAULT_EXCLUDED = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
     // Session start: fixed at module load time — "how long have I been online"
     const SESSION_START = Date.now();
     let roomEnterTime = null;
@@ -3370,6 +3370,32 @@
             }, 3000); // debounce — sync to server 3 s after last change
         }
     }
+    // ---------------------------------------------------------------------------
+    // User-configurable per-group timer exclusions
+    // ---------------------------------------------------------------------------
+    function getTimerExcludedGroups() {
+        try {
+            const v = getSettings().timerExcludedGroups;
+            if (Array.isArray(v))
+                return new Set(v);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        // Default: neck groups excluded, everything else counts
+        return new Set(DEFAULT_EXCLUDED);
+    }
+    function isTimerGroupExcluded(group) {
+        return getTimerExcludedGroups().has(group);
+    }
+    function setTimerGroupExcluded(group, excluded) {
+        const current = getTimerExcludedGroups();
+        if (excluded)
+            current.add(group);
+        else
+            current.delete(group);
+        getSettings().timerExcludedGroups = [...current];
+        syncSettings();
+    }
+    // ---------------------------------------------------------------------------
     function timerOnRoomEnter() {
         roomEnterTime = Date.now();
         restraintStartTime = null; // overall "continuously restrained" timer resets on room change
@@ -3394,15 +3420,16 @@
                 .map(i => i.Asset.Group.Name));
             // Sync per-item timers — load once, used both for start-time recovery and below
             const timers = loadRestraintTimers();
-            // Overall bound timer — neck/collar groups excluded.
+            // Overall bound timer — user-excluded groups (defaults: neck/collar) are ignored.
             // When already bound on load, recover the start from persisted per-item
             // timers so offline time is included rather than starting fresh.
-            const isBound = [...currentGroups].some(g => !NECK_GROUPS$1.has(g));
+            const excluded = getTimerExcludedGroups();
+            const isBound = [...currentGroups].some(g => !excluded.has(g));
             if (isBound) {
                 if (restraintStartTime === null) {
-                    // Find the oldest non-neck per-item timer already in storage
-                    const nonNeckGroups = [...currentGroups].filter(g => !NECK_GROUPS$1.has(g));
-                    const oldest = nonNeckGroups
+                    // Find the oldest non-excluded per-item timer already in storage
+                    const countedGroups = [...currentGroups].filter(g => !excluded.has(g));
+                    const oldest = countedGroups
                         .map(g => timers[g])
                         .filter((t) => typeof t === "number")
                         .reduce((min, t) => Math.min(min, t), now);
@@ -13787,10 +13814,39 @@
                         durEl.className = "ebc-restraint-duration";
                         durEl.textContent = dur ? `⏱ ${dur}` : "";
                         durEl.title = "Time worn (persists offline)";
+                        // Timer exclude toggle — click to include/exclude this slot from the ⛓ bound counter
+                        const excluded = isTimerGroupExcluded(group);
+                        const timerToggle = document.createElement("button");
+                        timerToggle.textContent = "⏱";
+                        timerToggle.title = excluded
+                            ? `${group.replace("Item", "")} excluded from bound timer — click to include`
+                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                        timerToggle.style.cssText = [
+                            "background:transparent",
+                            `border:1px solid ${excluded ? "#3a1a2a" : "#cf6f98"}`,
+                            "border-radius:3px",
+                            "cursor:pointer",
+                            "font-size:10px",
+                            "padding:0 3px",
+                            "line-height:14px",
+                            "flex-shrink:0",
+                            `opacity:${excluded ? "0.35" : "1"}`,
+                            "transition:opacity 0.15s,border-color 0.15s",
+                        ].join(";");
+                        timerToggle.addEventListener("click", () => {
+                            const nowExcluded = isTimerGroupExcluded(group);
+                            setTimerGroupExcluded(group, !nowExcluded);
+                            timerToggle.style.opacity = !nowExcluded ? "0.35" : "1";
+                            timerToggle.style.borderColor = !nowExcluded ? "#3a1a2a" : "#cf6f98";
+                            timerToggle.title = !nowExcluded
+                                ? `${group.replace("Item", "")} excluded from bound timer — click to include`
+                                : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                        });
                         row.appendChild(nameEl);
                         row.appendChild(groupEl);
                         row.appendChild(lockEl);
                         row.appendChild(durEl);
+                        row.appendChild(timerToggle);
                         container.appendChild(row);
                     }
                 }
@@ -28721,7 +28777,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.4";
+    const MOD_VERSION = "6.1.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28732,6 +28788,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.5",
+            changes: [
+                "Fix: bound timer no longer has hardcoded neck/collar exclusions — exclusions are now user-configurable and default to neck groups (ItemNeck, ItemNeckAccessories, ItemNeckRestraints). Previously if you were only wearing a collar the timer would never start because NECK_GROUPS was always excluded.",
+                "Feature: each item in the Active Restraints list now has a ⏱ toggle button. Pink border = counts toward the ⛓ bound timer. Dimmed = excluded. Clicking toggles the slot and saves the preference. Defaults to excluded for neck slots, included for everything else.",
+            ],
+        },
         {
             version: "6.1.4",
             changes: [
