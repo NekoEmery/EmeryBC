@@ -57,7 +57,7 @@ import {
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
-import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
+import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -6996,10 +6996,40 @@ export class EBCDrawer {
                     durEl.textContent = dur ? `⏱ ${dur}` : "";
                     durEl.title = "Time worn (persists offline)";
 
+                    // Timer exclude toggle — click to include/exclude this slot from the ⛓ bound counter
+                    const excluded = isTimerGroupExcluded(group);
+                    const timerToggle = document.createElement("button");
+                    timerToggle.textContent = "⏱";
+                    timerToggle.title = excluded
+                        ? `${group.replace("Item", "")} excluded from bound timer — click to include`
+                        : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                    timerToggle.style.cssText = [
+                        "background:transparent",
+                        `border:1px solid ${excluded ? "#3a1a2a" : "#cf6f98"}`,
+                        "border-radius:3px",
+                        "cursor:pointer",
+                        "font-size:10px",
+                        "padding:0 3px",
+                        "line-height:14px",
+                        "flex-shrink:0",
+                        `opacity:${excluded ? "0.35" : "1"}`,
+                        "transition:opacity 0.15s,border-color 0.15s",
+                    ].join(";");
+                    timerToggle.addEventListener("click", () => {
+                        const nowExcluded = isTimerGroupExcluded(group);
+                        setTimerGroupExcluded(group, !nowExcluded);
+                        timerToggle.style.opacity = !nowExcluded ? "0.35" : "1";
+                        timerToggle.style.borderColor = !nowExcluded ? "#3a1a2a" : "#cf6f98";
+                        timerToggle.title = !nowExcluded
+                            ? `${group.replace("Item", "")} excluded from bound timer — click to include`
+                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                    });
+
                     row.appendChild(nameEl);
                     row.appendChild(groupEl);
                     row.appendChild(lockEl);
                     row.appendChild(durEl);
+                    row.appendChild(timerToggle);
                     container.appendChild(row);
                 }
             } catch { /* Player not ready */ }

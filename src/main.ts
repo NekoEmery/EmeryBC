@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.4";
+const MOD_VERSION = "6.1.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.5",
+        changes: [
+            "Fix: bound timer no longer has hardcoded neck/collar exclusions — exclusions are now user-configurable and default to neck groups (ItemNeck, ItemNeckAccessories, ItemNeckRestraints). Previously if you were only wearing a collar the timer would never start because NECK_GROUPS was always excluded.",
+            "Feature: each item in the Active Restraints list now has a ⏱ toggle button. Pink border = counts toward the ⛓ bound timer. Dimmed = excluded. Clicking toggles the slot and saves the preference. Defaults to excluded for neck slots, included for everything else.",
+        ],
+    },
     {
         version: "6.1.4",
         changes: [
