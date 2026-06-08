@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.1.3
+// @version      6.1.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -4938,7 +4938,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function flushNameCache() { sync(); }
     function resolveName(memberNumber) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c;
         try {
             const room = window.ChatRoomCharacter;
             const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === memberNumber);
@@ -4953,8 +4953,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return name;
             }
         }
-        catch ( /* ignore */_e) { /* ignore */ }
-        return (_d = getCachedNames()[String(memberNumber)]) !== null && _d !== void 0 ? _d : `#${memberNumber}`;
+        catch ( /* ignore */_d) { /* ignore */ }
+        // Prefer cached display name, then cached account name, then #number fallback.
+        // Account name is used as fallback so friends show their real name even if the
+        // display-name cache (friendNames) hasn't been populated yet for this member.
+        const displayName = getCachedNames()[String(memberNumber)];
+        if (displayName)
+            return displayName;
+        const accountName = getCachedAccountNames()[String(memberNumber)];
+        if (accountName)
+            return accountName;
+        return `#${memberNumber}`;
     }
     // -- Friend list ---------------------------------------------------------------
     function getFriendList() {
@@ -28729,7 +28738,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.3";
+    const MOD_VERSION = "6.1.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28740,6 +28749,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.4",
+            changes: [
+                "Fix: friends list showing '#MemberNumber' as primary name with real name in muted secondary text. resolveName() now falls back to the cached account name (friendAccountNames) before returning '#number', so friends always show their real BC name even if the display-name cache hasn't been populated for them yet.",
+            ],
+        },
         {
             version: "6.1.3",
             changes: [
