@@ -646,6 +646,11 @@ export async function getCharacterBundle(memberNumber: number): Promise<unknown 
     return sessionCharacterBundles.get(memberNumber) ?? null;
 }
 
+/** Synchronous check — true if a session bundle exists for this member. */
+export function hasSessionBundle(memberNumber: number): boolean {
+    return sessionCharacterBundles.has(memberNumber);
+}
+
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {
