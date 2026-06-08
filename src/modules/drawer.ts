@@ -96,7 +96,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, hasSessionBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
@@ -16251,24 +16251,13 @@ export class EBCDrawer {
                         numSpan.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex-shrink:0;`;
                         numSpan.textContent = `#${person.n}`;
 
-                        // Profile is only openable if the person is in the current room
-                        // (live Character object available) or we have a session bundle.
-                        // Bundles are session-memory only — no persistence since Dexie removal.
-                        const w0 = window as unknown as Record<string, unknown>;
-                        const roomChars0 = w0.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
-                        const inRoomNow = Array.isArray(roomChars0) && roomChars0.some(c => c.MemberNumber === person.n);
-                        const canViewProfile = inRoomNow || hasSessionBundle(person.n);
-
                         const profBtn = document.createElement("button");
-                        profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="${canViewProfile ? "#cf6f98" : "#4a2a3a"}"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="${canViewProfile ? "#cf6f98" : "#4a2a3a"}"/></svg>`;
-                        profBtn.title = canViewProfile ? "View profile" : "Profile unavailable — join their room to view";
-                        profBtn.style.cssText = `background:var(--ebc-bg-darker);border:1px solid ${canViewProfile ? "var(--ebc-border-light)" : "#2a1421"};border-radius:5px;${canViewProfile ? "cursor:pointer;" : "cursor:default;opacity:0.45;"}line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;`;
-                        if (canViewProfile) {
-                            profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
-                            profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
-                        }
+                        profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                        profBtn.title = "View profile";
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", async () => {
-                        if (!canViewProfile) return;
                           try {
                             const w = window as unknown as Record<string, unknown>;
                             const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
@@ -16293,6 +16282,7 @@ export class EBCDrawer {
                                 return;
                             }
 
+                            // 1. Person is currently in the room — use live Character object
                             const inRoom = Array.isArray(roomChars)
                                 ? roomChars.find(c => c.MemberNumber === person.n)
                                 : undefined;
@@ -16300,6 +16290,7 @@ export class EBCDrawer {
                                 try { openProfile(inRoom); return; } catch { /* ignore */ }
                             }
 
+                            // 2. Session bundle available (seen this session)
                             const bundle = await getCharacterBundle(person.n);
                             if (bundle) {
                                 try {
@@ -16307,6 +16298,20 @@ export class EBCDrawer {
                                     if (C) { openProfile(C); return; }
                                 } catch { /* ignore */ }
                             }
+
+                            // 3. No bundle — synthesize a minimal one from cached name data.
+                            // CharacterLoadOnline fills in BC defaults for missing fields so
+                            // the info sheet opens with a blank model but correct name + number.
+                            try {
+                                const acctName = getAccountName(person.n) ?? person.name;
+                                const minBundle = {
+                                    MemberNumber: person.n,
+                                    Name: acctName,
+                                    Appearance: [],
+                                };
+                                const C = loadOnline(minBundle, person.n);
+                                if (C) { openProfile(C); return; }
+                            } catch { /* ignore */ }
 
                             try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
                           } catch { /* ignore — prevent unhandled rejection from async listener */ }

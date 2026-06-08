@@ -5441,10 +5441,6 @@
         var _a;
         return (_a = sessionCharacterBundles.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
-    /** Synchronous check — true if a session bundle exists for this member. */
-    function hasSessionBundle(memberNumber) {
-        return sessionCharacterBundles.has(memberNumber);
-    }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
         var _a;
@@ -22957,24 +22953,14 @@
                             const numSpan = document.createElement("span");
                             numSpan.style.cssText = `${PFONT}font-size:11px;color:#7a5a6a;flex-shrink:0;`;
                             numSpan.textContent = `#${person.n}`;
-                            // Profile is only openable if the person is in the current room
-                            // (live Character object available) or we have a session bundle.
-                            // Bundles are session-memory only — no persistence since Dexie removal.
-                            const w0 = window;
-                            const roomChars0 = w0.ChatRoomCharacter;
-                            const inRoomNow = Array.isArray(roomChars0) && roomChars0.some(c => c.MemberNumber === person.n);
-                            const canViewProfile = inRoomNow || hasSessionBundle(person.n);
                             const profBtn = document.createElement("button");
-                            profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="${canViewProfile ? "#cf6f98" : "#4a2a3a"}"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="${canViewProfile ? "#cf6f98" : "#4a2a3a"}"/></svg>`;
-                            profBtn.title = canViewProfile ? "View profile" : "Profile unavailable — join their room to view";
-                            profBtn.style.cssText = `background:var(--ebc-bg-darker);border:1px solid ${canViewProfile ? "var(--ebc-border-light)" : "#2a1421"};border-radius:5px;${canViewProfile ? "cursor:pointer;" : "cursor:default;opacity:0.45;"}line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;`;
-                            if (canViewProfile) {
-                                profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
-                                profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
-                            }
+                            profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                            profBtn.title = "View profile";
+                            profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                            profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                            profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                             profBtn.addEventListener("click", async () => {
-                                if (!canViewProfile)
-                                    return;
+                                var _a;
                                 try {
                                     const w = window;
                                     const loadChar = w.InformationSheetLoadCharacter;
@@ -23002,9 +22988,10 @@
                                         try {
                                             navigator.clipboard.writeText(String(person.n));
                                         }
-                                        catch ( /* ignore */_a) { /* ignore */ }
+                                        catch ( /* ignore */_b) { /* ignore */ }
                                         return;
                                     }
+                                    // 1. Person is currently in the room — use live Character object
                                     const inRoom = Array.isArray(roomChars)
                                         ? roomChars.find(c => c.MemberNumber === person.n)
                                         : undefined;
@@ -23013,8 +23000,9 @@
                                             openProfile(inRoom);
                                             return;
                                         }
-                                        catch ( /* ignore */_b) { /* ignore */ }
+                                        catch ( /* ignore */_c) { /* ignore */ }
                                     }
+                                    // 2. Session bundle available (seen this session)
                                     const bundle = await getCharacterBundle(person.n);
                                     if (bundle) {
                                         try {
@@ -23024,14 +23012,31 @@
                                                 return;
                                             }
                                         }
-                                        catch ( /* ignore */_c) { /* ignore */ }
+                                        catch ( /* ignore */_d) { /* ignore */ }
                                     }
+                                    // 3. No bundle — synthesize a minimal one from cached name data.
+                                    // CharacterLoadOnline fills in BC defaults for missing fields so
+                                    // the info sheet opens with a blank model but correct name + number.
+                                    try {
+                                        const acctName = (_a = getAccountName(person.n)) !== null && _a !== void 0 ? _a : person.name;
+                                        const minBundle = {
+                                            MemberNumber: person.n,
+                                            Name: acctName,
+                                            Appearance: [],
+                                        };
+                                        const C = loadOnline(minBundle, person.n);
+                                        if (C) {
+                                            openProfile(C);
+                                            return;
+                                        }
+                                    }
+                                    catch ( /* ignore */_e) { /* ignore */ }
                                     try {
                                         navigator.clipboard.writeText(String(person.n));
                                     }
-                                    catch ( /* ignore */_d) { /* ignore */ }
+                                    catch ( /* ignore */_f) { /* ignore */ }
                                 }
-                                catch ( /* ignore — prevent unhandled rejection from async listener */_e) { /* ignore — prevent unhandled rejection from async listener */ }
+                                catch ( /* ignore — prevent unhandled rejection from async listener */_g) { /* ignore — prevent unhandled rejection from async listener */ }
                             });
                             row.appendChild(nameSpan);
                             row.appendChild(numSpan);
@@ -28707,7 +28712,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.2";
+    const MOD_VERSION = "6.1.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28718,6 +28723,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.3",
+            changes: [
+                "Fix: People Met profile button now always works. For people not in the current room with no session bundle, a minimal character stub is synthesized from the cached name/member number and passed to CharacterLoadOnline — BC fills in defaults so the info sheet opens with a blank model but correct identity. Previously fell through to silent clipboard copy.",
+            ],
+        },
         {
             version: "6.1.2",
             changes: [
