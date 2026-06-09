@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.1.7
+// @version      6.1.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -4094,12 +4094,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         }
         const onDown = (e) => {
-            // Don't allow repositioning while a character tab is open — the sidebar
-            // is invisible then and getSidebarMaxX() can't find the chat log, so
-            // the chat-overlap clamp breaks and the panel can end up stuck behind chat.
-            const charMenuOpen = !!(window.CurrentCharacter);
-            if (charMenuOpen)
-                return;
+            // Don't allow repositioning while a character tab (in the current room) is open —
+            // getSidebarMaxX() can't find the chat log during the overlay, causing the clamp
+            // to break and the panel to end up stuck behind chat.
+            // Only block when the character is actually in the room — synthetic characters from
+            // offline profile viewing must not lock the drag grip permanently.
+            try {
+                const w = window;
+                const cc = w.CurrentCharacter;
+                if (cc) {
+                    const memberNum = cc.MemberNumber;
+                    const roomChars = w.ChatRoomCharacter;
+                    const inRoom = Array.isArray(roomChars) && roomChars.some(c => c.MemberNumber === memberNum);
+                    if (inRoom)
+                        return; // real in-room character menu open — block drag
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
             if (isInGrip(x, y)) {
@@ -28830,7 +28841,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.7";
+    const MOD_VERSION = "6.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28841,6 +28852,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.8",
+            changes: [
+                "Fix: sidebar (quick-keys) permanently disappearing after viewing an offline player's profile. Root cause: CharacterLoadOnline leaves CurrentCharacter set to the synthetic character after the Info Sheet closes, so the sidebar thought a character menu was open forever. The 'menu open' check now only hides the sidebar when CurrentCharacter is actually present in the current room — offline synthetic characters are ignored. Same fix applied to the drag grip listener.",
+            ],
+        },
         {
             version: "6.1.7",
             changes: [
@@ -34858,6 +34875,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             return result;
         });
+        // Returns true only when CurrentCharacter is an actual character present in the
+        // current chat room. Synthetic characters loaded via CharacterLoadOnline (for offline
+        // profile viewing) leave CurrentCharacter set after the Info Sheet closes, which would
+        // permanently hide the sidebar. Checking room membership avoids that stale-state bug.
+        const isCurrentCharacterInRoom = () => {
+            try {
+                const w = window;
+                const cc = w.CurrentCharacter;
+                if (!cc)
+                    return false;
+                const memberNum = cc.MemberNumber;
+                if (!memberNum)
+                    return false;
+                const roomChars = w.ChatRoomCharacter;
+                if (!Array.isArray(roomChars))
+                    return true; // can't tell — assume open
+                return roomChars.some(c => c.MemberNumber === memberNum);
+            }
+            catch (_a) {
+                return false;
+            }
+        };
         // Canvas sidebar action buttons.
         // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
         // was migrated to DOM). Hook DrawProcess instead, which is the actual per-frame
@@ -34886,7 +34925,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_b) { /* ignore */ }
             try {
                 const iconsHidden = !!(window.ChatRoomHideIconState);
-                const charMenuOpen = !!(window.CurrentCharacter);
+                // Only treat CurrentCharacter as "menu open" when the character is actually
+                // present in the current room. Synthetic characters created by CharacterLoadOnline
+                // (for offline profile viewing) leave CurrentCharacter set when you return to
+                // ChatRoom, which would permanently hide the sidebar.
+                const charMenuOpen = isCurrentCharacterInRoom();
                 if (getActionButtonsVisible() && !iconsHidden && !charMenuOpen)
                     drawActionButtons();
             }
@@ -34899,7 +34942,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (getBadgeDragMode())
                 return;
             const iconsHidden = !!(window.ChatRoomHideIconState);
-            const charMenuOpen = !!(window.CurrentCharacter);
+            const charMenuOpen = isCurrentCharacterInRoom();
             try {
                 if (!iconsHidden && !charMenuOpen && handleActionButtonClick())
                     return;
