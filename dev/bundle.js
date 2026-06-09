@@ -2286,6 +2286,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Escape emote custom text ---------------------------------------------------
+    // Optional custom text for the auto-escape room emote.
+    // Tokens: {item} = item name, {restrainer} = who applied it.
+    // When empty, falls back to the default glare emote text.
+    function getEscapeEmoteText() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.escapeEmoteText;
+            return typeof v === "string" ? v : "";
+        }
+        catch (_b) {
+            return "";
+        }
+    }
+    function setEscapeEmoteText(text) {
+        try {
+            const s = getSettings();
+            s.escapeEmoteText = text;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Dom set announce -----------------------------------------------------------
     // When false, applying a restraint set sends no room emote.
     function getDomSetAnnounce() {
@@ -3134,9 +3156,18 @@
         window.setTimeout(() => {
             try {
                 if (anySucceeded && getAntiRestraintAnnounce()) {
-                    const text = restrainer
-                        ? `glares at ${restrainer} as the ${itemName} falls away.`
-                        : `glares ahead as the ${itemName} falls away.`;
+                    const customEmote = getEscapeEmoteText();
+                    let text;
+                    if (customEmote.trim()) {
+                        text = customEmote
+                            .replace("{item}", itemName)
+                            .replace("{restrainer}", restrainer !== null && restrainer !== void 0 ? restrainer : "");
+                    }
+                    else {
+                        text = restrainer
+                            ? `glares at ${restrainer} as the ${itemName} falls away.`
+                            : `glares ahead as the ${itemName} falls away.`;
+                    }
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
                         Content: Player.Name + " " + text,
@@ -5943,37 +5974,6 @@
         }
     }
     function getDomConfig() { return loadConfig(); }
-    // -- Targets --
-    function addDomTarget(id, name) {
-        const cfg = loadConfig();
-        if (cfg.targets.some(t => t.id === id))
-            return;
-        cfg.targets.push({ id, name });
-        saveConfig(cfg);
-    }
-    function removeDomTarget(id) {
-        const cfg = loadConfig();
-        cfg.targets = cfg.targets.filter(t => t.id !== id);
-        saveConfig(cfg);
-    }
-    // Room members not already in the target list (excluding self).
-    function getRoomAddable() {
-        var _a;
-        try {
-            const existing = new Set(loadConfig().targets.map(t => t.id));
-            const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
-            return room
-                .filter(c => c.MemberNumber !== Player.MemberNumber && !existing.has(c.MemberNumber))
-                .map(c => ({
-                id: c.MemberNumber,
-                name: c.Nickname
-                    || c.Name || `#${c.MemberNumber}`,
-            }));
-        }
-        catch (_b) {
-            return [];
-        }
-    }
     // -- Restraint sets --
     function createDomSet(name, command, announceTemplate) {
         const cfg = loadConfig();
@@ -6170,23 +6170,6 @@
                 callBC(() => CharacterRefresh(char, true, false));
         }
         catch ( /* ignore */_b) { /* ignore */ }
-    }
-    // Returns the restraint items currently worn by each in-room target.
-    function getTargetRestraints() {
-        var _a;
-        const cfg = loadConfig();
-        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
-        const out = [];
-        for (const target of cfg.targets) {
-            const char = room.find(c => c.MemberNumber === target.id);
-            if (!char)
-                continue;
-            const items = char.Appearance
-                .filter((a) => a.Asset.Group.IsRestraint)
-                .map((a) => ({ group: a.Asset.Group.Name, name: a.Asset.Name }));
-            out.push({ target, items });
-        }
-        return out;
     }
     // Removes items (by group name) from a single in-room character.
     function removeTargetItems(targetId, groups) {
@@ -11116,7 +11099,6 @@
             // Set to true once we've confirmed no saved position exists, so we stop polling storage.
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
-            this.domSelectedTargets = new Set();
             this.domFocusTargetId = null;
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
@@ -27538,7 +27520,7 @@
         }
         // -- DOM Tools tab (creator-only) ------------------------------------------
         renderDomTools() {
-            var _a, _b, _c;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -27595,16 +27577,23 @@
             antiRow.appendChild(antiInfo);
             antiRow.appendChild(antiToggle);
             aeCard.appendChild(antiRow);
-            // Room emote announce row
-            const aeAnnRow = document.createElement("div");
-            aeAnnRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:2px 0 0;";
-            const aeAnnLbl = document.createElement("span");
-            aeAnnLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
-            aeAnnLbl.textContent = "Room emote when escaping:";
+            // Room emote row: custom text + announce toggle
+            const aeEmoteRow = document.createElement("div");
+            aeEmoteRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 0 0;";
+            const aeEmoteLbl = document.createElement("span");
+            aeEmoteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;white-space:nowrap;flex-shrink:0;";
+            aeEmoteLbl.textContent = "Room emote:";
+            const aeEmoteInput = document.createElement("input");
+            aeEmoteInput.type = "text";
+            aeEmoteInput.className = "ebc-form-input";
+            aeEmoteInput.style.cssText = "flex:1;font-size:11px;padding:2px 5px;min-width:0;";
+            aeEmoteInput.value = getEscapeEmoteText();
+            aeEmoteInput.placeholder = "glares at {restrainer} as the {item} falls away.";
+            aeEmoteInput.addEventListener("blur", () => setEscapeEmoteText(aeEmoteInput.value.trim()));
             const aeAnnSel = document.createElement("select");
             aeAnnSel.className = "ebc-form-input";
-            aeAnnSel.style.cssText = "font-size:11px;padding:2px 5px;";
-            const aeAnnOpts = [["1", "✓ Glare emote"], ["0", "Silent"]];
+            aeAnnSel.style.cssText = "font-size:11px;padding:2px 5px;flex-shrink:0;";
+            const aeAnnOpts = [["1", "✓ Emote"], ["0", "Silent"]];
             for (const [v, annOptLbl] of aeAnnOpts) {
                 const o = document.createElement("option");
                 o.value = v;
@@ -27614,160 +27603,15 @@
                 aeAnnSel.appendChild(o);
             }
             aeAnnSel.addEventListener("change", () => setAntiRestraintAnnounce(aeAnnSel.value === "1"));
-            aeAnnRow.appendChild(aeAnnLbl);
-            aeAnnRow.appendChild(aeAnnSel);
-            aeCard.appendChild(aeAnnRow);
+            aeEmoteRow.appendChild(aeEmoteLbl);
+            aeEmoteRow.appendChild(aeEmoteInput);
+            aeEmoteRow.appendChild(aeAnnSel);
+            aeCard.appendChild(aeEmoteRow);
+            const aeEmoteHint = document.createElement("div");
+            aeEmoteHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a4a5a;padding:2px 0 0;";
+            aeEmoteHint.textContent = "Leave blank for default · tokens: {item} · {restrainer}";
+            aeCard.appendChild(aeEmoteHint);
             body.appendChild(aeCard);
-            // ── Room Admin card ───────────────────────────────────────────────────
-            const adminCard = document.createElement("div");
-            adminCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
-            const adminLbl = document.createElement("div");
-            adminLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
-            adminLbl.textContent = "Room Admin";
-            adminCard.appendChild(adminLbl);
-            const w = window;
-            const roomData = w.ChatRoomData;
-            const roomChars = (_b = w.ChatRoomCharacter) !== null && _b !== void 0 ? _b : [];
-            const inRoom = roomChars.length > 0;
-            const isAdmin = inRoom && Array.isArray(roomData === null || roomData === void 0 ? void 0 : roomData.Admin) && roomData.Admin.includes(Player.MemberNumber);
-            if (!inRoom) {
-                const hint = document.createElement("div");
-                hint.className = "ebc-import-hint";
-                hint.textContent = "Not in a chatroom.";
-                adminCard.appendChild(hint);
-            }
-            else if (!isAdmin) {
-                const hint = document.createElement("div");
-                hint.className = "ebc-import-hint";
-                hint.textContent = "You are not a room admin.";
-                adminCard.appendChild(hint);
-            }
-            else {
-                const adminWrap = document.createElement("div");
-                adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;";
-                // ── Lock / Unlock ─────────────────────────────────────────────────
-                const locked = (_c = roomData === null || roomData === void 0 ? void 0 : roomData.Locked) !== null && _c !== void 0 ? _c : false;
-                const lockBtn = document.createElement("button");
-                lockBtn.style.cssText = [
-                    "width:100%",
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:11px",
-                    "font-weight:bold",
-                    "padding:8px 4px",
-                    "border-radius:6px",
-                    "cursor:pointer",
-                    "transition:background 0.14s,border-color 0.14s",
-                    locked
-                        ? "border:1px solid #cf6f98;background:#6b2040;color:#ffd0e0;"
-                        : "border:1px solid #5a9860;background:#1a3e20;color:#a0e090;",
-                ].join(";");
-                lockBtn.textContent = locked ? "🔒 Room Locked - Click to Unlock" : "🔓 Room Unlocked - Click to Lock";
-                lockBtn.title = locked ? "Unlock the room so anyone can join" : "Lock the room to prevent new joins";
-                lockBtn.addEventListener("click", () => {
-                    try {
-                        ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: locked ? "Unlock" : "Lock" });
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    // Optimistic local update — server will confirm
-                    window.setTimeout(() => this.rerender(), 200);
-                });
-                adminWrap.appendChild(lockBtn);
-                // ── Member picker + action buttons ────────────────────────────────
-                const memberSel = document.createElement("select");
-                memberSel.className = "ebc-form-input";
-                memberSel.style.cssText = "width:100%;font-size:11px;";
-                const ph = document.createElement("option");
-                ph.value = "";
-                ph.textContent = "— choose member —";
-                ph.disabled = true;
-                ph.selected = true;
-                memberSel.appendChild(ph);
-                const buildMemberOpts = () => {
-                    while (memberSel.firstChild)
-                        memberSel.removeChild(memberSel.firstChild);
-                    memberSel.appendChild(ph);
-                    for (const m of getRoomMembers()) {
-                        if (m.id === Player.MemberNumber)
-                            continue;
-                        const opt = document.createElement("option");
-                        opt.value = String(m.id);
-                        opt.textContent = `${m.name} (#${m.id})`;
-                        memberSel.appendChild(opt);
-                    }
-                    ph.textContent = memberSel.children.length <= 1 ? "— no other members —" : "— choose member —";
-                };
-                buildMemberOpts();
-                const makeBtn = (label, title, border, bg, color) => {
-                    const btn = document.createElement("button");
-                    btn.textContent = label;
-                    btn.title = title;
-                    btn.disabled = true;
-                    btn.style.cssText = [
-                        "flex:1",
-                        "font-family:'Trebuchet MS',serif",
-                        "font-size:11px",
-                        "font-weight:bold",
-                        "padding:6px 4px",
-                        "border-radius:6px",
-                        "cursor:pointer",
-                        "opacity:0.45",
-                        "transition:background 0.14s,opacity 0.14s",
-                        `border:1px solid ${border}`,
-                        `background:${bg}`,
-                        `color:${color}`,
-                    ].join(";");
-                    return btn;
-                };
-                const kickBtn = makeBtn("👢 Kick", "Kick this member from the room", "#7a3a1a", "#3a1a08", "#f0a060");
-                const banBtn = makeBtn("🚫 Ban", "Ban this member from the room", "#7a2020", "#3a0808", "#ff8888");
-                const promBtn = makeBtn("⭐ Promote", "Give room admin to this member", "#3a7030", "#152a10", "#90e080");
-                const demBtn = makeBtn("⬇ Demote", "Remove room admin from this member", "#3a4070", "#101828", "#80a0f0");
-                const allActionBtns = [kickBtn, banBtn, promBtn, demBtn];
-                const syncBtns = () => {
-                    const has = memberSel.value !== "";
-                    for (const b of allActionBtns) {
-                        b.disabled = !has;
-                        b.style.opacity = has ? "1" : "0.45";
-                        b.style.cursor = has ? "pointer" : "default";
-                    }
-                };
-                memberSel.addEventListener("change", syncBtns);
-                const sendAction = (action) => {
-                    const id = parseInt(memberSel.value, 10);
-                    if (!id)
-                        return;
-                    try {
-                        ServerSend("ChatRoomAdmin", { MemberNumber: id, Action: action });
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                };
-                kickBtn.addEventListener("click", () => sendAction("Kick"));
-                banBtn.addEventListener("click", () => sendAction("Ban"));
-                promBtn.addEventListener("click", () => sendAction("Promote"));
-                demBtn.addEventListener("click", () => sendAction("Demote"));
-                const refreshBtn2 = document.createElement("button");
-                refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-                refreshBtn2.textContent = "↻";
-                refreshBtn2.title = "Refresh member list";
-                refreshBtn2.addEventListener("click", buildMemberOpts);
-                const selRow = document.createElement("div");
-                selRow.style.cssText = "display:flex;gap:5px;align-items:center;";
-                selRow.appendChild(memberSel);
-                selRow.appendChild(refreshBtn2);
-                const row1 = document.createElement("div");
-                row1.style.cssText = "display:flex;gap:5px;";
-                row1.appendChild(kickBtn);
-                row1.appendChild(banBtn);
-                const row2 = document.createElement("div");
-                row2.style.cssText = "display:flex;gap:5px;";
-                row2.appendChild(promBtn);
-                row2.appendChild(demBtn);
-                adminWrap.appendChild(selRow);
-                adminWrap.appendChild(row1);
-                adminWrap.appendChild(row2);
-                adminCard.appendChild(adminWrap);
-            }
-            body.appendChild(adminCard);
             // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
@@ -27790,16 +27634,53 @@
                 dsSel.appendChild(o);
             }
             dsSel.addEventListener("change", () => setDomSetAnnounce(dsSel.value === "1"));
-            // Sync selected targets: add any new targets that aren't tracked yet
-            const allTargetIds = getDomConfig().targets.map(t => t.id);
-            if (this.domSelectedTargets.size === 0) {
-                allTargetIds.forEach(id => this.domSelectedTargets.add(id));
-            }
-            // Remove stale IDs
-            for (const id of this.domSelectedTargets) {
-                if (!allTargetIds.includes(id))
-                    this.domSelectedTargets.delete(id);
-            }
+            // ── Target row ────────────────────────────────────────────────────────
+            const targetCard = document.createElement("div");
+            targetCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            const targetTopRow = document.createElement("div");
+            targetTopRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            const targetLbl = document.createElement("span");
+            targetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex-shrink:0;";
+            targetLbl.textContent = "Target";
+            const qtSel = document.createElement("select");
+            qtSel.className = "ebc-form-input";
+            qtSel.style.cssText = "flex:1;font-size:11px;";
+            const qtPh = document.createElement("option");
+            qtPh.value = "";
+            qtPh.textContent = "— choose person —";
+            qtPh.disabled = true;
+            qtPh.selected = true;
+            qtSel.appendChild(qtPh);
+            const qtRefresh = document.createElement("button");
+            qtRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            qtRefresh.textContent = "↻";
+            qtRefresh.title = "Refresh room members";
+            const populateQtSel = () => {
+                const savedId = this.domFocusTargetId != null ? String(this.domFocusTargetId) : qtSel.value;
+                while (qtSel.firstChild)
+                    qtSel.removeChild(qtSel.firstChild);
+                qtSel.appendChild(qtPh);
+                const members = getRoomMembers();
+                for (const m of members) {
+                    if (m.id === Player.MemberNumber)
+                        continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    qtSel.appendChild(opt);
+                }
+                qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
+                if (savedId && [...qtSel.options].some(o => o.value === savedId))
+                    qtSel.value = savedId;
+            };
+            populateQtSel();
+            qtSel.addEventListener("change", () => { this.domFocusTargetId = parseInt(qtSel.value, 10) || null; });
+            qtRefresh.addEventListener("click", populateQtSel);
+            targetTopRow.appendChild(targetLbl);
+            targetTopRow.appendChild(qtSel);
+            targetTopRow.appendChild(qtRefresh);
+            targetCard.appendChild(targetTopRow);
+            body.appendChild(targetCard);
             // Helper: labelled text input row
             const makeField = (label, value, prefix = "", placeholder = "") => {
                 const row = document.createElement("div");
@@ -27828,84 +27709,6 @@
                 row.appendChild(wrap);
                 return { row, input };
             };
-            // ── Targets card ──────────────────────────────────────────────────────
-            const targCard = document.createElement("div");
-            targCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
-            const targLbl = document.createElement("div");
-            targLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
-            targLbl.textContent = "Targets";
-            targCard.appendChild(targLbl);
-            const targList = document.createElement("div");
-            targCard.appendChild(targList);
-            const rebuildTargets = () => {
-                while (targList.firstChild)
-                    targList.removeChild(targList.firstChild);
-                for (const t of getDomConfig().targets) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
-                    const cb = document.createElement("input");
-                    cb.type = "checkbox";
-                    cb.checked = this.domSelectedTargets.has(t.id);
-                    cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                    cb.addEventListener("change", () => {
-                        if (cb.checked)
-                            this.domSelectedTargets.add(t.id);
-                        else
-                            this.domSelectedTargets.delete(t.id);
-                    });
-                    row.appendChild(cb);
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-                    nameEl.textContent = t.name;
-                    const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
-                    numEl.textContent = "#" + t.id;
-                    const delBtn = document.createElement("button");
-                    delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#9a7080;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
-                    delBtn.textContent = "×";
-                    delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
-                    delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#9a7080"; });
-                    delBtn.addEventListener("click", () => { removeDomTarget(t.id); rebuildTargets(); rebuildAddable(); });
-                    row.appendChild(nameEl);
-                    row.appendChild(numEl);
-                    row.appendChild(delBtn);
-                    targList.appendChild(row);
-                }
-            };
-            rebuildTargets();
-            const addableWrap = document.createElement("div");
-            addableWrap.style.cssText = "margin-top:4px;";
-            targCard.appendChild(addableWrap);
-            body.appendChild(targCard);
-            const rebuildAddable = () => {
-                while (addableWrap.firstChild)
-                    addableWrap.removeChild(addableWrap.firstChild);
-                const addable = getRoomAddable();
-                if (addable.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                    hint.textContent = "No new people in room to add.";
-                    addableWrap.appendChild(hint);
-                    return;
-                }
-                const addLbl = document.createElement("div");
-                addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;margin-bottom:4px;";
-                addLbl.textContent = "Add from room:";
-                addableWrap.appendChild(addLbl);
-                const chipRow = document.createElement("div");
-                chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
-                for (const p of addable) {
-                    const chip = document.createElement("button");
-                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
-                    chip.textContent = "+ " + p.name + " #" + p.id;
-                    chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
-                    chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
-                    chip.addEventListener("click", () => { addDomTarget(p.id, p.name); rebuildTargets(); rebuildAddable(); });
-                    chipRow.appendChild(chip);
-                }
-                addableWrap.appendChild(chipRow);
-            };
-            rebuildAddable();
             // ── ⛑ Room Rescue (collapsible, appended at the very end) ──────────────
             const divRescue = document.createElement("div");
             divRescue.className = "ebc-divider";
@@ -28189,13 +27992,25 @@
                 window.setTimeout(() => { releaseStatus.textContent = ""; }, 4000);
             };
             removeAllBtn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    releaseStatus.textContent = "Pick a target first.";
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                    return;
+                }
                 removeAllBtn.disabled = true;
-                showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets));
+                showReleaseStatus(removeAllTargetRestraints(new Set([id])));
                 window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
             });
             unlockAllBtn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    releaseStatus.textContent = "Pick a target first.";
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                    return;
+                }
                 unlockAllBtn.disabled = true;
-                showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets));
+                showReleaseStatus(unlockAllTargetItems(new Set([id])));
                 window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
             });
             // ── "Pick items to remove" picker ─────────────────────────────────────
@@ -28216,85 +28031,70 @@
             pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;";
             releaseCard.appendChild(pickPanel);
             body.appendChild(releaseCard);
-            // selection state: targetId → Set of group names
-            const pendingRemove = new Map();
             const rebuildPickPanel = () => {
                 while (pickPanel.firstChild)
                     pickPanel.removeChild(pickPanel.firstChild);
-                pendingRemove.clear();
-                const sections = getTargetRestraints();
-                if (sections.length === 0) {
+                const selectedId = parseInt(qtSel.value, 10);
+                if (!selectedId) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                    hint.textContent = "No targets are in the room right now.";
+                    hint.textContent = "Select a target first.";
                     pickPanel.appendChild(hint);
                     return;
                 }
-                for (const { target, items } of sections) {
-                    pendingRemove.set(target.id, new Set());
-                    const targHdr = document.createElement("div");
-                    targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
-                    targHdr.textContent = target.name;
-                    pickPanel.appendChild(targHdr);
-                    if (items.length === 0) {
-                        const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:1px 4px 4px;";
-                        none.textContent = "No restraints worn.";
-                        pickPanel.appendChild(none);
-                        continue;
-                    }
-                    const itemsWrap = document.createElement("div");
-                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
-                    for (const item of items) {
-                        const lbl3 = document.createElement("label");
-                        lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
-                        lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
-                        lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
-                        const cb2 = document.createElement("input");
-                        cb2.type = "checkbox";
-                        cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                        cb2.addEventListener("change", () => {
-                            const sel = pendingRemove.get(target.id);
-                            if (cb2.checked)
-                                sel.add(item.group);
-                            else
-                                sel.delete(item.group);
-                        });
-                        const cbN = document.createElement("span");
-                        cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                        cbN.textContent = item.name;
-                        const cbG = document.createElement("span");
-                        cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                        cbG.textContent = item.group.replace("Item", "");
-                        lbl3.appendChild(cb2);
-                        lbl3.appendChild(cbN);
-                        lbl3.appendChild(cbG);
-                        itemsWrap.appendChild(lbl3);
-                    }
-                    pickPanel.appendChild(itemsWrap);
+                const items = getRoomMemberItems(selectedId);
+                if (items.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
+                    hint.textContent = "No items found (not in room?).";
+                    pickPanel.appendChild(hint);
+                    return;
                 }
-                // Remove selected button
+                const pendingGroups = new Set();
+                const itemsWrap = document.createElement("div");
+                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
+                for (const item of items) {
+                    const lbl3 = document.createElement("label");
+                    lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
+                    lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
+                    lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
+                    const cb2 = document.createElement("input");
+                    cb2.type = "checkbox";
+                    cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    cb2.addEventListener("change", () => {
+                        if (cb2.checked)
+                            pendingGroups.add(item.group);
+                        else
+                            pendingGroups.delete(item.group);
+                    });
+                    const lockIco = document.createElement("span");
+                    lockIco.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
+                    lockIco.textContent = item.locked ? "🔒" : "";
+                    const cbN = document.createElement("span");
+                    cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    cbN.textContent = item.name;
+                    const cbG = document.createElement("span");
+                    cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    cbG.textContent = item.group.replace("Item", "");
+                    lbl3.appendChild(cb2);
+                    lbl3.appendChild(lockIco);
+                    lbl3.appendChild(cbN);
+                    lbl3.appendChild(cbG);
+                    itemsWrap.appendChild(lbl3);
+                }
+                pickPanel.appendChild(itemsWrap);
                 const removeSelBtn = document.createElement("button");
                 removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
                 removeSelBtn.textContent = "Remove Selected";
                 removeSelBtn.addEventListener("click", () => {
-                    var _a;
-                    const results = [];
-                    const cfg5 = getDomConfig();
-                    for (const [targetId, groups] of pendingRemove) {
-                        if (groups.size === 0)
-                            continue;
-                        const target = cfg5.targets.find(t => t.id === targetId);
-                        const res = removeTargetItems(targetId, [...groups]);
-                        results.push(Object.assign({ name: (_a = target === null || target === void 0 ? void 0 : target.name) !== null && _a !== void 0 ? _a : String(targetId) }, res));
-                    }
-                    if (results.length === 0) {
+                    if (pendingGroups.size === 0) {
                         releaseStatus.textContent = "Nothing selected.";
+                        window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                        return;
                     }
-                    else {
-                        showReleaseStatus(results);
-                    }
-                    // Refresh picker to reflect new state
+                    const count = removeItemsFromMember(selectedId, [...pendingGroups]);
+                    releaseStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 3000);
                     rebuildPickPanel();
                 });
                 pickPanel.appendChild(removeSelBtn);
@@ -28375,7 +28175,14 @@
                     setsContainer.appendChild(applyStatus);
                     applyBtn.addEventListener("click", () => {
                         applyBtn.disabled = true;
-                        const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets);
+                        const id = parseInt(qtSel.value, 10);
+                        if (!id) {
+                            applyStatus.textContent = "Pick a target first.";
+                            applyStatus.style.display = "block";
+                            window.setTimeout(() => { applyBtn.disabled = false; applyStatus.style.display = "none"; }, 2500);
+                            return;
+                        }
+                        const { applied, skipped } = applyDomSet(set.id, new Set([id]));
                         const parts = [];
                         if (applied.length)
                             parts.push("✓ " + applied.join(", "));
@@ -28649,54 +28456,13 @@
                 rebuildSets();
                 body.scrollTop = body.scrollHeight;
             });
-            // ── Actions card — Focus Target + Quick Actions + Poses + Toy Control ──
+            // ── Actions card — Quick Actions + Poses + Toy Control ──────────────────
             const actionsCard = document.createElement("div");
             actionsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
-            const qtLbl = document.createElement("div");
-            qtLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:5px;";
-            qtLbl.textContent = "Focus Target";
-            actionsCard.appendChild(qtLbl);
-            const qtRow = document.createElement("div");
-            qtRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:4px;";
-            const qtSel = document.createElement("select");
-            qtSel.className = "ebc-form-input";
-            qtSel.style.cssText = "flex:1;font-size:11px;";
-            const qtPh = document.createElement("option");
-            qtPh.value = "";
-            qtPh.textContent = "— choose person —";
-            qtPh.disabled = true;
-            qtPh.selected = true;
-            qtSel.appendChild(qtPh);
-            const qtRefresh = document.createElement("button");
-            qtRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-            qtRefresh.textContent = "↻";
-            qtRefresh.title = "Refresh room members";
-            const populateQtSel = () => {
-                // Prefer the persisted domFocusTargetId (survives re-renders) over the current select value
-                const savedId = this.domFocusTargetId != null ? String(this.domFocusTargetId) : qtSel.value;
-                while (qtSel.firstChild)
-                    qtSel.removeChild(qtSel.firstChild);
-                qtSel.appendChild(qtPh);
-                const members = getRoomMembers();
-                for (const m of members) {
-                    if (m.id === Player.MemberNumber)
-                        continue;
-                    const opt = document.createElement("option");
-                    opt.value = String(m.id);
-                    opt.textContent = `${m.name} (#${m.id})`;
-                    qtSel.appendChild(opt);
-                }
-                qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
-                // Restore selection if still in list
-                if (savedId && [...qtSel.options].some(o => o.value === savedId))
-                    qtSel.value = savedId;
-            };
-            populateQtSel();
-            qtSel.addEventListener("change", () => { this.domFocusTargetId = parseInt(qtSel.value, 10) || null; });
-            qtRefresh.addEventListener("click", populateQtSel);
-            qtRow.appendChild(qtSel);
-            qtRow.appendChild(qtRefresh);
-            actionsCard.appendChild(qtRow);
+            const actionsLbl = document.createElement("div");
+            actionsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:2px;";
+            actionsLbl.textContent = "Actions";
+            actionsCard.appendChild(actionsLbl);
             // Helper: build an accordion section inside a container
             const makeDomAccordion = (icon, title, container) => {
                 const divider = document.createElement("div");
@@ -29146,7 +28912,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.7";
+    const MOD_VERSION = "6.2.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29157,6 +28923,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.8",
+            changes: [
+                "UX: Removed Room Admin card from dom tab (was always showing 'not an admin' and wasting space).",
+                "Feature: Auto-Escape custom room emote - type any emote text; tokens {item} and {restrainer} are replaced at escape time. Leave blank to keep the default glare emote.",
+                "UX: Dom tab layout redesign - merged Targets and Focus Target into a single compact TARGET selector at the top. One dropdown controls all operations (release tools, restraint sets, quick actions, poses, toys). Reduced vertical scrolling, Actions card is now clean with no redundant target picker inside it.",
+                "Fix: Pick items to remove now shows the currently selected target's items (locks included) instead of iterating all saved targets.",
+            ],
+        },
         {
             version: "6.2.7",
             changes: [
