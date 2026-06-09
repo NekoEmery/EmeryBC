@@ -9907,22 +9907,24 @@
 
 .ebc-emoji-picker {
     position: absolute;
-    bottom: calc(100% + 4px);
+    bottom: calc(100% + 6px);
     right: 0;
-    background: #1e0d1a;
-    border: 1px solid #5a2840;
-    border-radius: 8px;
-    width: 252px;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
+    background: #251020;
+    border: 1px solid #6a304e;
+    border-radius: 10px;
+    width: 296px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.7);
     z-index: 10001;
     overflow: hidden;
     flex-direction: column;
 }
 .ebc-emoji-tabs {
     display: flex;
-    background: #180c14;
-    border-bottom: 1px solid #3a1828;
+    background: #1c0c18;
+    border-bottom: 1px solid #4a2038;
     flex-shrink: 0;
+    padding: 2px 2px 0;
+    gap: 1px;
 }
 .ebc-emoji-tab {
     flex: 1;
@@ -9930,44 +9932,59 @@
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
-    color: #7a5060;
-    font-size: 13px;
+    color: #9a6878;
+    font-size: 15px;
     cursor: pointer;
-    padding: 5px 1px;
+    padding: 6px 2px;
     line-height: 1;
     transition: color 0.1s, border-color 0.1s, background 0.1s;
+    border-radius: 4px 4px 0 0;
 }
-.ebc-emoji-tab:hover { background: rgba(60,16,40,0.6); color: #cf8098; }
-.ebc-emoji-tab.active { color: #cf6f98; border-bottom-color: #cf6f98; }
+.ebc-emoji-tab:hover { background: rgba(80,20,50,0.5); color: #e090b0; }
+.ebc-emoji-tab.active { color: #f080a8; border-bottom-color: #f080a8; background: rgba(80,20,50,0.3); }
 .ebc-emoji-body {
     display: flex;
     flex-wrap: wrap;
-    gap: 1px;
-    padding: 5px;
-    max-height: 190px;
+    gap: 2px;
+    padding: 8px;
+    max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
+    background: #251020;
 }
 .ebc-emoji-body button {
-    background: none;
-    border: none;
-    font-size: 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid transparent;
+    font-size: 20px;
     cursor: pointer;
-    padding: 3px 4px;
-    border-radius: 4px;
-    transition: background 0.1s;
+    padding: 5px 5px;
+    border-radius: 6px;
+    transition: background 0.1s, border-color 0.1s, transform 0.08s;
     line-height: 1;
 }
-.ebc-emoji-body button.ebc-text-emote {
-    font-size: 9.5px;
-    font-family: "Trebuchet MS", serif;
-    color: #d0a8b8;
-    padding: 3px 6px;
-    white-space: nowrap;
-    line-height: 1.6;
+.ebc-emoji-body button:hover {
+    background: rgba(207,111,152,0.18) !important;
+    border-color: #cf6f98 !important;
+    transform: scale(1.15);
+    filter: none !important;
 }
-.ebc-emoji-body button:hover { background: #3a1028 !important; filter: none !important; }
+.ebc-emoji-body button.ebc-text-emote {
+    font-size: 11px;
+    font-family: "Trebuchet MS", serif;
+    color: #e8b0cc;
+    padding: 4px 8px;
+    white-space: nowrap;
+    line-height: 1.5;
+    background: rgba(207,111,152,0.1);
+    border: 1px solid #5a2848;
+}
+.ebc-emoji-body button.ebc-text-emote:hover {
+    background: rgba(207,111,152,0.25) !important;
+    border-color: #cf6f98 !important;
+    color: #f8c0dc !important;
+    transform: none;
+}
 
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
@@ -19111,7 +19128,7 @@
                 tab.textContent = cat.icon;
                 tab.title = cat.label;
                 if (cat.text)
-                    tab.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
+                    tab.style.cssText = "font-size:11px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
                 tab.addEventListener("click", (ev) => { ev.stopPropagation(); renderEmoteCat(i); });
                 emojiTabs.appendChild(tab);
             });
@@ -28796,7 +28813,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.6";
+    const MOD_VERSION = "6.1.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28807,6 +28824,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.7",
+            changes: [
+                "UX: Emoji picker redesign — wider panel (296px), larger emoji buttons (20px, subtle tile background), 2px gap grid, scale-on-hover animation. Tab bar icons bumped to 15px with active highlight. Text emotes (OwO tab) now 11px with a pill background instead of bare tiny text. Much easier to see and click.",
+            ],
+        },
         {
             version: "6.1.6",
             changes: [
