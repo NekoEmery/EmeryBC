@@ -6996,33 +6996,34 @@ export class EBCDrawer {
                     durEl.textContent = dur ? `⏱ ${dur}` : "";
                     durEl.title = "Time worn (persists offline)";
 
-                    // Timer exclude toggle — click to include/exclude this slot from the ⛓ bound counter
+                    // Timer exclude toggle — highlighted when this slot IS excluded from the ⛓ bound counter
                     const excluded = isTimerGroupExcluded(group);
                     const timerToggle = document.createElement("button");
-                    timerToggle.textContent = "⏱";
-                    timerToggle.title = excluded
-                        ? `${group.replace("Item", "")} excluded from bound timer — click to include`
-                        : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
-                    timerToggle.style.cssText = [
-                        "background:transparent",
-                        `border:1px solid ${excluded ? "#3a1a2a" : "#cf6f98"}`,
-                        "border-radius:3px",
-                        "cursor:pointer",
-                        "font-size:10px",
-                        "padding:0 3px",
-                        "line-height:14px",
-                        "flex-shrink:0",
-                        `opacity:${excluded ? "0.35" : "1"}`,
-                        "transition:opacity 0.15s,border-color 0.15s",
-                    ].join(";");
+                    timerToggle.textContent = "Exclude";
+                    const applyToggleStyle = (isExcluded: boolean): void => {
+                        timerToggle.style.cssText = [
+                            `background:${isExcluded ? "#4a1a2a" : "transparent"}`,
+                            `border:1px solid ${isExcluded ? "#e85d8a" : "#3a1a2a"}`,
+                            "border-radius:3px",
+                            "cursor:pointer",
+                            "font-family:'Trebuchet MS',serif",
+                            "font-size:9px",
+                            `color:${isExcluded ? "#e85d8a" : "#6a3a5a"}`,
+                            "padding:0 4px",
+                            "line-height:14px",
+                            "flex-shrink:0",
+                            `opacity:${isExcluded ? "1" : "0.45"}`,
+                            "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
+                        ].join(";");
+                        timerToggle.title = isExcluded
+                            ? `${group.replace("Item", "")} excluded from bound timer — click to count`
+                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                    };
+                    applyToggleStyle(excluded);
                     timerToggle.addEventListener("click", () => {
                         const nowExcluded = isTimerGroupExcluded(group);
                         setTimerGroupExcluded(group, !nowExcluded);
-                        timerToggle.style.opacity = !nowExcluded ? "0.35" : "1";
-                        timerToggle.style.borderColor = !nowExcluded ? "#3a1a2a" : "#cf6f98";
-                        timerToggle.title = !nowExcluded
-                            ? `${group.replace("Item", "")} excluded from bound timer — click to include`
-                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                        applyToggleStyle(!nowExcluded);
                     });
 
                     row.appendChild(nameEl);
@@ -16347,9 +16348,25 @@ export class EBCDrawer {
                           } catch { /* ignore — prevent unhandled rejection from async listener */ }
                         });
 
+                        // Copy ID button
+                        const copyBtn = document.createElement("button");
+                        copyBtn.textContent = "ID";
+                        copyBtn.title = `Copy member ID: ${person.n}`;
+                        copyBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-accent);padding:2px 5px;flex-shrink:0;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                        copyBtn.addEventListener("mouseenter", () => { copyBtn.style.background = "var(--ebc-bg-mid)"; copyBtn.style.borderColor = "var(--ebc-accent)"; });
+                        copyBtn.addEventListener("mouseleave", () => { copyBtn.style.background = "var(--ebc-bg-darker)"; copyBtn.style.borderColor = "var(--ebc-border-light)"; copyBtn.style.color = "var(--ebc-accent)"; });
+                        copyBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                            copyBtn.style.color = "#a0d080";
+                            copyBtn.style.borderColor = "#a0d080";
+                            window.setTimeout(() => { copyBtn.style.color = "var(--ebc-accent)"; copyBtn.style.borderColor = "var(--ebc-border-light)"; }, 1200);
+                        });
+
                         row.appendChild(nameSpan);
                         row.appendChild(numSpan);
                         row.appendChild(profBtn);
+                        row.appendChild(copyBtn);
                         listEl.appendChild(row);
                     }
                 };

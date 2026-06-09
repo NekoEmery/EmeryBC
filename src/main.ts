@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.5";
+const MOD_VERSION = "6.1.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.6",
+        changes: [
+            "Feature: People Met list now has a copy ID button (ID) next to each person — click to copy their member number to clipboard. Button turns green briefly to confirm the copy.",
+            "UX: Bound timer exclude toggle in Active Restraints renamed from ⏱ to 'Exclude'. Styling inverted — button is now highlighted pink when exclusion IS active (item not counting) and dimmed when item counts normally. Matches intuitive 'lit up = enabled' convention.",
+        ],
+    },
     {
         version: "6.1.5",
         changes: [
