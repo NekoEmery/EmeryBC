@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.6";
+const MOD_VERSION = "6.1.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.7",
+        changes: [
+            "UX: Emoji picker redesign — wider panel (296px), larger emoji buttons (20px, subtle tile background), 2px gap grid, scale-on-hover animation. Tab bar icons bumped to 15px with active highlight. Text emotes (OwO tab) now 11px with a pill background instead of bare tiny text. Much easier to see and click.",
+        ],
+    },
     {
         version: "6.1.6",
         changes: [
