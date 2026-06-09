@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.8";
+const MOD_VERSION = "6.2.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.9",
+        changes: [
+            "Feature: Restraint Sets card is now collapsible - click the section label to show/hide the sets list.",
+            "Feature: Per-set bound target - open a set's Edit panel and set 'Always apply to' to a specific person. The Apply button and the /command for that set will always target that person regardless of the TARGET dropdown. Bound target shown as an amber badge on the set row.",
+            "Fix: Restraint set Apply button and /commands now work for anyone in the room - previously required the target to be in the legacy saved-targets list.",
+        ],
+    },
     {
         version: "6.2.8",
         changes: [

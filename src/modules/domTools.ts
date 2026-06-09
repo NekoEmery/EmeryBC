@@ -19,6 +19,8 @@ export interface DomRestraintSet {
     command: string;          // without /, e.g. "gag"
     announceTemplate: string; // e.g. "snaps her fingers as {name} appears on {targets}~"
     items: SerializedItem[];
+    targetId?: number;        // optional bound target — set always applies to this person
+    targetName?: string;      // cached display name for the bound target
 }
 
 export interface DomConfig {
@@ -135,6 +137,22 @@ export function deleteDomSet(id: string): void {
     saveConfig(cfg);
 }
 
+/** Bind a permanent target to a restraint set (so its command always aims at them).
+ *  Pass null to clear the binding and fall back to the standard TARGET selector. */
+export function setDomSetTarget(setId: string, targetId: number | null, targetName: string): void {
+    const cfg = loadConfig();
+    const set = cfg.sets.find(s => s.id === setId);
+    if (!set) return;
+    if (targetId === null) {
+        set.targetId = undefined;
+        set.targetName = undefined;
+    } else {
+        set.targetId = targetId;
+        set.targetName = targetName;
+    }
+    saveConfig(cfg);
+}
+
 // Parse a BC outfit code and return ALL items found — does NOT save anything.
 // Returns every item that has a Group and Name field; the caller's picker UI
 // shows checkboxes and the user decides which items to keep.
@@ -182,10 +200,22 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
     const applied: string[] = [];
     const skipped: string[] = [];
 
-    for (const target of cfg.targets) {
+    // When explicit IDs are provided (UI button or per-set command), look up those
+    // chars directly in the room — no dependency on cfg.targets.
+    // When no IDs are given, fall back to the legacy saved-targets list.
+    const targets: Array<{ id: number; name: string }> = targetIds && targetIds.size > 0
+        ? [...targetIds].map(id => {
+            const char = room.find(c => c.MemberNumber === id);
+            const name = char
+                ? ((char.Nickname as string | undefined)?.trim() || (char.Name as string) || String(id))
+                : cfg.targets.find(t => t.id === id)?.name ?? String(id);
+            return { id, name };
+        })
+        : cfg.targets;
+
+    for (const target of targets) {
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) { skipped.push(target.name); continue; }
-        if (targetIds && !targetIds.has(target.id)) { skipped.push(target.name); continue; }
 
         let anyApplied = false;
         for (const item of set.items) {
@@ -650,6 +680,8 @@ export function handleDomCommand(input: string): boolean {
     const command = trimmed.slice(1).toLowerCase().trim();
     const set = loadConfig().sets.find(s => s.command && s.command.toLowerCase() === command);
     if (!set) return false;
-    applyDomSet(set.id);
+    // Per-set bound target takes priority; no bound target → fall back to saved targets
+    const targetIds = set.targetId ? new Set([set.targetId]) : undefined;
+    applyDomSet(set.id, targetIds);
     return true;
 }

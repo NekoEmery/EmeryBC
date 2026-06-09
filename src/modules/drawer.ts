@@ -110,6 +110,7 @@ import {
     createDomSet,
     updateDomSet,
     deleteDomSet,
+    setDomSetTarget,
     parseBCCodeItems,
     type ParsedBCItem,
     applyDomSet,
@@ -20788,8 +20789,20 @@ export class EBCDrawer {
         const setsHeader = document.createElement("div");
         setsHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
         const setsLbl = document.createElement("div");
-        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex:1;";
-        setsLbl.textContent = t("kitty.restraintSets");
+        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex:1;display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;";
+        const setsArrow = document.createElement("span");
+        setsArrow.style.cssText = "font-size:10px;color:#7a5060;flex-shrink:0;";
+        setsArrow.textContent = "▼";
+        setsLbl.appendChild(setsArrow);
+        const setsLblText = document.createElement("span");
+        setsLblText.textContent = t("kitty.restraintSets");
+        setsLbl.appendChild(setsLblText);
+        let setsExpanded = true;
+        setsLbl.addEventListener("click", () => {
+            setsExpanded = !setsExpanded;
+            setsContainer.style.display = setsExpanded ? "" : "none";
+            setsArrow.textContent = setsExpanded ? "▼" : "▶";
+        });
         const newSetBtn = document.createElement("button");
         newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;flex-shrink:0;";
         newSetBtn.textContent = t("dom.newSet");
@@ -20848,6 +20861,14 @@ export class EBCDrawer {
                 editBtn.addEventListener("mouseleave", () => { editBtn.style.background = "rgba(42,20,33,0.5)"; editBtn.style.color = "#cf6f98"; });
 
                 setRow.appendChild(setInfo);
+                // Bound target badge
+                if (set.targetId) {
+                    const targetBadge = document.createElement("span");
+                    targetBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf9040;background:rgba(50,30,10,0.7);border:1px solid #7a4a1a;border-radius:4px;padding:1px 6px;flex-shrink:0;white-space:nowrap;";
+                    targetBadge.textContent = "→ " + (set.targetName || "#" + set.targetId);
+                    targetBadge.title = "Bound target — this set always applies to this person";
+                    setRow.appendChild(targetBadge);
+                }
                 setRow.appendChild(applyBtn);
                 setRow.appendChild(editBtn);
                 setsContainer.appendChild(setRow);
@@ -20859,9 +20880,10 @@ export class EBCDrawer {
 
                 applyBtn.addEventListener("click", () => {
                     applyBtn.disabled = true;
-                    const id = parseInt(qtSel.value, 10);
+                    // Bound target takes priority; fall back to the TARGET dropdown
+                    const id = set.targetId || parseInt(qtSel.value, 10);
                     if (!id) {
-                        applyStatus.textContent = "Pick a target first.";
+                        applyStatus.textContent = "Pick a target first (or bind one in Edit).";
                         applyStatus.style.display = "block";
                         window.setTimeout(() => { applyBtn.disabled = false; applyStatus.style.display = "none"; }, 2500);
                         return;
@@ -20892,6 +20914,47 @@ export class EBCDrawer {
                 tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:0 0 6px;";
                 tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
                 editor.appendChild(tokenHint);
+
+                // ── Bound target ──────────────────────────────────────────────
+                const tbWrap = document.createElement("div");
+                tbWrap.style.cssText = "margin-bottom:7px;";
+                const tbLbl = document.createElement("label");
+                tbLbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
+                tbLbl.textContent = "Always apply to";
+                tbWrap.appendChild(tbLbl);
+                const tbSel = document.createElement("select");
+                tbSel.className = "ebc-form-input";
+                tbSel.style.cssText = "width:100%;font-size:11px;";
+                const tbPh = document.createElement("option");
+                tbPh.value = ""; tbPh.textContent = "— use current TARGET dropdown —";
+                tbSel.appendChild(tbPh);
+                // Populate with room members
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    if (set.targetId === m.id) opt.selected = true;
+                    tbSel.appendChild(opt);
+                }
+                // If bound target is not currently in room, show a placeholder entry
+                if (set.targetId && !getRoomMembers().some(m => m.id === set.targetId)) {
+                    const opt = document.createElement("option");
+                    opt.value = String(set.targetId);
+                    opt.textContent = `${set.targetName ?? String(set.targetId)} (not in room)`;
+                    opt.selected = true;
+                    tbSel.appendChild(opt);
+                }
+                tbSel.addEventListener("change", () => {
+                    const id = parseInt(tbSel.value, 10) || null;
+                    const name = id
+                        ? (tbSel.selectedOptions[0]?.textContent?.replace(/ \(#\d+\)$/, "").replace(/ \(not in room\)$/, "") ?? String(id))
+                        : "";
+                    setDomSetTarget(set.id, id, name);
+                    rebuildSets();
+                });
+                tbWrap.appendChild(tbSel);
+                editor.appendChild(tbWrap);
 
                 const saveBtn = document.createElement("button");
                 saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
