@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.7";
+const MOD_VERSION = "6.2.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.8",
+        changes: [
+            "UX: Removed Room Admin card from dom tab (was always showing 'not an admin' and wasting space).",
+            "Feature: Auto-Escape custom room emote - type any emote text; tokens {item} and {restrainer} are replaced at escape time. Leave blank to keep the default glare emote.",
+            "UX: Dom tab layout redesign - merged Targets and Focus Target into a single compact TARGET selector at the top. One dropdown controls all operations (release tools, restraint sets, quick actions, poses, toys). Reduced vertical scrolling, Actions card is now clean with no redundant target picker inside it.",
+            "Fix: Pick items to remove now shows the currently selected target's items (locks included) instead of iterating all saved targets.",
+        ],
+    },
     {
         version: "6.2.7",
         changes: [

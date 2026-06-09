@@ -99,6 +99,22 @@ export function setAntiRestraintAnnounce(value: boolean): void {
     try { const s = getSettings(); s.antiRestraintAnnounce = value; syncSettings(); } catch { /* ignore */ }
 }
 
+// -- Escape emote custom text ---------------------------------------------------
+// Optional custom text for the auto-escape room emote.
+// Tokens: {item} = item name, {restrainer} = who applied it.
+// When empty, falls back to the default glare emote text.
+
+export function getEscapeEmoteText(): string {
+    try {
+        const v = (getSettings() as Record<string, unknown>)?.escapeEmoteText;
+        return typeof v === "string" ? v : "";
+    } catch { return ""; }
+}
+
+export function setEscapeEmoteText(text: string): void {
+    try { const s = getSettings() as Record<string, unknown>; s.escapeEmoteText = text; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Dom set announce -----------------------------------------------------------
 // When false, applying a restraint set sends no room emote.
 
