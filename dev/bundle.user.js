@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.2.6
+// @version      6.2.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -27563,7 +27563,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.removeChild(body.firstChild);
             // ── Auto-Escape card ─────────────────────────────────────────────────
             const aeCard = document.createElement("div");
-            aeCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const aeLbl = document.createElement("div");
             aeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
             aeLbl.textContent = "Auto-Escape";
@@ -27637,7 +27637,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(aeCard);
             // ── Room Admin card ───────────────────────────────────────────────────
             const adminCard = document.createElement("div");
-            adminCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            adminCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const adminLbl = document.createElement("div");
             adminLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
             adminLbl.textContent = "Room Admin";
@@ -27793,32 +27793,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(msg);
                 return;
             }
-            // Dom Tools header banner
-            const domHdr = document.createElement("div");
-            domHdr.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 10px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #7a3050;border-radius:7px;margin:0 0 6px;";
-            const domHdrIcon = document.createElement("span");
-            domHdrIcon.textContent = "⛓";
-            domHdrIcon.style.fontSize = "15px";
-            const domHdrLbl = document.createElement("span");
-            domHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e07090;letter-spacing:0.08em;flex:1;";
-            domHdrLbl.textContent = "DOM TOOLS";
-            const domHdrSub = document.createElement("span");
-            domHdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a2840;font-style:italic;";
-            domHdrSub.textContent = "creator only";
-            domHdr.appendChild(domHdrIcon);
-            domHdr.appendChild(domHdrLbl);
-            domHdr.appendChild(domHdrSub);
-            body.appendChild(domHdr);
-            // ── Dom Settings row ──────────────────────────────────────────────────
-            const dsRow = document.createElement("div");
-            dsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:0 0 7px;";
-            const dsLbl = document.createElement("span");
-            dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
-            dsLbl.textContent = "Announce restraint sets:";
+            // ── Dom Settings (announce) — floated into setsCard header below ─────
             const dsSel = document.createElement("select");
             dsSel.className = "ebc-form-input";
             dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
-            const dsOpts = [["1", "✓ Send room emote"], ["0", "Silent"]];
+            const dsOpts = [["1", "✓ Emote"], ["0", "Silent"]];
             for (const [v, dsOptLbl] of dsOpts) {
                 const o = document.createElement("option");
                 o.value = v;
@@ -27828,9 +27807,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 dsSel.appendChild(o);
             }
             dsSel.addEventListener("change", () => setDomSetAnnounce(dsSel.value === "1"));
-            dsRow.appendChild(dsLbl);
-            dsRow.appendChild(dsSel);
-            body.appendChild(dsRow);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -27871,7 +27847,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // ── Targets card ──────────────────────────────────────────────────────
             const targCard = document.createElement("div");
-            targCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            targCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const targLbl = document.createElement("div");
             targLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
             targLbl.textContent = "Targets";
@@ -28193,7 +28169,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rescuePanel.appendChild(rescueStatus);
             // ── Release Tools card ────────────────────────────────────────────────
             const releaseCard = document.createElement("div");
-            releaseCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            releaseCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const releaseLbl = document.createElement("div");
             releaseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
             releaseLbl.textContent = "Release Tools";
@@ -28351,18 +28327,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             // ── Restraint Sets card ────────────────────────────────────────────────
             const setsCard = document.createElement("div");
-            setsCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            setsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const setsHeader = document.createElement("div");
-            setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;";
+            setsHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
             const setsLbl = document.createElement("div");
-            setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+            setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex:1;";
             setsLbl.textContent = t("kitty.restraintSets");
             const newSetBtn = document.createElement("button");
-            newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;flex-shrink:0;";
             newSetBtn.textContent = t("dom.newSet");
             newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
             newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
             setsHeader.appendChild(setsLbl);
+            setsHeader.appendChild(dsSel);
             setsHeader.appendChild(newSetBtn);
             setsCard.appendChild(setsHeader);
             const setsContainer = document.createElement("div");
@@ -28689,17 +28666,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 rebuildSets();
                 body.scrollTop = body.scrollHeight;
             });
-            // ── Focus Target picker ───────────────────────────────────────────────
-            const qtDiv = document.createElement("div");
-            qtDiv.className = "ebc-divider";
-            qtDiv.style.margin = "3px 0 7px";
-            body.appendChild(qtDiv);
+            // ── Actions card — Focus Target + Quick Actions + Poses + Toy Control ──
+            const actionsCard = document.createElement("div");
+            actionsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const qtLbl = document.createElement("div");
             qtLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:5px;";
             qtLbl.textContent = "Focus Target";
-            body.appendChild(qtLbl);
+            actionsCard.appendChild(qtLbl);
             const qtRow = document.createElement("div");
-            qtRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:8px;";
+            qtRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:4px;";
             const qtSel = document.createElement("select");
             qtSel.className = "ebc-form-input";
             qtSel.style.cssText = "flex:1;font-size:11px;";
@@ -28738,13 +28713,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             qtRefresh.addEventListener("click", populateQtSel);
             qtRow.appendChild(qtSel);
             qtRow.appendChild(qtRefresh);
-            body.appendChild(qtRow);
-            // Helper: build an accordion section (returns { hdr, panel, arrow, open() })
-            const makeDomAccordion = (icon, title) => {
+            actionsCard.appendChild(qtRow);
+            // Helper: build an accordion section inside a container
+            const makeDomAccordion = (icon, title, container) => {
                 const divider = document.createElement("div");
                 divider.className = "ebc-divider";
                 divider.style.margin = "4px 0 0";
-                body.appendChild(divider);
+                container.appendChild(divider);
                 const hdr = document.createElement("div");
                 hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
                 hdr.addEventListener("mouseenter", () => { hdr.style.background = "rgba(42,20,33,0.5)"; });
@@ -28769,12 +28744,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     panel.style.display = open ? "flex" : "none";
                     arrow.textContent = open ? "▲" : "▼";
                 });
-                body.appendChild(hdr);
-                body.appendChild(panel);
+                container.appendChild(hdr);
+                container.appendChild(panel);
                 return { hdr, panel, arrow, isOpen: () => open };
             };
             // ── ⚡ Quick Actions ───────────────────────────────────────────────────
-            const { panel: actPanel } = makeDomAccordion("⚡", "QUICK ACTIONS");
+            const { panel: actPanel } = makeDomAccordion("⚡", "QUICK ACTIONS", actionsCard);
             const actHint = document.createElement("div");
             actHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
             actHint.textContent = "Sends a visible room emote for each action.";
@@ -28816,7 +28791,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             actPanel.appendChild(actGrid);
             actPanel.appendChild(actStatus);
             // ── 🧎 Poses ──────────────────────────────────────────────────────────
-            const { panel: posePanel } = makeDomAccordion("🧎", "POSES");
+            const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
             const POSE_DEFS = [
                 ["🚶", "Stand", []],
                 ["🧎", "Kneel", ["Kneel"]],
@@ -28852,7 +28827,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posePanel.appendChild(poseGrid);
             posePanel.appendChild(poseStatus);
             // ── 🎮 Toy Control ────────────────────────────────────────────────────
-            const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL");
+            const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
             // BC vibrator mode names: Off, Low, Medium, High, Maximum, Tease, Random, Escalate, Edge
             const TOY_MODES = [
                 ["⏹", "Off", "#2a1020", "Off"],
@@ -28910,6 +28885,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             toyPanel.appendChild(toyGrid);
             toyPanel.appendChild(toyStatus);
             toyPanel.appendChild(toyInfoEl);
+            body.appendChild(actionsCard);
             // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
             body.appendChild(divRescue);
             body.appendChild(rescueHdr);
@@ -29187,7 +29163,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.6";
+    const MOD_VERSION = "6.2.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29198,6 +29174,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.7",
+            changes: [
+                "UX: Dom tab deep cleanup - removed redundant DOM TOOLS banner, folded 'Announce restraint sets' setting into the Sets card header, grouped Focus Target + Quick Actions + Poses + Toy Control into a single Actions card.",
+                "Fix: Card backgrounds corrected (were darker than the panel, now properly elevated).",
+            ],
+        },
         {
             version: "6.2.6",
             changes: [
