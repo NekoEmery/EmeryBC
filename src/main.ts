@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.5";
+const MOD_VERSION = "6.2.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.6",
+        changes: [
+            "UX: Dom tab visual redesign - all main sections (Auto-Escape, Room Admin, Targets, Release Tools, Restraint Sets) now use clean card containers with consistent styling.",
+            "Fix: Removed remaining scissors icon from dom tab 'Pick items to remove' toggle.",
+            "Fix: Removed scissors icon and renamed 'Release / Rescue' section to 'Release Tools'.",
+        ],
+    },
     {
         version: "6.2.5",
         changes: [

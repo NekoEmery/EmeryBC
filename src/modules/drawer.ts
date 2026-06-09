@@ -20209,15 +20209,17 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Auto-Escape (visible to all, not gated behind isDomEnabled) ───────
+        // ── Auto-Escape card ─────────────────────────────────────────────────
+        const aeCard = document.createElement("div");
+        aeCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
         const aeLbl = document.createElement("div");
-        aeLbl.className = "ebc-section-label";
-        aeLbl.style.cssText = "border-left:2px solid #7a3050;padding-left:7px;";
-        aeLbl.textContent = "⚙ Auto-Escape";
-        body.appendChild(aeLbl);
+        aeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
+        aeLbl.textContent = "Auto-Escape";
+        aeCard.appendChild(aeLbl);
 
         const antiRow = document.createElement("div");
-        antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+        antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:5px;";
 
         const antiInfo = document.createElement("div");
         antiInfo.style.cssText = "flex:1;min-width:0;";
@@ -20257,11 +20259,11 @@ export class EBCDrawer {
         });
         antiRow.appendChild(antiInfo);
         antiRow.appendChild(antiToggle);
-        body.appendChild(antiRow);
+        aeCard.appendChild(antiRow);
 
-        // ── Room emote announce toggle ─────────────────────────────────────────
+        // Room emote announce row
         const aeAnnRow = document.createElement("div");
-        aeAnnRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 10px;";
+        aeAnnRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:2px 0 0;";
         const aeAnnLbl = document.createElement("span");
         aeAnnLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
         aeAnnLbl.textContent = "Room emote when escaping:";
@@ -20277,18 +20279,17 @@ export class EBCDrawer {
         aeAnnSel.addEventListener("change", () => setAntiRestraintAnnounce(aeAnnSel.value === "1"));
         aeAnnRow.appendChild(aeAnnLbl);
         aeAnnRow.appendChild(aeAnnSel);
-        body.appendChild(aeAnnRow);
+        aeCard.appendChild(aeAnnRow);
+        body.appendChild(aeCard);
 
-        // ── Room Admin ────────────────────────────────────────────────────────
-        const divAdmin = document.createElement("div");
-        divAdmin.className = "ebc-divider";
-        body.appendChild(divAdmin);
+        // ── Room Admin card ───────────────────────────────────────────────────
+        const adminCard = document.createElement("div");
+        adminCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const adminLbl = document.createElement("div");
-        adminLbl.className = "ebc-section-label";
-        adminLbl.style.cssText = "border-left:2px solid #7a3050;padding-left:7px;";
-        adminLbl.textContent = "🔑 Room Admin";
-        body.appendChild(adminLbl);
+        adminLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
+        adminLbl.textContent = "Room Admin";
+        adminCard.appendChild(adminLbl);
 
         type RoomDataShape = { Locked?: boolean; Admin?: number[] };
         const w = window as unknown as Record<string, unknown>;
@@ -20300,18 +20301,16 @@ export class EBCDrawer {
         if (!inRoom) {
             const hint = document.createElement("div");
             hint.className = "ebc-import-hint";
-            hint.style.marginBottom = "6px";
             hint.textContent = "Not in a chatroom.";
-            body.appendChild(hint);
+            adminCard.appendChild(hint);
         } else if (!isAdmin) {
             const hint = document.createElement("div");
             hint.className = "ebc-import-hint";
-            hint.style.marginBottom = "6px";
             hint.textContent = "You are not a room admin.";
-            body.appendChild(hint);
+            adminCard.appendChild(hint);
         } else {
             const adminWrap = document.createElement("div");
-            adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;margin-bottom:8px;";
+            adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;";
 
             // ── Lock / Unlock ─────────────────────────────────────────────────
             const locked = roomData?.Locked ?? false;
@@ -20435,8 +20434,9 @@ export class EBCDrawer {
             adminWrap.appendChild(selRow);
             adminWrap.appendChild(row1);
             adminWrap.appendChild(row2);
-            body.appendChild(adminWrap);
+            adminCard.appendChild(adminWrap);
         }
+        body.appendChild(adminCard);
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -20449,7 +20449,7 @@ export class EBCDrawer {
 
         // Dom Tools header banner
         const domHdr = document.createElement("div");
-        domHdr.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 10px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #7a3050;border-radius:7px;margin:8px 0 6px;";
+        domHdr.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 10px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #7a3050;border-radius:7px;margin:0 0 6px;";
         const domHdrIcon = document.createElement("span");
         domHdrIcon.textContent = "⛓";
         domHdrIcon.style.fontSize = "15px";
@@ -20466,7 +20466,7 @@ export class EBCDrawer {
 
         // ── Dom Settings row ──────────────────────────────────────────────────
         const dsRow = document.createElement("div");
-        dsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 6px;";
+        dsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:0 0 7px;";
         const dsLbl = document.createElement("span");
         dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
         dsLbl.textContent = "Announce restraint sets:";
@@ -20522,14 +20522,17 @@ export class EBCDrawer {
             return { row, input };
         };
 
-        // ── Targets ──────────────────────────────────────────────────────────
+        // ── Targets card ──────────────────────────────────────────────────────
+        const targCard = document.createElement("div");
+        targCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
         const targLbl = document.createElement("div");
-        targLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:2px;";
-        targLbl.textContent = "🎯 Targets";
-        body.appendChild(targLbl);
+        targLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
+        targLbl.textContent = "Targets";
+        targCard.appendChild(targLbl);
 
         const targList = document.createElement("div");
-        body.appendChild(targList);
+        targCard.appendChild(targList);
 
         const rebuildTargets = (): void => {
             while (targList.firstChild) targList.removeChild(targList.firstChild);
@@ -20564,8 +20567,9 @@ export class EBCDrawer {
         rebuildTargets();
 
         const addableWrap = document.createElement("div");
-        addableWrap.style.cssText = "margin-top:4px;margin-bottom:2px;";
-        body.appendChild(addableWrap);
+        addableWrap.style.cssText = "margin-top:4px;";
+        targCard.appendChild(addableWrap);
+        body.appendChild(targCard);
 
         const rebuildAddable = (): void => {
             while (addableWrap.firstChild) addableWrap.removeChild(addableWrap.firstChild);
@@ -20841,16 +20845,14 @@ export class EBCDrawer {
         rescuePanel.appendChild(rescueBtn);
         rescuePanel.appendChild(rescueStatus);
 
-        // ── Release / Rescue ─────────────────────────────────────────────────
-        const divRelease = document.createElement("div");
-        divRelease.className = "ebc-divider";
-        divRelease.style.margin = "10px 0 7px";
-        body.appendChild(divRelease);
+        // ── Release Tools card ────────────────────────────────────────────────
+        const releaseCard = document.createElement("div");
+        releaseCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const releaseLbl = document.createElement("div");
-        releaseLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:4px;";
-        releaseLbl.textContent = "✂ Release / Rescue";
-        body.appendChild(releaseLbl);
+        releaseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
+        releaseLbl.textContent = "Release Tools";
+        releaseCard.appendChild(releaseLbl);
 
         // Quick-action row: two wide prominent buttons
         const quickRow = document.createElement("div");
@@ -20870,11 +20872,11 @@ export class EBCDrawer {
         const unlockAllBtn = makeQuickBtn("🔓 All Locks", "Unlock all locked items on every target in the room");
         quickRow.appendChild(removeAllBtn);
         quickRow.appendChild(unlockAllBtn);
-        body.appendChild(quickRow);
+        releaseCard.appendChild(quickRow);
 
         const releaseStatus = document.createElement("div");
         releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-bottom:4px;";
-        body.appendChild(releaseStatus);
+        releaseCard.appendChild(releaseStatus);
 
         const showReleaseStatus = (results: Array<{ name: string; count: number; inRoom: boolean }>): void => {
             const done = results.filter(r => r.inRoom && r.count > 0).map(r => r.name + " (" + r.count + ")");
@@ -20903,23 +20905,20 @@ export class EBCDrawer {
         pickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;margin-bottom:4px;";
         pickToggle.addEventListener("mouseenter", () => { pickToggle.style.background = "rgba(42,20,33,0.6)"; });
         pickToggle.addEventListener("mouseleave", () => { pickToggle.style.background = "#1e0d18"; });
-        const pickIcon = document.createElement("span");
-        pickIcon.textContent = "☑";
-        pickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
         const pickLbl = document.createElement("span");
         pickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
         pickLbl.textContent = "Pick items to remove";
         const pickArrow = document.createElement("span");
         pickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
         pickArrow.textContent = "▼";
-        pickToggle.appendChild(pickIcon);
         pickToggle.appendChild(pickLbl);
         pickToggle.appendChild(pickArrow);
-        body.appendChild(pickToggle);
+        releaseCard.appendChild(pickToggle);
 
         const pickPanel = document.createElement("div");
-        pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:6px;";
-        body.appendChild(pickPanel);
+        pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;";
+        releaseCard.appendChild(pickPanel);
+        body.appendChild(releaseCard);
 
         // selection state: targetId → Set of group names
         const pendingRemove = new Map<number, Set<string>>();
@@ -21014,17 +21013,15 @@ export class EBCDrawer {
             if (isOpenNow) rebuildPickPanel();
         });
 
-        // ── Restraint Sets ───────────────────────────────────────────────────
-        const div1 = document.createElement("div");
-        div1.className = "ebc-divider";
-        div1.style.margin = "10px 0 7px";
-        body.appendChild(div1);
+        // ── Restraint Sets card ────────────────────────────────────────────────
+        const setsCard = document.createElement("div");
+        setsCard.style.cssText = "background:#0e0612;border:1px solid #2a1020;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const setsHeader = document.createElement("div");
-        setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+        setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;";
         const setsLbl = document.createElement("div");
-        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;border-left:2px solid #7a3050;padding-left:7px;";
-        setsLbl.textContent = "📦 " + t("kitty.restraintSets");
+        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+        setsLbl.textContent = t("kitty.restraintSets");
         const newSetBtn = document.createElement("button");
         newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
         newSetBtn.textContent = t("dom.newSet");
@@ -21032,10 +21029,11 @@ export class EBCDrawer {
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
         setsHeader.appendChild(setsLbl);
         setsHeader.appendChild(newSetBtn);
-        body.appendChild(setsHeader);
+        setsCard.appendChild(setsHeader);
 
         const setsContainer = document.createElement("div");
-        body.appendChild(setsContainer);
+        setsCard.appendChild(setsContainer);
+        body.appendChild(setsCard);
 
         let activeEditorId: string | null = null;
 
@@ -21372,15 +21370,15 @@ export class EBCDrawer {
             body.scrollTop = body.scrollHeight;
         });
 
-        // ── Shared quick-target picker (used by Act / Expr / Pose / Toy) ─────────
+        // ── Focus Target picker ───────────────────────────────────────────────
         const qtDiv = document.createElement("div");
         qtDiv.className = "ebc-divider";
-        qtDiv.style.margin = "10px 0 7px";
+        qtDiv.style.margin = "3px 0 7px";
         body.appendChild(qtDiv);
 
         const qtLbl = document.createElement("div");
-        qtLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:5px;";
-        qtLbl.textContent = "🎯 Focus Target";
+        qtLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:5px;";
+        qtLbl.textContent = "Focus Target";
         body.appendChild(qtLbl);
 
         const qtRow = document.createElement("div");
