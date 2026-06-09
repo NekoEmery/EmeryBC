@@ -6469,14 +6469,21 @@
     }
     /** Set the vibrator mode on all vibrating items worn by an in-room character. */
     function setTargetToyMode(targetId, mode) {
+        var _a;
         try {
             const char = findRoomChar(targetId);
             if (!char)
                 return;
             let changed = false;
-            // BC's ExtendedItemSetValue properly updates derived fields (Effect array etc.)
-            // alongside Property.Mode.  Fall back to a direct property-spread if unavailable.
+            // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
+            // derived-state updates (Effect, Intensity …) AND the server push in one call.
+            // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
+            // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
             const extSetFn = window.ExtendedItemSetValue;
+            // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+            const invGetFn = window.InventoryGet;
+            const updateFn = window.ChatRoomCharacterUpdate;
+            let usedExtSet = false;
             for (const item of char.Appearance) {
                 const asset = item.Asset;
                 const prop = item.Property;
@@ -6485,21 +6492,27 @@
                     continue;
                 try {
                     if (extSetFn) {
-                        // Use BC's own setter — handles Effect + any state-machine transitions
-                        extSetFn(char, item, { Mode: mode }, false /* we call syncChar ourselves */);
+                        // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
+                        extSetFn(char, item, { Mode: mode }, true);
+                        changed = true;
+                        usedExtSet = true;
                     }
                     else {
-                        // Fallback: spread existing properties so we don't stomp fields like Effect/Intensity
-                        const merged = Object.assign({}, prop !== null && prop !== void 0 ? prop : {});
-                        merged.Mode = mode;
-                        item.Property = merged;
+                        // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
+                        const liveItem = invGetFn ? ((_a = invGetFn(char, item.Asset.Group.Name)) !== null && _a !== void 0 ? _a : item) : item;
+                        if (!liveItem.Property)
+                            liveItem.Property = {};
+                        liveItem.Property.Mode = mode;
+                        changed = true;
                     }
-                    changed = true;
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
             if (changed) {
-                syncChar(char);
+                if (!usedExtSet) {
+                    // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
+                    callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
+                }
                 const name = charDisplayName(char);
                 const desc = mode === "Off"
                     ? `turns ${name}'s toy off.`
@@ -6507,7 +6520,7 @@
                 sendRoomAction(desc);
             }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // ── Activity control ──────────────────────────────────────────────────────────
     /** Activity label -> room action description. */
@@ -29036,7 +29049,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.3.0";
+    const MOD_VERSION = "6.3.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29047,6 +29060,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.3.1",
+            changes: [
+                "Fix: Toy control reworked - when ExtendedItemSetValue is available it is called with publish=true so BC handles derived-state (Effect/Intensity) AND the server push itself. Fallback path now uses InventoryGet for the canonical item reference and pushes via ChatRoomCharacterUpdate directly without calling CharacterRefresh first (CharacterRefresh was resetting in-flight property changes before the server push).",
+            ],
+        },
         {
             version: "6.3.0",
             changes: [
