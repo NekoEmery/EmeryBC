@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.1.9
+// @version      6.2.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -27764,6 +27764,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(msg);
                 return;
             }
+            // Dom Tools header banner
+            const domHdr = document.createElement("div");
+            domHdr.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 10px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #7a3050;border-radius:7px;margin:8px 0 6px;";
+            const domHdrIcon = document.createElement("span");
+            domHdrIcon.textContent = "⛓";
+            domHdrIcon.style.fontSize = "15px";
+            const domHdrLbl = document.createElement("span");
+            domHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e07090;letter-spacing:0.08em;flex:1;";
+            domHdrLbl.textContent = "DOM TOOLS";
+            const domHdrSub = document.createElement("span");
+            domHdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a2840;font-style:italic;";
+            domHdrSub.textContent = "creator only";
+            domHdr.appendChild(domHdrIcon);
+            domHdr.appendChild(domHdrLbl);
+            domHdr.appendChild(domHdrSub);
+            body.appendChild(domHdr);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -27804,8 +27820,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // ── Targets ──────────────────────────────────────────────────────────
             const targLbl = document.createElement("div");
-            targLbl.className = "ebc-section-label";
-            targLbl.textContent = "Targets";
+            targLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:2px;";
+            targLbl.textContent = "🎯 Targets";
             body.appendChild(targLbl);
             const targList = document.createElement("div");
             body.appendChild(targList);
@@ -28127,19 +28143,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             divRelease.style.margin = "10px 0 7px";
             body.appendChild(divRelease);
             const releaseLbl = document.createElement("div");
-            releaseLbl.className = "ebc-section-label";
-            releaseLbl.textContent = "Release / Rescue";
+            releaseLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:4px;";
+            releaseLbl.textContent = "✂ Release / Rescue";
             body.appendChild(releaseLbl);
-            // Quick-action row: two wide buttons
+            // Quick-action row: two wide prominent buttons
             const quickRow = document.createElement("div");
-            quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
+            quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;";
             const makeQuickBtn = (label, title) => {
                 const b = document.createElement("button");
-                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:9px 4px;border-radius:7px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s,border-color 0.14s;";
                 b.textContent = label;
                 b.title = title;
-                b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
-                b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; });
+                b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; b.style.borderColor = "#cf6f98"; });
+                b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; b.style.borderColor = "#7a3a50"; });
                 return b;
             };
             const removeAllBtn = makeQuickBtn("↑ All Restraints", "Remove all restraint items from every target in the room");
@@ -28172,9 +28188,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
             });
             // ── "Pick items to remove" picker ─────────────────────────────────────
-            const pickToggle = document.createElement("button");
-            pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-            pickToggle.textContent = "↓ Pick items to remove";
+            const pickToggle = document.createElement("div");
+            pickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;margin-bottom:4px;";
+            pickToggle.addEventListener("mouseenter", () => { pickToggle.style.background = "rgba(42,20,33,0.6)"; });
+            pickToggle.addEventListener("mouseleave", () => { pickToggle.style.background = "#1e0d18"; });
+            const pickIcon = document.createElement("span");
+            pickIcon.textContent = "☑";
+            pickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
+            const pickLbl = document.createElement("span");
+            pickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
+            pickLbl.textContent = "Pick items to remove";
+            const pickArrow = document.createElement("span");
+            pickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+            pickArrow.textContent = "▼";
+            pickToggle.appendChild(pickIcon);
+            pickToggle.appendChild(pickLbl);
+            pickToggle.appendChild(pickArrow);
             body.appendChild(pickToggle);
             const pickPanel = document.createElement("div");
             pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:6px;";
@@ -28265,8 +28294,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             pickToggle.addEventListener("click", () => {
                 const isOpenNow = pickPanel.style.display === "none";
                 pickPanel.style.display = isOpenNow ? "flex" : "none";
-                pickToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
-                pickToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+                pickArrow.textContent = isOpenNow ? "▲" : "▼";
+                pickToggle.style.borderColor = isOpenNow ? "#5a2840" : "#3a1928";
+                pickToggle.style.background = isOpenNow ? "#2a0e1e" : "#1e0d18";
                 if (isOpenNow)
                     rebuildPickPanel();
             });
@@ -28278,9 +28308,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const setsHeader = document.createElement("div");
             setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
             const setsLbl = document.createElement("div");
-            setsLbl.className = "ebc-section-label";
-            setsLbl.style.margin = "0";
-            setsLbl.textContent = t("kitty.restraintSets");
+            setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;border-left:2px solid #7a3050;padding-left:7px;";
+            setsLbl.textContent = "📦 " + t("kitty.restraintSets");
             const newSetBtn = document.createElement("button");
             newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
             newSetBtn.textContent = t("dom.newSet");
@@ -28889,7 +28918,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.9";
+    const MOD_VERSION = "6.2.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28900,6 +28929,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.0",
+            changes: [
+                "UX: Dom tab visual cleanup — added '⛓ DOM TOOLS' header banner at the start of the creator-only section (matching kitty tab's header style). Section labels (Targets, Release/Rescue, Restraint Sets) now have a colored left-border accent and icons. Release/Rescue action buttons are bigger (12px, 9px padding). 'Pick items to remove' replaced bare dashed toggle with a proper collapsible accordion header matching Room Rescue style.",
+            ],
+        },
         {
             version: "6.1.9",
             changes: [
