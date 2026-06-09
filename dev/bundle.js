@@ -2267,6 +2267,44 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Auto-escape emote (announce) -----------------------------------------------
+    // When false, auto-escape removes restraints silently (no room emote).
+    function getAntiRestraintAnnounce() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintAnnounce) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setAntiRestraintAnnounce(value) {
+        try {
+            const s = getSettings();
+            s.antiRestraintAnnounce = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Dom set announce -----------------------------------------------------------
+    // When false, applying a restraint set sends no room emote.
+    function getDomSetAnnounce() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.domSetAnnounce) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setDomSetAnnounce(value) {
+        try {
+            const s = getSettings();
+            s.domSetAnnounce = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Anti-restraint whitelist --------------------------------------------------
     // Group names that auto-escape will never touch, even when applied by others.
     // Populated by the user from the Settings UI while wearing the items.
@@ -2279,22 +2317,6 @@
         catch (_b) {
             return [];
         }
-    }
-    function setAntiRestraintWhitelist(groups) {
-        try {
-            const store = getSettings();
-            store.antiRestraintWhitelist = groups;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function addToAntiRestraintWhitelist(group) {
-        const list = getAntiRestraintWhitelist();
-        if (!list.includes(group))
-            setAntiRestraintWhitelist([...list, group]);
-    }
-    function removeFromAntiRestraintWhitelist(group) {
-        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
     }
     // -- Special friends ----------------------------------------------------------
     // Member numbers displayed with a golden gradient highlight in the People in
@@ -2997,14 +3019,6 @@
         const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
         return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
     }
-    // Human-readable label for a restraint item (shown in whitelist chips).
-    function getItemDisplayName(item) {
-        var _a;
-        const craft = item.Craft;
-        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
-        const baseName = item.Asset.Description || item.Asset.Name;
-        return craftName ? `${craftName} (${baseName})` : baseName;
-    }
     let lastRestrainerName = null;
     function getLastRestrainerName() { return lastRestrainerName; }
     function recordRestrainer(sourceMemberNumber) {
@@ -3119,7 +3133,7 @@
         mergeCurrentRestraints();
         window.setTimeout(() => {
             try {
-                if (anySucceeded) {
+                if (anySucceeded && getAntiRestraintAnnounce()) {
                     const text = restrainer
                         ? `glares at ${restrainer} as the ${itemName} falls away.`
                         : `glares ahead as the ${itemName} falls away.`;
@@ -6092,7 +6106,7 @@
             }
         }
         // Send room announce after items have synced
-        if (applied.length > 0 && set.announceTemplate.trim()) {
+        if (applied.length > 0 && set.announceTemplate.trim() && getDomSetAnnounce()) {
             window.setTimeout(() => {
                 var _a;
                 try {
@@ -11126,6 +11140,7 @@
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
             this.domSelectedTargets = new Set();
+            this.domFocusTargetId = null;
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
@@ -27588,7 +27603,7 @@
         }
         // -- DOM Tools tab (creator-only) ------------------------------------------
         renderDomTools() {
-            var _a, _b;
+            var _a, _b, _c;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -27644,124 +27659,28 @@
             antiRow.appendChild(antiInfo);
             antiRow.appendChild(antiToggle);
             body.appendChild(antiRow);
-            // -- Whitelist --
-            const whitelistSection = document.createElement("div");
-            whitelistSection.style.cssText = "margin-bottom:10px;";
-            const wlTitle = document.createElement("span");
-            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;border-left:2px solid #7a3050;padding-left:7px;";
-            wlTitle.textContent = "Escape Whitelist";
-            whitelistSection.appendChild(wlTitle);
-            // Stored custom labels for whitelist chips: itemKey → display name override
-            const WL_LABELS_KEY = "EBC_wlLabels";
-            const getWlLabels = () => { try {
-                const r = localStorage.getItem(WL_LABELS_KEY);
-                return r ? JSON.parse(r) : {};
+            // ── Room emote announce toggle ─────────────────────────────────────────
+            const aeAnnRow = document.createElement("div");
+            aeAnnRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 10px;";
+            const aeAnnLbl = document.createElement("span");
+            aeAnnLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
+            aeAnnLbl.textContent = "Room emote when escaping:";
+            const aeAnnSel = document.createElement("select");
+            aeAnnSel.className = "ebc-form-input";
+            aeAnnSel.style.cssText = "font-size:11px;padding:2px 5px;";
+            const aeAnnOpts = [["1", "✓ Glare emote"], ["0", "Silent"]];
+            for (const [v, annOptLbl] of aeAnnOpts) {
+                const o = document.createElement("option");
+                o.value = v;
+                o.textContent = annOptLbl;
+                if (getAntiRestraintAnnounce() ? v === "1" : v === "0")
+                    o.selected = true;
+                aeAnnSel.appendChild(o);
             }
-            catch (_a) {
-                return {};
-            } };
-            const setWlLabel = (key, label) => { try {
-                const m = getWlLabels();
-                if (label)
-                    m[key] = label;
-                else
-                    delete m[key];
-                localStorage.setItem(WL_LABELS_KEY, JSON.stringify(m));
-            }
-            catch ( /* ignore */_a) { /* ignore */ } };
-            const domMakeChip = (key, fallbackLabel, onRemove) => {
-                var _a;
-                const chip = document.createElement("div");
-                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;margin:2px 2px 2px 0;";
-                const txt = document.createElement("span");
-                const labels = getWlLabels();
-                txt.textContent = (_a = labels[key]) !== null && _a !== void 0 ? _a : fallbackLabel;
-                txt.title = "Click to rename";
-                txt.style.cssText = "cursor:pointer;border-bottom:1px dashed #6b3048;";
-                txt.addEventListener("click", (e) => {
-                    var _a;
-                    e.stopPropagation();
-                    showNameInputOverlay(`Rename "${txt.textContent}"`, (_a = txt.textContent) !== null && _a !== void 0 ? _a : fallbackLabel, "Rename", (newName) => {
-                        setWlLabel(key, newName);
-                        txt.textContent = newName;
-                    });
-                });
-                const x = document.createElement("button");
-                x.textContent = "×";
-                x.title = "Remove from whitelist";
-                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
-                x.addEventListener("click", onRemove);
-                chip.appendChild(txt);
-                chip.appendChild(x);
-                return chip;
-            };
-            const wlChips = document.createElement("div");
-            wlChips.style.cssText = "min-height:18px;margin-bottom:6px;";
-            const wlAddRow = document.createElement("div");
-            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-            const refreshWhitelistUI = () => {
-                wlChips.innerHTML = "";
-                wlAddRow.innerHTML = "";
-                const whitelist = getAntiRestraintWhitelist();
-                if (whitelist.length === 0) {
-                    const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
-                    empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
-                    wlChips.appendChild(empty);
-                }
-                else {
-                    for (const key of whitelist) {
-                        // Display the key in a friendly way:
-                        // "AssetName|CraftName" → "CraftName" ; "AssetName" → AssetName (stripped of camelCase)
-                        const parts = key.split("|");
-                        const fallback = parts.length > 1
-                            ? parts[1] // craft name is already human-readable
-                            : parts[0].replace(/([A-Z])/g, " $1").trim();
-                        wlChips.appendChild(domMakeChip(key, fallback, () => {
-                            removeFromAntiRestraintWhitelist(key);
-                            refreshWhitelistUI();
-                        }));
-                    }
-                }
-                try {
-                    const wornItems = Player.Appearance
-                        .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
-                    if (wornItems.length > 0) {
-                        // Collapsible "add from worn" toggle
-                        const wornToggle = document.createElement("button");
-                        wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
-                        const wornList = document.createElement("div");
-                        wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
-                        let wornOpen = false;
-                        const refreshWornToggle = () => {
-                            wornToggle.textContent = (wornOpen ? "▼" : "▶") + "  Currently wearing — click to whitelist";
-                            wornList.style.display = wornOpen ? "flex" : "none";
-                        };
-                        refreshWornToggle();
-                        wornToggle.addEventListener("mouseenter", () => { wornToggle.style.color = "#cf6f98"; wornToggle.style.borderColor = "#6b3048"; });
-                        wornToggle.addEventListener("mouseleave", () => { wornToggle.style.color = "#9a7888"; wornToggle.style.borderColor = "#3a1928"; });
-                        wornToggle.addEventListener("click", () => { wornOpen = !wornOpen; refreshWornToggle(); });
-                        for (const item of wornItems) {
-                            const btn = document.createElement("button");
-                            const displayName = getItemDisplayName(item);
-                            btn.textContent = "+ " + displayName;
-                            btn.title = `Whitelist this item — auto-escape will keep it`;
-                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                            btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
-                            btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
-                            btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
-                            wornList.appendChild(btn);
-                        }
-                        wlAddRow.appendChild(wornToggle);
-                        wlAddRow.appendChild(wornList);
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            refreshWhitelistUI();
-            whitelistSection.appendChild(wlChips);
-            whitelistSection.appendChild(wlAddRow);
-            body.appendChild(whitelistSection);
+            aeAnnSel.addEventListener("change", () => setAntiRestraintAnnounce(aeAnnSel.value === "1"));
+            aeAnnRow.appendChild(aeAnnLbl);
+            aeAnnRow.appendChild(aeAnnSel);
+            body.appendChild(aeAnnRow);
             // ── Room Admin ────────────────────────────────────────────────────────
             const divAdmin = document.createElement("div");
             divAdmin.className = "ebc-divider";
@@ -27773,7 +27692,8 @@
             body.appendChild(adminLbl);
             const w = window;
             const roomData = w.ChatRoomData;
-            const inRoom = w.CurrentScreen === "ChatRoom" && roomData != null;
+            const roomChars = (_b = w.ChatRoomCharacter) !== null && _b !== void 0 ? _b : [];
+            const inRoom = roomChars.length > 0;
             const isAdmin = inRoom && Array.isArray(roomData === null || roomData === void 0 ? void 0 : roomData.Admin) && roomData.Admin.includes(Player.MemberNumber);
             if (!inRoom) {
                 const hint = document.createElement("div");
@@ -27793,7 +27713,7 @@
                 const adminWrap = document.createElement("div");
                 adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;margin-bottom:8px;";
                 // ── Lock / Unlock ─────────────────────────────────────────────────
-                const locked = (_b = roomData === null || roomData === void 0 ? void 0 : roomData.Locked) !== null && _b !== void 0 ? _b : false;
+                const locked = (_c = roomData === null || roomData === void 0 ? void 0 : roomData.Locked) !== null && _c !== void 0 ? _c : false;
                 const lockBtn = document.createElement("button");
                 lockBtn.style.cssText = [
                     "width:100%",
@@ -27938,6 +27858,28 @@
             domHdr.appendChild(domHdrLbl);
             domHdr.appendChild(domHdrSub);
             body.appendChild(domHdr);
+            // ── Dom Settings row ──────────────────────────────────────────────────
+            const dsRow = document.createElement("div");
+            dsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 6px;";
+            const dsLbl = document.createElement("span");
+            dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
+            dsLbl.textContent = "Announce restraint sets:";
+            const dsSel = document.createElement("select");
+            dsSel.className = "ebc-form-input";
+            dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
+            const dsOpts = [["1", "✓ Send room emote"], ["0", "Silent"]];
+            for (const [v, dsOptLbl] of dsOpts) {
+                const o = document.createElement("option");
+                o.value = v;
+                o.textContent = dsOptLbl;
+                if (getDomSetAnnounce() ? v === "1" : v === "0")
+                    o.selected = true;
+                dsSel.appendChild(o);
+            }
+            dsSel.addEventListener("change", () => setDomSetAnnounce(dsSel.value === "1"));
+            dsRow.appendChild(dsLbl);
+            dsRow.appendChild(dsSel);
+            body.appendChild(dsRow);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -28824,7 +28766,8 @@
             qtRefresh.textContent = "↻";
             qtRefresh.title = "Refresh room members";
             const populateQtSel = () => {
-                const cur = qtSel.value;
+                // Prefer the persisted domFocusTargetId (survives re-renders) over the current select value
+                const savedId = this.domFocusTargetId != null ? String(this.domFocusTargetId) : qtSel.value;
                 while (qtSel.firstChild)
                     qtSel.removeChild(qtSel.firstChild);
                 qtSel.appendChild(qtPh);
@@ -28839,10 +28782,11 @@
                 }
                 qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
                 // Restore selection if still in list
-                if (cur && [...qtSel.options].some(o => o.value === cur))
-                    qtSel.value = cur;
+                if (savedId && [...qtSel.options].some(o => o.value === savedId))
+                    qtSel.value = savedId;
             };
             populateQtSel();
+            qtSel.addEventListener("change", () => { this.domFocusTargetId = parseInt(qtSel.value, 10) || null; });
             qtRefresh.addEventListener("click", populateQtSel);
             qtRow.appendChild(qtSel);
             qtRow.appendChild(qtRefresh);
@@ -29395,7 +29339,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.3";
+    const MOD_VERSION = "6.2.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29406,6 +29350,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.4",
+            changes: [
+                "Fix: Room Admin 'not in a chatroom' bug fixed — detection now uses ChatRoomCharacter presence instead of CurrentScreen string check.",
+                "UX: Removed redundant Escape Whitelist section from dom tab (covered by Outfits → Protected Items).",
+                "Feature: Saved announce dropdowns on dom tab — 'Room emote when escaping' toggle (glare emote vs silent) under Auto-Escape, and 'Announce restraint sets' toggle (room emote vs silent) in Dom Tools header. Both persist across sessions.",
+                "Fix: Focus Target picker now remembers the last selected person across dom tab re-renders.",
+            ],
+        },
         {
             version: "6.2.3",
             changes: ["Fix: replaced ☑ icon on 'Pick restraints to remove' header with ✂."],
