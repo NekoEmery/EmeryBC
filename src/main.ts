@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.1";
+const MOD_VERSION = "6.2.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.2",
+        changes: [
+            "Feature: Four new dom-tab sections gated behind a shared 'Focus Target' person picker — ⚡ Quick Actions (8 one-click BC activities: Spank, Tickle, Kiss, Bite, Slap, Caress, Massage, Lick), 😵 Expressions (8 preset packages like Ahegao/Crying/Dazed/Shocked + per-group fine dropdowns for Eyes/Mouth/Blush/Fluids/Brow + clear-all), 🧎 Poses (Stand, Kneel, All Fours, Hands Up, Spread, Kneel+Up), and 🎮 Toy Control (Off/Low/Medium/High/Max/Random/Edge/Auto with live toy status display).",
+        ],
+    },
     {
         version: "6.2.1",
         changes: [

@@ -473,6 +473,156 @@ export function removeItemsFromMember(memberId: number, groups: string[]): numbe
     } catch { return 0; }
 }
 
+// ── Expression control ────────────────────────────────────────────────────────
+
+const EXPR_GROUPS_DOM = ["Eyes", "Eyes2", "Mouth", "Eyebrows", "Blush", "Fluids", "Emoticon"] as const;
+
+function findRoomChar(memberId: number): Character | undefined {
+    return ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined)
+        ?.find(c => c.MemberNumber === memberId);
+}
+
+/** Apply an array of [group, exprName|null] pairs to a character all at once, then sync once. */
+export function applyTargetExpressionPreset(
+    targetId: number,
+    groups: ReadonlyArray<readonly [string, string | null]>,
+): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const setFn = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
+            ((c: Character, g: string, e: string | null) => void) | undefined;
+        if (typeof setFn === "function") {
+            for (const [group, expr] of groups) { try { setFn(char, group, expr); } catch { /* ignore */ } }
+        } else {
+            const assetGetFn = (window as unknown as Record<string, unknown>).AssetGet as
+                ((fam: string, grp: string, name: string) => unknown) | undefined;
+            for (const [group, exprName] of groups) {
+                try {
+                    const app = char.Appearance as Item[];
+                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                    if (idx !== -1) app.splice(idx, 1);
+                    if (exprName && typeof assetGetFn === "function") {
+                        const asset = assetGetFn(char.AssetFamily ?? "Female3DCG", group, exprName);
+                        if (asset) app.push({ Asset: asset, Color: "Default", Difficulty: 0, Property: { Expression: exprName } } as unknown as Item);
+                    }
+                } catch { /* ignore */ }
+            }
+        }
+        syncChar(char);
+    } catch { /* ignore */ }
+}
+
+/** Clear all expression groups on an in-room character. */
+export function clearTargetExpressions(targetId: number): void {
+    applyTargetExpressionPreset(targetId, EXPR_GROUPS_DOM.map(g => [g, null] as const));
+}
+
+// ── Pose control ──────────────────────────────────────────────────────────────
+
+/** Set the active pose on an in-room character. Pass empty array to clear all poses. */
+export function setTargetPoses(targetId: number, poses: string[]): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const setPoseFn = (window as unknown as Record<string, unknown>).CharacterSetActivePose as
+            ((c: Character, poses: string[] | null, noRefresh?: boolean) => void) | undefined;
+        if (typeof setPoseFn === "function") {
+            setPoseFn(char, poses.length ? poses : null, false);
+        } else {
+            // Fallback: set ActivePose directly
+            (char as unknown as Record<string, unknown>).ActivePose = poses;
+        }
+        syncChar(char);
+    } catch { /* ignore */ }
+}
+
+// ── Toy control ───────────────────────────────────────────────────────────────
+
+/** Returns vibrating items currently worn by an in-room character. */
+export function getTargetVibratingItems(targetId: number): Array<{ group: string; name: string; mode: string }> {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return [];
+        return char.Appearance
+            .filter((item: Item) => {
+                const prop = item.Property as Record<string, unknown> | undefined;
+                const asset = item.Asset as unknown as Record<string, unknown>;
+                return asset.Archetype === "VibratingItem" || (prop && typeof prop.Mode === "string");
+            })
+            .map((item: Item) => ({
+                group: item.Asset.Group.Name,
+                name: item.Asset.Name,
+                mode: String((item.Property as Record<string, unknown> | undefined)?.Mode ?? "Off"),
+            }));
+    } catch { return []; }
+}
+
+/** Set the vibrator mode on all vibrating items worn by an in-room character. */
+export function setTargetToyMode(targetId: number, mode: string): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const vibratorSetFn = (window as unknown as Record<string, unknown>).VibratorModeSet as
+            ((c: Character, item: Item, mode: string) => void) | undefined;
+        let changed = false;
+        for (const item of char.Appearance) {
+            const prop = item.Property as Record<string, unknown> | undefined;
+            const asset = item.Asset as unknown as Record<string, unknown>;
+            if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
+            try {
+                if (typeof vibratorSetFn === "function") {
+                    vibratorSetFn(char, item, mode);
+                } else {
+                    if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
+                    (item.Property as Record<string, unknown>).Mode = mode;
+                }
+                changed = true;
+            } catch { /* ignore */ }
+        }
+        if (changed) syncChar(char);
+    } catch { /* ignore */ }
+}
+
+// ── Activity control ──────────────────────────────────────────────────────────
+
+/**
+ * Perform a BC activity on an in-room character.
+ * Goes through the normal BC activity system (respects consent, triggers arousal/sounds/messages).
+ */
+export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
+    try {
+        const target = findRoomChar(targetId);
+        if (!target) return false;
+        const acts = (window as unknown as Record<string, unknown>).ActivityAssets as
+            Array<Record<string, unknown>> | undefined;
+        const act = acts?.find(a => a.Name === activityName);
+        const performFn = (window as unknown as Record<string, unknown>).ActivityPerform as
+            ((c: Character, t: Character, a: unknown, z: string) => void) | undefined;
+        if (act && typeof performFn === "function") {
+            callBC(() => performFn(Player, target, act, zone));
+            return true;
+        }
+        // Fallback: send chat activity message directly
+        const sendFn = (window as unknown as Record<string, unknown>).ServerSend as
+            ((type: string, data: unknown) => void) | undefined;
+        if (typeof sendFn === "function") {
+            callBC(() => sendFn("ChatRoomChat", {
+                Content: activityName,
+                Type: "Activity",
+                Dictionary: [
+                    { Tag: "SourceCharacter", Text: Player.MemberNumber },
+                    { Tag: "TargetCharacter", Text: targetId },
+                    { Tag: "ActivityGroup",   Text: zone },
+                    { Tag: "ActivityName",    Text: activityName },
+                ],
+            }));
+            return true;
+        }
+        return false;
+    } catch { return false; }
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;
