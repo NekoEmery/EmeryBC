@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.6";
+const MOD_VERSION = "6.2.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.7",
+        changes: [
+            "UX: Dom tab deep cleanup - removed redundant DOM TOOLS banner, folded 'Announce restraint sets' setting into the Sets card header, grouped Focus Target + Quick Actions + Poses + Toy Control into a single Actions card.",
+            "Fix: Card backgrounds corrected (were darker than the panel, now properly elevated).",
+        ],
+    },
     {
         version: "6.2.6",
         changes: [
