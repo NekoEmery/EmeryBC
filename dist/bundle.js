@@ -6469,27 +6469,34 @@
     }
     /** Set the vibrator mode on all vibrating items worn by an in-room character. */
     function setTargetToyMode(targetId, mode) {
-        var _a;
         try {
             const char = findRoomChar(targetId);
             if (!char)
                 return;
             let changed = false;
+            // BC's ExtendedItemSetValue properly updates derived fields (Effect array etc.)
+            // alongside Property.Mode.  Fall back to a direct property-spread if unavailable.
+            const extSetFn = window.ExtendedItemSetValue;
             for (const item of char.Appearance) {
                 const asset = item.Asset;
-                // Detect vibrating items by archetype or by having an existing Mode property
-                const archStr = String((_a = asset.Archetype) !== null && _a !== void 0 ? _a : "").toLowerCase();
                 const prop = item.Property;
-                const isVibrator = archStr.includes("vibrat") || (prop !== undefined && "Mode" in prop);
-                if (!isVibrator)
+                // Detect vibrating items: exact archetype match OR existing Mode property
+                if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string"))
                     continue;
                 try {
-                    if (!item.Property)
-                        item.Property = {};
-                    item.Property.Mode = mode;
+                    if (extSetFn) {
+                        // Use BC's own setter — handles Effect + any state-machine transitions
+                        extSetFn(char, item, { Mode: mode }, false /* we call syncChar ourselves */);
+                    }
+                    else {
+                        // Fallback: spread existing properties so we don't stomp fields like Effect/Intensity
+                        const merged = Object.assign({}, prop !== null && prop !== void 0 ? prop : {});
+                        merged.Mode = mode;
+                        item.Property = merged;
+                    }
                     changed = true;
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
             }
             if (changed) {
                 syncChar(char);
@@ -6500,13 +6507,13 @@
                 sendRoomAction(desc);
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     // ── Activity control ──────────────────────────────────────────────────────────
     /** Activity label -> room action description. */
     const ACTIVITY_DESCS = {
         "Spank": n => `gives ${n} a firm spank.`,
-        "Tickle": n => `tickles ${n}.`,
+        "Pat": n => `pats ${n} on the head.`,
         "Kiss": n => `leans in and kisses ${n}.`,
         "Bite": n => `bites ${n}'s neck.`,
         "Slap": n => `slaps ${n}.`,
@@ -6515,10 +6522,20 @@
         "Lick": n => `licks ${n}.`,
     };
     /**
-     * Perform a quick action on an in-room character.
-     * Sends a visible room action emote describing what happened.
+     * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
+     * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
      */
-    function performActivityOnTarget(targetId, activityName, _zone) {
+    const BC_ACTIVITY_NAME = {
+        "Pat": "Caress", // no native "Pat" in BC — use Caress animation on the head
+    };
+    /**
+     * Perform a quick action on an in-room character.
+     * Sends a Type:"Activity" message so BC clients play the matching facial
+     * expressions and sounds.  The same Content/MISSING-TEXT trick used by
+     * sendRoomAction controls the visible chat text.
+     */
+    function performActivityOnTarget(targetId, activityName, zone) {
+        var _a;
         try {
             const target = findRoomChar(targetId);
             if (!target)
@@ -6526,10 +6543,23 @@
             const name = charDisplayName(target);
             const descFn = ACTIVITY_DESCS[activityName];
             const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-            sendRoomAction(desc);
+            const displayText = Player.Name + " " + desc;
+            // BC activity name for animation (may differ from our internal label, e.g. "Pat"→"Caress")
+            const bcActivity = (_a = BC_ACTIVITY_NAME[activityName]) !== null && _a !== void 0 ? _a : activityName;
+            callBC(() => ServerSend("ChatRoomChat", {
+                Type: "Activity",
+                Content: displayText,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                    { Tag: "TargetCharacter", MemberNumber: targetId },
+                    { Tag: "ActivityName", ActivityName: bcActivity },
+                    { Tag: "AssetGroupName", AssetGroupName: zone },
+                ],
+            }));
             return true;
         }
-        catch (_a) {
+        catch (_b) {
             return false;
         }
     }
@@ -28599,7 +28629,7 @@
             actPanel.appendChild(actHint);
             const ACT_DEFS = [
                 ["👋", "Spank", "Spank", "ItemButt"],
-                ["🤏", "Tickle", "Tickle", "ItemTorso"],
+                ["🖐", "Pat", "Pat", "ItemHead"],
                 ["💋", "Kiss", "Kiss", "ItemHead"],
                 ["🦷", "Bite", "Bite", "ItemNeck"],
                 ["✋", "Slap", "Slap", "ItemHead"],
@@ -28625,7 +28655,7 @@
                         window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    const ok = performActivityOnTarget(id, actName);
+                    const ok = performActivityOnTarget(id, actName, zone);
                     actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
                     window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                 });
@@ -29006,7 +29036,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.9";
+    const MOD_VERSION = "6.3.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29017,6 +29047,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.3.0",
+            changes: [
+                "Fix: Quick actions (Kiss, Spank, etc.) now send Type:Activity messages so BC plays the correct facial expressions and sounds on the target — previously only sent a plain text emote with no animation.",
+                "Fix: Toy control mode buttons now use BC's ExtendedItemSetValue API when available so derived item fields (Effect etc.) are updated correctly, then fall back to a property-spread that preserves existing fields. Improved vibrating-item detection (exact archetype match).",
+                "UX: Replaced Tickle quick action with Pat (targets ItemHead, uses Caress animation).",
+            ],
+        },
         {
             version: "6.2.9",
             changes: [

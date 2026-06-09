@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.9";
+const MOD_VERSION = "6.3.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.3.0",
+        changes: [
+            "Fix: Quick actions (Kiss, Spank, etc.) now send Type:Activity messages so BC plays the correct facial expressions and sounds on the target — previously only sent a plain text emote with no animation.",
+            "Fix: Toy control mode buttons now use BC's ExtendedItemSetValue API when available so derived item fields (Effect etc.) are updated correctly, then fall back to a property-spread that preserves existing fields. Improved vibrating-item detection (exact archetype match).",
+            "UX: Replaced Tickle quick action with Pat (targets ItemHead, uses Caress animation).",
+        ],
+    },
     {
         version: "6.2.9",
         changes: [

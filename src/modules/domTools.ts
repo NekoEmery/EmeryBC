@@ -618,19 +618,31 @@ export function setTargetToyMode(targetId: number, mode: string): void {
         const char = findRoomChar(targetId);
         if (!char) return;
         let changed = false;
+
+        // BC's ExtendedItemSetValue properly updates derived fields (Effect array etc.)
+        // alongside Property.Mode.  Fall back to a direct property-spread if unavailable.
+        const extSetFn = (window as unknown as Record<string, unknown>).ExtendedItemSetValue as
+            ((c: Character, i: Item, v: Record<string, unknown>, publish: boolean) => void) | undefined;
+
         for (const item of char.Appearance) {
             const asset = item.Asset as unknown as Record<string, unknown>;
-            // Detect vibrating items by archetype or by having an existing Mode property
-            const archStr = String(asset.Archetype ?? "").toLowerCase();
             const prop = item.Property as Record<string, unknown> | undefined;
-            const isVibrator = archStr.includes("vibrat") || (prop !== undefined && "Mode" in prop);
-            if (!isVibrator) continue;
+            // Detect vibrating items: exact archetype match OR existing Mode property
+            if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
             try {
-                if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
-                (item.Property as Record<string, unknown>).Mode = mode;
+                if (extSetFn) {
+                    // Use BC's own setter — handles Effect + any state-machine transitions
+                    extSetFn(char, item, { Mode: mode }, false /* we call syncChar ourselves */);
+                } else {
+                    // Fallback: spread existing properties so we don't stomp fields like Effect/Intensity
+                    const merged: Record<string, unknown> = Object.assign({}, prop ?? {});
+                    merged.Mode = mode;
+                    (item as unknown as Record<string, unknown>).Property = merged;
+                }
                 changed = true;
             } catch { /* ignore */ }
         }
+
         if (changed) {
             syncChar(char);
             const name = charDisplayName(char);
@@ -647,7 +659,7 @@ export function setTargetToyMode(targetId: number, mode: string): void {
 /** Activity label -> room action description. */
 const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Spank":   n => `gives ${n} a firm spank.`,
-    "Tickle":  n => `tickles ${n}.`,
+    "Pat":     n => `pats ${n} on the head.`,
     "Kiss":    n => `leans in and kisses ${n}.`,
     "Bite":    n => `bites ${n}'s neck.`,
     "Slap":    n => `slaps ${n}.`,
@@ -657,17 +669,40 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
 };
 
 /**
- * Perform a quick action on an in-room character.
- * Sends a visible room action emote describing what happened.
+ * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
+ * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
  */
-export function performActivityOnTarget(targetId: number, activityName: string, _zone: string): boolean {
+const BC_ACTIVITY_NAME: Record<string, string> = {
+    "Pat": "Caress",  // no native "Pat" in BC — use Caress animation on the head
+};
+
+/**
+ * Perform a quick action on an in-room character.
+ * Sends a Type:"Activity" message so BC clients play the matching facial
+ * expressions and sounds.  The same Content/MISSING-TEXT trick used by
+ * sendRoomAction controls the visible chat text.
+ */
+export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
         const name = charDisplayName(target);
         const descFn = ACTIVITY_DESCS[activityName];
         const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-        sendRoomAction(desc);
+        const displayText = Player.Name + " " + desc;
+        // BC activity name for animation (may differ from our internal label, e.g. "Pat"→"Caress")
+        const bcActivity = BC_ACTIVITY_NAME[activityName] ?? activityName;
+        callBC(() => ServerSend("ChatRoomChat", {
+            Type: "Activity",
+            Content: displayText,
+            Dictionary: [
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                { Tag: "SourceCharacter",  MemberNumber: Player.MemberNumber },
+                { Tag: "TargetCharacter",  MemberNumber: targetId },
+                { Tag: "ActivityName",     ActivityName: bcActivity },
+                { Tag: "AssetGroupName",   AssetGroupName: zone },
+            ],
+        }));
         return true;
     } catch { return false; }
 }

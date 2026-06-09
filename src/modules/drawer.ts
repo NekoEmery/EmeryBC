@@ -21262,7 +21262,7 @@ export class EBCDrawer {
 
         const ACT_DEFS: ReadonlyArray<[string, string, string, string]> = [
             ["👋", "Spank",   "Spank",   "ItemButt"],
-            ["🤏", "Tickle",  "Tickle",  "ItemTorso"],
+            ["🖐", "Pat",     "Pat",     "ItemHead"],
             ["💋", "Kiss",    "Kiss",    "ItemHead"],
             ["🦷", "Bite",    "Bite",    "ItemNeck"],
             ["✋", "Slap",    "Slap",    "ItemHead"],
