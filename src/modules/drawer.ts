@@ -4358,7 +4358,7 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.background = "rgba(42,20,33,0.6)"; });
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.background = "#1e0d18"; });
         const selfPickIcon = document.createElement("span");
-        selfPickIcon.textContent = "☑";
+        selfPickIcon.textContent = "✂";
         selfPickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
         const selfPickLbl = document.createElement("span");
         selfPickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
