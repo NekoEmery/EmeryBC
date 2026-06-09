@@ -92,8 +92,8 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies } from "./settings";
-import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce } from "./settings";
+import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
@@ -3916,6 +3916,7 @@ export class EBCDrawer {
     private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
     private domSelectedTargets = new Set<number>();
+    private domFocusTargetId: number | null = null;
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
@@ -20300,112 +20301,25 @@ export class EBCDrawer {
         antiRow.appendChild(antiToggle);
         body.appendChild(antiRow);
 
-        // -- Whitelist --
-        const whitelistSection = document.createElement("div");
-        whitelistSection.style.cssText = "margin-bottom:10px;";
-
-        const wlTitle = document.createElement("span");
-        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;border-left:2px solid #7a3050;padding-left:7px;";
-        wlTitle.textContent = "Escape Whitelist";
-        whitelistSection.appendChild(wlTitle);
-
-        // Stored custom labels for whitelist chips: itemKey → display name override
-        const WL_LABELS_KEY = "EBC_wlLabels";
-        const getWlLabels = (): Record<string, string> => { try { const r = localStorage.getItem(WL_LABELS_KEY); return r ? JSON.parse(r) as Record<string, string> : {}; } catch { return {}; } };
-        const setWlLabel = (key: string, label: string): void => { try { const m = getWlLabels(); if (label) m[key] = label; else delete m[key]; localStorage.setItem(WL_LABELS_KEY, JSON.stringify(m)); } catch { /* ignore */ } };
-
-        const domMakeChip = (key: string, fallbackLabel: string, onRemove: () => void): HTMLDivElement => {
-            const chip = document.createElement("div");
-            chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;margin:2px 2px 2px 0;";
-            const txt = document.createElement("span");
-            const labels = getWlLabels();
-            txt.textContent = labels[key] ?? fallbackLabel;
-            txt.title = "Click to rename";
-            txt.style.cssText = "cursor:pointer;border-bottom:1px dashed #6b3048;";
-            txt.addEventListener("click", (e) => {
-                e.stopPropagation();
-                showNameInputOverlay(`Rename "${txt.textContent}"`, txt.textContent ?? fallbackLabel, "Rename", (newName) => {
-                    setWlLabel(key, newName);
-                    txt.textContent = newName;
-                });
-            });
-            const x = document.createElement("button");
-            x.textContent = "×";
-            x.title = "Remove from whitelist";
-            x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
-            x.addEventListener("click", onRemove);
-            chip.appendChild(txt);
-            chip.appendChild(x);
-            return chip;
-        };
-
-        const wlChips = document.createElement("div");
-        wlChips.style.cssText = "min-height:18px;margin-bottom:6px;";
-        const wlAddRow = document.createElement("div");
-        wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-
-        const refreshWhitelistUI = (): void => {
-            wlChips.innerHTML = "";
-            wlAddRow.innerHTML = "";
-            const whitelist = getAntiRestraintWhitelist();
-            if (whitelist.length === 0) {
-                const empty = document.createElement("span");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
-                empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
-                wlChips.appendChild(empty);
-            } else {
-                for (const key of whitelist) {
-                    // Display the key in a friendly way:
-                    // "AssetName|CraftName" → "CraftName" ; "AssetName" → AssetName (stripped of camelCase)
-                    const parts = key.split("|");
-                    const fallback = parts.length > 1
-                        ? parts[1]  // craft name is already human-readable
-                        : parts[0].replace(/([A-Z])/g, " $1").trim();
-                    wlChips.appendChild(domMakeChip(key, fallback, () => {
-                        removeFromAntiRestraintWhitelist(key);
-                        refreshWhitelistUI();
-                    }));
-                }
-            }
-            try {
-                const wornItems = Player.Appearance
-                    .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
-                if (wornItems.length > 0) {
-                    // Collapsible "add from worn" toggle
-                    const wornToggle = document.createElement("button");
-                    wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
-                    const wornList = document.createElement("div");
-                    wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
-                    let wornOpen = false;
-                    const refreshWornToggle = (): void => {
-                        wornToggle.textContent = (wornOpen ? "▼" : "▶") + "  Currently wearing — click to whitelist";
-                        wornList.style.display = wornOpen ? "flex" : "none";
-                    };
-                    refreshWornToggle();
-                    wornToggle.addEventListener("mouseenter", () => { wornToggle.style.color = "#cf6f98"; wornToggle.style.borderColor = "#6b3048"; });
-                    wornToggle.addEventListener("mouseleave", () => { wornToggle.style.color = "#9a7888"; wornToggle.style.borderColor = "#3a1928"; });
-                    wornToggle.addEventListener("click", () => { wornOpen = !wornOpen; refreshWornToggle(); });
-                    for (const item of wornItems) {
-                        const btn = document.createElement("button");
-                        const displayName = getItemDisplayName(item);
-                        btn.textContent = "+ " + displayName;
-                        btn.title = `Whitelist this item — auto-escape will keep it`;
-                        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                        btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
-                        btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
-                        btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
-                        wornList.appendChild(btn);
-                    }
-                    wlAddRow.appendChild(wornToggle);
-                    wlAddRow.appendChild(wornList);
-                }
-            } catch { /* ignore */ }
-        };
-
-        refreshWhitelistUI();
-        whitelistSection.appendChild(wlChips);
-        whitelistSection.appendChild(wlAddRow);
-        body.appendChild(whitelistSection);
+        // ── Room emote announce toggle ─────────────────────────────────────────
+        const aeAnnRow = document.createElement("div");
+        aeAnnRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 10px;";
+        const aeAnnLbl = document.createElement("span");
+        aeAnnLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
+        aeAnnLbl.textContent = "Room emote when escaping:";
+        const aeAnnSel = document.createElement("select");
+        aeAnnSel.className = "ebc-form-input";
+        aeAnnSel.style.cssText = "font-size:11px;padding:2px 5px;";
+        const aeAnnOpts: [string, string][] = [["1","✓ Glare emote"],["0","Silent"]];
+        for (const [v, annOptLbl] of aeAnnOpts) {
+            const o = document.createElement("option"); o.value = v; o.textContent = annOptLbl;
+            if (getAntiRestraintAnnounce() ? v === "1" : v === "0") o.selected = true;
+            aeAnnSel.appendChild(o);
+        }
+        aeAnnSel.addEventListener("change", () => setAntiRestraintAnnounce(aeAnnSel.value === "1"));
+        aeAnnRow.appendChild(aeAnnLbl);
+        aeAnnRow.appendChild(aeAnnSel);
+        body.appendChild(aeAnnRow);
 
         // ── Room Admin ────────────────────────────────────────────────────────
         const divAdmin = document.createElement("div");
@@ -20421,7 +20335,8 @@ export class EBCDrawer {
         type RoomDataShape = { Locked?: boolean; Admin?: number[] };
         const w = window as unknown as Record<string, unknown>;
         const roomData = w.ChatRoomData as RoomDataShape | null | undefined;
-        const inRoom   = (w.CurrentScreen as string | undefined) === "ChatRoom" && roomData != null;
+        const roomChars = (w.ChatRoomCharacter as Character[] | undefined) ?? [];
+        const inRoom    = roomChars.length > 0;
         const isAdmin  = inRoom && Array.isArray(roomData?.Admin) && (roomData.Admin as number[]).includes(Player.MemberNumber);
 
         if (!inRoom) {
@@ -20590,6 +20505,26 @@ export class EBCDrawer {
         domHdr.appendChild(domHdrLbl);
         domHdr.appendChild(domHdrSub);
         body.appendChild(domHdr);
+
+        // ── Dom Settings row ──────────────────────────────────────────────────
+        const dsRow = document.createElement("div");
+        dsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 7px 6px;";
+        const dsLbl = document.createElement("span");
+        dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;flex:1;";
+        dsLbl.textContent = "Announce restraint sets:";
+        const dsSel = document.createElement("select");
+        dsSel.className = "ebc-form-input";
+        dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
+        const dsOpts: [string, string][] = [["1","✓ Send room emote"],["0","Silent"]];
+        for (const [v, dsOptLbl] of dsOpts) {
+            const o = document.createElement("option"); o.value = v; o.textContent = dsOptLbl;
+            if (getDomSetAnnounce() ? v === "1" : v === "0") o.selected = true;
+            dsSel.appendChild(o);
+        }
+        dsSel.addEventListener("change", () => setDomSetAnnounce(dsSel.value === "1"));
+        dsRow.appendChild(dsLbl);
+        dsRow.appendChild(dsSel);
+        body.appendChild(dsRow);
 
         // Sync selected targets: add any new targets that aren't tracked yet
         const allTargetIds = getDomConfig().targets.map(t => t.id);
@@ -21504,7 +21439,8 @@ export class EBCDrawer {
         qtRefresh.textContent = "↻";
         qtRefresh.title = "Refresh room members";
         const populateQtSel = (): void => {
-            const cur = qtSel.value;
+            // Prefer the persisted domFocusTargetId (survives re-renders) over the current select value
+            const savedId = this.domFocusTargetId != null ? String(this.domFocusTargetId) : qtSel.value;
             while (qtSel.firstChild) qtSel.removeChild(qtSel.firstChild);
             qtSel.appendChild(qtPh);
             const members = getRoomMembers();
@@ -21517,9 +21453,10 @@ export class EBCDrawer {
             }
             qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
             // Restore selection if still in list
-            if (cur && [...qtSel.options].some(o => o.value === cur)) qtSel.value = cur;
+            if (savedId && [...qtSel.options].some(o => o.value === savedId)) qtSel.value = savedId;
         };
         populateQtSel();
+        qtSel.addEventListener("change", () => { this.domFocusTargetId = parseInt(qtSel.value, 10) || null; });
         qtRefresh.addEventListener("click", populateQtSel);
         qtRow.appendChild(qtSel);
         qtRow.appendChild(qtRefresh);

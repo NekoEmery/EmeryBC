@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.3";
+const MOD_VERSION = "6.2.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.4",
+        changes: [
+            "Fix: Room Admin 'not in a chatroom' bug fixed — detection now uses ChatRoomCharacter presence instead of CurrentScreen string check.",
+            "UX: Removed redundant Escape Whitelist section from dom tab (covered by Outfits → Protected Items).",
+            "Feature: Saved announce dropdowns on dom tab — 'Room emote when escaping' toggle (glare emote vs silent) under Auto-Escape, and 'Announce restraint sets' toggle (room emote vs silent) in Dom Tools header. Both persist across sessions.",
+            "Fix: Focus Target picker now remembers the last selected person across dom tab re-renders.",
+        ],
+    },
     {
         version: "6.2.3",
         changes: ["Fix: replaced ☑ icon on 'Pick restraints to remove' header with ✂."],

@@ -88,6 +88,28 @@ export function setAntiRestraintEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Auto-escape emote (announce) -----------------------------------------------
+// When false, auto-escape removes restraints silently (no room emote).
+
+export function getAntiRestraintAnnounce(): boolean {
+    try { return getSettings()?.antiRestraintAnnounce !== false; } catch { return true; }
+}
+
+export function setAntiRestraintAnnounce(value: boolean): void {
+    try { const s = getSettings(); s.antiRestraintAnnounce = value; syncSettings(); } catch { /* ignore */ }
+}
+
+// -- Dom set announce -----------------------------------------------------------
+// When false, applying a restraint set sends no room emote.
+
+export function getDomSetAnnounce(): boolean {
+    try { return getSettings()?.domSetAnnounce !== false; } catch { return true; }
+}
+
+export function setDomSetAnnounce(value: boolean): void {
+    try { const s = getSettings(); s.domSetAnnounce = value; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Anti-restraint whitelist --------------------------------------------------
 // Group names that auto-escape will never touch, even when applied by others.
 // Populated by the user from the Settings UI while wearing the items.

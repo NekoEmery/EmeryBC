@@ -4,6 +4,7 @@
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
 import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
+import { getDomSetAnnounce } from "./settings";
 
 export const DOM_CREATOR_ID = 130267;
 
@@ -229,7 +230,7 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
     }
 
     // Send room announce after items have synced
-    if (applied.length > 0 && set.announceTemplate.trim()) {
+    if (applied.length > 0 && set.announceTemplate.trim() && getDomSetAnnounce()) {
         window.setTimeout(() => {
             try {
                 const text = set.announceTemplate
