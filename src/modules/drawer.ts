@@ -20554,6 +20554,23 @@ export class EBCDrawer {
             return;
         }
 
+        // Dom Tools header banner
+        const domHdr = document.createElement("div");
+        domHdr.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 10px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #7a3050;border-radius:7px;margin:8px 0 6px;";
+        const domHdrIcon = document.createElement("span");
+        domHdrIcon.textContent = "⛓";
+        domHdrIcon.style.fontSize = "15px";
+        const domHdrLbl = document.createElement("span");
+        domHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e07090;letter-spacing:0.08em;flex:1;";
+        domHdrLbl.textContent = "DOM TOOLS";
+        const domHdrSub = document.createElement("span");
+        domHdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a2840;font-style:italic;";
+        domHdrSub.textContent = "creator only";
+        domHdr.appendChild(domHdrIcon);
+        domHdr.appendChild(domHdrLbl);
+        domHdr.appendChild(domHdrSub);
+        body.appendChild(domHdr);
+
         // Sync selected targets: add any new targets that aren't tracked yet
         const allTargetIds = getDomConfig().targets.map(t => t.id);
         if (this.domSelectedTargets.size === 0) {
@@ -20594,8 +20611,8 @@ export class EBCDrawer {
 
         // ── Targets ──────────────────────────────────────────────────────────
         const targLbl = document.createElement("div");
-        targLbl.className = "ebc-section-label";
-        targLbl.textContent = "Targets";
+        targLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:2px;";
+        targLbl.textContent = "🎯 Targets";
         body.appendChild(targLbl);
 
         const targList = document.createElement("div");
@@ -20918,21 +20935,21 @@ export class EBCDrawer {
         body.appendChild(divRelease);
 
         const releaseLbl = document.createElement("div");
-        releaseLbl.className = "ebc-section-label";
-        releaseLbl.textContent = "Release / Rescue";
+        releaseLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;padding:4px 4px 5px;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:4px;";
+        releaseLbl.textContent = "✂ Release / Rescue";
         body.appendChild(releaseLbl);
 
-        // Quick-action row: two wide buttons
+        // Quick-action row: two wide prominent buttons
         const quickRow = document.createElement("div");
-        quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
+        quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;";
 
         const makeQuickBtn = (label: string, title: string): HTMLButtonElement => {
             const b = document.createElement("button");
-            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:9px 4px;border-radius:7px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s,border-color 0.14s;";
             b.textContent = label;
             b.title = title;
-            b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
-            b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; });
+            b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; b.style.borderColor = "#cf6f98"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; b.style.borderColor = "#7a3a50"; });
             return b;
         };
 
@@ -20969,9 +20986,22 @@ export class EBCDrawer {
         });
 
         // ── "Pick items to remove" picker ─────────────────────────────────────
-        const pickToggle = document.createElement("button");
-        pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-        pickToggle.textContent = "↓ Pick items to remove";
+        const pickToggle = document.createElement("div");
+        pickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;margin-bottom:4px;";
+        pickToggle.addEventListener("mouseenter", () => { pickToggle.style.background = "rgba(42,20,33,0.6)"; });
+        pickToggle.addEventListener("mouseleave", () => { pickToggle.style.background = "#1e0d18"; });
+        const pickIcon = document.createElement("span");
+        pickIcon.textContent = "☑";
+        pickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
+        const pickLbl = document.createElement("span");
+        pickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
+        pickLbl.textContent = "Pick items to remove";
+        const pickArrow = document.createElement("span");
+        pickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+        pickArrow.textContent = "▼";
+        pickToggle.appendChild(pickIcon);
+        pickToggle.appendChild(pickLbl);
+        pickToggle.appendChild(pickArrow);
         body.appendChild(pickToggle);
 
         const pickPanel = document.createElement("div");
@@ -21065,8 +21095,9 @@ export class EBCDrawer {
         pickToggle.addEventListener("click", () => {
             const isOpenNow = pickPanel.style.display === "none";
             pickPanel.style.display = isOpenNow ? "flex" : "none";
-            pickToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
-            pickToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+            pickArrow.textContent = isOpenNow ? "▲" : "▼";
+            pickToggle.style.borderColor = isOpenNow ? "#5a2840" : "#3a1928";
+            pickToggle.style.background = isOpenNow ? "#2a0e1e" : "#1e0d18";
             if (isOpenNow) rebuildPickPanel();
         });
 
@@ -21079,9 +21110,8 @@ export class EBCDrawer {
         const setsHeader = document.createElement("div");
         setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
         const setsLbl = document.createElement("div");
-        setsLbl.className = "ebc-section-label";
-        setsLbl.style.margin = "0";
-        setsLbl.textContent = t("kitty.restraintSets");
+        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;border-left:2px solid #7a3050;padding-left:7px;";
+        setsLbl.textContent = "📦 " + t("kitty.restraintSets");
         const newSetBtn = document.createElement("button");
         newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
         newSetBtn.textContent = t("dom.newSet");

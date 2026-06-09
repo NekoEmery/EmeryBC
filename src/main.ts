@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.9";
+const MOD_VERSION = "6.2.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.0",
+        changes: [
+            "UX: Dom tab visual cleanup — added '⛓ DOM TOOLS' header banner at the start of the creator-only section (matching kitty tab's header style). Section labels (Targets, Release/Rescue, Restraint Sets) now have a colored left-border accent and icons. Release/Rescue action buttons are bigger (12px, 9px padding). 'Pick items to remove' replaced bare dashed toggle with a proper collapsible accordion header matching Room Rescue style.",
+        ],
+    },
     {
         version: "6.1.9",
         changes: [
