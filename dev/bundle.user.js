@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.2.1
+// @version      6.2.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6387,6 +6387,167 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch (_b) {
             return 0;
+        }
+    }
+    // ── Expression control ────────────────────────────────────────────────────────
+    const EXPR_GROUPS_DOM = ["Eyes", "Eyes2", "Mouth", "Eyebrows", "Blush", "Fluids", "Emoticon"];
+    function findRoomChar(memberId) {
+        var _a;
+        return (_a = window.ChatRoomCharacter) === null || _a === void 0 ? void 0 : _a.find(c => c.MemberNumber === memberId);
+    }
+    /** Apply an array of [group, exprName|null] pairs to a character all at once, then sync once. */
+    function applyTargetExpressionPreset(targetId, groups) {
+        var _a;
+        try {
+            const char = findRoomChar(targetId);
+            if (!char)
+                return;
+            const setFn = window.CharacterSetFacialExpression;
+            if (typeof setFn === "function") {
+                for (const [group, expr] of groups) {
+                    try {
+                        setFn(char, group, expr);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                }
+            }
+            else {
+                const assetGetFn = window.AssetGet;
+                for (const [group, exprName] of groups) {
+                    try {
+                        const app = char.Appearance;
+                        const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                        if (idx !== -1)
+                            app.splice(idx, 1);
+                        if (exprName && typeof assetGetFn === "function") {
+                            const asset = assetGetFn((_a = char.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, exprName);
+                            if (asset)
+                                app.push({ Asset: asset, Color: "Default", Difficulty: 0, Property: { Expression: exprName } });
+                        }
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
+            }
+            syncChar(char);
+        }
+        catch ( /* ignore */_d) { /* ignore */ }
+    }
+    /** Clear all expression groups on an in-room character. */
+    function clearTargetExpressions(targetId) {
+        applyTargetExpressionPreset(targetId, EXPR_GROUPS_DOM.map(g => [g, null]));
+    }
+    // ── Pose control ──────────────────────────────────────────────────────────────
+    /** Set the active pose on an in-room character. Pass empty array to clear all poses. */
+    function setTargetPoses(targetId, poses) {
+        try {
+            const char = findRoomChar(targetId);
+            if (!char)
+                return;
+            const setPoseFn = window.CharacterSetActivePose;
+            if (typeof setPoseFn === "function") {
+                setPoseFn(char, poses.length ? poses : null, false);
+            }
+            else {
+                // Fallback: set ActivePose directly
+                char.ActivePose = poses;
+            }
+            syncChar(char);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // ── Toy control ───────────────────────────────────────────────────────────────
+    /** Returns vibrating items currently worn by an in-room character. */
+    function getTargetVibratingItems(targetId) {
+        try {
+            const char = findRoomChar(targetId);
+            if (!char)
+                return [];
+            return char.Appearance
+                .filter((item) => {
+                const prop = item.Property;
+                const asset = item.Asset;
+                return asset.Archetype === "VibratingItem" || (prop && typeof prop.Mode === "string");
+            })
+                .map((item) => {
+                var _a, _b;
+                return ({
+                    group: item.Asset.Group.Name,
+                    name: item.Asset.Name,
+                    mode: String((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Mode) !== null && _b !== void 0 ? _b : "Off"),
+                });
+            });
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    /** Set the vibrator mode on all vibrating items worn by an in-room character. */
+    function setTargetToyMode(targetId, mode) {
+        try {
+            const char = findRoomChar(targetId);
+            if (!char)
+                return;
+            const vibratorSetFn = window.VibratorModeSet;
+            let changed = false;
+            for (const item of char.Appearance) {
+                const prop = item.Property;
+                const asset = item.Asset;
+                if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string"))
+                    continue;
+                try {
+                    if (typeof vibratorSetFn === "function") {
+                        vibratorSetFn(char, item, mode);
+                    }
+                    else {
+                        if (!item.Property)
+                            item.Property = {};
+                        item.Property.Mode = mode;
+                    }
+                    changed = true;
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            if (changed)
+                syncChar(char);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // ── Activity control ──────────────────────────────────────────────────────────
+    /**
+     * Perform a BC activity on an in-room character.
+     * Goes through the normal BC activity system (respects consent, triggers arousal/sounds/messages).
+     */
+    function performActivityOnTarget(targetId, activityName, zone) {
+        try {
+            const target = findRoomChar(targetId);
+            if (!target)
+                return false;
+            const acts = window.ActivityAssets;
+            const act = acts === null || acts === void 0 ? void 0 : acts.find(a => a.Name === activityName);
+            const performFn = window.ActivityPerform;
+            if (act && typeof performFn === "function") {
+                callBC(() => performFn(Player, target, act, zone));
+                return true;
+            }
+            // Fallback: send chat activity message directly
+            const sendFn = window.ServerSend;
+            if (typeof sendFn === "function") {
+                callBC(() => sendFn("ChatRoomChat", {
+                    Content: activityName,
+                    Type: "Activity",
+                    Dictionary: [
+                        { Tag: "SourceCharacter", Text: Player.MemberNumber },
+                        { Tag: "TargetCharacter", Text: targetId },
+                        { Tag: "ActivityGroup", Text: zone },
+                        { Tag: "ActivityName", Text: activityName },
+                    ],
+                }));
+                return true;
+            }
+            return false;
+        }
+        catch (_a) {
+            return false;
         }
     }
     // Handle a chat command (e.g. /gag → apply the matching set).
@@ -28655,6 +28816,325 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 rebuildSets();
                 body.scrollTop = body.scrollHeight;
             });
+            // ── Shared quick-target picker (used by Act / Expr / Pose / Toy) ─────────
+            const qtDiv = document.createElement("div");
+            qtDiv.className = "ebc-divider";
+            qtDiv.style.margin = "10px 0 7px";
+            body.appendChild(qtDiv);
+            const qtLbl = document.createElement("div");
+            qtLbl.style.cssText = "display:flex;align-items:center;gap:6px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;border-left:2px solid #7a3050;padding-left:7px;margin-bottom:5px;";
+            qtLbl.textContent = "🎯 Focus Target";
+            body.appendChild(qtLbl);
+            const qtRow = document.createElement("div");
+            qtRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:8px;";
+            const qtSel = document.createElement("select");
+            qtSel.className = "ebc-form-input";
+            qtSel.style.cssText = "flex:1;font-size:11px;";
+            const qtPh = document.createElement("option");
+            qtPh.value = "";
+            qtPh.textContent = "— choose person —";
+            qtPh.disabled = true;
+            qtPh.selected = true;
+            qtSel.appendChild(qtPh);
+            const qtRefresh = document.createElement("button");
+            qtRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            qtRefresh.textContent = "↻";
+            qtRefresh.title = "Refresh room members";
+            const populateQtSel = () => {
+                const cur = qtSel.value;
+                while (qtSel.firstChild)
+                    qtSel.removeChild(qtSel.firstChild);
+                qtSel.appendChild(qtPh);
+                const members = getRoomMembers();
+                for (const m of members) {
+                    if (m.id === Player.MemberNumber)
+                        continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    qtSel.appendChild(opt);
+                }
+                qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
+                // Restore selection if still in list
+                if (cur && [...qtSel.options].some(o => o.value === cur))
+                    qtSel.value = cur;
+            };
+            populateQtSel();
+            qtRefresh.addEventListener("click", populateQtSel);
+            qtRow.appendChild(qtSel);
+            qtRow.appendChild(qtRefresh);
+            body.appendChild(qtRow);
+            // Helper: build an accordion section (returns { hdr, panel, arrow, open() })
+            const makeDomAccordion = (icon, title) => {
+                const divider = document.createElement("div");
+                divider.className = "ebc-divider";
+                divider.style.margin = "4px 0 0";
+                body.appendChild(divider);
+                const hdr = document.createElement("div");
+                hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
+                hdr.addEventListener("mouseenter", () => { hdr.style.background = "rgba(42,20,33,0.5)"; });
+                hdr.addEventListener("mouseleave", () => { hdr.style.background = ""; });
+                const icoEl = document.createElement("span");
+                icoEl.textContent = icon;
+                icoEl.style.cssText = "font-size:11px;flex-shrink:0;";
+                const lblEl = document.createElement("span");
+                lblEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
+                lblEl.textContent = title;
+                const arrow = document.createElement("span");
+                arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+                arrow.textContent = "▼";
+                hdr.appendChild(icoEl);
+                hdr.appendChild(lblEl);
+                hdr.appendChild(arrow);
+                const panel = document.createElement("div");
+                panel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 8px 8px;";
+                let open = false;
+                hdr.addEventListener("click", () => {
+                    open = !open;
+                    panel.style.display = open ? "flex" : "none";
+                    arrow.textContent = open ? "▲" : "▼";
+                });
+                body.appendChild(hdr);
+                body.appendChild(panel);
+                return { hdr, panel, arrow, isOpen: () => open };
+            };
+            // ── ⚡ Quick Actions ───────────────────────────────────────────────────
+            const { panel: actPanel } = makeDomAccordion("⚡", "QUICK ACTIONS");
+            const actHint = document.createElement("div");
+            actHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+            actHint.textContent = "Activities sent through BC's normal system — consent/arousal rules apply.";
+            actPanel.appendChild(actHint);
+            const ACT_DEFS = [
+                ["👋", "Spank", "Spank", "ItemButt"],
+                ["🤏", "Tickle", "Tickle", "ItemTorso"],
+                ["💋", "Kiss", "Kiss", "ItemHead"],
+                ["🦷", "Bite", "Bite", "ItemNeck"],
+                ["✋", "Slap", "Slap", "ItemHead"],
+                ["🖐", "Caress", "Caress", "ItemArms"],
+                ["💆", "Massage", "Massage", "ItemLegs"],
+                ["🫦", "Lick", "Lick", "ItemHead"],
+            ];
+            const actGrid = document.createElement("div");
+            actGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+            const actStatus = document.createElement("div");
+            actStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+            for (const [emoji, label, actName, zone] of ACT_DEFS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.title = `${actName} (${zone})`;
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        actStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    const ok = performActivityOnTarget(id, actName, zone);
+                    actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
+                    window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
+                });
+                actGrid.appendChild(btn);
+            }
+            actPanel.appendChild(actGrid);
+            actPanel.appendChild(actStatus);
+            // ── 😵 Expressions ────────────────────────────────────────────────────
+            const { panel: exprPanel } = makeDomAccordion("😵", "EXPRESSIONS");
+            // Preset grid
+            const EXPR_PRESETS = [
+                ["😳", "Ahegao", [["Eyes", "Lewd"], ["Eyes2", "Lewd"], ["Mouth", "Moan"], ["Blush", "Extreme"], ["Fluids", "DroolLow"]]],
+                ["😢", "Crying", [["Eyes", "Sad"], ["Eyes2", "Sad"], ["Mouth", "Sad"], ["Fluids", "TearsMedium"]]],
+                ["😵", "Dazed", [["Eyes", "Dazed"], ["Eyes2", "Dazed"], ["Mouth", "Pout"], ["Blush", "Medium"]]],
+                ["😱", "Shocked", [["Eyes", "Surprised"], ["Eyes2", "Surprised"], ["Mouth", "Moan"], ["Eyebrows", "Raised"]]],
+                ["😡", "Angry", [["Eyes", "Angry"], ["Eyes2", "Angry"], ["Mouth", "Angry"], ["Eyebrows", "Angry"]]],
+                ["💕", "Lovestruck", [["Eyes", "Heart"], ["Eyes2", "Heart"], ["Mouth", "Happy"], ["Blush", "High"]]],
+                ["😊", "Blissed", [["Eyes", "Shy"], ["Mouth", "Happy"], ["Blush", "Low"]]],
+                ["😈", "Devious", [["Eyes", "Lewd"], ["Mouth", "Devious"], ["Eyebrows", "Harsh"]]],
+            ];
+            const exprHint = document.createElement("div");
+            exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
+            exprHint.textContent = "Preset expression packages:";
+            exprPanel.appendChild(exprHint);
+            const presetGrid = document.createElement("div");
+            presetGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px;";
+            const exprStatus = document.createElement("div");
+            exprStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+            for (const [emoji, label, groups] of EXPR_PRESETS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        exprStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    applyTargetExpressionPreset(id, groups);
+                    exprStatus.textContent = `✓ ${label} applied.`;
+                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
+                });
+                presetGrid.appendChild(btn);
+            }
+            exprPanel.appendChild(presetGrid);
+            // Fine-grained per-group dropdowns
+            const EXPR_GROUP_OPTS = [
+                ["Eyes", "Eyes", [["", "— clear —"], ["Closed", "Closed"], ["Dazed", "Dazed"], ["Shy", "Shy"], ["Sad", "Sad"], ["Surprised", "Surprised"], ["Angry", "Angry"], ["Heart", "Heart"], ["Lewd", "Lewd"]]],
+                ["Mouth", "Mouth", [["", "— clear —"], ["Happy", "Happy"], ["Sad", "Sad"], ["Pout", "Pout"], ["Angry", "Angry"], ["Moan", "Moan"], ["Devious", "Devious"], ["Grin", "Grin"], ["Smirk", "Smirk"]]],
+                ["Blush", "Blush", [["", "— clear —"], ["Low", "Low"], ["Medium", "Medium"], ["High", "High"], ["Extreme", "Extreme"]]],
+                ["Fluids", "Fluids", [["", "— clear —"], ["DroolLow", "Drool low"], ["DroolMedium", "Drool med"], ["DroolHigh", "Drool high"], ["TearsLow", "Tears low"], ["TearsMedium", "Tears med"], ["TearsHigh", "Tears high"]]],
+                ["Eyebrows", "Brow", [["", "— clear —"], ["Raised", "Raised"], ["Harsh", "Harsh"], ["Angry", "Angry"], ["Soft", "Soft"]]],
+            ];
+            const fineGrid = document.createElement("div");
+            fineGrid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:4px;";
+            for (const [group, label, opts] of EXPR_GROUP_OPTS) {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display:flex;align-items:center;gap:3px;";
+                const lbl4 = document.createElement("span");
+                lbl4.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:38px;";
+                lbl4.textContent = label + ":";
+                const sel4 = document.createElement("select");
+                sel4.className = "ebc-form-input";
+                sel4.style.cssText = "flex:1;font-size:11px;padding:2px 4px;";
+                for (const [val, txt] of opts) {
+                    const o = document.createElement("option");
+                    o.value = val;
+                    o.textContent = txt;
+                    sel4.appendChild(o);
+                }
+                sel4.addEventListener("change", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        exprStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    applyTargetExpressionPreset(id, [[group, sel4.value || null]]);
+                    exprStatus.textContent = `✓ ${label}: ${sel4.value || "cleared"}.`;
+                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
+                });
+                wrap.appendChild(lbl4);
+                wrap.appendChild(sel4);
+                fineGrid.appendChild(wrap);
+            }
+            exprPanel.appendChild(fineGrid);
+            // Clear all button
+            const clearExprBtn = document.createElement("button");
+            clearExprBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;transition:background 0.12s;";
+            clearExprBtn.textContent = "× Clear All Expressions";
+            clearExprBtn.addEventListener("mouseenter", () => { clearExprBtn.style.background = "rgba(42,20,33,0.5)"; });
+            clearExprBtn.addEventListener("mouseleave", () => { clearExprBtn.style.background = "transparent"; });
+            clearExprBtn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    exprStatus.textContent = "Pick a Focus Target first.";
+                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
+                    return;
+                }
+                clearTargetExpressions(id);
+                exprStatus.textContent = "✓ Expressions cleared.";
+                window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
+            });
+            exprPanel.appendChild(clearExprBtn);
+            exprPanel.appendChild(exprStatus);
+            // ── 🧎 Poses ──────────────────────────────────────────────────────────
+            const { panel: posePanel } = makeDomAccordion("🧎", "POSES");
+            const POSE_DEFS = [
+                ["🚶", "Stand", []],
+                ["🧎", "Kneel", ["Kneel"]],
+                ["🐈", "All Fours", ["AllFours"]],
+                ["🙌", "Hands Up", ["OverTheHead"]],
+                ["🫸", "Spread", ["KneelingSpread"]],
+                ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"]],
+            ];
+            const poseGrid = document.createElement("div");
+            poseGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+            const poseStatus = document.createElement("div");
+            poseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+            for (const [emoji, label, poses] of POSE_DEFS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.title = poses.length ? poses.join("+") : "Clear all poses";
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        poseStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { poseStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    setTargetPoses(id, poses);
+                    poseStatus.textContent = `✓ ${label} applied.`;
+                    window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
+                });
+                poseGrid.appendChild(btn);
+            }
+            posePanel.appendChild(poseGrid);
+            posePanel.appendChild(poseStatus);
+            // ── 🎮 Toy Control ────────────────────────────────────────────────────
+            const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL");
+            const TOY_MODES = [
+                ["⏹", "Off", "#2a1020"],
+                ["🔅", "Low", "#1a2030"],
+                ["🔆", "Medium", "#1a3020"],
+                ["⚡", "High", "#302010"],
+                ["🔥", "Max", "#3a1010"],
+                ["🎲", "Random", "#2a1a30"],
+                ["📈", "Edge", "#3a0e18"],
+                ["🤖", "Auto", "#102030"],
+            ];
+            const toyHint = document.createElement("div");
+            toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
+            toyHint.textContent = "Sets all vibrating toys on the Focus Target.";
+            toyPanel.appendChild(toyHint);
+            const toyGrid = document.createElement("div");
+            toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+            const toyStatus = document.createElement("div");
+            toyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+            const toyInfoEl = document.createElement("div");
+            toyInfoEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:13px;margin-top:3px;font-style:italic;";
+            const refreshToyInfo = () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    toyInfoEl.textContent = "";
+                    return;
+                }
+                const toys = getTargetVibratingItems(id);
+                if (toys.length === 0) {
+                    toyInfoEl.textContent = "No toys detected.";
+                    return;
+                }
+                toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+            };
+            qtSel.addEventListener("change", refreshToyInfo);
+            for (const [emoji, label, bg] of TOY_MODES) {
+                const btn = document.createElement("button");
+                btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
+                btn.textContent = `${emoji} ${label}`;
+                btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        toyStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { toyStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    setTargetToyMode(id, label === "Max" ? "Maximum" : label);
+                    toyStatus.textContent = `✓ Set to ${label}.`;
+                    window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); }, 1500);
+                });
+                toyGrid.appendChild(btn);
+            }
+            toyPanel.appendChild(toyGrid);
+            toyPanel.appendChild(toyStatus);
+            toyPanel.appendChild(toyInfoEl);
             // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
             body.appendChild(divRescue);
             body.appendChild(rescueHdr);
@@ -28932,7 +29412,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.1";
+    const MOD_VERSION = "6.2.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28943,6 +29423,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.2",
+            changes: [
+                "Feature: Four new dom-tab sections gated behind a shared 'Focus Target' person picker — ⚡ Quick Actions (8 one-click BC activities: Spank, Tickle, Kiss, Bite, Slap, Caress, Massage, Lick), 😵 Expressions (8 preset packages like Ahegao/Crying/Dazed/Shocked + per-group fine dropdowns for Eyes/Mouth/Blush/Fluids/Brow + clear-all), 🧎 Poses (Stand, Kneel, All Fours, Hands Up, Spread, Kneel+Up), and 🎮 Toy Control (Off/Low/Medium/High/Max/Random/Edge/Auto with live toy status display).",
+            ],
+        },
         {
             version: "6.2.1",
             changes: [
