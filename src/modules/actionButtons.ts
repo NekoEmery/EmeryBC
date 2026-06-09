@@ -620,11 +620,21 @@ export function initDragListener(): void {
         return;
     }
     const onDown = (e: MouseEvent | TouchEvent): void => {
-        // Don't allow repositioning while a character tab is open — the sidebar
-        // is invisible then and getSidebarMaxX() can't find the chat log, so
-        // the chat-overlap clamp breaks and the panel can end up stuck behind chat.
-        const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
-        if (charMenuOpen) return;
+        // Don't allow repositioning while a character tab (in the current room) is open —
+        // getSidebarMaxX() can't find the chat log during the overlay, causing the clamp
+        // to break and the panel to end up stuck behind chat.
+        // Only block when the character is actually in the room — synthetic characters from
+        // offline profile viewing must not lock the drag grip permanently.
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            const cc = w.CurrentCharacter as Record<string, unknown> | null | undefined;
+            if (cc) {
+                const memberNum = cc.MemberNumber as number | undefined;
+                const roomChars = w.ChatRoomCharacter as Array<{ MemberNumber?: number }> | undefined;
+                const inRoom = Array.isArray(roomChars) && roomChars.some(c => c.MemberNumber === memberNum);
+                if (inRoom) return; // real in-room character menu open — block drag
+            }
+        } catch { /* ignore */ }
         const pt = "touches" in e ? (e as TouchEvent).touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
         if (isInGrip(x, y)) {

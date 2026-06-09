@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.7";
+const MOD_VERSION = "6.1.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.8",
+        changes: [
+            "Fix: sidebar (quick-keys) permanently disappearing after viewing an offline player's profile. Root cause: CharacterLoadOnline leaves CurrentCharacter set to the synthetic character after the Info Sheet closes, so the sidebar thought a character menu was open forever. The 'menu open' check now only hides the sidebar when CurrentCharacter is actually present in the current room — offline synthetic characters are ignored. Same fix applied to the drag grip listener.",
+        ],
+    },
     {
         version: "6.1.7",
         changes: [
@@ -6085,6 +6091,23 @@ function init(): void {
         return result;
     });
 
+    // Returns true only when CurrentCharacter is an actual character present in the
+    // current chat room. Synthetic characters loaded via CharacterLoadOnline (for offline
+    // profile viewing) leave CurrentCharacter set after the Info Sheet closes, which would
+    // permanently hide the sidebar. Checking room membership avoids that stale-state bug.
+    const isCurrentCharacterInRoom = (): boolean => {
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            const cc = w.CurrentCharacter as Record<string, unknown> | null | undefined;
+            if (!cc) return false;
+            const memberNum = cc.MemberNumber as number | undefined;
+            if (!memberNum) return false;
+            const roomChars = w.ChatRoomCharacter as Array<{ MemberNumber?: number }> | undefined;
+            if (!Array.isArray(roomChars)) return true; // can't tell — assume open
+            return roomChars.some(c => c.MemberNumber === memberNum);
+        } catch { return false; }
+    };
+
     // Canvas sidebar action buttons.
     // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
     // was migrated to DOM). Hook DrawProcess instead, which is the actual per-frame
@@ -6109,7 +6132,11 @@ function init(): void {
         } catch { /* ignore */ }
         try {
             const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-            const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
+            // Only treat CurrentCharacter as "menu open" when the character is actually
+            // present in the current room. Synthetic characters created by CharacterLoadOnline
+            // (for offline profile viewing) leave CurrentCharacter set when you return to
+            // ChatRoom, which would permanently hide the sidebar.
+            const charMenuOpen = isCurrentCharacterInRoom();
             if (getActionButtonsVisible() && !iconsHidden && !charMenuOpen) drawActionButtons();
         } catch { /* ignore */ }
         return result;
@@ -6120,7 +6147,7 @@ function init(): void {
         // click-through to character tabs and other BC canvas interactions.
         if (getBadgeDragMode()) return;
         const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-        const charMenuOpen = !!((window as unknown as { CurrentCharacter?: unknown }).CurrentCharacter);
+        const charMenuOpen = isCurrentCharacterInRoom();
         try { if (!iconsHidden && !charMenuOpen && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
