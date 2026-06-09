@@ -4346,14 +4346,25 @@ export class EBCDrawer {
         qaConfirmRow.appendChild(qaConfirmToggle);
         quickActions.appendChild(qaConfirmRow);
 
-        // Row 2: self-picker toggle (full-width, subtle)
-        const selfPickToggle = document.createElement("button");
-        selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = t("qa.pickRestraints");
-        selfPickToggle.title = t("qa.pickTitle");
-        this._i18nRefs.pickBtn = selfPickToggle;
-        selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
-        selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
+        // Row 2: self-picker toggle — styled as accordion header
+        const selfPickToggle = document.createElement("div");
+        selfPickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;";
+        selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.background = "rgba(42,20,33,0.6)"; });
+        selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.background = "#1e0d18"; });
+        const selfPickIcon = document.createElement("span");
+        selfPickIcon.textContent = "☑";
+        selfPickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
+        const selfPickLbl = document.createElement("span");
+        selfPickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
+        selfPickLbl.textContent = t("qa.pickRestraints");
+        selfPickLbl.title = t("qa.pickTitle");
+        this._i18nRefs.pickBtn = selfPickLbl as unknown as HTMLButtonElement;
+        const selfPickArrow = document.createElement("span");
+        selfPickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+        selfPickArrow.textContent = "▼";
+        selfPickToggle.appendChild(selfPickIcon);
+        selfPickToggle.appendChild(selfPickLbl);
+        selfPickToggle.appendChild(selfPickArrow);
         quickActions.appendChild(selfPickToggle);
 
 
@@ -4456,8 +4467,9 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("click", () => {
             const isOpen = selfPickPanel.style.display !== "none";
             selfPickPanel.style.display = isOpen ? "none" : "flex";
-            selfPickToggle.style.borderStyle = isOpen ? "dashed" : "solid";
-            selfPickToggle.style.color = isOpen ? "#7a4a5e" : "#cf6f98";
+            selfPickArrow.textContent = isOpen ? "▼" : "▲";
+            selfPickToggle.style.borderColor = isOpen ? "#3a1928" : "#7a3050";
+            selfPickToggle.style.background = isOpen ? "#1e0d18" : "rgba(42,20,33,0.7)";
             if (!isOpen) rebuildSelfPicker();
         });
 
@@ -20235,7 +20247,8 @@ export class EBCDrawer {
         // ── Auto-Escape (visible to all, not gated behind isDomEnabled) ───────
         const aeLbl = document.createElement("div");
         aeLbl.className = "ebc-section-label";
-        aeLbl.textContent = "Auto-Escape";
+        aeLbl.style.cssText = "border-left:2px solid #7a3050;padding-left:7px;";
+        aeLbl.textContent = "⚙ Auto-Escape";
         body.appendChild(aeLbl);
 
         const antiRow = document.createElement("div");
@@ -20286,8 +20299,8 @@ export class EBCDrawer {
         whitelistSection.style.cssText = "margin-bottom:10px;";
 
         const wlTitle = document.createElement("span");
-        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
-        wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
+        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;border-left:2px solid #7a3050;padding-left:7px;";
+        wlTitle.textContent = "Escape Whitelist";
         whitelistSection.appendChild(wlTitle);
 
         // Stored custom labels for whitelist chips: itemKey → display name override
@@ -20395,7 +20408,8 @@ export class EBCDrawer {
 
         const adminLbl = document.createElement("div");
         adminLbl.className = "ebc-section-label";
-        adminLbl.textContent = "ROOM ADMIN";
+        adminLbl.style.cssText = "border-left:2px solid #7a3050;padding-left:7px;";
+        adminLbl.textContent = "🔑 Room Admin";
         body.appendChild(adminLbl);
 
         type RoomDataShape = { Locked?: boolean; Admin?: number[] };
@@ -21161,11 +21175,11 @@ export class EBCDrawer {
                 applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
 
                 const editBtn = document.createElement("button");
-                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
-                editBtn.textContent = "✎";
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid #5a2f45;background:rgba(42,20,33,0.5);color:#cf6f98;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;letter-spacing:0.03em;";
+                editBtn.textContent = "✎ Edit";
                 editBtn.title = "Edit set";
-                editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#2a1421"; editBtn.style.color = "#cf6f98"; });
-                editBtn.addEventListener("mouseleave", () => { editBtn.style.background = ""; editBtn.style.color = "#967281"; });
+                editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#3a1830"; editBtn.style.color = "#f09ab8"; });
+                editBtn.addEventListener("mouseleave", () => { editBtn.style.background = "rgba(42,20,33,0.5)"; editBtn.style.color = "#cf6f98"; });
 
                 setRow.appendChild(setInfo);
                 setRow.appendChild(applyBtn);
