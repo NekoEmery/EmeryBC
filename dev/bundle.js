@@ -11496,7 +11496,7 @@
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.background = "#1e0d18"; });
             const selfPickIcon = document.createElement("span");
-            selfPickIcon.textContent = "☑";
+            selfPickIcon.textContent = "✂";
             selfPickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
             const selfPickLbl = document.createElement("span");
             selfPickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
@@ -29395,7 +29395,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.2";
+    const MOD_VERSION = "6.2.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29406,6 +29406,10 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.3",
+            changes: ["Fix: replaced ☑ icon on 'Pick restraints to remove' header with ✂."],
+        },
         {
             version: "6.2.2",
             changes: [
