@@ -255,6 +255,26 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
 
 // ── Release / rescue helpers ─────────────────────────────────────────────────
 
+/** Send a visible room action emote (e.g. "Neko puts Lucy on all fours."). */
+function sendRoomAction(text: string): void {
+    try {
+        callBC(() => ServerSend("ChatRoomChat", {
+            Type: "Action",
+            Content: Player.Name + " " + text,
+            Dictionary: [
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                { SourceCharacter: Player.MemberNumber },
+            ],
+        }));
+    } catch { /* ignore */ }
+}
+
+/** Resolve the display name of a character (Nickname > Name). */
+function charDisplayName(char: Character): string {
+    const c = char as unknown as Record<string, unknown>;
+    return (c.Nickname as string | undefined)?.trim() || (c.Name as string | undefined) || "them";
+}
+
 // Shared sync helper for non-player characters.
 function syncChar(char: Character): void {
     // Local visual refresh first (no push)
@@ -522,19 +542,22 @@ export function clearTargetExpressions(targetId: number): void {
 // ── Pose control ──────────────────────────────────────────────────────────────
 
 /** Set the active pose on an in-room character. Pass empty array to clear all poses. */
-export function setTargetPoses(targetId: number, poses: string[]): void {
+export function setTargetPoses(targetId: number, poses: string[], poseName?: string): void {
     try {
         const char = findRoomChar(targetId);
         if (!char) return;
-        const setPoseFn = (window as unknown as Record<string, unknown>).CharacterSetActivePose as
-            ((c: Character, poses: string[] | null, noRefresh?: boolean) => void) | undefined;
-        if (typeof setPoseFn === "function") {
-            setPoseFn(char, poses.length ? poses : null, false);
-        } else {
-            // Fallback: set ActivePose directly
-            (char as unknown as Record<string, unknown>).ActivePose = poses;
-        }
+        // Set ActivePose directly - works for single and multi-pose combinations
+        // across all BC versions (CharacterSetActivePose only accepts a single string
+        // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+        (char as unknown as Record<string, unknown>).ActivePose = poses.length ? poses : [];
         syncChar(char);
+        // Send a visible room emote so others know what's happening
+        const name = charDisplayName(char);
+        const label = poseName ?? (poses.length ? poses.join("+") : "stand");
+        const desc = poses.length
+            ? `guides ${name} into the ${label} position.`
+            : `lets ${name} return to a comfortable position.`;
+        sendRoomAction(desc);
     } catch { /* ignore */ }
 }
 
@@ -564,63 +587,58 @@ export function setTargetToyMode(targetId: number, mode: string): void {
     try {
         const char = findRoomChar(targetId);
         if (!char) return;
-        const vibratorSetFn = (window as unknown as Record<string, unknown>).VibratorModeSet as
-            ((c: Character, item: Item, mode: string) => void) | undefined;
         let changed = false;
         for (const item of char.Appearance) {
-            const prop = item.Property as Record<string, unknown> | undefined;
             const asset = item.Asset as unknown as Record<string, unknown>;
-            if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
+            // Detect vibrating items by archetype or by having an existing Mode property
+            const archStr = String(asset.Archetype ?? "").toLowerCase();
+            const prop = item.Property as Record<string, unknown> | undefined;
+            const isVibrator = archStr.includes("vibrat") || (prop !== undefined && "Mode" in prop);
+            if (!isVibrator) continue;
             try {
-                if (typeof vibratorSetFn === "function") {
-                    vibratorSetFn(char, item, mode);
-                } else {
-                    if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
-                    (item.Property as Record<string, unknown>).Mode = mode;
-                }
+                if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
+                (item.Property as Record<string, unknown>).Mode = mode;
                 changed = true;
             } catch { /* ignore */ }
         }
-        if (changed) syncChar(char);
+        if (changed) {
+            syncChar(char);
+            const name = charDisplayName(char);
+            const desc = mode === "Off"
+                ? `turns ${name}'s toy off.`
+                : `sets ${name}'s toy to ${mode}.`;
+            sendRoomAction(desc);
+        }
     } catch { /* ignore */ }
 }
 
 // ── Activity control ──────────────────────────────────────────────────────────
 
+/** Activity label -> room action description. */
+const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
+    "Spank":   n => `gives ${n} a firm spank.`,
+    "Tickle":  n => `tickles ${n}.`,
+    "Kiss":    n => `leans in and kisses ${n}.`,
+    "Bite":    n => `bites ${n}'s neck.`,
+    "Slap":    n => `slaps ${n}.`,
+    "Caress":  n => `caresses ${n} gently.`,
+    "Massage": n => `massages ${n}.`,
+    "Lick":    n => `licks ${n}.`,
+};
+
 /**
- * Perform a BC activity on an in-room character.
- * Goes through the normal BC activity system (respects consent, triggers arousal/sounds/messages).
+ * Perform a quick action on an in-room character.
+ * Sends a visible room action emote describing what happened.
  */
-export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
+export function performActivityOnTarget(targetId: number, activityName: string, _zone: string): boolean {
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
-        const acts = (window as unknown as Record<string, unknown>).ActivityAssets as
-            Array<Record<string, unknown>> | undefined;
-        const act = acts?.find(a => a.Name === activityName);
-        const performFn = (window as unknown as Record<string, unknown>).ActivityPerform as
-            ((c: Character, t: Character, a: unknown, z: string) => void) | undefined;
-        if (act && typeof performFn === "function") {
-            callBC(() => performFn(Player, target, act, zone));
-            return true;
-        }
-        // Fallback: send chat activity message directly
-        const sendFn = (window as unknown as Record<string, unknown>).ServerSend as
-            ((type: string, data: unknown) => void) | undefined;
-        if (typeof sendFn === "function") {
-            callBC(() => sendFn("ChatRoomChat", {
-                Content: activityName,
-                Type: "Activity",
-                Dictionary: [
-                    { Tag: "SourceCharacter", Text: Player.MemberNumber },
-                    { Tag: "TargetCharacter", Text: targetId },
-                    { Tag: "ActivityGroup",   Text: zone },
-                    { Tag: "ActivityName",    Text: activityName },
-                ],
-            }));
-            return true;
-        }
-        return false;
+        const name = charDisplayName(target);
+        const descFn = ACTIVITY_DESCS[activityName];
+        const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
+        sendRoomAction(desc);
+        return true;
     } catch { return false; }
 }
 

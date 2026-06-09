@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.2.4
+// @version      6.2.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6147,6 +6147,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return { applied, skipped };
     }
     // ── Release / rescue helpers ─────────────────────────────────────────────────
+    /** Send a visible room action emote (e.g. "Neko puts Lucy on all fours."). */
+    function sendRoomAction(text) {
+        try {
+            callBC(() => ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: Player.Name + " " + text,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { SourceCharacter: Player.MemberNumber },
+                ],
+            }));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Resolve the display name of a character (Nickname > Name). */
+    function charDisplayName(char) {
+        var _a;
+        const c = char;
+        return ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || "them";
+    }
     // Shared sync helper for non-player characters.
     function syncChar(char) {
         // Local visual refresh first (no push)
@@ -6403,69 +6423,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return 0;
         }
     }
-    // ── Expression control ────────────────────────────────────────────────────────
-    const EXPR_GROUPS_DOM = ["Eyes", "Eyes2", "Mouth", "Eyebrows", "Blush", "Fluids", "Emoticon"];
     function findRoomChar(memberId) {
         var _a;
         return (_a = window.ChatRoomCharacter) === null || _a === void 0 ? void 0 : _a.find(c => c.MemberNumber === memberId);
     }
-    /** Apply an array of [group, exprName|null] pairs to a character all at once, then sync once. */
-    function applyTargetExpressionPreset(targetId, groups) {
-        var _a;
-        try {
-            const char = findRoomChar(targetId);
-            if (!char)
-                return;
-            const setFn = window.CharacterSetFacialExpression;
-            if (typeof setFn === "function") {
-                for (const [group, expr] of groups) {
-                    try {
-                        setFn(char, group, expr);
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                }
-            }
-            else {
-                const assetGetFn = window.AssetGet;
-                for (const [group, exprName] of groups) {
-                    try {
-                        const app = char.Appearance;
-                        const idx = app.findIndex(i => i.Asset.Group.Name === group);
-                        if (idx !== -1)
-                            app.splice(idx, 1);
-                        if (exprName && typeof assetGetFn === "function") {
-                            const asset = assetGetFn((_a = char.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", group, exprName);
-                            if (asset)
-                                app.push({ Asset: asset, Color: "Default", Difficulty: 0, Property: { Expression: exprName } });
-                        }
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
-                }
-            }
-            syncChar(char);
-        }
-        catch ( /* ignore */_d) { /* ignore */ }
-    }
-    /** Clear all expression groups on an in-room character. */
-    function clearTargetExpressions(targetId) {
-        applyTargetExpressionPreset(targetId, EXPR_GROUPS_DOM.map(g => [g, null]));
-    }
     // ── Pose control ──────────────────────────────────────────────────────────────
     /** Set the active pose on an in-room character. Pass empty array to clear all poses. */
-    function setTargetPoses(targetId, poses) {
+    function setTargetPoses(targetId, poses, poseName) {
         try {
             const char = findRoomChar(targetId);
             if (!char)
                 return;
-            const setPoseFn = window.CharacterSetActivePose;
-            if (typeof setPoseFn === "function") {
-                setPoseFn(char, poses.length ? poses : null, false);
-            }
-            else {
-                // Fallback: set ActivePose directly
-                char.ActivePose = poses;
-            }
+            // Set ActivePose directly - works for single and multi-pose combinations
+            // across all BC versions (CharacterSetActivePose only accepts a single string
+            // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+            char.ActivePose = poses.length ? poses : [];
             syncChar(char);
+            // Send a visible room emote so others know what's happening
+            const name = charDisplayName(char);
+            const label = poseName !== null && poseName !== void 0 ? poseName : (poses.length ? poses.join("+") : "stand");
+            const desc = poses.length
+                ? `guides ${name} into the ${label} position.`
+                : `lets ${name} return to a comfortable position.`;
+            sendRoomAction(desc);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -6497,68 +6477,65 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     /** Set the vibrator mode on all vibrating items worn by an in-room character. */
     function setTargetToyMode(targetId, mode) {
+        var _a;
         try {
             const char = findRoomChar(targetId);
             if (!char)
                 return;
-            const vibratorSetFn = window.VibratorModeSet;
             let changed = false;
             for (const item of char.Appearance) {
-                const prop = item.Property;
                 const asset = item.Asset;
-                if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string"))
+                // Detect vibrating items by archetype or by having an existing Mode property
+                const archStr = String((_a = asset.Archetype) !== null && _a !== void 0 ? _a : "").toLowerCase();
+                const prop = item.Property;
+                const isVibrator = archStr.includes("vibrat") || (prop !== undefined && "Mode" in prop);
+                if (!isVibrator)
                     continue;
                 try {
-                    if (typeof vibratorSetFn === "function") {
-                        vibratorSetFn(char, item, mode);
-                    }
-                    else {
-                        if (!item.Property)
-                            item.Property = {};
-                        item.Property.Mode = mode;
-                    }
+                    if (!item.Property)
+                        item.Property = {};
+                    item.Property.Mode = mode;
                     changed = true;
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
-            if (changed)
+            if (changed) {
                 syncChar(char);
+                const name = charDisplayName(char);
+                const desc = mode === "Off"
+                    ? `turns ${name}'s toy off.`
+                    : `sets ${name}'s toy to ${mode}.`;
+                sendRoomAction(desc);
+            }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // ── Activity control ──────────────────────────────────────────────────────────
+    /** Activity label -> room action description. */
+    const ACTIVITY_DESCS = {
+        "Spank": n => `gives ${n} a firm spank.`,
+        "Tickle": n => `tickles ${n}.`,
+        "Kiss": n => `leans in and kisses ${n}.`,
+        "Bite": n => `bites ${n}'s neck.`,
+        "Slap": n => `slaps ${n}.`,
+        "Caress": n => `caresses ${n} gently.`,
+        "Massage": n => `massages ${n}.`,
+        "Lick": n => `licks ${n}.`,
+    };
     /**
-     * Perform a BC activity on an in-room character.
-     * Goes through the normal BC activity system (respects consent, triggers arousal/sounds/messages).
+     * Perform a quick action on an in-room character.
+     * Sends a visible room action emote describing what happened.
      */
-    function performActivityOnTarget(targetId, activityName, zone) {
+    function performActivityOnTarget(targetId, activityName, _zone) {
         try {
             const target = findRoomChar(targetId);
             if (!target)
                 return false;
-            const acts = window.ActivityAssets;
-            const act = acts === null || acts === void 0 ? void 0 : acts.find(a => a.Name === activityName);
-            const performFn = window.ActivityPerform;
-            if (act && typeof performFn === "function") {
-                callBC(() => performFn(Player, target, act, zone));
-                return true;
-            }
-            // Fallback: send chat activity message directly
-            const sendFn = window.ServerSend;
-            if (typeof sendFn === "function") {
-                callBC(() => sendFn("ChatRoomChat", {
-                    Content: activityName,
-                    Type: "Activity",
-                    Dictionary: [
-                        { Tag: "SourceCharacter", Text: Player.MemberNumber },
-                        { Tag: "TargetCharacter", Text: targetId },
-                        { Tag: "ActivityGroup", Text: zone },
-                        { Tag: "ActivityName", Text: activityName },
-                    ],
-                }));
-                return true;
-            }
-            return false;
+            const name = charDisplayName(target);
+            const descFn = ACTIVITY_DESCS[activityName];
+            const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
+            sendRoomAction(desc);
+            return true;
         }
         catch (_a) {
             return false;
@@ -11527,9 +11504,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.background = "rgba(42,20,33,0.6)"; });
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.background = "#1e0d18"; });
-            const selfPickIcon = document.createElement("span");
-            selfPickIcon.textContent = "✂";
-            selfPickIcon.style.cssText = "font-size:11px;flex-shrink:0;color:#cf6f98;";
             const selfPickLbl = document.createElement("span");
             selfPickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
             selfPickLbl.textContent = t("qa.pickRestraints");
@@ -11538,7 +11512,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const selfPickArrow = document.createElement("span");
             selfPickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
             selfPickArrow.textContent = "▼";
-            selfPickToggle.appendChild(selfPickIcon);
             selfPickToggle.appendChild(selfPickLbl);
             selfPickToggle.appendChild(selfPickArrow);
             quickActions.appendChild(selfPickToggle);
@@ -11911,44 +11884,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
             this.timerEl = timerEl;
-            // Neck exclusion toggle — always visible so users can flip it even
-            // when not wearing neck items. Affects all three neck groups at once.
-            const neckRow = document.createElement("div");
-            neckRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 0 1px;";
-            const neckLabel = document.createElement("span");
-            neckLabel.textContent = "⛓ Neck:";
-            neckLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;user-select:none;";
-            const neckToggle = document.createElement("button");
-            const applyNeckToggleStyle = () => {
-                const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
-                neckToggle.textContent = allExcluded ? "Excluded" : "Counting";
-                neckToggle.style.cssText = [
-                    `background:${allExcluded ? "#4a1a2a" : "transparent"}`,
-                    `border:1px solid ${allExcluded ? "#e85d8a" : "#3a1a2a"}`,
-                    "border-radius:3px",
-                    "cursor:pointer",
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
-                    `color:${allExcluded ? "#e85d8a" : "#6a3a5a"}`,
-                    "padding:1px 6px",
-                    "line-height:14px",
-                    `opacity:${allExcluded ? "1" : "0.5"}`,
-                    "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
-                ].join(";");
-                neckToggle.title = allExcluded
-                    ? "Neck items excluded from bound timer — click to count them"
-                    : "Neck items count toward bound timer — click to exclude";
-            };
-            applyNeckToggleStyle();
-            neckToggle.addEventListener("click", () => {
-                const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
-                for (const g of NECK_TIMER_GROUPS)
-                    setTimerGroupExcluded(g, !allExcluded);
-                applyNeckToggleStyle();
-            });
-            neckRow.appendChild(neckLabel);
-            neckRow.appendChild(neckToggle);
-            footer.appendChild(neckRow);
             // ── EBC Tags strip — collapsible, always below safewords ─────────────
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
@@ -27745,7 +27680,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? "border:1px solid #cf6f98;background:#6b2040;color:#ffd0e0;"
                         : "border:1px solid #5a9860;background:#1a3e20;color:#a0e090;",
                 ].join(";");
-                lockBtn.textContent = locked ? "🔒 Room Locked — Click to Unlock" : "🔓 Room Unlocked — Click to Lock";
+                lockBtn.textContent = locked ? "🔒 Room Locked - Click to Unlock" : "🔓 Room Unlocked - Click to Lock";
                 lockBtn.title = locked ? "Unlock the room so anyone can join" : "Lock the room to prevent new joins";
                 lockBtn.addEventListener("click", () => {
                     try {
@@ -28049,7 +27984,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Hint
             const rescueHint = document.createElement("div");
             rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;";
-            rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
+            rescueHint.textContent = "Strips all locks and restraints from any room member - bypasses all lock rules.";
             rescuePanel.appendChild(rescueHint);
             // Person picker row
             const rescueRow = document.createElement("div");
@@ -28241,10 +28176,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     rescueStatus.textContent = t("dom.notInRoom");
                 }
                 else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
-                    rescueStatus.textContent = "Nothing to remove — they're already free.";
+                    rescueStatus.textContent = "Nothing to remove - they're already free.";
                 }
                 else {
-                    rescueStatus.textContent = `✓ Done — cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
+                    rescueStatus.textContent = `✓ Done - cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
                 }
                 window.setTimeout(() => { rescueBtn.disabled = false; rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
             });
@@ -28445,7 +28380,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (cfg.sets.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
-                    hint.textContent = "No sets yet — create one with + New Set.";
+                    hint.textContent = "No sets yet - create one with + New Set.";
                     setsContainer.appendChild(hint);
                 }
                 for (const set of cfg.sets) {
@@ -28539,7 +28474,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (items.length === 0) {
                             const hint2 = document.createElement("div");
                             hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                            hint2.textContent = "No items yet — import from a BC code below.";
+                            hint2.textContent = "No items yet - import from a BC code below.";
                             itemListEl.appendChild(hint2);
                             return;
                         }
@@ -28651,7 +28586,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         importMsg.style.color = "#79a885";
                         const rCount = restraints.length;
                         const cCount = clothing.length;
-                        importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing — check what to add:";
+                        importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing - check what to add:";
                     });
                     const useSelectedBtn = document.createElement("button");
                     useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
@@ -28846,7 +28781,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const { panel: actPanel } = makeDomAccordion("⚡", "QUICK ACTIONS");
             const actHint = document.createElement("div");
             actHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
-            actHint.textContent = "Activities sent through BC's normal system — consent/arousal rules apply.";
+            actHint.textContent = "Sends a visible room emote for each action.";
             actPanel.appendChild(actHint);
             const ACT_DEFS = [
                 ["👋", "Spank", "Spank", "ItemButt"],
@@ -28876,7 +28811,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    const ok = performActivityOnTarget(id, actName, zone);
+                    const ok = performActivityOnTarget(id, actName);
                     actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
                     window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                 });
@@ -28884,107 +28819,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             actPanel.appendChild(actGrid);
             actPanel.appendChild(actStatus);
-            // ── 😵 Expressions ────────────────────────────────────────────────────
-            const { panel: exprPanel } = makeDomAccordion("😵", "EXPRESSIONS");
-            // Preset grid
-            const EXPR_PRESETS = [
-                ["😳", "Ahegao", [["Eyes", "Lewd"], ["Eyes2", "Lewd"], ["Mouth", "Moan"], ["Blush", "Extreme"], ["Fluids", "DroolLow"]]],
-                ["😢", "Crying", [["Eyes", "Sad"], ["Eyes2", "Sad"], ["Mouth", "Sad"], ["Fluids", "TearsMedium"]]],
-                ["😵", "Dazed", [["Eyes", "Dazed"], ["Eyes2", "Dazed"], ["Mouth", "Pout"], ["Blush", "Medium"]]],
-                ["😱", "Shocked", [["Eyes", "Surprised"], ["Eyes2", "Surprised"], ["Mouth", "Moan"], ["Eyebrows", "Raised"]]],
-                ["😡", "Angry", [["Eyes", "Angry"], ["Eyes2", "Angry"], ["Mouth", "Angry"], ["Eyebrows", "Angry"]]],
-                ["💕", "Lovestruck", [["Eyes", "Heart"], ["Eyes2", "Heart"], ["Mouth", "Happy"], ["Blush", "High"]]],
-                ["😊", "Blissed", [["Eyes", "Shy"], ["Mouth", "Happy"], ["Blush", "Low"]]],
-                ["😈", "Devious", [["Eyes", "Lewd"], ["Mouth", "Devious"], ["Eyebrows", "Harsh"]]],
-            ];
-            const exprHint = document.createElement("div");
-            exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
-            exprHint.textContent = "Preset expression packages:";
-            exprPanel.appendChild(exprHint);
-            const presetGrid = document.createElement("div");
-            presetGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px;";
-            const exprStatus = document.createElement("div");
-            exprStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
-            for (const [emoji, label, groups] of EXPR_PRESETS) {
-                const btn = document.createElement("button");
-                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
-                btn.textContent = `${emoji} ${label}`;
-                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
-                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
-                btn.addEventListener("click", () => {
-                    const id = parseInt(qtSel.value, 10);
-                    if (!id) {
-                        exprStatus.textContent = "Pick a Focus Target first.";
-                        window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
-                        return;
-                    }
-                    applyTargetExpressionPreset(id, groups);
-                    exprStatus.textContent = `✓ ${label} applied.`;
-                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
-                });
-                presetGrid.appendChild(btn);
-            }
-            exprPanel.appendChild(presetGrid);
-            // Fine-grained per-group dropdowns
-            const EXPR_GROUP_OPTS = [
-                ["Eyes", "Eyes", [["", "— clear —"], ["Closed", "Closed"], ["Dazed", "Dazed"], ["Shy", "Shy"], ["Sad", "Sad"], ["Surprised", "Surprised"], ["Angry", "Angry"], ["Heart", "Heart"], ["Lewd", "Lewd"]]],
-                ["Mouth", "Mouth", [["", "— clear —"], ["Happy", "Happy"], ["Sad", "Sad"], ["Pout", "Pout"], ["Angry", "Angry"], ["Moan", "Moan"], ["Devious", "Devious"], ["Grin", "Grin"], ["Smirk", "Smirk"]]],
-                ["Blush", "Blush", [["", "— clear —"], ["Low", "Low"], ["Medium", "Medium"], ["High", "High"], ["Extreme", "Extreme"]]],
-                ["Fluids", "Fluids", [["", "— clear —"], ["DroolLow", "Drool low"], ["DroolMedium", "Drool med"], ["DroolHigh", "Drool high"], ["TearsLow", "Tears low"], ["TearsMedium", "Tears med"], ["TearsHigh", "Tears high"]]],
-                ["Eyebrows", "Brow", [["", "— clear —"], ["Raised", "Raised"], ["Harsh", "Harsh"], ["Angry", "Angry"], ["Soft", "Soft"]]],
-            ];
-            const fineGrid = document.createElement("div");
-            fineGrid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:4px;";
-            for (const [group, label, opts] of EXPR_GROUP_OPTS) {
-                const wrap = document.createElement("div");
-                wrap.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const lbl4 = document.createElement("span");
-                lbl4.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex-shrink:0;width:38px;";
-                lbl4.textContent = label + ":";
-                const sel4 = document.createElement("select");
-                sel4.className = "ebc-form-input";
-                sel4.style.cssText = "flex:1;font-size:11px;padding:2px 4px;";
-                for (const [val, txt] of opts) {
-                    const o = document.createElement("option");
-                    o.value = val;
-                    o.textContent = txt;
-                    sel4.appendChild(o);
-                }
-                sel4.addEventListener("change", () => {
-                    const id = parseInt(qtSel.value, 10);
-                    if (!id) {
-                        exprStatus.textContent = "Pick a Focus Target first.";
-                        window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
-                        return;
-                    }
-                    applyTargetExpressionPreset(id, [[group, sel4.value || null]]);
-                    exprStatus.textContent = `✓ ${label}: ${sel4.value || "cleared"}.`;
-                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
-                });
-                wrap.appendChild(lbl4);
-                wrap.appendChild(sel4);
-                fineGrid.appendChild(wrap);
-            }
-            exprPanel.appendChild(fineGrid);
-            // Clear all button
-            const clearExprBtn = document.createElement("button");
-            clearExprBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;transition:background 0.12s;";
-            clearExprBtn.textContent = "× Clear All Expressions";
-            clearExprBtn.addEventListener("mouseenter", () => { clearExprBtn.style.background = "rgba(42,20,33,0.5)"; });
-            clearExprBtn.addEventListener("mouseleave", () => { clearExprBtn.style.background = "transparent"; });
-            clearExprBtn.addEventListener("click", () => {
-                const id = parseInt(qtSel.value, 10);
-                if (!id) {
-                    exprStatus.textContent = "Pick a Focus Target first.";
-                    window.setTimeout(() => { exprStatus.textContent = ""; }, 2500);
-                    return;
-                }
-                clearTargetExpressions(id);
-                exprStatus.textContent = "✓ Expressions cleared.";
-                window.setTimeout(() => { exprStatus.textContent = ""; }, 2000);
-            });
-            exprPanel.appendChild(clearExprBtn);
-            exprPanel.appendChild(exprStatus);
             // ── 🧎 Poses ──────────────────────────────────────────────────────────
             const { panel: posePanel } = makeDomAccordion("🧎", "POSES");
             const POSE_DEFS = [
@@ -29013,7 +28847,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { poseStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setTargetPoses(id, poses);
+                    setTargetPoses(id, poses, label);
                     poseStatus.textContent = `✓ ${label} applied.`;
                     window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
                 });
@@ -29023,15 +28857,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posePanel.appendChild(poseStatus);
             // ── 🎮 Toy Control ────────────────────────────────────────────────────
             const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL");
+            // BC vibrator mode names: Off, Low, Medium, High, Maximum, Tease, Random, Escalate, Edge
             const TOY_MODES = [
-                ["⏹", "Off", "#2a1020"],
-                ["🔅", "Low", "#1a2030"],
-                ["🔆", "Medium", "#1a3020"],
-                ["⚡", "High", "#302010"],
-                ["🔥", "Max", "#3a1010"],
-                ["🎲", "Random", "#2a1a30"],
-                ["📈", "Edge", "#3a0e18"],
-                ["🤖", "Auto", "#102030"],
+                ["⏹", "Off", "#2a1020", "Off"],
+                ["🔅", "Low", "#1a2030", "Low"],
+                ["🔆", "Medium", "#1a3020", "Medium"],
+                ["⚡", "High", "#302010", "High"],
+                ["🔥", "Max", "#3a1010", "Maximum"],
+                ["😤", "Tease", "#1a2a30", "Tease"],
+                ["🎲", "Random", "#2a1a30", "Random"],
+                ["📈", "Escalate", "#3a0e18", "Escalate"],
             ];
             const toyHint = document.createElement("div");
             toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
@@ -29057,7 +28892,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
             };
             qtSel.addEventListener("change", refreshToyInfo);
-            for (const [emoji, label, bg] of TOY_MODES) {
+            for (const [emoji, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
                 btn.textContent = `${emoji} ${label}`;
@@ -29070,7 +28905,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { toyStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setTargetToyMode(id, label === "Max" ? "Maximum" : label);
+                    setTargetToyMode(id, bcMode);
                     toyStatus.textContent = `✓ Set to ${label}.`;
                     window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); }, 1500);
                 });
@@ -29356,7 +29191,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.2.4";
+    const MOD_VERSION = "6.2.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29367,6 +29202,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.2.5",
+            changes: [
+                "UX: Removed neck exclusion toggle chip from the footer status bar.",
+                "UX: Removed icon from 'Pick restraints to remove' header - cleaner look.",
+                "UX: Removed Expressions accordion from dom tab.",
+                "Fix: Quick Action buttons now send visible room emotes instead of broken BC activity calls (no more MISSING ACTIVITY DESCRIPTION errors).",
+                "Fix: Pose setter now directly assigns ActivePose array - fixes Kneel+Up and all multi-pose combos. Also sends a room emote so others see what's happening.",
+                "Fix: Toy control - correct BC mode names (Escalate replaces Auto, Tease added), better vibrator detection across BC versions, room emote on mode change.",
+                "Fix: Replace em-dashes (—) with hyphens (-) in all dom tab status and description strings.",
+            ],
+        },
         {
             version: "6.2.4",
             changes: [

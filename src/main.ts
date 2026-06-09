@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.2.4";
+const MOD_VERSION = "6.2.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,18 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.2.5",
+        changes: [
+            "UX: Removed neck exclusion toggle chip from the footer status bar.",
+            "UX: Removed icon from 'Pick restraints to remove' header - cleaner look.",
+            "UX: Removed Expressions accordion from dom tab.",
+            "Fix: Quick Action buttons now send visible room emotes instead of broken BC activity calls (no more MISSING ACTIVITY DESCRIPTION errors).",
+            "Fix: Pose setter now directly assigns ActivePose array - fixes Kneel+Up and all multi-pose combos. Also sends a room emote so others see what's happening.",
+            "Fix: Toy control - correct BC mode names (Escalate replaces Auto, Tease added), better vibrator detection across BC versions, room emote on mode change.",
+            "Fix: Replace em-dashes (—) with hyphens (-) in all dom tab status and description strings.",
+        ],
+    },
     {
         version: "6.2.4",
         changes: [
