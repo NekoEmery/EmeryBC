@@ -8,7 +8,8 @@ import { getSettings, syncSettings } from "./bcUtils";
 
 // Default groups excluded from the bound timer (collar/neck worn alone ≠ "bound").
 // Users can override this per group via setTimerGroupExcluded().
-const DEFAULT_EXCLUDED = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
+export const NECK_TIMER_GROUPS = ["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"] as const;
+const DEFAULT_EXCLUDED = new Set<string>(NECK_TIMER_GROUPS);
 
 // Session start: fixed at module load time — "how long have I been online"
 const SESSION_START = Date.now();

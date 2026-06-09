@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.1.8";
+const MOD_VERSION = "6.1.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.1.9",
+        changes: [
+            "Fix: bound timer now appears immediately after refresh/room join. Previously timerOnRoomEnter() reset restraintStartTime to null and the UI took up to 10 s to reflect the correct value (next poller tick). A refreshTimer() call is now scheduled 1.2 s after ChatRoomSync, after BC has populated Player.Appearance, so the ⛓ counter appears within ~1 second of loading.",
+            "Feature: 'Neck' toggle in the footer timer row — excludes/includes all three neck groups (collar, accessories, restraints) at once. Highlighted pink when excluded, dim when counting. Always visible so it can be flipped without wearing neck items.",
+        ],
+    },
     {
         version: "6.1.8",
         changes: [
@@ -6249,6 +6256,11 @@ function init(): void {
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
+        // Refresh the bound timer once Appearance has been populated by BC.
+        // timerOnRoomEnter() resets restraintStartTime to null; we need to
+        // re-run timerCheckRestraints() after the draw loop has had a frame
+        // to populate Player.Appearance, then push the result to the UI.
+        window.setTimeout(() => { try { drawer?.refreshTimer(); } catch { /* ignore */ } }, 1200);
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }

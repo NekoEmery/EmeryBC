@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.1.8
+// @version      6.1.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -3357,7 +3357,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // offline sessions and page reloads.
     // Default groups excluded from the bound timer (collar/neck worn alone ≠ "bound").
     // Users can override this per group via setTimerGroupExcluded().
-    const DEFAULT_EXCLUDED = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
+    const NECK_TIMER_GROUPS = ["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"];
+    const DEFAULT_EXCLUDED = new Set(NECK_TIMER_GROUPS);
     // Session start: fixed at module load time — "how long have I been online"
     const SESSION_START = Date.now();
     let roomEnterTime = null;
@@ -11722,6 +11723,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
             this.timerEl = timerEl;
+            // Neck exclusion toggle — always visible so users can flip it even
+            // when not wearing neck items. Affects all three neck groups at once.
+            const neckRow = document.createElement("div");
+            neckRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 0 1px;";
+            const neckLabel = document.createElement("span");
+            neckLabel.textContent = "⛓ Neck:";
+            neckLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;user-select:none;";
+            const neckToggle = document.createElement("button");
+            const applyNeckToggleStyle = () => {
+                const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
+                neckToggle.textContent = allExcluded ? "Excluded" : "Counting";
+                neckToggle.style.cssText = [
+                    `background:${allExcluded ? "#4a1a2a" : "transparent"}`,
+                    `border:1px solid ${allExcluded ? "#e85d8a" : "#3a1a2a"}`,
+                    "border-radius:3px",
+                    "cursor:pointer",
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:9px",
+                    `color:${allExcluded ? "#e85d8a" : "#6a3a5a"}`,
+                    "padding:1px 6px",
+                    "line-height:14px",
+                    `opacity:${allExcluded ? "1" : "0.5"}`,
+                    "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
+                ].join(";");
+                neckToggle.title = allExcluded
+                    ? "Neck items excluded from bound timer — click to count them"
+                    : "Neck items count toward bound timer — click to exclude";
+            };
+            applyNeckToggleStyle();
+            neckToggle.addEventListener("click", () => {
+                const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
+                for (const g of NECK_TIMER_GROUPS)
+                    setTimerGroupExcluded(g, !allExcluded);
+                applyNeckToggleStyle();
+            });
+            neckRow.appendChild(neckLabel);
+            neckRow.appendChild(neckToggle);
+            footer.appendChild(neckRow);
             // ── EBC Tags strip — collapsible, always below safewords ─────────────
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
@@ -13300,6 +13339,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             window.clearInterval(this.timerPoller);
             this.timerPoller = null;
+        }
+        // Force an immediate timer refresh — called after ChatRoomSync once
+        // Appearance has been populated so the bound state is accurate.
+        refreshTimer() {
+            try {
+                timerCheckRestraints();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            this.updateTimer();
         }
         // -- Expression preset select helper --------------------------------------
         // Builds a <select> listing all saved expression presets.
@@ -28841,7 +28889,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.1.8";
+    const MOD_VERSION = "6.1.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28852,6 +28900,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.1.9",
+            changes: [
+                "Fix: bound timer now appears immediately after refresh/room join. Previously timerOnRoomEnter() reset restraintStartTime to null and the UI took up to 10 s to reflect the correct value (next poller tick). A refreshTimer() call is now scheduled 1.2 s after ChatRoomSync, after BC has populated Player.Appearance, so the ⛓ counter appears within ~1 second of loading.",
+                "Feature: 'Neck' toggle in the footer timer row — excludes/includes all three neck groups (collar, accessories, restraints) at once. Highlighted pink when excluded, dim when counting. Always visible so it can be flipped without wearing neck items.",
+            ],
+        },
         {
             version: "6.1.8",
             changes: [
@@ -35079,6 +35134,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
             catch ( /* ignore */_e) { /* ignore */ }
+            // Refresh the bound timer once Appearance has been populated by BC.
+            // timerOnRoomEnter() resets restraintStartTime to null; we need to
+            // re-run timerCheckRestraints() after the draw loop has had a frame
+            // to populate Player.Appearance, then push the result to the UI.
+            window.setTimeout(() => { try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshTimer();
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 1200);
             try {
                 snapshotPlayerRestraints();
             }

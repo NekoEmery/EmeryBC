@@ -57,7 +57,7 @@ import {
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
-import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded } from "./timer";
+import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -4770,6 +4770,44 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
+        // Neck exclusion toggle — always visible so users can flip it even
+        // when not wearing neck items. Affects all three neck groups at once.
+        const neckRow = document.createElement("div");
+        neckRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 0 1px;";
+        const neckLabel = document.createElement("span");
+        neckLabel.textContent = "⛓ Neck:";
+        neckLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;user-select:none;";
+        const neckToggle = document.createElement("button");
+        const applyNeckToggleStyle = (): void => {
+            const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
+            neckToggle.textContent = allExcluded ? "Excluded" : "Counting";
+            neckToggle.style.cssText = [
+                `background:${allExcluded ? "#4a1a2a" : "transparent"}`,
+                `border:1px solid ${allExcluded ? "#e85d8a" : "#3a1a2a"}`,
+                "border-radius:3px",
+                "cursor:pointer",
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                `color:${allExcluded ? "#e85d8a" : "#6a3a5a"}`,
+                "padding:1px 6px",
+                "line-height:14px",
+                `opacity:${allExcluded ? "1" : "0.5"}`,
+                "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
+            ].join(";");
+            neckToggle.title = allExcluded
+                ? "Neck items excluded from bound timer — click to count them"
+                : "Neck items count toward bound timer — click to exclude";
+        };
+        applyNeckToggleStyle();
+        neckToggle.addEventListener("click", () => {
+            const allExcluded = NECK_TIMER_GROUPS.every(g => isTimerGroupExcluded(g));
+            for (const g of NECK_TIMER_GROUPS) setTimerGroupExcluded(g, !allExcluded);
+            applyNeckToggleStyle();
+        });
+        neckRow.appendChild(neckLabel);
+        neckRow.appendChild(neckToggle);
+        footer.appendChild(neckRow);
+
         // ── EBC Tags strip — collapsible, always below safewords ─────────────
         const ebcTagsStrip = document.createElement("div");
         ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
@@ -6418,6 +6456,13 @@ export class EBCDrawer {
         if (this.timerPoller === null) return;
         window.clearInterval(this.timerPoller);
         this.timerPoller = null;
+    }
+
+    // Force an immediate timer refresh — called after ChatRoomSync once
+    // Appearance has been populated so the bound state is accurate.
+    public refreshTimer(): void {
+        try { timerCheckRestraints(); } catch { /* ignore */ }
+        this.updateTimer();
     }
 
     // -- Expression preset select helper --------------------------------------
