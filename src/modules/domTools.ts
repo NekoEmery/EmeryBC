@@ -619,10 +619,19 @@ export function setTargetToyMode(targetId: number, mode: string): void {
         if (!char) return;
         let changed = false;
 
-        // BC's ExtendedItemSetValue properly updates derived fields (Effect array etc.)
-        // alongside Property.Mode.  Fall back to a direct property-spread if unavailable.
+        // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
+        // derived-state updates (Effect, Intensity …) AND the server push in one call.
+        // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
+        // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
         const extSetFn = (window as unknown as Record<string, unknown>).ExtendedItemSetValue as
-            ((c: Character, i: Item, v: Record<string, unknown>, publish: boolean) => void) | undefined;
+            ((c: Character, i: Item, v: Record<string, unknown>, push: boolean) => void) | undefined;
+        // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+        const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
+            ((c: Character, group: string) => Item | null | undefined) | undefined;
+        const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+            ((c: Character) => void) | undefined;
+
+        let usedExtSet = false;
 
         for (const item of char.Appearance) {
             const asset = item.Asset as unknown as Record<string, unknown>;
@@ -631,20 +640,25 @@ export function setTargetToyMode(targetId: number, mode: string): void {
             if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
             try {
                 if (extSetFn) {
-                    // Use BC's own setter — handles Effect + any state-machine transitions
-                    extSetFn(char, item, { Mode: mode }, false /* we call syncChar ourselves */);
+                    // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
+                    extSetFn(char, item, { Mode: mode }, true);
+                    changed = true;
+                    usedExtSet = true;
                 } else {
-                    // Fallback: spread existing properties so we don't stomp fields like Effect/Intensity
-                    const merged: Record<string, unknown> = Object.assign({}, prop ?? {});
-                    merged.Mode = mode;
-                    (item as unknown as Record<string, unknown>).Property = merged;
+                    // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
+                    const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
+                    if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+                    (liveItem.Property as Record<string, unknown>).Mode = mode;
+                    changed = true;
                 }
-                changed = true;
             } catch { /* ignore */ }
         }
 
         if (changed) {
-            syncChar(char);
+            if (!usedExtSet) {
+                // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
+                callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
+            }
             const name = charDisplayName(char);
             const desc = mode === "Off"
                 ? `turns ${name}'s toy off.`

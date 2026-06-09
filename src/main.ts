@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.3.0";
+const MOD_VERSION = "6.3.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.3.1",
+        changes: [
+            "Fix: Toy control reworked - when ExtendedItemSetValue is available it is called with publish=true so BC handles derived-state (Effect/Intensity) AND the server push itself. Fallback path now uses InventoryGet for the canonical item reference and pushes via ChatRoomCharacterUpdate directly without calling CharacterRefresh first (CharacterRefresh was resetting in-flight property changes before the server push).",
+        ],
+    },
     {
         version: "6.3.0",
         changes: [
