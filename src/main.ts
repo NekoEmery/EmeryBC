@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.3.1";
+const MOD_VERSION = "6.3.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.3.2",
+        changes: [
+            "Fix: Quick actions no longer cause 'Failed to load — no supported source found' audio errors. Root cause: Content was set to the raw display text; BC's audio system derives the sound file path from Content, so an unknown Content key returned null and HTMLMediaElement.play() rejected. Fix: Content now uses BC's 'Player<Activity>' format (e.g. 'PlayerKiss') so BC resolves the audio path correctly. Added FocusGroup tag for R113+ zone compatibility alongside AssetGroupName. Custom descriptions kept as MISSING TEXT fallback.",
+        ],
+    },
     {
         version: "6.3.1",
         changes: [

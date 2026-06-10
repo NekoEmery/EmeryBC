@@ -6544,8 +6544,15 @@
     /**
      * Perform a quick action on an in-room character.
      * Sends a Type:"Activity" message so BC clients play the matching facial
-     * expressions and sounds.  The same Content/MISSING-TEXT trick used by
-     * sendRoomAction controls the visible chat text.
+     * expressions and sounds.
+     *
+     * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
+     * can resolve the activity audio path.  Using arbitrary text as Content causes
+     * BC's audio system to produce a "Failed to load — no supported source found"
+     * unhandled rejection because the audio URL lookup returns null.
+     *
+     * If BC's text system can't find the "Player<X>" key (unlikely for standard
+     * activities), the MISSING TEXT fallback shows our custom description instead.
      */
     function performActivityOnTarget(targetId, activityName, zone) {
         var _a;
@@ -6556,18 +6563,20 @@
             const name = charDisplayName(target);
             const descFn = ACTIVITY_DESCS[activityName];
             const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-            const displayText = Player.Name + " " + desc;
-            // BC activity name for animation (may differ from our internal label, e.g. "Pat"→"Caress")
+            // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
             const bcActivity = (_a = BC_ACTIVITY_NAME[activityName]) !== null && _a !== void 0 ? _a : activityName;
             callBC(() => ServerSend("ChatRoomChat", {
                 Type: "Activity",
-                Content: displayText,
+                // "Player<X>" is BC's canonical content key — resolves text template AND audio
+                Content: "Player" + bcActivity,
                 Dictionary: [
-                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    // Fallback text if BC can't find the key in its CSV (normally not needed)
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
                     { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
                     { Tag: "TargetCharacter", MemberNumber: targetId },
-                    { Tag: "ActivityName", ActivityName: bcActivity },
-                    { Tag: "AssetGroupName", AssetGroupName: zone },
+                    { Tag: "ActivityName", ActivityName: bcActivity }, // animation compat
+                    { Tag: "FocusGroup", AssetGroupName: zone }, // BC R113+ zone tag
+                    { Tag: "AssetGroupName", AssetGroupName: zone }, // older compat
                 ],
             }));
             return true;
@@ -29049,7 +29058,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.3.1";
+    const MOD_VERSION = "6.3.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29060,6 +29069,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.3.2",
+            changes: [
+                "Fix: Quick actions no longer cause 'Failed to load — no supported source found' audio errors. Root cause: Content was set to the raw display text; BC's audio system derives the sound file path from Content, so an unknown Content key returned null and HTMLMediaElement.play() rejected. Fix: Content now uses BC's 'Player<Activity>' format (e.g. 'PlayerKiss') so BC resolves the audio path correctly. Added FocusGroup tag for R113+ zone compatibility alongside AssetGroupName. Custom descriptions kept as MISSING TEXT fallback.",
+            ],
+        },
         {
             version: "6.3.1",
             changes: [

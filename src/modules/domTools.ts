@@ -693,8 +693,15 @@ const BC_ACTIVITY_NAME: Record<string, string> = {
 /**
  * Perform a quick action on an in-room character.
  * Sends a Type:"Activity" message so BC clients play the matching facial
- * expressions and sounds.  The same Content/MISSING-TEXT trick used by
- * sendRoomAction controls the visible chat text.
+ * expressions and sounds.
+ *
+ * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
+ * can resolve the activity audio path.  Using arbitrary text as Content causes
+ * BC's audio system to produce a "Failed to load — no supported source found"
+ * unhandled rejection because the audio URL lookup returns null.
+ *
+ * If BC's text system can't find the "Player<X>" key (unlikely for standard
+ * activities), the MISSING TEXT fallback shows our custom description instead.
  */
 export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
     try {
@@ -703,18 +710,20 @@ export function performActivityOnTarget(targetId: number, activityName: string, 
         const name = charDisplayName(target);
         const descFn = ACTIVITY_DESCS[activityName];
         const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-        const displayText = Player.Name + " " + desc;
-        // BC activity name for animation (may differ from our internal label, e.g. "Pat"→"Caress")
+        // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
         const bcActivity = BC_ACTIVITY_NAME[activityName] ?? activityName;
         callBC(() => ServerSend("ChatRoomChat", {
             Type: "Activity",
-            Content: displayText,
+            // "Player<X>" is BC's canonical content key — resolves text template AND audio
+            Content: "Player" + bcActivity,
             Dictionary: [
-                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                // Fallback text if BC can't find the key in its CSV (normally not needed)
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
                 { Tag: "SourceCharacter",  MemberNumber: Player.MemberNumber },
                 { Tag: "TargetCharacter",  MemberNumber: targetId },
-                { Tag: "ActivityName",     ActivityName: bcActivity },
-                { Tag: "AssetGroupName",   AssetGroupName: zone },
+                { Tag: "ActivityName",     ActivityName: bcActivity }, // animation compat
+                { Tag: "FocusGroup",       AssetGroupName: zone },     // BC R113+ zone tag
+                { Tag: "AssetGroupName",   AssetGroupName: zone },     // older compat
             ],
         }));
         return true;
