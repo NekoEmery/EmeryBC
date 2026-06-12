@@ -14684,9 +14684,9 @@ export class EBCDrawer {
                     const watchBtn = document.createElement("button");
                     const refreshWatchBtn = (): void => {
                         const w = isOnWatchList(num);
-                        watchBtn.textContent = w ? "🔔 Watching" : "🔕 Notify online";
+                        watchBtn.textContent = w ? "Notify online: on" : "Notify online";
                         watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
-                        watchBtn.title = w ? "Notifies you when this person comes online — click to stop" : "Click to get notified when this person comes online";
+                        watchBtn.title = w ? "Notifies you when this person comes online — click to turn off" : "Get a notification when this person comes online";
                     };
                     refreshWatchBtn();
                     watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });

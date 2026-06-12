@@ -14,7 +14,7 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName as resolveNameFriend } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.4.0";
+const MOD_VERSION = "6.4.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.4.1",
+        changes: [
+            "Fix: Online notification toast now uses proper name resolution (resolveName — falls back to account name, not just #number). Toast redesigned with EBC pink border and high-contrast text so it's easy to spot. Watch button in friend expand panel no longer uses emoji.",
+        ],
+    },
     {
         version: "6.4.0",
         changes: [
@@ -4848,24 +4854,23 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
 
 function showOnlineToast(memberNumber: number): void {
     try {
-        const cachedName = getCachedNames()[String(memberNumber)];
-        const name = cachedName || "#" + memberNumber;
+        const name = resolveNameFriend(memberNumber);
         const existing = document.querySelectorAll(".ebc-online-toast");
-        const topOffset = 20 + existing.length * 46;
+        const topOffset = 20 + existing.length * 52;
         const toast = document.createElement("div");
         toast.className = "ebc-online-toast";
         toast.style.cssText = [
-            "position:fixed", `bottom:${topOffset}px`, "right:20px",
-            "background:#0d1a0f", "border:1.5px solid #4a9a60",
-            "border-radius:7px", "padding:8px 13px",
+            "position:fixed", `bottom:${topOffset}px`, "right:24px",
+            "background:#1a0820", "border:2px solid #cf6f98",
+            "border-radius:8px", "padding:10px 16px",
             "z-index:999999", "font-family:'Trebuchet MS',serif",
-            "font-size:12px", "color:#79d896",
-            "box-shadow:0 4px 16px rgba(0,0,0,0.7)",
+            "font-size:13px", "color:#f0c0d8",
+            "box-shadow:0 4px 24px rgba(0,0,0,0.9),0 0 8px rgba(207,111,152,0.4)",
             "transition:opacity 0.4s ease",
             "cursor:pointer", "user-select:none",
-            "white-space:nowrap",
+            "white-space:nowrap", "min-width:160px",
         ].join(";");
-        toast.textContent = `🟢 ${name} is now online`;
+        toast.innerHTML = `<span style="color:#cf6f98;font-weight:bold;">${name.replace(/</g,"&lt;")}</span> is now online`;
         toast.title = "Click to dismiss";
         document.body.appendChild(toast);
         const remove = () => {
@@ -4873,7 +4878,7 @@ function showOnlineToast(memberNumber: number): void {
             window.setTimeout(() => { try { toast.remove(); } catch { /* ignore */ } }, 450);
         };
         toast.addEventListener("click", remove);
-        window.setTimeout(remove, 7000);
+        window.setTimeout(remove, 8000);
     } catch { /* ignore */ }
 }
 
