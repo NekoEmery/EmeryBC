@@ -15073,26 +15073,33 @@ export class EBCDrawer {
             zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
 
             const zoomVal = document.createElement("span");
+            zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+
+            const zoomReset = document.createElement("button");
+            zoomReset.textContent = "↺";
+            zoomReset.title = "Reset to 100%";
+
             const refreshZoomVal = (v: number): void => {
                 zoomVal.textContent = Math.round(v * 100) + "%";
                 const isDefault = Math.abs(v - 1) < 0.01;
-                zoomVal.style.cssText = [
+                zoomReset.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:11px",
-                    "min-width:30px",
-                    "text-align:right",
-                    "flex-shrink:0",
-                    "color:" + (isDefault ? "#cf6f98" : "#f0c0d8"),
+                    "font-size:13px",
+                    "line-height:1",
+                    "padding:1px 5px",
+                    "border-radius:4px",
                     "cursor:" + (isDefault ? "default" : "pointer"),
-                    "user-select:none",
+                    "flex-shrink:0",
+                    "border:1px solid " + (isDefault ? "#1a0818" : "#3a1928"),
+                    "background:" + (isDefault ? "transparent" : "#100508"),
+                    "color:" + (isDefault ? "#3a1928" : "#cf6f98"),
+                    "transition:color 0.15s,border-color 0.15s",
                 ].join(";");
-                zoomVal.title = isDefault ? "" : "Click to reset to 100%";
+                zoomReset.disabled = isDefault;
             };
             refreshZoomVal(loadPanelZoom());
 
-            zoomVal.addEventListener("click", () => {
-                const cur = parseFloat(zoomSlider.value);
-                if (Math.abs(cur - 1) < 0.01) return;
+            zoomReset.addEventListener("click", () => {
                 zoomSlider.value = "1";
                 savePanelZoom(1);
                 this.applyPanelZoom(1);
@@ -15109,6 +15116,7 @@ export class EBCDrawer {
             zoomRow.appendChild(zoomLbl);
             zoomRow.appendChild(zoomSlider);
             zoomRow.appendChild(zoomVal);
+            zoomRow.appendChild(zoomReset);
             cnt.appendChild(zoomRow);
 
             // ── Pinned strip tab visibility ───────────────────────────────────

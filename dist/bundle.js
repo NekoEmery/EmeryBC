@@ -22040,26 +22040,30 @@
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
                 const zoomVal = document.createElement("span");
+                zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+                const zoomReset = document.createElement("button");
+                zoomReset.textContent = "↺";
+                zoomReset.title = "Reset to 100%";
                 const refreshZoomVal = (v) => {
                     zoomVal.textContent = Math.round(v * 100) + "%";
                     const isDefault = Math.abs(v - 1) < 0.01;
-                    zoomVal.style.cssText = [
+                    zoomReset.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
-                        "font-size:11px",
-                        "min-width:30px",
-                        "text-align:right",
-                        "flex-shrink:0",
-                        "color:" + (isDefault ? "#cf6f98" : "#f0c0d8"),
+                        "font-size:13px",
+                        "line-height:1",
+                        "padding:1px 5px",
+                        "border-radius:4px",
                         "cursor:" + (isDefault ? "default" : "pointer"),
-                        "user-select:none",
+                        "flex-shrink:0",
+                        "border:1px solid " + (isDefault ? "#1a0818" : "#3a1928"),
+                        "background:" + (isDefault ? "transparent" : "#100508"),
+                        "color:" + (isDefault ? "#3a1928" : "#cf6f98"),
+                        "transition:color 0.15s,border-color 0.15s",
                     ].join(";");
-                    zoomVal.title = isDefault ? "" : "Click to reset to 100%";
+                    zoomReset.disabled = isDefault;
                 };
                 refreshZoomVal(loadPanelZoom());
-                zoomVal.addEventListener("click", () => {
-                    const cur = parseFloat(zoomSlider.value);
-                    if (Math.abs(cur - 1) < 0.01)
-                        return;
+                zoomReset.addEventListener("click", () => {
                     zoomSlider.value = "1";
                     savePanelZoom(1);
                     this.applyPanelZoom(1);
@@ -22074,6 +22078,7 @@
                 zoomRow.appendChild(zoomLbl);
                 zoomRow.appendChild(zoomSlider);
                 zoomRow.appendChild(zoomVal);
+                zoomRow.appendChild(zoomReset);
                 cnt.appendChild(zoomRow);
                 // ── Pinned strip tab visibility ───────────────────────────────────
                 const stripVisBox = document.createElement("div");
@@ -29197,7 +29202,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.1";
+    const MOD_VERSION = "6.5.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29208,6 +29213,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.2",
+            changes: [
+                "Fix: Text size reset is now a dedicated ↺ icon button next to the percentage. Button is dimmed when already at 100%, pink and active when not.",
+            ],
+        },
         {
             version: "6.5.1",
             changes: [
