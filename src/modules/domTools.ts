@@ -4,6 +4,7 @@
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
 import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
+import { getDomSetAnnounce } from "./settings";
 
 export const DOM_CREATOR_ID = 130267;
 
@@ -18,6 +19,8 @@ export interface DomRestraintSet {
     command: string;          // without /, e.g. "gag"
     announceTemplate: string; // e.g. "snaps her fingers as {name} appears on {targets}~"
     items: SerializedItem[];
+    targetId?: number;        // optional bound target — set always applies to this person
+    targetName?: string;      // cached display name for the bound target
 }
 
 export interface DomConfig {
@@ -134,6 +137,22 @@ export function deleteDomSet(id: string): void {
     saveConfig(cfg);
 }
 
+/** Bind a permanent target to a restraint set (so its command always aims at them).
+ *  Pass null to clear the binding and fall back to the standard TARGET selector. */
+export function setDomSetTarget(setId: string, targetId: number | null, targetName: string): void {
+    const cfg = loadConfig();
+    const set = cfg.sets.find(s => s.id === setId);
+    if (!set) return;
+    if (targetId === null) {
+        set.targetId = undefined;
+        set.targetName = undefined;
+    } else {
+        set.targetId = targetId;
+        set.targetName = targetName;
+    }
+    saveConfig(cfg);
+}
+
 // Parse a BC outfit code and return ALL items found — does NOT save anything.
 // Returns every item that has a Group and Name field; the caller's picker UI
 // shows checkboxes and the user decides which items to keep.
@@ -181,10 +200,22 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
     const applied: string[] = [];
     const skipped: string[] = [];
 
-    for (const target of cfg.targets) {
+    // When explicit IDs are provided (UI button or per-set command), look up those
+    // chars directly in the room — no dependency on cfg.targets.
+    // When no IDs are given, fall back to the legacy saved-targets list.
+    const targets: Array<{ id: number; name: string }> = targetIds && targetIds.size > 0
+        ? [...targetIds].map(id => {
+            const char = room.find(c => c.MemberNumber === id);
+            const name = char
+                ? ((char.Nickname as string | undefined)?.trim() || (char.Name as string) || String(id))
+                : cfg.targets.find(t => t.id === id)?.name ?? String(id);
+            return { id, name };
+        })
+        : cfg.targets;
+
+    for (const target of targets) {
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) { skipped.push(target.name); continue; }
-        if (targetIds && !targetIds.has(target.id)) { skipped.push(target.name); continue; }
 
         let anyApplied = false;
         for (const item of set.items) {
@@ -229,7 +260,7 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
     }
 
     // Send room announce after items have synced
-    if (applied.length > 0 && set.announceTemplate.trim()) {
+    if (applied.length > 0 && set.announceTemplate.trim() && getDomSetAnnounce()) {
         window.setTimeout(() => {
             try {
                 const text = set.announceTemplate
@@ -253,6 +284,26 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
 }
 
 // ── Release / rescue helpers ─────────────────────────────────────────────────
+
+/** Send a visible room action emote (e.g. "Neko puts Lucy on all fours."). */
+function sendRoomAction(text: string): void {
+    try {
+        callBC(() => ServerSend("ChatRoomChat", {
+            Type: "Action",
+            Content: Player.Name + " " + text,
+            Dictionary: [
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                { SourceCharacter: Player.MemberNumber },
+            ],
+        }));
+    } catch { /* ignore */ }
+}
+
+/** Resolve the display name of a character (Nickname > Name). */
+function charDisplayName(char: Character): string {
+    const c = char as unknown as Record<string, unknown>;
+    return (c.Nickname as string | undefined)?.trim() || (c.Name as string | undefined) || "them";
+}
 
 // Shared sync helper for non-player characters.
 function syncChar(char: Character): void {
@@ -473,6 +524,212 @@ export function removeItemsFromMember(memberId: number, groups: string[]): numbe
     } catch { return 0; }
 }
 
+// ── Expression control ────────────────────────────────────────────────────────
+
+const EXPR_GROUPS_DOM = ["Eyes", "Eyes2", "Mouth", "Eyebrows", "Blush", "Fluids", "Emoticon"] as const;
+
+function findRoomChar(memberId: number): Character | undefined {
+    return ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined)
+        ?.find(c => c.MemberNumber === memberId);
+}
+
+/** Apply an array of [group, exprName|null] pairs to a character all at once, then sync once. */
+export function applyTargetExpressionPreset(
+    targetId: number,
+    groups: ReadonlyArray<readonly [string, string | null]>,
+): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const setFn = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
+            ((c: Character, g: string, e: string | null) => void) | undefined;
+        if (typeof setFn === "function") {
+            for (const [group, expr] of groups) { try { setFn(char, group, expr); } catch { /* ignore */ } }
+        } else {
+            const assetGetFn = (window as unknown as Record<string, unknown>).AssetGet as
+                ((fam: string, grp: string, name: string) => unknown) | undefined;
+            for (const [group, exprName] of groups) {
+                try {
+                    const app = char.Appearance as Item[];
+                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                    if (idx !== -1) app.splice(idx, 1);
+                    if (exprName && typeof assetGetFn === "function") {
+                        const asset = assetGetFn(char.AssetFamily ?? "Female3DCG", group, exprName);
+                        if (asset) app.push({ Asset: asset, Color: "Default", Difficulty: 0, Property: { Expression: exprName } } as unknown as Item);
+                    }
+                } catch { /* ignore */ }
+            }
+        }
+        syncChar(char);
+    } catch { /* ignore */ }
+}
+
+/** Clear all expression groups on an in-room character. */
+export function clearTargetExpressions(targetId: number): void {
+    applyTargetExpressionPreset(targetId, EXPR_GROUPS_DOM.map(g => [g, null] as const));
+}
+
+// ── Pose control ──────────────────────────────────────────────────────────────
+
+/** Set the active pose on an in-room character. Pass empty array to clear all poses. */
+export function setTargetPoses(targetId: number, poses: string[], poseName?: string): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        // Set ActivePose directly - works for single and multi-pose combinations
+        // across all BC versions (CharacterSetActivePose only accepts a single string
+        // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+        (char as unknown as Record<string, unknown>).ActivePose = poses.length ? poses : [];
+        syncChar(char);
+        // Send a visible room emote so others know what's happening
+        const name = charDisplayName(char);
+        const label = poseName ?? (poses.length ? poses.join("+") : "stand");
+        const desc = poses.length
+            ? `guides ${name} into the ${label} position.`
+            : `lets ${name} return to a comfortable position.`;
+        sendRoomAction(desc);
+    } catch { /* ignore */ }
+}
+
+// ── Toy control ───────────────────────────────────────────────────────────────
+
+/** Returns vibrating items currently worn by an in-room character. */
+export function getTargetVibratingItems(targetId: number): Array<{ group: string; name: string; mode: string }> {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return [];
+        return char.Appearance
+            .filter((item: Item) => {
+                const prop = item.Property as Record<string, unknown> | undefined;
+                const asset = item.Asset as unknown as Record<string, unknown>;
+                return asset.Archetype === "VibratingItem" || (prop && typeof prop.Mode === "string");
+            })
+            .map((item: Item) => ({
+                group: item.Asset.Group.Name,
+                name: item.Asset.Name,
+                mode: String((item.Property as Record<string, unknown> | undefined)?.Mode ?? "Off"),
+            }));
+    } catch { return []; }
+}
+
+/** Set the vibrator mode on all vibrating items worn by an in-room character. */
+export function setTargetToyMode(targetId: number, mode: string): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        let changed = false;
+
+        // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
+        // derived-state updates (Effect, Intensity …) AND the server push in one call.
+        // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
+        // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
+        const extSetFn = (window as unknown as Record<string, unknown>).ExtendedItemSetValue as
+            ((c: Character, i: Item, v: Record<string, unknown>, push: boolean) => void) | undefined;
+        // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+        const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
+            ((c: Character, group: string) => Item | null | undefined) | undefined;
+        const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+            ((c: Character) => void) | undefined;
+
+        let usedExtSet = false;
+
+        for (const item of char.Appearance) {
+            const asset = item.Asset as unknown as Record<string, unknown>;
+            const prop = item.Property as Record<string, unknown> | undefined;
+            // Detect vibrating items: exact archetype match OR existing Mode property
+            if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
+            try {
+                if (extSetFn) {
+                    // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
+                    extSetFn(char, item, { Mode: mode }, true);
+                    changed = true;
+                    usedExtSet = true;
+                } else {
+                    // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
+                    const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
+                    if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+                    (liveItem.Property as Record<string, unknown>).Mode = mode;
+                    changed = true;
+                }
+            } catch { /* ignore */ }
+        }
+
+        if (changed) {
+            if (!usedExtSet) {
+                // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
+                callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
+            }
+            const name = charDisplayName(char);
+            const desc = mode === "Off"
+                ? `turns ${name}'s toy off.`
+                : `sets ${name}'s toy to ${mode}.`;
+            sendRoomAction(desc);
+        }
+    } catch { /* ignore */ }
+}
+
+// ── Activity control ──────────────────────────────────────────────────────────
+
+/** Activity label -> room action description. */
+const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
+    "Spank":   n => `gives ${n} a firm spank.`,
+    "Pat":     n => `pats ${n} on the head.`,
+    "Kiss":    n => `leans in and kisses ${n}.`,
+    "Bite":    n => `bites ${n}'s neck.`,
+    "Slap":    n => `slaps ${n}.`,
+    "Caress":  n => `caresses ${n} gently.`,
+    "Massage": n => `massages ${n}.`,
+    "Lick":    n => `licks ${n}.`,
+};
+
+/**
+ * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
+ * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
+ */
+const BC_ACTIVITY_NAME: Record<string, string> = {
+    "Pat": "Caress",  // no native "Pat" in BC — use Caress animation on the head
+};
+
+/**
+ * Perform a quick action on an in-room character.
+ * Sends a Type:"Activity" message so BC clients play the matching facial
+ * expressions and sounds.
+ *
+ * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
+ * can resolve the activity audio path.  Using arbitrary text as Content causes
+ * BC's audio system to produce a "Failed to load — no supported source found"
+ * unhandled rejection because the audio URL lookup returns null.
+ *
+ * If BC's text system can't find the "Player<X>" key (unlikely for standard
+ * activities), the MISSING TEXT fallback shows our custom description instead.
+ */
+export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
+    try {
+        const target = findRoomChar(targetId);
+        if (!target) return false;
+        const name = charDisplayName(target);
+        const descFn = ACTIVITY_DESCS[activityName];
+        const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
+        // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
+        const bcActivity = BC_ACTIVITY_NAME[activityName] ?? activityName;
+        callBC(() => ServerSend("ChatRoomChat", {
+            Type: "Activity",
+            // "Player<X>" is BC's canonical content key — resolves text template AND audio
+            Content: "Player" + bcActivity,
+            Dictionary: [
+                // Fallback text if BC can't find the key in its CSV (normally not needed)
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
+                { Tag: "SourceCharacter",  MemberNumber: Player.MemberNumber },
+                { Tag: "TargetCharacter",  MemberNumber: targetId },
+                { Tag: "ActivityName",     ActivityName: bcActivity }, // animation compat
+                { Tag: "FocusGroup",       AssetGroupName: zone },     // BC R113+ zone tag
+                { Tag: "AssetGroupName",   AssetGroupName: zone },     // older compat
+            ],
+        }));
+        return true;
+    } catch { return false; }
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;
@@ -481,6 +738,8 @@ export function handleDomCommand(input: string): boolean {
     const command = trimmed.slice(1).toLowerCase().trim();
     const set = loadConfig().sets.find(s => s.command && s.command.toLowerCase() === command);
     if (!set) return false;
-    applyDomSet(set.id);
+    // Per-set bound target takes priority; no bound target → fall back to saved targets
+    const targetIds = set.targetId ? new Set([set.targetId]) : undefined;
+    applyDomSet(set.id, targetIds);
     return true;
 }

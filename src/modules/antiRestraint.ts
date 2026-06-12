@@ -4,7 +4,7 @@
 // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
-import { getAntiRestraintEnabled, getAntiRestraintWhitelist } from "./settings";
+import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintAnnounce, getEscapeEmoteText } from "./settings";
 import { callBC } from "./bcUtils";
 import { RESTRAINT_GROUPS } from "./outfitManager";
 
@@ -201,10 +201,18 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
 
     window.setTimeout(() => {
         try {
-            if (anySucceeded) {
-                const text = restrainer
-                    ? `glares at ${restrainer} as the ${itemName} falls away.`
-                    : `glares ahead as the ${itemName} falls away.`;
+            if (anySucceeded && getAntiRestraintAnnounce()) {
+                const customEmote = getEscapeEmoteText();
+                let text: string;
+                if (customEmote.trim()) {
+                    text = customEmote
+                        .replace("{item}", itemName)
+                        .replace("{restrainer}", restrainer ?? "");
+                } else {
+                    text = restrainer
+                        ? `glares at ${restrainer} as the ${itemName} falls away.`
+                        : `glares ahead as the ${itemName} falls away.`;
+                }
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
                     Content: Player.Name + " " + text,

@@ -100,7 +100,28 @@ export function flushToExtensionSettings(): void {
         // Remove stale _d blob if it somehow survived.
         delete target["_d"];
         for (const [k, v] of Object.entries(_mem)) {
-            target[k] = v;
+            // Name caches are MERGED with the server copy rather than overwritten.
+            // Without this, a secondary device (tablet) that has only seen a handful
+            // of friends pushes its tiny cache over the desktop's full one the moment
+            // any sync fires — leaving everyone as #number on next login.
+            if ((k === "friendNames" || k === "friendAccountNames") &&
+                v && typeof v === "object" && !Array.isArray(v)) {
+                const existing = target[k];
+                if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+                    // Server data as base, in-memory (current session) wins on conflict.
+                    const merged = { ...(existing as Record<string, string>), ...(v as Record<string, string>) };
+                    // Keep within the 500-entry cap to avoid bloating the sync payload.
+                    const keys = Object.keys(merged);
+                    if (keys.length > 500) {
+                        for (const ek of keys.slice(0, keys.length - 500)) delete merged[ek];
+                    }
+                    target[k] = merged;
+                } else {
+                    target[k] = v;
+                }
+            } else {
+                target[k] = v;
+            }
         }
     } catch { /* ignore */ }
 }

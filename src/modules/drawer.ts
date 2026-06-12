@@ -57,7 +57,7 @@ import {
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
-import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
+import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -92,11 +92,11 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies } from "./settings";
-import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
+import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
@@ -110,6 +110,7 @@ import {
     createDomSet,
     updateDomSet,
     deleteDomSet,
+    setDomSetTarget,
     parseBCCodeItems,
     type ParsedBCItem,
     applyDomSet,
@@ -122,6 +123,11 @@ import {
     rescueRoomMember,
     clearLocksOnMember,
     removeItemsFromMember,
+
+    setTargetPoses,
+    getTargetVibratingItems,
+    setTargetToyMode,
+    performActivityOnTarget,
 } from "./domTools";
 import {
     LUCY_MEMBER, EMERY_MEMBER,
@@ -439,7 +445,7 @@ const PANEL_ZOOM_KEY = "EBC_panelZoom";
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
+        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
     } catch { return 1; }
 }
 
@@ -2821,22 +2827,24 @@ const CSS = `
 
 .ebc-emoji-picker {
     position: absolute;
-    bottom: calc(100% + 4px);
+    bottom: calc(100% + 6px);
     right: 0;
-    background: #1e0d1a;
-    border: 1px solid #5a2840;
-    border-radius: 8px;
-    width: 252px;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
+    background: #251020;
+    border: 1px solid #6a304e;
+    border-radius: 10px;
+    width: 296px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.7);
     z-index: 10001;
     overflow: hidden;
     flex-direction: column;
 }
 .ebc-emoji-tabs {
     display: flex;
-    background: #180c14;
-    border-bottom: 1px solid #3a1828;
+    background: #1c0c18;
+    border-bottom: 1px solid #4a2038;
     flex-shrink: 0;
+    padding: 2px 2px 0;
+    gap: 1px;
 }
 .ebc-emoji-tab {
     flex: 1;
@@ -2844,44 +2852,59 @@ const CSS = `
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
-    color: #7a5060;
-    font-size: 13px;
+    color: #9a6878;
+    font-size: 15px;
     cursor: pointer;
-    padding: 5px 1px;
+    padding: 6px 2px;
     line-height: 1;
     transition: color 0.1s, border-color 0.1s, background 0.1s;
+    border-radius: 4px 4px 0 0;
 }
-.ebc-emoji-tab:hover { background: rgba(60,16,40,0.6); color: #cf8098; }
-.ebc-emoji-tab.active { color: #cf6f98; border-bottom-color: #cf6f98; }
+.ebc-emoji-tab:hover { background: rgba(80,20,50,0.5); color: #e090b0; }
+.ebc-emoji-tab.active { color: #f080a8; border-bottom-color: #f080a8; background: rgba(80,20,50,0.3); }
 .ebc-emoji-body {
     display: flex;
     flex-wrap: wrap;
-    gap: 1px;
-    padding: 5px;
-    max-height: 190px;
+    gap: 2px;
+    padding: 8px;
+    max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
+    background: #251020;
 }
 .ebc-emoji-body button {
-    background: none;
-    border: none;
-    font-size: 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid transparent;
+    font-size: 20px;
     cursor: pointer;
-    padding: 3px 4px;
-    border-radius: 4px;
-    transition: background 0.1s;
+    padding: 5px 5px;
+    border-radius: 6px;
+    transition: background 0.1s, border-color 0.1s, transform 0.08s;
     line-height: 1;
 }
-.ebc-emoji-body button.ebc-text-emote {
-    font-size: 9.5px;
-    font-family: "Trebuchet MS", serif;
-    color: #d0a8b8;
-    padding: 3px 6px;
-    white-space: nowrap;
-    line-height: 1.6;
+.ebc-emoji-body button:hover {
+    background: rgba(207,111,152,0.18) !important;
+    border-color: #cf6f98 !important;
+    transform: scale(1.15);
+    filter: none !important;
 }
-.ebc-emoji-body button:hover { background: #3a1028 !important; filter: none !important; }
+.ebc-emoji-body button.ebc-text-emote {
+    font-size: 11px;
+    font-family: "Trebuchet MS", serif;
+    color: #e8b0cc;
+    padding: 4px 8px;
+    white-space: nowrap;
+    line-height: 1.5;
+    background: rgba(207,111,152,0.1);
+    border: 1px solid #5a2848;
+}
+.ebc-emoji-body button.ebc-text-emote:hover {
+    background: rgba(207,111,152,0.25) !important;
+    border-color: #cf6f98 !important;
+    color: #f8c0dc !important;
+    transform: none;
+}
 
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
@@ -3892,7 +3915,7 @@ export class EBCDrawer {
     // Set to true once we've confirmed no saved position exists, so we stop polling storage.
     private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
-    private domSelectedTargets = new Set<number>();
+    private domFocusTargetId: number | null = null;
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
@@ -4329,14 +4352,21 @@ export class EBCDrawer {
         qaConfirmRow.appendChild(qaConfirmToggle);
         quickActions.appendChild(qaConfirmRow);
 
-        // Row 2: self-picker toggle (full-width, subtle)
-        const selfPickToggle = document.createElement("button");
-        selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = t("qa.pickRestraints");
-        selfPickToggle.title = t("qa.pickTitle");
-        this._i18nRefs.pickBtn = selfPickToggle;
-        selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
-        selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
+        // Row 2: self-picker toggle — styled as accordion header
+        const selfPickToggle = document.createElement("div");
+        selfPickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;";
+        selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.background = "rgba(42,20,33,0.6)"; });
+        selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.background = "#1e0d18"; });
+        const selfPickLbl = document.createElement("span");
+        selfPickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
+        selfPickLbl.textContent = t("qa.pickRestraints");
+        selfPickLbl.title = t("qa.pickTitle");
+        this._i18nRefs.pickBtn = selfPickLbl as unknown as HTMLButtonElement;
+        const selfPickArrow = document.createElement("span");
+        selfPickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+        selfPickArrow.textContent = "▼";
+        selfPickToggle.appendChild(selfPickLbl);
+        selfPickToggle.appendChild(selfPickArrow);
         quickActions.appendChild(selfPickToggle);
 
 
@@ -4439,8 +4469,9 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("click", () => {
             const isOpen = selfPickPanel.style.display !== "none";
             selfPickPanel.style.display = isOpen ? "none" : "flex";
-            selfPickToggle.style.borderStyle = isOpen ? "dashed" : "solid";
-            selfPickToggle.style.color = isOpen ? "#7a4a5e" : "#cf6f98";
+            selfPickArrow.textContent = isOpen ? "▼" : "▲";
+            selfPickToggle.style.borderColor = isOpen ? "#3a1928" : "#7a3050";
+            selfPickToggle.style.background = isOpen ? "#1e0d18" : "rgba(42,20,33,0.7)";
             if (!isOpen) rebuildSelfPicker();
         });
 
@@ -4752,6 +4783,7 @@ export class EBCDrawer {
         timerEl.className = "ebc-timer";
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
+
 
         // ── EBC Tags strip — collapsible, always below safewords ─────────────
         const ebcTagsStrip = document.createElement("div");
@@ -5914,6 +5946,10 @@ export class EBCDrawer {
             wrapper.style.width     = inv;
             wrapper.style.height    = inv;
         }
+        // Apply matching zoom to any open beep/group windows.
+        const zoomStr = scale === 1 ? "" : String(scale);
+        for (const { el } of this.beepWins.values())  el.style.zoom = zoomStr;
+        for (const { el } of this.groupWins.values()) el.style.zoom = zoomStr;
     }
 
     /**
@@ -6401,6 +6437,13 @@ export class EBCDrawer {
         if (this.timerPoller === null) return;
         window.clearInterval(this.timerPoller);
         this.timerPoller = null;
+    }
+
+    // Force an immediate timer refresh — called after ChatRoomSync once
+    // Appearance has been populated so the bound state is accurate.
+    public refreshTimer(): void {
+        try { timerCheckRestraints(); } catch { /* ignore */ }
+        this.updateTimer();
     }
 
     // -- Expression preset select helper --------------------------------------
@@ -6996,10 +7039,41 @@ export class EBCDrawer {
                     durEl.textContent = dur ? `⏱ ${dur}` : "";
                     durEl.title = "Time worn (persists offline)";
 
+                    // Timer exclude toggle — highlighted when this slot IS excluded from the ⛓ bound counter
+                    const excluded = isTimerGroupExcluded(group);
+                    const timerToggle = document.createElement("button");
+                    timerToggle.textContent = "Exclude";
+                    const applyToggleStyle = (isExcluded: boolean): void => {
+                        timerToggle.style.cssText = [
+                            `background:${isExcluded ? "#4a1a2a" : "transparent"}`,
+                            `border:1px solid ${isExcluded ? "#e85d8a" : "#3a1a2a"}`,
+                            "border-radius:3px",
+                            "cursor:pointer",
+                            "font-family:'Trebuchet MS',serif",
+                            "font-size:9px",
+                            `color:${isExcluded ? "#e85d8a" : "#6a3a5a"}`,
+                            "padding:0 4px",
+                            "line-height:14px",
+                            "flex-shrink:0",
+                            `opacity:${isExcluded ? "1" : "0.45"}`,
+                            "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
+                        ].join(";");
+                        timerToggle.title = isExcluded
+                            ? `${group.replace("Item", "")} excluded from bound timer — click to count`
+                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                    };
+                    applyToggleStyle(excluded);
+                    timerToggle.addEventListener("click", () => {
+                        const nowExcluded = isTimerGroupExcluded(group);
+                        setTimerGroupExcluded(group, !nowExcluded);
+                        applyToggleStyle(!nowExcluded);
+                    });
+
                     row.appendChild(nameEl);
                     row.appendChild(groupEl);
                     row.appendChild(lockEl);
                     row.appendChild(durEl);
+                    row.appendChild(timerToggle);
                     container.appendChild(row);
                 }
             } catch { /* Player not ready */ }
@@ -11609,6 +11683,8 @@ export class EBCDrawer {
         win.className = "ebc-beep-win";
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
+        const _bScale = loadPanelZoom();
+        if (_bScale !== 1) win.style.zoom = String(_bScale);
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
@@ -12427,7 +12503,7 @@ export class EBCDrawer {
             tab.className = "ebc-emoji-tab" + (i === 0 ? " active" : "");
             tab.textContent = cat.icon;
             tab.title = cat.label;
-            if (cat.text) tab.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
+            if (cat.text) tab.style.cssText = "font-size:11px;font-family:'Trebuchet MS',serif;font-weight:bold;letter-spacing:-0.5px;";
             tab.addEventListener("click", (ev) => { ev.stopPropagation(); renderEmoteCat(i); });
             emojiTabs.appendChild(tab);
         });
@@ -12841,6 +12917,8 @@ export class EBCDrawer {
         win.className = "ebc-beep-win";
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
+        const _gScale = loadPanelZoom();
+        if (_gScale !== 1) win.style.zoom = String(_gScale);
         this.groupWins.set(group.id, { el: win, minimized: false });
 
         // Drag
@@ -13148,6 +13226,17 @@ export class EBCDrawer {
                     try { fn?.(); } catch { /* ignore */ }
                 }
             },
+        ));
+
+        chatSettingsBody.appendChild(mkToggleRow(
+            "Use BC native beep sound",
+            getUseNativeBeepSound,
+            (v) => setUseNativeBeepSound(v),
+        ));
+        chatSettingsBody.appendChild(mkToggleRow(
+            "Sound when friend comes online",
+            getOnlineSoundEnabled,
+            (v) => setOnlineSoundEnabled(v),
         ));
 
         // ── AFK sub-section (nested collapsible) ──────────────────────────────
@@ -14603,6 +14692,19 @@ export class EBCDrawer {
                     refreshPinBtn();
                     pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
                     actRow.appendChild(pinBtn);
+
+                    // Online notification watch toggle
+                    const watchBtn = document.createElement("button");
+                    const refreshWatchBtn = (): void => {
+                        const w = isOnWatchList(num);
+                        watchBtn.textContent = w ? "Notify online: on" : "Notify online";
+                        watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
+                        watchBtn.title = w ? "Notifies you when this person comes online — click to turn off" : "Get a notification when this person comes online";
+                    };
+                    refreshWatchBtn();
+                    watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });
+                    actRow.appendChild(watchBtn);
+
                     expand.appendChild(actRow);
 
                     // ── Inline note editor ─────────────────────────────────────
@@ -14963,20 +15065,50 @@ export class EBCDrawer {
 
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
-            zoomSlider.min = "0.8";
-            zoomSlider.max = "1.4";
+            zoomSlider.min = "0.7";
+            zoomSlider.max = "2.0";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+            zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
 
             const zoomVal = document.createElement("span");
             zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
-            zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
+
+            const zoomReset = document.createElement("button");
+            zoomReset.textContent = "↺";
+            zoomReset.title = "Reset to 100%";
+
+            const refreshZoomVal = (v: number): void => {
+                zoomVal.textContent = Math.round(v * 100) + "%";
+                const isDefault = Math.abs(v - 1) < 0.01;
+                zoomReset.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:13px",
+                    "line-height:1",
+                    "padding:1px 5px",
+                    "border-radius:4px",
+                    "cursor:" + (isDefault ? "default" : "pointer"),
+                    "flex-shrink:0",
+                    "border:1px solid " + (isDefault ? "#1a0818" : "#3a1928"),
+                    "background:" + (isDefault ? "transparent" : "#100508"),
+                    "color:" + (isDefault ? "#3a1928" : "#cf6f98"),
+                    "transition:color 0.15s,border-color 0.15s",
+                ].join(";");
+                zoomReset.disabled = isDefault;
+            };
+            refreshZoomVal(loadPanelZoom());
+
+            zoomReset.addEventListener("click", () => {
+                zoomSlider.value = "1";
+                savePanelZoom(1);
+                this.applyPanelZoom(1);
+                refreshZoomVal(1);
+            });
 
             zoomSlider.addEventListener("input", () => {
                 const v = parseFloat(zoomSlider.value);
-                zoomVal.textContent = Math.round(v * 100) + "%";
+                refreshZoomVal(v);
                 savePanelZoom(v);
                 this.applyPanelZoom(v);
             });
@@ -14984,6 +15116,7 @@ export class EBCDrawer {
             zoomRow.appendChild(zoomLbl);
             zoomRow.appendChild(zoomSlider);
             zoomRow.appendChild(zoomVal);
+            zoomRow.appendChild(zoomReset);
             cnt.appendChild(zoomRow);
 
             // ── Pinned strip tab visibility ───────────────────────────────────
@@ -16282,6 +16415,7 @@ export class EBCDrawer {
                                 return;
                             }
 
+                            // 1. Person is currently in the room — use live Character object
                             const inRoom = Array.isArray(roomChars)
                                 ? roomChars.find(c => c.MemberNumber === person.n)
                                 : undefined;
@@ -16289,6 +16423,7 @@ export class EBCDrawer {
                                 try { openProfile(inRoom); return; } catch { /* ignore */ }
                             }
 
+                            // 2. Session bundle available (seen this session)
                             const bundle = await getCharacterBundle(person.n);
                             if (bundle) {
                                 try {
@@ -16297,13 +16432,43 @@ export class EBCDrawer {
                                 } catch { /* ignore */ }
                             }
 
+                            // 3. No bundle — synthesize a minimal one from cached name data.
+                            // CharacterLoadOnline fills in BC defaults for missing fields so
+                            // the info sheet opens with a blank model but correct name + number.
+                            try {
+                                const acctName = getAccountName(person.n) ?? person.name;
+                                const minBundle = {
+                                    MemberNumber: person.n,
+                                    Name: acctName,
+                                    Appearance: [],
+                                };
+                                const C = loadOnline(minBundle, person.n);
+                                if (C) { openProfile(C); return; }
+                            } catch { /* ignore */ }
+
                             try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
                           } catch { /* ignore — prevent unhandled rejection from async listener */ }
+                        });
+
+                        // Copy ID button
+                        const copyBtn = document.createElement("button");
+                        copyBtn.textContent = "ID";
+                        copyBtn.title = `Copy member ID: ${person.n}`;
+                        copyBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-accent);padding:2px 5px;flex-shrink:0;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                        copyBtn.addEventListener("mouseenter", () => { copyBtn.style.background = "var(--ebc-bg-mid)"; copyBtn.style.borderColor = "var(--ebc-accent)"; });
+                        copyBtn.addEventListener("mouseleave", () => { copyBtn.style.background = "var(--ebc-bg-darker)"; copyBtn.style.borderColor = "var(--ebc-border-light)"; copyBtn.style.color = "var(--ebc-accent)"; });
+                        copyBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                            copyBtn.style.color = "#a0d080";
+                            copyBtn.style.borderColor = "#a0d080";
+                            window.setTimeout(() => { copyBtn.style.color = "var(--ebc-accent)"; copyBtn.style.borderColor = "var(--ebc-border-light)"; }, 1200);
                         });
 
                         row.appendChild(nameSpan);
                         row.appendChild(numSpan);
                         row.appendChild(profBtn);
+                        row.appendChild(copyBtn);
                         listEl.appendChild(row);
                     }
                 };
@@ -20107,14 +20272,17 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Auto-Escape (visible to all, not gated behind isDomEnabled) ───────
+        // ── Auto-Escape card ─────────────────────────────────────────────────
+        const aeCard = document.createElement("div");
+        aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
         const aeLbl = document.createElement("div");
-        aeLbl.className = "ebc-section-label";
+        aeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
         aeLbl.textContent = "Auto-Escape";
-        body.appendChild(aeLbl);
+        aeCard.appendChild(aeLbl);
 
         const antiRow = document.createElement("div");
-        antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+        antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:5px;";
 
         const antiInfo = document.createElement("div");
         antiInfo.style.cssText = "flex:1;min-width:0;";
@@ -20154,271 +20322,40 @@ export class EBCDrawer {
         });
         antiRow.appendChild(antiInfo);
         antiRow.appendChild(antiToggle);
-        body.appendChild(antiRow);
+        aeCard.appendChild(antiRow);
 
-        // -- Whitelist --
-        const whitelistSection = document.createElement("div");
-        whitelistSection.style.cssText = "margin-bottom:10px;";
-
-        const wlTitle = document.createElement("span");
-        wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
-        wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
-        whitelistSection.appendChild(wlTitle);
-
-        // Stored custom labels for whitelist chips: itemKey → display name override
-        const WL_LABELS_KEY = "EBC_wlLabels";
-        const getWlLabels = (): Record<string, string> => { try { const r = localStorage.getItem(WL_LABELS_KEY); return r ? JSON.parse(r) as Record<string, string> : {}; } catch { return {}; } };
-        const setWlLabel = (key: string, label: string): void => { try { const m = getWlLabels(); if (label) m[key] = label; else delete m[key]; localStorage.setItem(WL_LABELS_KEY, JSON.stringify(m)); } catch { /* ignore */ } };
-
-        const domMakeChip = (key: string, fallbackLabel: string, onRemove: () => void): HTMLDivElement => {
-            const chip = document.createElement("div");
-            chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;margin:2px 2px 2px 0;";
-            const txt = document.createElement("span");
-            const labels = getWlLabels();
-            txt.textContent = labels[key] ?? fallbackLabel;
-            txt.title = "Click to rename";
-            txt.style.cssText = "cursor:pointer;border-bottom:1px dashed #6b3048;";
-            txt.addEventListener("click", (e) => {
-                e.stopPropagation();
-                showNameInputOverlay(`Rename "${txt.textContent}"`, txt.textContent ?? fallbackLabel, "Rename", (newName) => {
-                    setWlLabel(key, newName);
-                    txt.textContent = newName;
-                });
-            });
-            const x = document.createElement("button");
-            x.textContent = "×";
-            x.title = "Remove from whitelist";
-            x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
-            x.addEventListener("click", onRemove);
-            chip.appendChild(txt);
-            chip.appendChild(x);
-            return chip;
-        };
-
-        const wlChips = document.createElement("div");
-        wlChips.style.cssText = "min-height:18px;margin-bottom:6px;";
-        const wlAddRow = document.createElement("div");
-        wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-
-        const refreshWhitelistUI = (): void => {
-            wlChips.innerHTML = "";
-            wlAddRow.innerHTML = "";
-            const whitelist = getAntiRestraintWhitelist();
-            if (whitelist.length === 0) {
-                const empty = document.createElement("span");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-style:italic;";
-                empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
-                wlChips.appendChild(empty);
-            } else {
-                for (const key of whitelist) {
-                    // Display the key in a friendly way:
-                    // "AssetName|CraftName" → "CraftName" ; "AssetName" → AssetName (stripped of camelCase)
-                    const parts = key.split("|");
-                    const fallback = parts.length > 1
-                        ? parts[1]  // craft name is already human-readable
-                        : parts[0].replace(/([A-Z])/g, " $1").trim();
-                    wlChips.appendChild(domMakeChip(key, fallback, () => {
-                        removeFromAntiRestraintWhitelist(key);
-                        refreshWhitelistUI();
-                    }));
-                }
-            }
-            try {
-                const wornItems = Player.Appearance
-                    .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
-                if (wornItems.length > 0) {
-                    // Collapsible "add from worn" toggle
-                    const wornToggle = document.createElement("button");
-                    wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
-                    const wornList = document.createElement("div");
-                    wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
-                    let wornOpen = false;
-                    const refreshWornToggle = (): void => {
-                        wornToggle.textContent = (wornOpen ? "▼" : "▶") + "  Currently wearing — click to whitelist";
-                        wornList.style.display = wornOpen ? "flex" : "none";
-                    };
-                    refreshWornToggle();
-                    wornToggle.addEventListener("mouseenter", () => { wornToggle.style.color = "#cf6f98"; wornToggle.style.borderColor = "#6b3048"; });
-                    wornToggle.addEventListener("mouseleave", () => { wornToggle.style.color = "#9a7888"; wornToggle.style.borderColor = "#3a1928"; });
-                    wornToggle.addEventListener("click", () => { wornOpen = !wornOpen; refreshWornToggle(); });
-                    for (const item of wornItems) {
-                        const btn = document.createElement("button");
-                        const displayName = getItemDisplayName(item);
-                        btn.textContent = "+ " + displayName;
-                        btn.title = `Whitelist this item — auto-escape will keep it`;
-                        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                        btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
-                        btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
-                        btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
-                        wornList.appendChild(btn);
-                    }
-                    wlAddRow.appendChild(wornToggle);
-                    wlAddRow.appendChild(wornList);
-                }
-            } catch { /* ignore */ }
-        };
-
-        refreshWhitelistUI();
-        whitelistSection.appendChild(wlChips);
-        whitelistSection.appendChild(wlAddRow);
-        body.appendChild(whitelistSection);
-
-        // ── Room Admin ────────────────────────────────────────────────────────
-        const divAdmin = document.createElement("div");
-        divAdmin.className = "ebc-divider";
-        body.appendChild(divAdmin);
-
-        const adminLbl = document.createElement("div");
-        adminLbl.className = "ebc-section-label";
-        adminLbl.textContent = "ROOM ADMIN";
-        body.appendChild(adminLbl);
-
-        type RoomDataShape = { Locked?: boolean; Admin?: number[] };
-        const w = window as unknown as Record<string, unknown>;
-        const roomData = w.ChatRoomData as RoomDataShape | null | undefined;
-        const inRoom   = (w.CurrentScreen as string | undefined) === "ChatRoom" && roomData != null;
-        const isAdmin  = inRoom && Array.isArray(roomData?.Admin) && (roomData.Admin as number[]).includes(Player.MemberNumber);
-
-        if (!inRoom) {
-            const hint = document.createElement("div");
-            hint.className = "ebc-import-hint";
-            hint.style.marginBottom = "6px";
-            hint.textContent = "Not in a chatroom.";
-            body.appendChild(hint);
-        } else if (!isAdmin) {
-            const hint = document.createElement("div");
-            hint.className = "ebc-import-hint";
-            hint.style.marginBottom = "6px";
-            hint.textContent = "You are not a room admin.";
-            body.appendChild(hint);
-        } else {
-            const adminWrap = document.createElement("div");
-            adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;margin-bottom:8px;";
-
-            // ── Lock / Unlock ─────────────────────────────────────────────────
-            const locked = roomData?.Locked ?? false;
-            const lockBtn = document.createElement("button");
-            lockBtn.style.cssText = [
-                "width:100%",
-                "font-family:'Trebuchet MS',serif",
-                "font-size:11px",
-                "font-weight:bold",
-                "padding:8px 4px",
-                "border-radius:6px",
-                "cursor:pointer",
-                "transition:background 0.14s,border-color 0.14s",
-                locked
-                    ? "border:1px solid #cf6f98;background:#6b2040;color:#ffd0e0;"
-                    : "border:1px solid #5a9860;background:#1a3e20;color:#a0e090;",
-            ].join(";");
-            lockBtn.textContent = locked ? "🔒 Room Locked — Click to Unlock" : "🔓 Room Unlocked — Click to Lock";
-            lockBtn.title = locked ? "Unlock the room so anyone can join" : "Lock the room to prevent new joins";
-            lockBtn.addEventListener("click", () => {
-                try { ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: locked ? "Unlock" : "Lock" }); } catch { /* ignore */ }
-                // Optimistic local update — server will confirm
-                window.setTimeout(() => this.rerender(), 200);
-            });
-            adminWrap.appendChild(lockBtn);
-
-            // ── Member picker + action buttons ────────────────────────────────
-            const memberSel = document.createElement("select");
-            memberSel.className = "ebc-form-input";
-            memberSel.style.cssText = "width:100%;font-size:11px;";
-            const ph = document.createElement("option");
-            ph.value = ""; ph.textContent = "— choose member —";
-            ph.disabled = true; ph.selected = true;
-            memberSel.appendChild(ph);
-
-            const buildMemberOpts = (): void => {
-                while (memberSel.firstChild) memberSel.removeChild(memberSel.firstChild);
-                memberSel.appendChild(ph);
-                for (const m of getRoomMembers()) {
-                    if (m.id === Player.MemberNumber) continue;
-                    const opt = document.createElement("option");
-                    opt.value = String(m.id);
-                    opt.textContent = `${m.name} (#${m.id})`;
-                    memberSel.appendChild(opt);
-                }
-                ph.textContent = memberSel.children.length <= 1 ? "— no other members —" : "— choose member —";
-            };
-            buildMemberOpts();
-
-            const makeBtn = (label: string, title: string, border: string, bg: string, color: string): HTMLButtonElement => {
-                const btn = document.createElement("button");
-                btn.textContent = label;
-                btn.title = title;
-                btn.disabled = true;
-                btn.style.cssText = [
-                    "flex:1",
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:11px",
-                    "font-weight:bold",
-                    "padding:6px 4px",
-                    "border-radius:6px",
-                    "cursor:pointer",
-                    "opacity:0.45",
-                    "transition:background 0.14s,opacity 0.14s",
-                    `border:1px solid ${border}`,
-                    `background:${bg}`,
-                    `color:${color}`,
-                ].join(";");
-                return btn;
-            };
-
-            const kickBtn  = makeBtn("👢 Kick",    "Kick this member from the room",     "#7a3a1a", "#3a1a08", "#f0a060");
-            const banBtn   = makeBtn("🚫 Ban",      "Ban this member from the room",      "#7a2020", "#3a0808", "#ff8888");
-            const promBtn  = makeBtn("⭐ Promote", "Give room admin to this member",      "#3a7030", "#152a10", "#90e080");
-            const demBtn   = makeBtn("⬇ Demote",  "Remove room admin from this member",  "#3a4070", "#101828", "#80a0f0");
-
-            const allActionBtns = [kickBtn, banBtn, promBtn, demBtn];
-
-            const syncBtns = (): void => {
-                const has = memberSel.value !== "";
-                for (const b of allActionBtns) {
-                    b.disabled = !has;
-                    b.style.opacity = has ? "1" : "0.45";
-                    b.style.cursor  = has ? "pointer" : "default";
-                }
-            };
-            memberSel.addEventListener("change", syncBtns);
-
-            const sendAction = (action: string): void => {
-                const id = parseInt(memberSel.value, 10);
-                if (!id) return;
-                try { ServerSend("ChatRoomAdmin", { MemberNumber: id, Action: action }); } catch { /* ignore */ }
-            };
-
-            kickBtn.addEventListener("click", () => sendAction("Kick"));
-            banBtn.addEventListener("click",  () => sendAction("Ban"));
-            promBtn.addEventListener("click", () => sendAction("Promote"));
-            demBtn.addEventListener("click",  () => sendAction("Demote"));
-
-            const refreshBtn2 = document.createElement("button");
-            refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-            refreshBtn2.textContent = "↻";
-            refreshBtn2.title = "Refresh member list";
-            refreshBtn2.addEventListener("click", buildMemberOpts);
-
-            const selRow = document.createElement("div");
-            selRow.style.cssText = "display:flex;gap:5px;align-items:center;";
-            selRow.appendChild(memberSel);
-            selRow.appendChild(refreshBtn2);
-
-            const row1 = document.createElement("div");
-            row1.style.cssText = "display:flex;gap:5px;";
-            row1.appendChild(kickBtn);
-            row1.appendChild(banBtn);
-
-            const row2 = document.createElement("div");
-            row2.style.cssText = "display:flex;gap:5px;";
-            row2.appendChild(promBtn);
-            row2.appendChild(demBtn);
-
-            adminWrap.appendChild(selRow);
-            adminWrap.appendChild(row1);
-            adminWrap.appendChild(row2);
-            body.appendChild(adminWrap);
+        // Room emote row: custom text + announce toggle
+        const aeEmoteRow = document.createElement("div");
+        aeEmoteRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 0 0;";
+        const aeEmoteLbl = document.createElement("span");
+        aeEmoteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7888;white-space:nowrap;flex-shrink:0;";
+        aeEmoteLbl.textContent = "Room emote:";
+        const aeEmoteInput = document.createElement("input");
+        aeEmoteInput.type = "text";
+        aeEmoteInput.className = "ebc-form-input";
+        aeEmoteInput.style.cssText = "flex:1;font-size:11px;padding:2px 5px;min-width:0;";
+        aeEmoteInput.value = getEscapeEmoteText();
+        aeEmoteInput.placeholder = "glares at {restrainer} as the {item} falls away.";
+        aeEmoteInput.addEventListener("blur", () => setEscapeEmoteText(aeEmoteInput.value.trim()));
+        const aeAnnSel = document.createElement("select");
+        aeAnnSel.className = "ebc-form-input";
+        aeAnnSel.style.cssText = "font-size:11px;padding:2px 5px;flex-shrink:0;";
+        const aeAnnOpts: [string, string][] = [["1","✓ Emote"],["0","Silent"]];
+        for (const [v, annOptLbl] of aeAnnOpts) {
+            const o = document.createElement("option"); o.value = v; o.textContent = annOptLbl;
+            if (getAntiRestraintAnnounce() ? v === "1" : v === "0") o.selected = true;
+            aeAnnSel.appendChild(o);
         }
+        aeAnnSel.addEventListener("change", () => setAntiRestraintAnnounce(aeAnnSel.value === "1"));
+        aeEmoteRow.appendChild(aeEmoteLbl);
+        aeEmoteRow.appendChild(aeEmoteInput);
+        aeEmoteRow.appendChild(aeAnnSel);
+        aeCard.appendChild(aeEmoteRow);
+        const aeEmoteHint = document.createElement("div");
+        aeEmoteHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#6a4a5a;padding:2px 0 0;";
+        aeEmoteHint.textContent = "Leave blank for default · tokens: {item} · {restrainer}";
+        aeCard.appendChild(aeEmoteHint);
+        body.appendChild(aeCard);
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -20429,15 +20366,60 @@ export class EBCDrawer {
             return;
         }
 
-        // Sync selected targets: add any new targets that aren't tracked yet
-        const allTargetIds = getDomConfig().targets.map(t => t.id);
-        if (this.domSelectedTargets.size === 0) {
-            allTargetIds.forEach(id => this.domSelectedTargets.add(id));
+        // ── Dom Settings (announce) — floated into setsCard header below ─────
+        const dsSel = document.createElement("select");
+        dsSel.className = "ebc-form-input";
+        dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
+        const dsOpts: [string, string][] = [["1","✓ Emote"],["0","Silent"]];
+        for (const [v, dsOptLbl] of dsOpts) {
+            const o = document.createElement("option"); o.value = v; o.textContent = dsOptLbl;
+            if (getDomSetAnnounce() ? v === "1" : v === "0") o.selected = true;
+            dsSel.appendChild(o);
         }
-        // Remove stale IDs
-        for (const id of this.domSelectedTargets) {
-            if (!allTargetIds.includes(id)) this.domSelectedTargets.delete(id);
-        }
+        dsSel.addEventListener("change", () => setDomSetAnnounce(dsSel.value === "1"));
+
+        // ── Target row ────────────────────────────────────────────────────────
+        const targetCard = document.createElement("div");
+        targetCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+        const targetTopRow = document.createElement("div");
+        targetTopRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+        const targetLbl = document.createElement("span");
+        targetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex-shrink:0;";
+        targetLbl.textContent = "Target";
+        const qtSel = document.createElement("select");
+        qtSel.className = "ebc-form-input";
+        qtSel.style.cssText = "flex:1;font-size:11px;";
+        const qtPh = document.createElement("option");
+        qtPh.value = ""; qtPh.textContent = "— choose person —";
+        qtPh.disabled = true; qtPh.selected = true;
+        qtSel.appendChild(qtPh);
+        const qtRefresh = document.createElement("button");
+        qtRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+        qtRefresh.textContent = "↻";
+        qtRefresh.title = "Refresh room members";
+        const populateQtSel = (): void => {
+            const savedId = this.domFocusTargetId != null ? String(this.domFocusTargetId) : qtSel.value;
+            while (qtSel.firstChild) qtSel.removeChild(qtSel.firstChild);
+            qtSel.appendChild(qtPh);
+            const members = getRoomMembers();
+            for (const m of members) {
+                if (m.id === Player.MemberNumber) continue;
+                const opt = document.createElement("option");
+                opt.value = String(m.id);
+                opt.textContent = `${m.name} (#${m.id})`;
+                qtSel.appendChild(opt);
+            }
+            qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
+            if (savedId && [...qtSel.options].some(o => o.value === savedId)) qtSel.value = savedId;
+        };
+        populateQtSel();
+        qtSel.addEventListener("change", () => { this.domFocusTargetId = parseInt(qtSel.value, 10) || null; });
+        qtRefresh.addEventListener("click", populateQtSel);
+        targetTopRow.appendChild(targetLbl);
+        targetTopRow.appendChild(qtSel);
+        targetTopRow.appendChild(qtRefresh);
+        targetCard.appendChild(targetTopRow);
+        body.appendChild(targetCard);
 
         // Helper: labelled text input row
         const makeField = (label: string, value: string, prefix = "", placeholder = ""): { row: HTMLDivElement; input: HTMLInputElement } => {
@@ -20466,80 +20448,6 @@ export class EBCDrawer {
             row.appendChild(wrap);
             return { row, input };
         };
-
-        // ── Targets ──────────────────────────────────────────────────────────
-        const targLbl = document.createElement("div");
-        targLbl.className = "ebc-section-label";
-        targLbl.textContent = "Targets";
-        body.appendChild(targLbl);
-
-        const targList = document.createElement("div");
-        body.appendChild(targList);
-
-        const rebuildTargets = (): void => {
-            while (targList.firstChild) targList.removeChild(targList.firstChild);
-            for (const t of getDomConfig().targets) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.checked = this.domSelectedTargets.has(t.id);
-                cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                cb.addEventListener("change", () => {
-                    if (cb.checked) this.domSelectedTargets.add(t.id);
-                    else this.domSelectedTargets.delete(t.id);
-                });
-                row.appendChild(cb);
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-                nameEl.textContent = t.name;
-                const numEl = document.createElement("span");
-                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
-                numEl.textContent = "#" + t.id;
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#9a7080;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
-                delBtn.textContent = "×";
-                delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
-                delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#9a7080"; });
-                delBtn.addEventListener("click", () => { removeDomTarget(t.id); rebuildTargets(); rebuildAddable(); });
-                row.appendChild(nameEl); row.appendChild(numEl); row.appendChild(delBtn);
-                targList.appendChild(row);
-            }
-        };
-        rebuildTargets();
-
-        const addableWrap = document.createElement("div");
-        addableWrap.style.cssText = "margin-top:4px;margin-bottom:2px;";
-        body.appendChild(addableWrap);
-
-        const rebuildAddable = (): void => {
-            while (addableWrap.firstChild) addableWrap.removeChild(addableWrap.firstChild);
-            const addable = getRoomAddable();
-            if (addable.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                hint.textContent = "No new people in room to add.";
-                addableWrap.appendChild(hint);
-                return;
-            }
-            const addLbl = document.createElement("div");
-            addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#967281;margin-bottom:4px;";
-            addLbl.textContent = "Add from room:";
-            addableWrap.appendChild(addLbl);
-            const chipRow = document.createElement("div");
-            chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
-            for (const p of addable) {
-                const chip = document.createElement("button");
-                chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
-                chip.textContent = "+ " + p.name + " #" + p.id;
-                chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
-                chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
-                chip.addEventListener("click", () => { addDomTarget(p.id, p.name); rebuildTargets(); rebuildAddable(); });
-                chipRow.appendChild(chip);
-            }
-            addableWrap.appendChild(chipRow);
-        };
-        rebuildAddable();
 
         // ── ⛑ Room Rescue (collapsible, appended at the very end) ──────────────
         const divRescue = document.createElement("div");
@@ -20585,7 +20493,7 @@ export class EBCDrawer {
         // Hint
         const rescueHint = document.createElement("div");
         rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;";
-        rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
+        rescueHint.textContent = "Strips all locks and restraints from any room member - bypasses all lock rules.";
         rescuePanel.appendChild(rescueHint);
 
         // Person picker row
@@ -20772,9 +20680,9 @@ export class EBCDrawer {
             if (!result.found) {
                 rescueStatus.textContent = t("dom.notInRoom");
             } else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
-                rescueStatus.textContent = "Nothing to remove — they're already free.";
+                rescueStatus.textContent = "Nothing to remove - they're already free.";
             } else {
-                rescueStatus.textContent = `✓ Done — cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
+                rescueStatus.textContent = `✓ Done - cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
             }
             window.setTimeout(() => { rescueBtn.disabled = false; rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
         });
@@ -20786,28 +20694,26 @@ export class EBCDrawer {
         rescuePanel.appendChild(rescueBtn);
         rescuePanel.appendChild(rescueStatus);
 
-        // ── Release / Rescue ─────────────────────────────────────────────────
-        const divRelease = document.createElement("div");
-        divRelease.className = "ebc-divider";
-        divRelease.style.margin = "10px 0 7px";
-        body.appendChild(divRelease);
+        // ── Release Tools card ────────────────────────────────────────────────
+        const releaseCard = document.createElement("div");
+        releaseCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const releaseLbl = document.createElement("div");
-        releaseLbl.className = "ebc-section-label";
-        releaseLbl.textContent = "Release / Rescue";
-        body.appendChild(releaseLbl);
+        releaseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
+        releaseLbl.textContent = "Release Tools";
+        releaseCard.appendChild(releaseLbl);
 
-        // Quick-action row: two wide buttons
+        // Quick-action row: two wide prominent buttons
         const quickRow = document.createElement("div");
-        quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
+        quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;";
 
         const makeQuickBtn = (label: string, title: string): HTMLButtonElement => {
             const b = document.createElement("button");
-            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:9px 4px;border-radius:7px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s,border-color 0.14s;";
             b.textContent = label;
             b.title = title;
-            b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
-            b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; });
+            b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; b.style.borderColor = "#cf6f98"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; b.style.borderColor = "#7a3a50"; });
             return b;
         };
 
@@ -20815,11 +20721,11 @@ export class EBCDrawer {
         const unlockAllBtn = makeQuickBtn("🔓 All Locks", "Unlock all locked items on every target in the room");
         quickRow.appendChild(removeAllBtn);
         quickRow.appendChild(unlockAllBtn);
-        body.appendChild(quickRow);
+        releaseCard.appendChild(quickRow);
 
         const releaseStatus = document.createElement("div");
         releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-bottom:4px;";
-        body.appendChild(releaseStatus);
+        releaseCard.appendChild(releaseStatus);
 
         const showReleaseStatus = (results: Array<{ name: string; count: number; inRoom: boolean }>): void => {
             const done = results.filter(r => r.inRoom && r.count > 0).map(r => r.name + " (" + r.count + ")");
@@ -20832,106 +20738,99 @@ export class EBCDrawer {
         };
 
         removeAllBtn.addEventListener("click", () => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { releaseStatus.textContent = "Pick a target first."; window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500); return; }
             removeAllBtn.disabled = true;
-            showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets));
+            showReleaseStatus(removeAllTargetRestraints(new Set([id])));
             window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
         });
 
         unlockAllBtn.addEventListener("click", () => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { releaseStatus.textContent = "Pick a target first."; window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500); return; }
             unlockAllBtn.disabled = true;
-            showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets));
+            showReleaseStatus(unlockAllTargetItems(new Set([id])));
             window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
         });
 
         // ── "Pick items to remove" picker ─────────────────────────────────────
-        const pickToggle = document.createElement("button");
-        pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-        pickToggle.textContent = "↓ Pick items to remove";
-        body.appendChild(pickToggle);
+        const pickToggle = document.createElement("div");
+        pickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;margin-bottom:4px;";
+        pickToggle.addEventListener("mouseenter", () => { pickToggle.style.background = "rgba(42,20,33,0.6)"; });
+        pickToggle.addEventListener("mouseleave", () => { pickToggle.style.background = "#1e0d18"; });
+        const pickLbl = document.createElement("span");
+        pickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;letter-spacing:0.04em;";
+        pickLbl.textContent = "Pick items to remove";
+        const pickArrow = document.createElement("span");
+        pickArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+        pickArrow.textContent = "▼";
+        pickToggle.appendChild(pickLbl);
+        pickToggle.appendChild(pickArrow);
+        releaseCard.appendChild(pickToggle);
 
         const pickPanel = document.createElement("div");
-        pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:6px;";
-        body.appendChild(pickPanel);
-
-        // selection state: targetId → Set of group names
-        const pendingRemove = new Map<number, Set<string>>();
+        pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;";
+        releaseCard.appendChild(pickPanel);
+        body.appendChild(releaseCard);
 
         const rebuildPickPanel = (): void => {
             while (pickPanel.firstChild) pickPanel.removeChild(pickPanel.firstChild);
-            pendingRemove.clear();
-
-            const sections = getTargetRestraints();
-            if (sections.length === 0) {
+            const selectedId = parseInt(qtSel.value, 10);
+            if (!selectedId) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                hint.textContent = "No targets are in the room right now.";
+                hint.textContent = "Select a target first.";
                 pickPanel.appendChild(hint);
                 return;
             }
-
-            for (const { target, items } of sections) {
-                pendingRemove.set(target.id, new Set());
-
-                const targHdr = document.createElement("div");
-                targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
-                targHdr.textContent = target.name;
-                pickPanel.appendChild(targHdr);
-
-                if (items.length === 0) {
-                    const none = document.createElement("div");
-                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:1px 4px 4px;";
-                    none.textContent = "No restraints worn.";
-                    pickPanel.appendChild(none);
-                    continue;
-                }
-
-                const itemsWrap = document.createElement("div");
-                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
-
-                for (const item of items) {
-                    const lbl3 = document.createElement("label");
-                    lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
-                    lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
-                    lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
-                    const cb2 = document.createElement("input");
-                    cb2.type = "checkbox";
-                    cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                    cb2.addEventListener("change", () => {
-                        const sel = pendingRemove.get(target.id)!;
-                        if (cb2.checked) sel.add(item.group);
-                        else sel.delete(item.group);
-                    });
-                    const cbN = document.createElement("span");
-                    cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    cbN.textContent = item.name;
-                    const cbG = document.createElement("span");
-                    cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                    cbG.textContent = item.group.replace("Item", "");
-                    lbl3.appendChild(cb2); lbl3.appendChild(cbN); lbl3.appendChild(cbG);
-                    itemsWrap.appendChild(lbl3);
-                }
-                pickPanel.appendChild(itemsWrap);
+            const items = getRoomMemberItems(selectedId);
+            if (items.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
+                hint.textContent = "No items found (not in room?).";
+                pickPanel.appendChild(hint);
+                return;
             }
-
-            // Remove selected button
+            const pendingGroups = new Set<string>();
+            const itemsWrap = document.createElement("div");
+            itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
+            for (const item of items) {
+                const lbl3 = document.createElement("label");
+                lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
+                lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
+                lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
+                const cb2 = document.createElement("input");
+                cb2.type = "checkbox";
+                cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                cb2.addEventListener("change", () => {
+                    if (cb2.checked) pendingGroups.add(item.group);
+                    else pendingGroups.delete(item.group);
+                });
+                const lockIco = document.createElement("span");
+                lockIco.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
+                lockIco.textContent = item.locked ? "🔒" : "";
+                const cbN = document.createElement("span");
+                cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                cbN.textContent = item.name;
+                const cbG = document.createElement("span");
+                cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                cbG.textContent = item.group.replace("Item", "");
+                lbl3.appendChild(cb2); lbl3.appendChild(lockIco); lbl3.appendChild(cbN); lbl3.appendChild(cbG);
+                itemsWrap.appendChild(lbl3);
+            }
+            pickPanel.appendChild(itemsWrap);
             const removeSelBtn = document.createElement("button");
             removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
             removeSelBtn.textContent = "Remove Selected";
             removeSelBtn.addEventListener("click", () => {
-                const results: Array<{ name: string; count: number; inRoom: boolean }> = [];
-                const cfg5 = getDomConfig();
-                for (const [targetId, groups] of pendingRemove) {
-                    if (groups.size === 0) continue;
-                    const target = cfg5.targets.find(t => t.id === targetId);
-                    const res = removeTargetItems(targetId, [...groups]);
-                    results.push({ name: target?.name ?? String(targetId), ...res });
-                }
-                if (results.length === 0) {
+                if (pendingGroups.size === 0) {
                     releaseStatus.textContent = "Nothing selected.";
-                } else {
-                    showReleaseStatus(results);
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                    return;
                 }
-                // Refresh picker to reflect new state
+                const count = removeItemsFromMember(selectedId, [...pendingGroups]);
+                releaseStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+                window.setTimeout(() => { releaseStatus.textContent = ""; }, 3000);
                 rebuildPickPanel();
             });
             pickPanel.appendChild(removeSelBtn);
@@ -20940,34 +20839,46 @@ export class EBCDrawer {
         pickToggle.addEventListener("click", () => {
             const isOpenNow = pickPanel.style.display === "none";
             pickPanel.style.display = isOpenNow ? "flex" : "none";
-            pickToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
-            pickToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+            pickArrow.textContent = isOpenNow ? "▲" : "▼";
+            pickToggle.style.borderColor = isOpenNow ? "#5a2840" : "#3a1928";
+            pickToggle.style.background = isOpenNow ? "#2a0e1e" : "#1e0d18";
             if (isOpenNow) rebuildPickPanel();
         });
 
-        // ── Restraint Sets ───────────────────────────────────────────────────
-        const div1 = document.createElement("div");
-        div1.className = "ebc-divider";
-        div1.style.margin = "10px 0 7px";
-        body.appendChild(div1);
+        // ── Restraint Sets card ────────────────────────────────────────────────
+        const setsCard = document.createElement("div");
+        setsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const setsHeader = document.createElement("div");
-        setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+        setsHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
         const setsLbl = document.createElement("div");
-        setsLbl.className = "ebc-section-label";
-        setsLbl.style.margin = "0";
-        setsLbl.textContent = t("kitty.restraintSets");
+        setsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;flex:1;display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;";
+        const setsArrow = document.createElement("span");
+        setsArrow.style.cssText = "font-size:10px;color:#7a5060;flex-shrink:0;";
+        setsArrow.textContent = "▼";
+        setsLbl.appendChild(setsArrow);
+        const setsLblText = document.createElement("span");
+        setsLblText.textContent = t("kitty.restraintSets");
+        setsLbl.appendChild(setsLblText);
+        let setsExpanded = true;
+        setsLbl.addEventListener("click", () => {
+            setsExpanded = !setsExpanded;
+            setsContainer.style.display = setsExpanded ? "" : "none";
+            setsArrow.textContent = setsExpanded ? "▼" : "▶";
+        });
         const newSetBtn = document.createElement("button");
-        newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+        newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;flex-shrink:0;";
         newSetBtn.textContent = t("dom.newSet");
         newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
         setsHeader.appendChild(setsLbl);
+        setsHeader.appendChild(dsSel);
         setsHeader.appendChild(newSetBtn);
-        body.appendChild(setsHeader);
+        setsCard.appendChild(setsHeader);
 
         const setsContainer = document.createElement("div");
-        body.appendChild(setsContainer);
+        setsCard.appendChild(setsContainer);
+        body.appendChild(setsCard);
 
         let activeEditorId: string | null = null;
 
@@ -20978,7 +20889,7 @@ export class EBCDrawer {
             if (cfg.sets.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
-                hint.textContent = "No sets yet — create one with + New Set.";
+                hint.textContent = "No sets yet - create one with + New Set.";
                 setsContainer.appendChild(hint);
             }
 
@@ -21006,13 +20917,21 @@ export class EBCDrawer {
                 applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
 
                 const editBtn = document.createElement("button");
-                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
-                editBtn.textContent = "✎";
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid #5a2f45;background:rgba(42,20,33,0.5);color:#cf6f98;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;letter-spacing:0.03em;";
+                editBtn.textContent = "✎ Edit";
                 editBtn.title = "Edit set";
-                editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#2a1421"; editBtn.style.color = "#cf6f98"; });
-                editBtn.addEventListener("mouseleave", () => { editBtn.style.background = ""; editBtn.style.color = "#967281"; });
+                editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#3a1830"; editBtn.style.color = "#f09ab8"; });
+                editBtn.addEventListener("mouseleave", () => { editBtn.style.background = "rgba(42,20,33,0.5)"; editBtn.style.color = "#cf6f98"; });
 
                 setRow.appendChild(setInfo);
+                // Bound target badge
+                if (set.targetId) {
+                    const targetBadge = document.createElement("span");
+                    targetBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf9040;background:rgba(50,30,10,0.7);border:1px solid #7a4a1a;border-radius:4px;padding:1px 6px;flex-shrink:0;white-space:nowrap;";
+                    targetBadge.textContent = "→ " + (set.targetName || "#" + set.targetId);
+                    targetBadge.title = "Bound target — this set always applies to this person";
+                    setRow.appendChild(targetBadge);
+                }
                 setRow.appendChild(applyBtn);
                 setRow.appendChild(editBtn);
                 setsContainer.appendChild(setRow);
@@ -21024,7 +20943,15 @@ export class EBCDrawer {
 
                 applyBtn.addEventListener("click", () => {
                     applyBtn.disabled = true;
-                    const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets);
+                    // Bound target takes priority; fall back to the TARGET dropdown
+                    const id = set.targetId || parseInt(qtSel.value, 10);
+                    if (!id) {
+                        applyStatus.textContent = "Pick a target first (or bind one in Edit).";
+                        applyStatus.style.display = "block";
+                        window.setTimeout(() => { applyBtn.disabled = false; applyStatus.style.display = "none"; }, 2500);
+                        return;
+                    }
+                    const { applied, skipped } = applyDomSet(set.id, new Set([id]));
                     const parts: string[] = [];
                     if (applied.length) parts.push("✓ " + applied.join(", "));
                     if (skipped.length) parts.push("⟳ not in room: " + skipped.join(", "));
@@ -21050,6 +20977,47 @@ export class EBCDrawer {
                 tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:0 0 6px;";
                 tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
                 editor.appendChild(tokenHint);
+
+                // ── Bound target ──────────────────────────────────────────────
+                const tbWrap = document.createElement("div");
+                tbWrap.style.cssText = "margin-bottom:7px;";
+                const tbLbl = document.createElement("label");
+                tbLbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
+                tbLbl.textContent = "Always apply to";
+                tbWrap.appendChild(tbLbl);
+                const tbSel = document.createElement("select");
+                tbSel.className = "ebc-form-input";
+                tbSel.style.cssText = "width:100%;font-size:11px;";
+                const tbPh = document.createElement("option");
+                tbPh.value = ""; tbPh.textContent = "— use current TARGET dropdown —";
+                tbSel.appendChild(tbPh);
+                // Populate with room members
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    if (set.targetId === m.id) opt.selected = true;
+                    tbSel.appendChild(opt);
+                }
+                // If bound target is not currently in room, show a placeholder entry
+                if (set.targetId && !getRoomMembers().some(m => m.id === set.targetId)) {
+                    const opt = document.createElement("option");
+                    opt.value = String(set.targetId);
+                    opt.textContent = `${set.targetName ?? String(set.targetId)} (not in room)`;
+                    opt.selected = true;
+                    tbSel.appendChild(opt);
+                }
+                tbSel.addEventListener("change", () => {
+                    const id = parseInt(tbSel.value, 10) || null;
+                    const name = id
+                        ? (tbSel.selectedOptions[0]?.textContent?.replace(/ \(#\d+\)$/, "").replace(/ \(not in room\)$/, "") ?? String(id))
+                        : "";
+                    setDomSetTarget(set.id, id, name);
+                    rebuildSets();
+                });
+                tbWrap.appendChild(tbSel);
+                editor.appendChild(tbWrap);
 
                 const saveBtn = document.createElement("button");
                 saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
@@ -21081,7 +21049,7 @@ export class EBCDrawer {
                     if (items.length === 0) {
                         const hint2 = document.createElement("div");
                         hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                        hint2.textContent = "No items yet — import from a BC code below.";
+                        hint2.textContent = "No items yet - import from a BC code below.";
                         itemListEl.appendChild(hint2);
                         return;
                     }
@@ -21194,7 +21162,7 @@ export class EBCDrawer {
                     importMsg.style.color = "#79a885";
                     const rCount = restraints.length;
                     const cCount = clothing.length;
-                    importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing — check what to add:";
+                    importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing - check what to add:";
                 });
 
                 const useSelectedBtn = document.createElement("button");
@@ -21303,6 +21271,185 @@ export class EBCDrawer {
             rebuildSets();
             body.scrollTop = body.scrollHeight;
         });
+
+        // ── Actions card — Quick Actions + Poses + Toy Control ──────────────────
+        const actionsCard = document.createElement("div");
+        actionsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
+        const actionsLbl = document.createElement("div");
+        actionsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:2px;";
+        actionsLbl.textContent = "Actions";
+        actionsCard.appendChild(actionsLbl);
+
+        // Helper: build an accordion section inside a container
+        const makeDomAccordion = (icon: string, title: string, container: HTMLElement): {
+            hdr: HTMLDivElement; panel: HTMLDivElement; arrow: HTMLSpanElement; isOpen: () => boolean
+        } => {
+            const divider = document.createElement("div");
+            divider.className = "ebc-divider";
+            divider.style.margin = "4px 0 0";
+            container.appendChild(divider);
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
+            hdr.addEventListener("mouseenter", () => { hdr.style.background = "rgba(42,20,33,0.5)"; });
+            hdr.addEventListener("mouseleave", () => { hdr.style.background = ""; });
+            const icoEl = document.createElement("span");
+            icoEl.textContent = icon; icoEl.style.cssText = "font-size:11px;flex-shrink:0;";
+            const lblEl = document.createElement("span");
+            lblEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
+            lblEl.textContent = title;
+            const arrow = document.createElement("span");
+            arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
+            arrow.textContent = "▼";
+            hdr.appendChild(icoEl); hdr.appendChild(lblEl); hdr.appendChild(arrow);
+            const panel = document.createElement("div");
+            panel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 8px 8px;";
+            let open = false;
+            hdr.addEventListener("click", () => {
+                open = !open;
+                panel.style.display = open ? "flex" : "none";
+                arrow.textContent = open ? "▲" : "▼";
+            });
+            container.appendChild(hdr);
+            container.appendChild(panel);
+            return { hdr, panel, arrow, isOpen: () => open };
+        };
+
+        // ── ⚡ Quick Actions ───────────────────────────────────────────────────
+        const { panel: actPanel } = makeDomAccordion("⚡", "QUICK ACTIONS", actionsCard);
+
+        const actHint = document.createElement("div");
+        actHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+        actHint.textContent = "Sends a visible room emote for each action.";
+        actPanel.appendChild(actHint);
+
+        const ACT_DEFS: ReadonlyArray<[string, string, string, string]> = [
+            ["👋", "Spank",   "Spank",   "ItemButt"],
+            ["🖐", "Pat",     "Pat",     "ItemHead"],
+            ["💋", "Kiss",    "Kiss",    "ItemHead"],
+            ["🦷", "Bite",    "Bite",    "ItemNeck"],
+            ["✋", "Slap",    "Slap",    "ItemHead"],
+            ["🖐", "Caress",  "Caress",  "ItemArms"],
+            ["💆", "Massage", "Massage", "ItemLegs"],
+            ["🫦", "Lick",    "Lick",    "ItemHead"],
+        ];
+
+        const actGrid = document.createElement("div");
+        actGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+        const actStatus = document.createElement("div");
+        actStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+
+        for (const [emoji, label, actName, zone] of ACT_DEFS) {
+            const btn = document.createElement("button");
+            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+            btn.textContent = `${emoji} ${label}`;
+            btn.title = `${actName} (${zone})`;
+            btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+            btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+            btn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) { actStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { actStatus.textContent = ""; }, 2500); return; }
+                const ok = performActivityOnTarget(id, actName, zone);
+                actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
+                window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
+            });
+            actGrid.appendChild(btn);
+        }
+        actPanel.appendChild(actGrid);
+        actPanel.appendChild(actStatus);
+
+        // ── 🧎 Poses ──────────────────────────────────────────────────────────
+        const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
+
+        const POSE_DEFS: ReadonlyArray<[string, string, string[]]> = [
+            ["🚶", "Stand",     []],
+            ["🧎", "Kneel",     ["Kneel"]],
+            ["🐈", "All Fours", ["AllFours"]],
+            ["🙌", "Hands Up",  ["OverTheHead"]],
+            ["🫸", "Spread",    ["KneelingSpread"]],
+            ["🤸", "Kneel+Up",  ["Kneel","OverTheHead"]],
+        ];
+
+        const poseGrid = document.createElement("div");
+        poseGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+        const poseStatus = document.createElement("div");
+        poseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+
+        for (const [emoji, label, poses] of POSE_DEFS) {
+            const btn = document.createElement("button");
+            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+            btn.textContent = `${emoji} ${label}`;
+            btn.title = poses.length ? poses.join("+") : "Clear all poses";
+            btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+            btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+            btn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) { poseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { poseStatus.textContent = ""; }, 2500); return; }
+                setTargetPoses(id, poses, label);
+                poseStatus.textContent = `✓ ${label} applied.`;
+                window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
+            });
+            poseGrid.appendChild(btn);
+        }
+        posePanel.appendChild(poseGrid);
+        posePanel.appendChild(poseStatus);
+
+        // ── 🎮 Toy Control ────────────────────────────────────────────────────
+        const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
+
+        // BC vibrator mode names: Off, Low, Medium, High, Maximum, Tease, Random, Escalate, Edge
+        const TOY_MODES: ReadonlyArray<[string, string, string, string]> = [
+            ["⏹", "Off",       "#2a1020", "Off"],
+            ["🔅", "Low",       "#1a2030", "Low"],
+            ["🔆", "Medium",    "#1a3020", "Medium"],
+            ["⚡", "High",      "#302010", "High"],
+            ["🔥", "Max",       "#3a1010", "Maximum"],
+            ["😤", "Tease",     "#1a2a30", "Tease"],
+            ["🎲", "Random",    "#2a1a30", "Random"],
+            ["📈", "Escalate",  "#3a0e18", "Escalate"],
+        ];
+
+        const toyHint = document.createElement("div");
+        toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
+        toyHint.textContent = "Sets all vibrating toys on the Focus Target.";
+        toyPanel.appendChild(toyHint);
+
+        const toyGrid = document.createElement("div");
+        toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+        const toyStatus = document.createElement("div");
+        toyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
+
+        const toyInfoEl = document.createElement("div");
+        toyInfoEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:13px;margin-top:3px;font-style:italic;";
+
+        const refreshToyInfo = (): void => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { toyInfoEl.textContent = ""; return; }
+            const toys = getTargetVibratingItems(id);
+            if (toys.length === 0) { toyInfoEl.textContent = "No toys detected."; return; }
+            toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+        };
+        qtSel.addEventListener("change", refreshToyInfo);
+
+        for (const [emoji, label, bg, bcMode] of TOY_MODES) {
+            const btn = document.createElement("button");
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
+            btn.textContent = `${emoji} ${label}`;
+            btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; });
+            btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#5a3a50"; });
+            btn.addEventListener("click", () => {
+                const id = parseInt(qtSel.value, 10);
+                if (!id) { toyStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { toyStatus.textContent = ""; }, 2500); return; }
+                setTargetToyMode(id, bcMode);
+                toyStatus.textContent = `✓ Set to ${label}.`;
+                window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); }, 1500);
+            });
+            toyGrid.appendChild(btn);
+        }
+        toyPanel.appendChild(toyGrid);
+        toyPanel.appendChild(toyStatus);
+        toyPanel.appendChild(toyInfoEl);
+        body.appendChild(actionsCard);
 
         // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
         body.appendChild(divRescue);

@@ -116,7 +116,14 @@ export function resolveName(memberNumber: number): string {
             return name;
         }
     } catch { /* ignore */ }
-    return getCachedNames()[String(memberNumber)] ?? `#${memberNumber}`;
+    // Prefer cached display name, then cached account name, then #number fallback.
+    // Account name is used as fallback so friends show their real name even if the
+    // display-name cache (friendNames) hasn't been populated yet for this member.
+    const displayName = getCachedNames()[String(memberNumber)];
+    if (displayName) return displayName;
+    const accountName = getCachedAccountNames()[String(memberNumber)];
+    if (accountName) return accountName;
+    return `#${memberNumber}`;
 }
 
 // -- Friend list ---------------------------------------------------------------
@@ -274,6 +281,32 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             store.lastSeen = data;
             sync();
         } catch { /* ignore */ }
+    }
+
+    // Notify for watched friends who just came online.
+    // Skip the very first call after load (prevOnline is empty = not yet populated).
+    if (prevOnline.size > 0 && _onFriendCameOnline) {
+        const watchList = getOnlineWatchList();
+        if (watchList.length > 0) {
+            // Build a name map directly from entries — avoids cache-miss issues on first login.
+            const entryNames = new Map<number, string>();
+            for (const r of entries) {
+                const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                const name = typeof r.MemberName === "string" && r.MemberName ? r.MemberName : null;
+                if (n && name) entryNames.set(n, name);
+            }
+            for (const num of watchList) {
+                if (onlineSet.has(num) && !prevOnline.has(num)) {
+                    // Capture the fallback name now (from entries), but delay the callback
+                    // by one tick so BC's own AccountQueryResult handler has run first and
+                    // Player.FriendNames is fully populated — then showOnlineToast can read
+                    // the authoritative name directly from there.
+                    const fallbackName = entryNames.get(num) ?? getCachedNames()[String(num)] ?? getCachedAccountNames()[String(num)] ?? `#${num}`;
+                    const cb = _onFriendCameOnline;
+                    window.setTimeout(() => { try { cb?.(num, fallbackName); } catch { /* ignore */ } }, 0);
+                }
+            }
+        }
     }
 
     // Re-deliver any messages that were sent while the recipient was offline.
@@ -473,6 +506,34 @@ export function togglePinFriend(memberNumber: number): boolean {
     return idx < 0; // true = now pinned
 }
 
+// -- Online watch list --------------------------------------------------------
+
+let _onFriendCameOnline: ((memberNumber: number, name: string) => void) | null = null;
+
+export function setOnFriendCameOnlineCallback(fn: (memberNumber: number, name: string) => void): void {
+    _onFriendCameOnline = fn;
+}
+
+export function getOnlineWatchList(): number[] {
+    const v = getSettings().onlineWatchList;
+    return Array.isArray(v) ? (v as number[]) : [];
+}
+
+export function isOnWatchList(memberNumber: number): boolean {
+    return getOnlineWatchList().includes(memberNumber);
+}
+
+export function toggleOnlineWatch(memberNumber: number): boolean {
+    const store = getSettings();
+    const list = getOnlineWatchList();
+    const idx = list.indexOf(memberNumber);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.unshift(memberNumber);
+    store.onlineWatchList = list;
+    sync();
+    return idx < 0; // true = now watching
+}
+
 // -- Tags ----------------------------------------------------------------------
 
 export interface FriendTag {
@@ -644,6 +705,11 @@ export function storeRawBundle(data: unknown): void {
  */
 export async function getCharacterBundle(memberNumber: number): Promise<unknown | null> {
     return sessionCharacterBundles.get(memberNumber) ?? null;
+}
+
+/** Synchronous check — true if a session bundle exists for this member. */
+export function hasSessionBundle(memberNumber: number): boolean {
+    return sessionCharacterBundles.has(memberNumber);
 }
 
 // -- Sending -------------------------------------------------------------------

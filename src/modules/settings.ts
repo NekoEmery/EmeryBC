@@ -88,6 +88,44 @@ export function setAntiRestraintEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Auto-escape emote (announce) -----------------------------------------------
+// When false, auto-escape removes restraints silently (no room emote).
+
+export function getAntiRestraintAnnounce(): boolean {
+    try { return getSettings()?.antiRestraintAnnounce !== false; } catch { return true; }
+}
+
+export function setAntiRestraintAnnounce(value: boolean): void {
+    try { const s = getSettings(); s.antiRestraintAnnounce = value; syncSettings(); } catch { /* ignore */ }
+}
+
+// -- Escape emote custom text ---------------------------------------------------
+// Optional custom text for the auto-escape room emote.
+// Tokens: {item} = item name, {restrainer} = who applied it.
+// When empty, falls back to the default glare emote text.
+
+export function getEscapeEmoteText(): string {
+    try {
+        const v = (getSettings() as Record<string, unknown>)?.escapeEmoteText;
+        return typeof v === "string" ? v : "";
+    } catch { return ""; }
+}
+
+export function setEscapeEmoteText(text: string): void {
+    try { const s = getSettings() as Record<string, unknown>; s.escapeEmoteText = text; syncSettings(); } catch { /* ignore */ }
+}
+
+// -- Dom set announce -----------------------------------------------------------
+// When false, applying a restraint set sends no room emote.
+
+export function getDomSetAnnounce(): boolean {
+    try { return getSettings()?.domSetAnnounce !== false; } catch { return true; }
+}
+
+export function setDomSetAnnounce(value: boolean): void {
+    try { const s = getSettings(); s.domSetAnnounce = value; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Anti-restraint whitelist --------------------------------------------------
 // Group names that auto-escape will never touch, even when applied by others.
 // Populated by the user from the Settings UI while wearing the items.
@@ -178,6 +216,50 @@ export function setSuppressNativeBeep(value: boolean): void {
     try {
         const store = getSettings();
         store.suppressNativeBeep = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Show member numbers -------------------------------------------------------
+// Draws a small #number pill on every character in the chat room.
+
+export function getShowMemberNumbers(): boolean {
+    try { return getSettings()?.showMemberNumbers !== false; } catch { return true; }
+}
+
+export function setShowMemberNumbers(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.showMemberNumbers = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Online friend notification sound -----------------------------------------
+
+export function getOnlineSoundEnabled(): boolean {
+    try { return getSettings()?.onlineSoundEnabled !== false; } catch { return true; }
+}
+
+export function setOnlineSoundEnabled(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.onlineSoundEnabled = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Use native BC beep sound --------------------------------------------------
+// When on, skip the addon's custom beep sound and let BC's native beep play.
+
+export function getUseNativeBeepSound(): boolean {
+    try { return getSettings()?.useNativeBeepSound === true; } catch { return false; }
+}
+
+export function setUseNativeBeepSound(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.useNativeBeepSound = value;
         syncSettings();
     } catch { /* ignore */ }
 }

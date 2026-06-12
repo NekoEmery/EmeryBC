@@ -7,14 +7,14 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.5";
+const MOD_VERSION = "5.4.6";
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,19 +38,237 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.4.5",
+        version: "5.4.6",
         changes: [
-            "Release build incorporating all dev improvements since v5.4.4.",
-            "Fix: EBC tag Export/Import now correctly writes to in-memory settings before flushing, so imports are no longer overwritten on the next sync.",
-            "Fix: ExtensionSettings reduced from ~131 KB to ~74 KB. beepHistory capped at 100 entries (stripped of mod metadata), name caches capped at 500 entries, one-time pruning pass on first load.",
-            "Fix: peopleMet now uses hybrid storage — last 150 entries synced cross-device via server, full unlimited history stored in local browser cache.",
-            "Fix: Release Restraints now skips only ownership locks (owner/lover/family/exclusive), not the outfit whitelist. Whitelisted slots are now correctly released by explicit release commands.",
-            "Fix: Outfit changes now preserve items locked by owner/lover/family/exclusive padlocks regardless of what the saved outfit contains.",
-            "Fix: /!\\ warning triangle above head caused by stale 'EmeryBC' key in OnlineSettings from old versions — cleaned up automatically on load.",
-            "Fix: Beep window Send button no longer cut off on tablet/mobile screens.",
-            "Fix: Release Restraints now uses direct array filtering instead of InventoryRemove, which could silently refuse in some BC permission states.",
-            "Fix: EBC version badges now persist across script reloads using a localStorage-backed cache.",
-            "Fix: Removed Dexie/IndexedDB dependency entirely — eliminated a source of unhandled Promise rejections in Chrome.",
+            "Dom tab redesign: Quick Actions, Expressions, Poses, Toy Control, collapsible sets, per-set bound targets, custom escape emote, configurable bound timer exclusions.",
+            "Shift+Enter in emote (*) messages now inserts a newline instead of sending.",
+            "Option to use BC's native beep sound instead of EBC's custom sound.",
+            "Online notifications: get a toast + optional sound when watched friends come online.",
+            "UI zoom (70%–200%) now also scales beep windows — useful on 2K/4K monitors. Reset button added.",
+            "Fix: friend names no longer get wiped after using EBC on a second device (tablet/phone).",
+        ],
+    },
+    {
+        version: "6.5.3",
+        changes: [
+            "Fix: Friend names no longer get wiped after using EBC on a second device (tablet/phone). Root cause: flushToExtensionSettings was a plain overwrite — a device that had only seen a few friends in its session pushed its tiny name cache over the full desktop cache. Fix: name cache dicts (friendNames, friendAccountNames) are now merged with the server copy instead of overwriting it, so the larger cache always wins.",
+        ],
+    },
+    {
+        version: "6.5.2",
+        changes: [
+            "Fix: Text size reset is now a dedicated ↺ icon button next to the percentage. Button is dimmed when already at 100%, pink and active when not.",
+        ],
+    },
+    {
+        version: "6.5.1",
+        changes: [
+            "Fix: Text size percentage label is now clickable to reset to 100% when not at default. Label brightens and shows a tooltip to indicate it's interactive.",
+        ],
+    },
+    {
+        version: "6.5.0",
+        changes: [
+            "Feature: UI zoom now scales beep windows and group beep windows in addition to the EBC panel. Setting the slider live-updates all open windows immediately.",
+            "Feature: UI zoom range extended from 80%–140% to 70%–200%, making the addon fully usable on 2K/4K monitors at native resolution.",
+        ],
+    },
+    {
+        version: "6.4.4",
+        changes: [
+            "Fix: Online notification now shows the friend's actual name. Root cause: EBC's hook fired before BC's own AccountQueryResult handler populated Player.FriendNames. Fix: callback is delayed one tick (setTimeout 0) so BC's handler runs first; showOnlineToast reads Player.FriendNames directly as the authoritative source.",
+            "Feature: Online notification toast now has a pulsing green dot icon.",
+        ],
+    },
+    {
+        version: "6.4.3",
+        changes: [
+            "Fix: Removed member number pills from character sprites (wrong feature). Fix: Online notification toast now shows the friend's actual name — name is taken directly from the AccountQueryResult entry data, bypassing the name cache entirely, so it's always correct even on first login.",
+        ],
+    },
+    {
+        version: "6.4.2",
+        changes: [
+            "Feature: Member number pills — a small #number label is drawn near the feet of every character in the chat room. Toggled via 'Show member #s' card in the Badge settings tab. On by default.",
+            "Feature: Online notification sound — plays a soft ascending tone when a watched friend comes online. Toggled via 'Sound when friend comes online' in Beep/Chat settings.",
+        ],
+    },
+    {
+        version: "6.4.1",
+        changes: [
+            "Fix: Online notification toast now uses proper name resolution (resolveName — falls back to account name, not just #number). Toast redesigned with EBC pink border and high-contrast text so it's easy to spot. Watch button in friend expand panel no longer uses emoji.",
+        ],
+    },
+    {
+        version: "6.4.0",
+        changes: [
+            "Fix: Shift+Enter in *emote messages now inserts a newline as in vanilla BC instead of sending. Both the capture-phase keydown listener and the ChatRoomKeyDown mod hook now check for shiftKey before triggering command handlers.",
+            "Feature: New 'Use BC native beep sound' setting — when enabled, skips EBC's custom beep tone and plays BC's own notification sound (also re-enables BC's beep popup). Found in the Beep/Chat settings section.",
+            "Feature: Online friend notifications — click 'Notify online' in any friend's expanded row to watch them. A green toast appears when they come online. First FriendList update after load is always skipped to avoid false positives on login.",
+        ],
+    },
+    {
+        version: "6.3.2",
+        changes: [
+            "Fix: Quick actions no longer cause 'Failed to load — no supported source found' audio errors. Root cause: Content was set to the raw display text; BC's audio system derives the sound file path from Content, so an unknown Content key returned null and HTMLMediaElement.play() rejected. Fix: Content now uses BC's 'Player<Activity>' format (e.g. 'PlayerKiss') so BC resolves the audio path correctly. Added FocusGroup tag for R113+ zone compatibility alongside AssetGroupName. Custom descriptions kept as MISSING TEXT fallback.",
+        ],
+    },
+    {
+        version: "6.3.1",
+        changes: [
+            "Fix: Toy control reworked - when ExtendedItemSetValue is available it is called with publish=true so BC handles derived-state (Effect/Intensity) AND the server push itself. Fallback path now uses InventoryGet for the canonical item reference and pushes via ChatRoomCharacterUpdate directly without calling CharacterRefresh first (CharacterRefresh was resetting in-flight property changes before the server push).",
+        ],
+    },
+    {
+        version: "6.3.0",
+        changes: [
+            "Fix: Quick actions (Kiss, Spank, etc.) now send Type:Activity messages so BC plays the correct facial expressions and sounds on the target — previously only sent a plain text emote with no animation.",
+            "Fix: Toy control mode buttons now use BC's ExtendedItemSetValue API when available so derived item fields (Effect etc.) are updated correctly, then fall back to a property-spread that preserves existing fields. Improved vibrating-item detection (exact archetype match).",
+            "UX: Replaced Tickle quick action with Pat (targets ItemHead, uses Caress animation).",
+        ],
+    },
+    {
+        version: "6.2.9",
+        changes: [
+            "Feature: Restraint Sets card is now collapsible - click the section label to show/hide the sets list.",
+            "Feature: Per-set bound target - open a set's Edit panel and set 'Always apply to' to a specific person. The Apply button and the /command for that set will always target that person regardless of the TARGET dropdown. Bound target shown as an amber badge on the set row.",
+            "Fix: Restraint set Apply button and /commands now work for anyone in the room - previously required the target to be in the legacy saved-targets list.",
+        ],
+    },
+    {
+        version: "6.2.8",
+        changes: [
+            "UX: Removed Room Admin card from dom tab (was always showing 'not an admin' and wasting space).",
+            "Feature: Auto-Escape custom room emote - type any emote text; tokens {item} and {restrainer} are replaced at escape time. Leave blank to keep the default glare emote.",
+            "UX: Dom tab layout redesign - merged Targets and Focus Target into a single compact TARGET selector at the top. One dropdown controls all operations (release tools, restraint sets, quick actions, poses, toys). Reduced vertical scrolling, Actions card is now clean with no redundant target picker inside it.",
+            "Fix: Pick items to remove now shows the currently selected target's items (locks included) instead of iterating all saved targets.",
+        ],
+    },
+    {
+        version: "6.2.7",
+        changes: [
+            "UX: Dom tab deep cleanup - removed redundant DOM TOOLS banner, folded 'Announce restraint sets' setting into the Sets card header, grouped Focus Target + Quick Actions + Poses + Toy Control into a single Actions card.",
+            "Fix: Card backgrounds corrected (were darker than the panel, now properly elevated).",
+        ],
+    },
+    {
+        version: "6.2.6",
+        changes: [
+            "UX: Dom tab visual redesign - all main sections (Auto-Escape, Room Admin, Targets, Release Tools, Restraint Sets) now use clean card containers with consistent styling.",
+            "Fix: Removed remaining scissors icon from dom tab 'Pick items to remove' toggle.",
+            "Fix: Removed scissors icon and renamed 'Release / Rescue' section to 'Release Tools'.",
+        ],
+    },
+    {
+        version: "6.2.5",
+        changes: [
+            "UX: Removed neck exclusion toggle chip from the footer status bar.",
+            "UX: Removed icon from 'Pick restraints to remove' header - cleaner look.",
+            "UX: Removed Expressions accordion from dom tab.",
+            "Fix: Quick Action buttons now send visible room emotes instead of broken BC activity calls (no more MISSING ACTIVITY DESCRIPTION errors).",
+            "Fix: Pose setter now directly assigns ActivePose array - fixes Kneel+Up and all multi-pose combos. Also sends a room emote so others see what's happening.",
+            "Fix: Toy control - correct BC mode names (Escalate replaces Auto, Tease added), better vibrator detection across BC versions, room emote on mode change.",
+            "Fix: Replace em-dashes (—) with hyphens (-) in all dom tab status and description strings.",
+        ],
+    },
+    {
+        version: "6.2.4",
+        changes: [
+            "Fix: Room Admin 'not in a chatroom' bug fixed — detection now uses ChatRoomCharacter presence instead of CurrentScreen string check.",
+            "UX: Removed redundant Escape Whitelist section from dom tab (covered by Outfits → Protected Items).",
+            "Feature: Saved announce dropdowns on dom tab — 'Room emote when escaping' toggle (glare emote vs silent) under Auto-Escape, and 'Announce restraint sets' toggle (room emote vs silent) in Dom Tools header. Both persist across sessions.",
+            "Fix: Focus Target picker now remembers the last selected person across dom tab re-renders.",
+        ],
+    },
+    {
+        version: "6.2.3",
+        changes: ["Fix: replaced ☑ icon on 'Pick restraints to remove' header with ✂."],
+    },
+    {
+        version: "6.2.2",
+        changes: [
+            "Feature: Four new dom-tab sections gated behind a shared 'Focus Target' person picker — ⚡ Quick Actions (8 one-click BC activities: Spank, Tickle, Kiss, Bite, Slap, Caress, Massage, Lick), 😵 Expressions (8 preset packages like Ahegao/Crying/Dazed/Shocked + per-group fine dropdowns for Eyes/Mouth/Blush/Fluids/Brow + clear-all), 🧎 Poses (Stand, Kneel, All Fours, Hands Up, Spread, Kneel+Up), and 🎮 Toy Control (Off/Low/Medium/High/Max/Random/Edge/Auto with live toy status display).",
+        ],
+    },
+    {
+        version: "6.2.1",
+        changes: [
+            "UX: Further dom tab polish — 'Pick items to remove' redesigned from a bare dashed button into a proper accordion header (icon + label + ▼/▲ arrow, matching Room Rescue style). Auto-Escape and Room Admin section labels now have colored left-border accents and icons (⚙ / 🔑). Escape Whitelist label shortened to 'Escape Whitelist' with matching left-border accent. Restraint set edit button changed from barely-visible '✎' glyph to a styled '✎ Edit' button with higher-contrast colors.",
+        ],
+    },
+    {
+        version: "6.2.0",
+        changes: [
+            "UX: Dom tab visual cleanup — added '⛓ DOM TOOLS' header banner at the start of the creator-only section (matching kitty tab's header style). Section labels (Targets, Release/Rescue, Restraint Sets) now have a colored left-border accent and icons. Release/Rescue action buttons are bigger (12px, 9px padding). 'Pick items to remove' replaced bare dashed toggle with a proper collapsible accordion header matching Room Rescue style.",
+        ],
+    },
+    {
+        version: "6.1.9",
+        changes: [
+            "Fix: bound timer now appears immediately after refresh/room join. Previously timerOnRoomEnter() reset restraintStartTime to null and the UI took up to 10 s to reflect the correct value (next poller tick). A refreshTimer() call is now scheduled 1.2 s after ChatRoomSync, after BC has populated Player.Appearance, so the ⛓ counter appears within ~1 second of loading.",
+            "Feature: 'Neck' toggle in the footer timer row — excludes/includes all three neck groups (collar, accessories, restraints) at once. Highlighted pink when excluded, dim when counting. Always visible so it can be flipped without wearing neck items.",
+        ],
+    },
+    {
+        version: "6.1.8",
+        changes: [
+            "Fix: sidebar (quick-keys) permanently disappearing after viewing an offline player's profile. Root cause: CharacterLoadOnline leaves CurrentCharacter set to the synthetic character after the Info Sheet closes, so the sidebar thought a character menu was open forever. The 'menu open' check now only hides the sidebar when CurrentCharacter is actually present in the current room — offline synthetic characters are ignored. Same fix applied to the drag grip listener.",
+        ],
+    },
+    {
+        version: "6.1.7",
+        changes: [
+            "UX: Emoji picker redesign — wider panel (296px), larger emoji buttons (20px, subtle tile background), 2px gap grid, scale-on-hover animation. Tab bar icons bumped to 15px with active highlight. Text emotes (OwO tab) now 11px with a pill background instead of bare tiny text. Much easier to see and click.",
+        ],
+    },
+    {
+        version: "6.1.6",
+        changes: [
+            "Feature: People Met list now has a copy ID button (ID) next to each person — click to copy their member number to clipboard. Button turns green briefly to confirm the copy.",
+            "UX: Bound timer exclude toggle in Active Restraints renamed from ⏱ to 'Exclude'. Styling inverted — button is now highlighted pink when exclusion IS active (item not counting) and dimmed when item counts normally. Matches intuitive 'lit up = enabled' convention.",
+        ],
+    },
+    {
+        version: "6.1.5",
+        changes: [
+            "Fix: bound timer no longer has hardcoded neck/collar exclusions — exclusions are now user-configurable and default to neck groups (ItemNeck, ItemNeckAccessories, ItemNeckRestraints). Previously if you were only wearing a collar the timer would never start because NECK_GROUPS was always excluded.",
+            "Feature: each item in the Active Restraints list now has a ⏱ toggle button. Pink border = counts toward the ⛓ bound timer. Dimmed = excluded. Clicking toggles the slot and saves the preference. Defaults to excluded for neck slots, included for everything else.",
+        ],
+    },
+    {
+        version: "6.1.4",
+        changes: [
+            "Fix: friends list showing '#MemberNumber' as primary name with real name in muted secondary text. resolveName() now falls back to the cached account name (friendAccountNames) before returning '#number', so friends always show their real BC name even if the display-name cache hasn't been populated for them yet.",
+        ],
+    },
+    {
+        version: "6.1.3",
+        changes: [
+            "Fix: People Met profile button now always works. For people not in the current room with no session bundle, a minimal character stub is synthesized from the cached name/member number and passed to CharacterLoadOnline — BC fills in defaults so the info sheet opens with a blank model but correct identity. Previously fell through to silent clipboard copy.",
+        ],
+    },
+    {
+        version: "6.1.2",
+        changes: [
+            "Fix: 'View profile' button in the People Met list was silently falling through to clipboard copy for anyone not in the current session. Character bundles are session-memory only (Dexie removed), so profiles can only be opened for people currently in the room or seen this session. The button now checks availability upfront: greyed out with tooltip 'join their room to view' when a profile cannot be opened, active pink when it can.",
+        ],
+    },
+    {
+        version: "6.1.1",
+        changes: [
+            "Fix: player names were not reliably resolved and could show as '#MemberNumber' after a reload. Three root causes fixed: (1) cacheName() wrote to in-memory store only — flushNameCache() is now called after ChatRoomSync so the name cache is persisted to ExtensionSettings immediately; (2) ChatRoomSyncMemberJoin never cached the joining member's name, so anyone who joined mid-session was unknown to resolveName(); (3) CharacterRefresh called recordPersonMet() but not cacheName(), so the display-name lookup (friendNames) was never populated from live character data.",
+        ],
+    },
+    {
+        version: "6.1.0",
+        changes: [
+            "Fix: quick keys sidebar drag handle is now disabled while a character tab is open. Previously the grip zone remained active while the sidebar was invisible, allowing it to be dragged to a position behind the chat box where getSidebarMaxX() could not enforce the chat-overlap clamp.",
+        ],
+    },
+    {
+        version: "5.9.9",
+        changes: [
+            "Fix: quick keys sidebar now hides automatically when a character tab is open and reappears when it is closed. Previously the sidebar would draw over the character menu overlay.",
         ],
     },
     {
@@ -4690,6 +4908,83 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     },
 ];
 
+function showOnlineToast(memberNumber: number, fallbackName: string): void {
+    try {
+        // Player.FriendNames is BC's authoritative name map, populated after our hook calls next().
+        // The callback fires on next tick so this is already up-to-date.
+        const friendNames = (Player as unknown as { FriendNames?: Map<number, string> }).FriendNames;
+        const name = friendNames?.get(memberNumber) ?? fallbackName;
+
+        const existing = document.querySelectorAll(".ebc-online-toast");
+        const topOffset = 20 + existing.length * 52;
+        const toast = document.createElement("div");
+        toast.className = "ebc-online-toast";
+        toast.style.cssText = [
+            "position:fixed", `bottom:${topOffset}px`, "right:24px",
+            "background:#1a0820", "border:2px solid #cf6f98",
+            "border-radius:8px", "padding:10px 16px",
+            "z-index:999999", "font-family:'Trebuchet MS',serif",
+            "font-size:13px", "color:#f0c0d8",
+            "box-shadow:0 4px 24px rgba(0,0,0,0.9),0 0 8px rgba(207,111,152,0.4)",
+            "transition:opacity 0.4s ease",
+            "cursor:pointer", "user-select:none",
+            "white-space:nowrap", "min-width:160px",
+            "display:flex", "align-items:center", "gap:9px",
+        ].join(";");
+
+        // Pulsing green dot
+        const dot = document.createElement("span");
+        dot.style.cssText = [
+            "width:10px", "height:10px", "border-radius:50%",
+            "background:#44d477", "flex-shrink:0",
+            "box-shadow:0 0 0 0 rgba(68,212,119,0.7)",
+            "animation:ebc-pulse 1.6s ease-out infinite",
+        ].join(";");
+
+        // Inject keyframes once
+        if (!document.getElementById("ebc-pulse-style")) {
+            const style = document.createElement("style");
+            style.id = "ebc-pulse-style";
+            style.textContent = "@keyframes ebc-pulse{0%{box-shadow:0 0 0 0 rgba(68,212,119,0.7)}70%{box-shadow:0 0 0 7px rgba(68,212,119,0)}100%{box-shadow:0 0 0 0 rgba(68,212,119,0)}}";
+            document.head.appendChild(style);
+        }
+
+        const label = document.createElement("span");
+        label.innerHTML = `<span style="color:#cf6f98;font-weight:bold;">${name.replace(/</g,"&lt;")}</span> is now online`;
+
+        toast.appendChild(dot);
+        toast.appendChild(label);
+        toast.title = "Click to dismiss";
+        document.body.appendChild(toast);
+
+        const remove = () => {
+            toast.style.opacity = "0";
+            window.setTimeout(() => { try { toast.remove(); } catch { /* ignore */ } }, 450);
+        };
+        toast.addEventListener("click", remove);
+        window.setTimeout(remove, 8000);
+        if (getOnlineSoundEnabled()) playOnlineSound();
+    } catch { /* ignore */ }
+}
+
+function playOnlineSound(): void {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.13, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.32);
+        osc.onended = () => ctx.close();
+    } catch { /* ignore */ }
+}
+
 function playBeepSound(): void {
     try {
         const ctx = new AudioContext();
@@ -6045,6 +6340,23 @@ function init(): void {
         return result;
     });
 
+    // Returns true only when CurrentCharacter is an actual character present in the
+    // current chat room. Synthetic characters loaded via CharacterLoadOnline (for offline
+    // profile viewing) leave CurrentCharacter set after the Info Sheet closes, which would
+    // permanently hide the sidebar. Checking room membership avoids that stale-state bug.
+    const isCurrentCharacterInRoom = (): boolean => {
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            const cc = w.CurrentCharacter as Record<string, unknown> | null | undefined;
+            if (!cc) return false;
+            const memberNum = cc.MemberNumber as number | undefined;
+            if (!memberNum) return false;
+            const roomChars = w.ChatRoomCharacter as Array<{ MemberNumber?: number }> | undefined;
+            if (!Array.isArray(roomChars)) return true; // can't tell — assume open
+            return roomChars.some(c => c.MemberNumber === memberNum);
+        } catch { return false; }
+    };
+
     // Canvas sidebar action buttons.
     // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
     // was migrated to DOM). Hook DrawProcess instead, which is the actual per-frame
@@ -6069,7 +6381,12 @@ function init(): void {
         } catch { /* ignore */ }
         try {
             const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-            if (getActionButtonsVisible() && !iconsHidden) drawActionButtons();
+            // Only treat CurrentCharacter as "menu open" when the character is actually
+            // present in the current room. Synthetic characters created by CharacterLoadOnline
+            // (for offline profile viewing) leave CurrentCharacter set when you return to
+            // ChatRoom, which would permanently hide the sidebar.
+            const charMenuOpen = isCurrentCharacterInRoom();
+            if (getActionButtonsVisible() && !iconsHidden && !charMenuOpen) drawActionButtons();
         } catch { /* ignore */ }
         return result;
     });
@@ -6079,7 +6396,8 @@ function init(): void {
         // click-through to character tabs and other BC canvas interactions.
         if (getBadgeDragMode()) return;
         const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
-        try { if (!iconsHidden && handleActionButtonClick()) return; } catch { /* ignore */ }
+        const charMenuOpen = isCurrentCharacterInRoom();
+        try { if (!iconsHidden && !charMenuOpen && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
@@ -6107,6 +6425,8 @@ function init(): void {
         try { migratePeopleMetToLocal(); } catch { /* ignore */ }
         // Seed default badge settings for first-time users.
         window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
+        // Register online-notification callback so friends.ts can trigger toasts.
+        setOnFriendCameOnlineCallback(showOnlineToast);
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
@@ -6180,6 +6500,11 @@ function init(): void {
         try { showRoomLoadNotice();         } catch { /* ignore */ }
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
+        // Refresh the bound timer once Appearance has been populated by BC.
+        // timerOnRoomEnter() resets restraintStartTime to null; we need to
+        // re-run timerCheckRestraints() after the draw loop has had a frame
+        // to populate Player.Appearance, then push the result to the UI.
+        window.setTimeout(() => { try { drawer?.refreshTimer(); } catch { /* ignore */ } }, 1200);
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
@@ -6214,6 +6539,10 @@ function init(): void {
                     }
                 }
             }
+            // Flush name cache to ExtensionSettings so it persists across reloads.
+            // cacheName() only writes to _mem; without this flush the entries are lost
+            // if nothing else triggers syncSettings() before the session ends.
+            flushNameCache();
         } catch { /* ignore */ }
         return result;
     });
@@ -6338,6 +6667,13 @@ function init(): void {
             const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
             if (num && num !== Player.MemberNumber) {
                 try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
+                // Cache the joining member's display name so resolveName() works
+                // even after they leave. The raw server bundle has Nickname and Name.
+                const nick = typeof c?.Nickname === "string" ? c.Nickname.trim() : "";
+                const acct = typeof c?.Name === "string" ? c.Name : "";
+                const displayName = nick || acct || String(num);
+                cacheName(num, displayName);
+                if (acct) cacheAccountName(num, acct);
             }
         } catch { /* ignore */ }
         // Refresh our own presence ts so the new joiner sees a fresh timestamp.
@@ -6370,6 +6706,11 @@ function init(): void {
                         const displayName = (C as unknown as Record<string, unknown>).Nickname as string | undefined;
                         const name = (displayName?.trim()) || (C.Name ?? "") || String(C.MemberNumber);
                         recordPersonMet(C.MemberNumber, name);
+                        // Also populate friendNames so resolveName() can find this person
+                        // even when they're no longer in the room. recordPersonMet writes
+                        // to peopleMet but resolveName() reads from friendNames only.
+                        cacheName(C.MemberNumber, name);
+                        if (C.Name) cacheAccountName(C.MemberNumber, C.Name);
                     } catch { /* ignore */ }
                 }
             }
@@ -6479,14 +6820,14 @@ function init(): void {
                 const grpTag = extractGroupTag(rawMsg);
                 if (grpTag) {
                     addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
-                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members); } catch { /* ignore */ }
                     return; // suppress BC native popup for group messages
                 }
                 const msg = stripBeepMetadata(rawMsg);
                 if (msg) {
                     addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
                     // Room invite messages are handled entirely by EBC's invite card in the
                     // IM window — always suppress BC's native beep popup for these so the
@@ -6499,7 +6840,7 @@ function init(): void {
             // Suppress BC's native chat-log notification for ALL friend beeps when
             // the toggle is on. document.hidden is intentionally NOT checked here —
             // OS-level notifications come through FriendListBeep, not this path.
-            if (getSuppressNativeBeep()) return;
+            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) return;
         } catch { /* ignore */ }
         return next(args);
     });
@@ -6670,6 +7011,7 @@ function init(): void {
     const onChatKeydownCapture = (e: KeyboardEvent): void => {
         try {
             if (e.key !== "Enter" && e.keyCode !== 13) return;
+            if (e.shiftKey) return; // Shift+Enter inserts a newline — don't trigger our handlers
             const el = (e.target ?? document.activeElement) as HTMLElement | null;
             if (!el || (el as HTMLInputElement).id !== "InputChat") return;
             const raw = (el as HTMLInputElement).value;
@@ -6694,6 +7036,7 @@ function init(): void {
     // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
+            if ((args[0] as KeyboardEvent | undefined)?.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();
                 if (input?.value.trim() && (
