@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.4.2
+// @version      6.4.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2428,25 +2428,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             const store = getSettings();
             store.suppressNativeBeep = value;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Show member numbers -------------------------------------------------------
-    // Draws a small #number pill on every character in the chat room.
-    function getShowMemberNumbers() {
-        var _a;
-        try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showMemberNumbers) !== false;
-        }
-        catch (_b) {
-            return true;
-        }
-    }
-    function setShowMemberNumbers(value) {
-        try {
-            const store = getSettings();
-            store.showMemberNumbers = value;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -5234,6 +5215,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
     function updateOnlineFriends(entries) {
+        var _a, _b, _c;
         const prevOnline = new Set(onlineSet);
         onlineSet.clear();
         onlineInfo.clear();
@@ -5262,18 +5244,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 store.lastSeen = data;
                 sync();
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         // Notify for watched friends who just came online.
         // Skip the very first call after load (prevOnline is empty = not yet populated).
         if (prevOnline.size > 0 && _onFriendCameOnline) {
             const watchList = getOnlineWatchList();
-            for (const num of watchList) {
-                if (onlineSet.has(num) && !prevOnline.has(num)) {
-                    try {
-                        _onFriendCameOnline(num);
+            if (watchList.length > 0) {
+                // Build a name map directly from entries — avoids cache-miss issues on first login.
+                const entryNames = new Map();
+                for (const r of entries) {
+                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                    const name = typeof r.MemberName === "string" && r.MemberName ? r.MemberName : null;
+                    if (n && name)
+                        entryNames.set(n, name);
+                }
+                for (const num of watchList) {
+                    if (onlineSet.has(num) && !prevOnline.has(num)) {
+                        const name = (_c = (_b = (_a = entryNames.get(num)) !== null && _a !== void 0 ? _a : getCachedNames()[String(num)]) !== null && _b !== void 0 ? _b : getCachedAccountNames()[String(num)]) !== null && _c !== void 0 ? _c : `#${num}`;
+                        try {
+                            _onFriendCameOnline(num, name);
+                        }
+                        catch ( /* ignore */_e) { /* ignore */ }
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
                 }
             }
         }
@@ -13293,11 +13286,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
             makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
             ebcTagsBody.appendChild(versionCardRow);
-            // Member number display row
-            const memberNumCardRow = document.createElement("div");
-            memberNumCardRow.style.cssText = "display:flex;gap:7px;margin-top:5px;";
-            makeTagCard("Show member #s", "Show a #number pill on every character in the room", getShowMemberNumbers, setShowMemberNumbers, memberNumCardRow);
-            ebcTagsBody.appendChild(memberNumCardRow);
             // Badge Appearance divider
             const badgeDivider = document.createElement("div");
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
@@ -29186,7 +29174,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.4.2";
+    const MOD_VERSION = "6.4.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29197,6 +29185,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.4.3",
+            changes: [
+                "Fix: Removed member number pills from character sprites (wrong feature). Fix: Online notification toast now shows the friend's actual name — name is taken directly from the AccountQueryResult entry data, bypassing the name cache entirely, so it's always correct even on first login.",
+            ],
+        },
         {
             version: "6.4.2",
             changes: [
@@ -34018,9 +34012,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ],
         },
     ];
-    function showOnlineToast(memberNumber) {
+    function showOnlineToast(memberNumber, name) {
         try {
-            const name = resolveName(memberNumber);
             const existing = document.querySelectorAll(".ebc-online-toast");
             const topOffset = 20 + existing.length * 52;
             const toast = document.createElement("div");
@@ -35095,47 +35088,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Skip map / bird's-eye view
         if (zoom < 0.3)
             return;
-        // Member number pill — drawn for every character when enabled
-        if (getShowMemberNumbers()) {
-            const mnCanvas = getBCCanvas();
-            const mnCtx = mnCanvas === null || mnCanvas === void 0 ? void 0 : mnCanvas.getContext("2d");
-            const memberNum = character.MemberNumber;
-            if (mnCtx && memberNum != null) {
-                const mnLabel = "#" + memberNum;
-                const mnFs = Math.max(7, Math.round(9 * zoom));
-                mnCtx.save();
-                mnCtx.font = `bold ${mnFs}px "Trebuchet MS",sans-serif`;
-                mnCtx.textAlign = "center";
-                mnCtx.textBaseline = "middle";
-                const tw = mnCtx.measureText(mnLabel).width;
-                const ph = mnFs * 1.6;
-                const pw = tw + mnFs;
-                const pr = ph / 2;
-                const nx = left + 250 * zoom;
-                const ny = top + 910 * zoom;
-                const plx = nx - pw / 2;
-                const ply = ny - ph / 2;
-                mnCtx.fillStyle = "rgba(12,8,18,0.72)";
-                mnCtx.beginPath();
-                mnCtx.moveTo(plx + pr, ply);
-                mnCtx.lineTo(plx + pw - pr, ply);
-                mnCtx.arcTo(plx + pw, ply, plx + pw, ply + pr, pr);
-                mnCtx.lineTo(plx + pw, ply + ph - pr);
-                mnCtx.arcTo(plx + pw, ply + ph, plx + pw - pr, ply + ph, pr);
-                mnCtx.lineTo(plx + pr, ply + ph);
-                mnCtx.arcTo(plx, ply + ph, plx, ply + ph - pr, pr);
-                mnCtx.lineTo(plx, ply + pr);
-                mnCtx.arcTo(plx, ply, plx + pr, ply, pr);
-                mnCtx.closePath();
-                mnCtx.fill();
-                mnCtx.strokeStyle = "rgba(80,100,130,0.55)";
-                mnCtx.lineWidth = Math.max(0.6, 0.7 * zoom);
-                mnCtx.stroke();
-                mnCtx.fillStyle = "#a0b8d8";
-                mnCtx.fillText(mnLabel, nx, ny);
-                mnCtx.restore();
-            }
-        }
         // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
         if ((_a = (window.ChatRoomHideIconState)) !== null && _a !== void 0 ? _a : 0)
             return;
