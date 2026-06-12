@@ -297,8 +297,13 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             }
             for (const num of watchList) {
                 if (onlineSet.has(num) && !prevOnline.has(num)) {
-                    const name = entryNames.get(num) ?? getCachedNames()[String(num)] ?? getCachedAccountNames()[String(num)] ?? `#${num}`;
-                    try { _onFriendCameOnline(num, name); } catch { /* ignore */ }
+                    // Capture the fallback name now (from entries), but delay the callback
+                    // by one tick so BC's own AccountQueryResult handler has run first and
+                    // Player.FriendNames is fully populated — then showOnlineToast can read
+                    // the authoritative name directly from there.
+                    const fallbackName = entryNames.get(num) ?? getCachedNames()[String(num)] ?? getCachedAccountNames()[String(num)] ?? `#${num}`;
+                    const cb = _onFriendCameOnline;
+                    window.setTimeout(() => { try { cb?.(num, fallbackName); } catch { /* ignore */ } }, 0);
                 }
             }
         }
