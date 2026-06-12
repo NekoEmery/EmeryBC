@@ -287,9 +287,19 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
     // Skip the very first call after load (prevOnline is empty = not yet populated).
     if (prevOnline.size > 0 && _onFriendCameOnline) {
         const watchList = getOnlineWatchList();
-        for (const num of watchList) {
-            if (onlineSet.has(num) && !prevOnline.has(num)) {
-                try { _onFriendCameOnline(num); } catch { /* ignore */ }
+        if (watchList.length > 0) {
+            // Build a name map directly from entries — avoids cache-miss issues on first login.
+            const entryNames = new Map<number, string>();
+            for (const r of entries) {
+                const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                const name = typeof r.MemberName === "string" && r.MemberName ? r.MemberName : null;
+                if (n && name) entryNames.set(n, name);
+            }
+            for (const num of watchList) {
+                if (onlineSet.has(num) && !prevOnline.has(num)) {
+                    const name = entryNames.get(num) ?? getCachedNames()[String(num)] ?? getCachedAccountNames()[String(num)] ?? `#${num}`;
+                    try { _onFriendCameOnline(num, name); } catch { /* ignore */ }
+                }
             }
         }
     }
@@ -493,9 +503,9 @@ export function togglePinFriend(memberNumber: number): boolean {
 
 // -- Online watch list --------------------------------------------------------
 
-let _onFriendCameOnline: ((memberNumber: number) => void) | null = null;
+let _onFriendCameOnline: ((memberNumber: number, name: string) => void) | null = null;
 
-export function setOnFriendCameOnlineCallback(fn: (memberNumber: number) => void): void {
+export function setOnFriendCameOnlineCallback(fn: (memberNumber: number, name: string) => void): void {
     _onFriendCameOnline = fn;
 }
 
