@@ -2415,6 +2415,24 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Online friend notification sound -----------------------------------------
+    function getOnlineSoundEnabled() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.onlineSoundEnabled) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setOnlineSoundEnabled(value) {
+        try {
+            const store = getSettings();
+            store.onlineSoundEnabled = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Use native BC beep sound --------------------------------------------------
     // When on, skip the addon's custom beep sound and let BC's native beep play.
     function getUseNativeBeepSound() {
@@ -5180,6 +5198,7 @@
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
     function updateOnlineFriends(entries) {
+        var _a, _b, _c;
         const prevOnline = new Set(onlineSet);
         onlineSet.clear();
         onlineInfo.clear();
@@ -5208,18 +5227,34 @@
                 store.lastSeen = data;
                 sync();
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         // Notify for watched friends who just came online.
         // Skip the very first call after load (prevOnline is empty = not yet populated).
         if (prevOnline.size > 0 && _onFriendCameOnline) {
             const watchList = getOnlineWatchList();
-            for (const num of watchList) {
-                if (onlineSet.has(num) && !prevOnline.has(num)) {
-                    try {
-                        _onFriendCameOnline(num);
+            if (watchList.length > 0) {
+                // Build a name map directly from entries — avoids cache-miss issues on first login.
+                const entryNames = new Map();
+                for (const r of entries) {
+                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                    const name = typeof r.MemberName === "string" && r.MemberName ? r.MemberName : null;
+                    if (n && name)
+                        entryNames.set(n, name);
+                }
+                for (const num of watchList) {
+                    if (onlineSet.has(num) && !prevOnline.has(num)) {
+                        // Capture the fallback name now (from entries), but delay the callback
+                        // by one tick so BC's own AccountQueryResult handler has run first and
+                        // Player.FriendNames is fully populated — then showOnlineToast can read
+                        // the authoritative name directly from there.
+                        const fallbackName = (_c = (_b = (_a = entryNames.get(num)) !== null && _a !== void 0 ? _a : getCachedNames()[String(num)]) !== null && _b !== void 0 ? _b : getCachedAccountNames()[String(num)]) !== null && _c !== void 0 ? _c : `#${num}`;
+                        const cb = _onFriendCameOnline;
+                        window.setTimeout(() => { try {
+                            cb === null || cb === void 0 ? void 0 : cb(num, fallbackName);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ } }, 0);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
                 }
             }
         }
@@ -7805,7 +7840,7 @@
         var _a;
         try {
             const v = parseFloat((_a = localStorage.getItem(PANEL_ZOOM_KEY)) !== null && _a !== void 0 ? _a : "1");
-            return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
+            return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
         }
         catch (_b) {
             return 1;
@@ -13054,6 +13089,12 @@
                 wrapper.style.width = inv;
                 wrapper.style.height = inv;
             }
+            // Apply matching zoom to any open beep/group windows.
+            const zoomStr = scale === 1 ? "" : String(scale);
+            for (const { el } of this.beepWins.values())
+                el.style.zoom = zoomStr;
+            for (const { el } of this.groupWins.values())
+                el.style.zoom = zoomStr;
         }
         /**
          * Re-render the current tab in-place while preserving the panel's scroll
@@ -18626,6 +18667,9 @@
             win.className = "ebc-beep-win";
             win.style.bottom = `${80 + offset}px`;
             win.style.right = `${340 + offset}px`;
+            const _bScale = loadPanelZoom();
+            if (_bScale !== 1)
+                win.style.zoom = String(_bScale);
             this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
             if (startMinimized)
                 win.classList.add("minimized");
@@ -19816,6 +19860,9 @@
             win.className = "ebc-beep-win";
             win.style.bottom = `${80 + offset}px`;
             win.style.right = `${340 + offset}px`;
+            const _gScale = loadPanelZoom();
+            if (_gScale !== 1)
+                win.style.zoom = String(_gScale);
             this.groupWins.set(group.id, { el: win, minimized: false });
             // Drag
             const header = document.createElement("div");
@@ -20114,6 +20161,7 @@
                 }
             }));
             chatSettingsBody.appendChild(mkToggleRow("Use BC native beep sound", getUseNativeBeepSound, (v) => setUseNativeBeepSound(v)));
+            chatSettingsBody.appendChild(mkToggleRow("Sound when friend comes online", getOnlineSoundEnabled, (v) => setOnlineSoundEnabled(v)));
             // ── AFK sub-section (nested collapsible) ──────────────────────────────
             const afkSubDiv = document.createElement("div");
             afkSubDiv.className = "ebc-divider";
@@ -21625,9 +21673,9 @@
                         const watchBtn = document.createElement("button");
                         const refreshWatchBtn = () => {
                             const w = isOnWatchList(num);
-                            watchBtn.textContent = w ? "🔔 Watching" : "🔕 Notify online";
+                            watchBtn.textContent = w ? "Notify online: on" : "Notify online";
                             watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
-                            watchBtn.title = w ? "Notifies you when this person comes online — click to stop" : "Click to get notified when this person comes online";
+                            watchBtn.title = w ? "Notifies you when this person comes online — click to turn off" : "Get a notification when this person comes online";
                         };
                         refreshWatchBtn();
                         watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });
@@ -21985,12 +22033,12 @@
                 zoomLbl.textContent = t("dev.textSize");
                 const zoomSlider = document.createElement("input");
                 zoomSlider.type = "range";
-                zoomSlider.min = "0.8";
-                zoomSlider.max = "1.4";
+                zoomSlider.min = "0.7";
+                zoomSlider.max = "2.0";
                 zoomSlider.step = "0.05";
                 zoomSlider.value = String(loadPanelZoom());
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-                zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+                zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
                 const zoomVal = document.createElement("span");
                 zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
                 zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
@@ -29126,7 +29174,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.4.0";
+    const MOD_VERSION = "6.5.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29137,6 +29185,39 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.0",
+            changes: [
+                "Feature: UI zoom now scales beep windows and group beep windows in addition to the EBC panel. Setting the slider live-updates all open windows immediately.",
+                "Feature: UI zoom range extended from 80%–140% to 70%–200%, making the addon fully usable on 2K/4K monitors at native resolution.",
+            ],
+        },
+        {
+            version: "6.4.4",
+            changes: [
+                "Fix: Online notification now shows the friend's actual name. Root cause: EBC's hook fired before BC's own AccountQueryResult handler populated Player.FriendNames. Fix: callback is delayed one tick (setTimeout 0) so BC's handler runs first; showOnlineToast reads Player.FriendNames directly as the authoritative source.",
+                "Feature: Online notification toast now has a pulsing green dot icon.",
+            ],
+        },
+        {
+            version: "6.4.3",
+            changes: [
+                "Fix: Removed member number pills from character sprites (wrong feature). Fix: Online notification toast now shows the friend's actual name — name is taken directly from the AccountQueryResult entry data, bypassing the name cache entirely, so it's always correct even on first login.",
+            ],
+        },
+        {
+            version: "6.4.2",
+            changes: [
+                "Feature: Member number pills — a small #number label is drawn near the feet of every character in the chat room. Toggled via 'Show member #s' card in the Badge settings tab. On by default.",
+                "Feature: Online notification sound — plays a soft ascending tone when a watched friend comes online. Toggled via 'Sound when friend comes online' in Beep/Chat settings.",
+            ],
+        },
+        {
+            version: "6.4.1",
+            changes: [
+                "Fix: Online notification toast now uses proper name resolution (resolveName — falls back to account name, not just #number). Toast redesigned with EBC pink border and high-contrast text so it's easy to spot. Watch button in friend expand panel no longer uses emoji.",
+            ],
+        },
         {
             version: "6.4.0",
             changes: [
@@ -33945,26 +34026,48 @@
             ],
         },
     ];
-    function showOnlineToast(memberNumber) {
+    function showOnlineToast(memberNumber, fallbackName) {
+        var _a;
         try {
-            const cachedName = getCachedNames()[String(memberNumber)];
-            const name = cachedName || "#" + memberNumber;
+            // Player.FriendNames is BC's authoritative name map, populated after our hook calls next().
+            // The callback fires on next tick so this is already up-to-date.
+            const friendNames = Player.FriendNames;
+            const name = (_a = friendNames === null || friendNames === void 0 ? void 0 : friendNames.get(memberNumber)) !== null && _a !== void 0 ? _a : fallbackName;
             const existing = document.querySelectorAll(".ebc-online-toast");
-            const topOffset = 20 + existing.length * 46;
+            const topOffset = 20 + existing.length * 52;
             const toast = document.createElement("div");
             toast.className = "ebc-online-toast";
             toast.style.cssText = [
-                "position:fixed", `bottom:${topOffset}px`, "right:20px",
-                "background:#0d1a0f", "border:1.5px solid #4a9a60",
-                "border-radius:7px", "padding:8px 13px",
+                "position:fixed", `bottom:${topOffset}px`, "right:24px",
+                "background:#1a0820", "border:2px solid #cf6f98",
+                "border-radius:8px", "padding:10px 16px",
                 "z-index:999999", "font-family:'Trebuchet MS',serif",
-                "font-size:12px", "color:#79d896",
-                "box-shadow:0 4px 16px rgba(0,0,0,0.7)",
+                "font-size:13px", "color:#f0c0d8",
+                "box-shadow:0 4px 24px rgba(0,0,0,0.9),0 0 8px rgba(207,111,152,0.4)",
                 "transition:opacity 0.4s ease",
                 "cursor:pointer", "user-select:none",
-                "white-space:nowrap",
+                "white-space:nowrap", "min-width:160px",
+                "display:flex", "align-items:center", "gap:9px",
             ].join(";");
-            toast.textContent = `🟢 ${name} is now online`;
+            // Pulsing green dot
+            const dot = document.createElement("span");
+            dot.style.cssText = [
+                "width:10px", "height:10px", "border-radius:50%",
+                "background:#44d477", "flex-shrink:0",
+                "box-shadow:0 0 0 0 rgba(68,212,119,0.7)",
+                "animation:ebc-pulse 1.6s ease-out infinite",
+            ].join(";");
+            // Inject keyframes once
+            if (!document.getElementById("ebc-pulse-style")) {
+                const style = document.createElement("style");
+                style.id = "ebc-pulse-style";
+                style.textContent = "@keyframes ebc-pulse{0%{box-shadow:0 0 0 0 rgba(68,212,119,0.7)}70%{box-shadow:0 0 0 7px rgba(68,212,119,0)}100%{box-shadow:0 0 0 0 rgba(68,212,119,0)}}";
+                document.head.appendChild(style);
+            }
+            const label = document.createElement("span");
+            label.innerHTML = `<span style="color:#cf6f98;font-weight:bold;">${name.replace(/</g, "&lt;")}</span> is now online`;
+            toast.appendChild(dot);
+            toast.appendChild(label);
             toast.title = "Click to dismiss";
             document.body.appendChild(toast);
             const remove = () => {
@@ -33975,7 +34078,27 @@
                 catch ( /* ignore */_a) { /* ignore */ } }, 450);
             };
             toast.addEventListener("click", remove);
-            window.setTimeout(remove, 7000);
+            window.setTimeout(remove, 8000);
+            if (getOnlineSoundEnabled())
+                playOnlineSound();
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    function playOnlineSound() {
+        try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(520, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.18);
+            gain.gain.setValueAtTime(0.13, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.32);
+            osc.onended = () => ctx.close();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }

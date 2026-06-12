@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.4.4";
+const MOD_VERSION = "6.5.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.0",
+        changes: [
+            "Feature: UI zoom now scales beep windows and group beep windows in addition to the EBC panel. Setting the slider live-updates all open windows immediately.",
+            "Feature: UI zoom range extended from 80%–140% to 70%–200%, making the addon fully usable on 2K/4K monitors at native resolution.",
+        ],
+    },
     {
         version: "6.4.4",
         changes: [

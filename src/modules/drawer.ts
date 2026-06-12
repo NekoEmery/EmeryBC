@@ -445,7 +445,7 @@ const PANEL_ZOOM_KEY = "EBC_panelZoom";
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
+        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
     } catch { return 1; }
 }
 
@@ -5946,6 +5946,10 @@ export class EBCDrawer {
             wrapper.style.width     = inv;
             wrapper.style.height    = inv;
         }
+        // Apply matching zoom to any open beep/group windows.
+        const zoomStr = scale === 1 ? "" : String(scale);
+        for (const { el } of this.beepWins.values())  el.style.zoom = zoomStr;
+        for (const { el } of this.groupWins.values()) el.style.zoom = zoomStr;
     }
 
     /**
@@ -11679,6 +11683,8 @@ export class EBCDrawer {
         win.className = "ebc-beep-win";
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
+        const _bScale = loadPanelZoom();
+        if (_bScale !== 1) win.style.zoom = String(_bScale);
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
@@ -12911,6 +12917,8 @@ export class EBCDrawer {
         win.className = "ebc-beep-win";
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
+        const _gScale = loadPanelZoom();
+        if (_gScale !== 1) win.style.zoom = String(_gScale);
         this.groupWins.set(group.id, { el: win, minimized: false });
 
         // Drag
@@ -15057,12 +15065,12 @@ export class EBCDrawer {
 
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
-            zoomSlider.min = "0.8";
-            zoomSlider.max = "1.4";
+            zoomSlider.min = "0.7";
+            zoomSlider.max = "2.0";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+            zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
 
             const zoomVal = document.createElement("span");
             zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
