@@ -220,6 +220,21 @@ export function setSuppressNativeBeep(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Use native BC beep sound --------------------------------------------------
+// When on, skip the addon's custom beep sound and let BC's native beep play.
+
+export function getUseNativeBeepSound(): boolean {
+    try { return getSettings()?.useNativeBeepSound === true; } catch { return false; }
+}
+
+export function setUseNativeBeepSound(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.useNativeBeepSound = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Update notifications ------------------------------------------------------
 // When enabled (default), a local chat notice appears if a room member is
 // running a newer version of EBC, prompting the user to relog. The user can

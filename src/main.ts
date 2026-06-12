@@ -7,14 +7,14 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.3.2";
+const MOD_VERSION = "6.4.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.4.0",
+        changes: [
+            "Fix: Shift+Enter in *emote messages now inserts a newline as in vanilla BC instead of sending. Both the capture-phase keydown listener and the ChatRoomKeyDown mod hook now check for shiftKey before triggering command handlers.",
+            "Feature: New 'Use BC native beep sound' setting — when enabled, skips EBC's custom beep tone and plays BC's own notification sound (also re-enables BC's beep popup). Found in the Beep/Chat settings section.",
+            "Feature: Online friend notifications — click 'Notify online' in any friend's expanded row to watch them. A green toast appears when they come online. First FriendList update after load is always skipped to avoid false positives on login.",
+        ],
+    },
     {
         version: "6.3.2",
         changes: [
@@ -4838,6 +4846,37 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     },
 ];
 
+function showOnlineToast(memberNumber: number): void {
+    try {
+        const cachedName = getCachedNames()[String(memberNumber)];
+        const name = cachedName || "#" + memberNumber;
+        const existing = document.querySelectorAll(".ebc-online-toast");
+        const topOffset = 20 + existing.length * 46;
+        const toast = document.createElement("div");
+        toast.className = "ebc-online-toast";
+        toast.style.cssText = [
+            "position:fixed", `bottom:${topOffset}px`, "right:20px",
+            "background:#0d1a0f", "border:1.5px solid #4a9a60",
+            "border-radius:7px", "padding:8px 13px",
+            "z-index:999999", "font-family:'Trebuchet MS',serif",
+            "font-size:12px", "color:#79d896",
+            "box-shadow:0 4px 16px rgba(0,0,0,0.7)",
+            "transition:opacity 0.4s ease",
+            "cursor:pointer", "user-select:none",
+            "white-space:nowrap",
+        ].join(";");
+        toast.textContent = `🟢 ${name} is now online`;
+        toast.title = "Click to dismiss";
+        document.body.appendChild(toast);
+        const remove = () => {
+            toast.style.opacity = "0";
+            window.setTimeout(() => { try { toast.remove(); } catch { /* ignore */ } }, 450);
+        };
+        toast.addEventListener("click", remove);
+        window.setTimeout(remove, 7000);
+    } catch { /* ignore */ }
+}
+
 function playBeepSound(): void {
     try {
         const ctx = new AudioContext();
@@ -6278,6 +6317,8 @@ function init(): void {
         try { migratePeopleMetToLocal(); } catch { /* ignore */ }
         // Seed default badge settings for first-time users.
         window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
+        // Register online-notification callback so friends.ts can trigger toasts.
+        setOnFriendCameOnlineCallback(showOnlineToast);
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
@@ -6671,14 +6712,14 @@ function init(): void {
                 const grpTag = extractGroupTag(rawMsg);
                 if (grpTag) {
                     addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
-                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members); } catch { /* ignore */ }
                     return; // suppress BC native popup for group messages
                 }
                 const msg = stripBeepMetadata(rawMsg);
                 if (msg) {
                     addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                    if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
                     // Room invite messages are handled entirely by EBC's invite card in the
                     // IM window — always suppress BC's native beep popup for these so the
@@ -6691,7 +6732,7 @@ function init(): void {
             // Suppress BC's native chat-log notification for ALL friend beeps when
             // the toggle is on. document.hidden is intentionally NOT checked here —
             // OS-level notifications come through FriendListBeep, not this path.
-            if (getSuppressNativeBeep()) return;
+            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) return;
         } catch { /* ignore */ }
         return next(args);
     });
@@ -6862,6 +6903,7 @@ function init(): void {
     const onChatKeydownCapture = (e: KeyboardEvent): void => {
         try {
             if (e.key !== "Enter" && e.keyCode !== 13) return;
+            if (e.shiftKey) return; // Shift+Enter inserts a newline — don't trigger our handlers
             const el = (e.target ?? document.activeElement) as HTMLElement | null;
             if (!el || (el as HTMLInputElement).id !== "InputChat") return;
             const raw = (el as HTMLInputElement).value;
@@ -6886,6 +6928,7 @@ function init(): void {
     // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
+            if ((args[0] as KeyboardEvent | undefined)?.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();
                 if (input?.value.trim() && (

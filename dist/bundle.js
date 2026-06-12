@@ -2415,6 +2415,25 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Use native BC beep sound --------------------------------------------------
+    // When on, skip the addon's custom beep sound and let BC's native beep play.
+    function getUseNativeBeepSound() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.useNativeBeepSound) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setUseNativeBeepSound(value) {
+        try {
+            const store = getSettings();
+            store.useNativeBeepSound = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Update notifications ------------------------------------------------------
     // When enabled (default), a local chat notice appears if a room member is
     // running a newer version of EBC, prompting the user to relog. The user can
@@ -5191,6 +5210,19 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        // Notify for watched friends who just came online.
+        // Skip the very first call after load (prevOnline is empty = not yet populated).
+        if (prevOnline.size > 0 && _onFriendCameOnline) {
+            const watchList = getOnlineWatchList();
+            for (const num of watchList) {
+                if (onlineSet.has(num) && !prevOnline.has(num)) {
+                    try {
+                        _onFriendCameOnline(num);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                }
+            }
+        }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
         // Messages are staggered 350 ms apart to avoid burst-sending.  A startup grace
@@ -5383,6 +5415,30 @@
         store.pinnedFriends = list;
         sync();
         return idx < 0; // true = now pinned
+    }
+    // -- Online watch list --------------------------------------------------------
+    let _onFriendCameOnline = null;
+    function setOnFriendCameOnlineCallback(fn) {
+        _onFriendCameOnline = fn;
+    }
+    function getOnlineWatchList() {
+        const v = getSettings().onlineWatchList;
+        return Array.isArray(v) ? v : [];
+    }
+    function isOnWatchList(memberNumber) {
+        return getOnlineWatchList().includes(memberNumber);
+    }
+    function toggleOnlineWatch(memberNumber) {
+        const store = getSettings();
+        const list = getOnlineWatchList();
+        const idx = list.indexOf(memberNumber);
+        if (idx >= 0)
+            list.splice(idx, 1);
+        else
+            list.unshift(memberNumber);
+        store.onlineWatchList = list;
+        sync();
+        return idx < 0; // true = now watching
     }
     const LOCKED_ENTRIES = new Map([
         // On Lucy's client (#230466) only: Emery (#130267) shows ♛ Mistress
@@ -20057,6 +20113,7 @@
                     catch ( /* ignore */_a) { /* ignore */ }
                 }
             }));
+            chatSettingsBody.appendChild(mkToggleRow("Use BC native beep sound", getUseNativeBeepSound, (v) => setUseNativeBeepSound(v)));
             // ── AFK sub-section (nested collapsible) ──────────────────────────────
             const afkSubDiv = document.createElement("div");
             afkSubDiv.className = "ebc-divider";
@@ -21564,6 +21621,17 @@
                         refreshPinBtn();
                         pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
                         actRow.appendChild(pinBtn);
+                        // Online notification watch toggle
+                        const watchBtn = document.createElement("button");
+                        const refreshWatchBtn = () => {
+                            const w = isOnWatchList(num);
+                            watchBtn.textContent = w ? "🔔 Watching" : "🔕 Notify online";
+                            watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
+                            watchBtn.title = w ? "Notifies you when this person comes online — click to stop" : "Click to get notified when this person comes online";
+                        };
+                        refreshWatchBtn();
+                        watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });
+                        actRow.appendChild(watchBtn);
                         expand.appendChild(actRow);
                         // ── Inline note editor ─────────────────────────────────────
                         const noteLbl = document.createElement("div");
@@ -29058,7 +29126,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.3.2";
+    const MOD_VERSION = "6.4.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29069,6 +29137,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.4.0",
+            changes: [
+                "Fix: Shift+Enter in *emote messages now inserts a newline as in vanilla BC instead of sending. Both the capture-phase keydown listener and the ChatRoomKeyDown mod hook now check for shiftKey before triggering command handlers.",
+                "Feature: New 'Use BC native beep sound' setting — when enabled, skips EBC's custom beep tone and plays BC's own notification sound (also re-enables BC's beep popup). Found in the Beep/Chat settings section.",
+                "Feature: Online friend notifications — click 'Notify online' in any friend's expanded row to watch them. A green toast appears when they come online. First FriendList update after load is always skipped to avoid false positives on login.",
+            ],
+        },
         {
             version: "6.3.2",
             changes: [
@@ -33869,6 +33945,40 @@
             ],
         },
     ];
+    function showOnlineToast(memberNumber) {
+        try {
+            const cachedName = getCachedNames()[String(memberNumber)];
+            const name = cachedName || "#" + memberNumber;
+            const existing = document.querySelectorAll(".ebc-online-toast");
+            const topOffset = 20 + existing.length * 46;
+            const toast = document.createElement("div");
+            toast.className = "ebc-online-toast";
+            toast.style.cssText = [
+                "position:fixed", `bottom:${topOffset}px`, "right:20px",
+                "background:#0d1a0f", "border:1.5px solid #4a9a60",
+                "border-radius:7px", "padding:8px 13px",
+                "z-index:999999", "font-family:'Trebuchet MS',serif",
+                "font-size:12px", "color:#79d896",
+                "box-shadow:0 4px 16px rgba(0,0,0,0.7)",
+                "transition:opacity 0.4s ease",
+                "cursor:pointer", "user-select:none",
+                "white-space:nowrap",
+            ].join(";");
+            toast.textContent = `🟢 ${name} is now online`;
+            toast.title = "Click to dismiss";
+            document.body.appendChild(toast);
+            const remove = () => {
+                toast.style.opacity = "0";
+                window.setTimeout(() => { try {
+                    toast.remove();
+                }
+                catch ( /* ignore */_a) { /* ignore */ } }, 450);
+            };
+            toast.addEventListener("click", remove);
+            window.setTimeout(remove, 7000);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     function playBeepSound() {
         try {
             const ctx = new AudioContext();
@@ -35310,6 +35420,8 @@
                 seedDefaultBadgeSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ } }, 1500);
+            // Register online-notification callback so friends.ts can trigger toasts.
+            setOnFriendCameOnlineCallback(showOnlineToast);
         }
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
@@ -35797,7 +35909,7 @@
                     const grpTag = extractGroupTag(rawMsg);
                     if (grpTag) {
                         addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
-                        if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) {
+                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
@@ -35812,7 +35924,7 @@
                     const msg = stripBeepMetadata(rawMsg);
                     if (msg) {
                         addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
-                        if (!getBeepMuted() && !isBeepMemberMuted(fromNum)) {
+                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
@@ -35835,7 +35947,7 @@
                 // Suppress BC's native chat-log notification for ALL friend beeps when
                 // the toggle is on. document.hidden is intentionally NOT checked here —
                 // OS-level notifications come through FriendListBeep, not this path.
-                if (getSuppressNativeBeep())
+                if (!getUseNativeBeepSound() && getSuppressNativeBeep())
                     return;
             }
             catch ( /* ignore */_m) { /* ignore */ }
@@ -36032,6 +36144,8 @@
             try {
                 if (e.key !== "Enter" && e.keyCode !== 13)
                     return;
+                if (e.shiftKey)
+                    return; // Shift+Enter inserts a newline — don't trigger our handlers
                 const el = ((_a = e.target) !== null && _a !== void 0 ? _a : document.activeElement);
                 if (!el || el.id !== "InputChat")
                     return;
@@ -36057,7 +36171,10 @@
         document.addEventListener("keydown", onChatKeydownCapture, true);
         // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
+            var _a;
             try {
+                if ((_a = args[0]) === null || _a === void 0 ? void 0 : _a.shiftKey)
+                    return next(args);
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                     const input = getChatInput();
                     if ((input === null || input === void 0 ? void 0 : input.value.trim()) && (checkSafeword(input.value)
@@ -36074,7 +36191,7 @@
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {

@@ -92,11 +92,11 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
@@ -13220,6 +13220,12 @@ export class EBCDrawer {
             },
         ));
 
+        chatSettingsBody.appendChild(mkToggleRow(
+            "Use BC native beep sound",
+            getUseNativeBeepSound,
+            (v) => setUseNativeBeepSound(v),
+        ));
+
         // ── AFK sub-section (nested collapsible) ──────────────────────────────
         const afkSubDiv = document.createElement("div");
         afkSubDiv.className = "ebc-divider";
@@ -14673,6 +14679,19 @@ export class EBCDrawer {
                     refreshPinBtn();
                     pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
                     actRow.appendChild(pinBtn);
+
+                    // Online notification watch toggle
+                    const watchBtn = document.createElement("button");
+                    const refreshWatchBtn = (): void => {
+                        const w = isOnWatchList(num);
+                        watchBtn.textContent = w ? "🔔 Watching" : "🔕 Notify online";
+                        watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
+                        watchBtn.title = w ? "Notifies you when this person comes online — click to stop" : "Click to get notified when this person comes online";
+                    };
+                    refreshWatchBtn();
+                    watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });
+                    actRow.appendChild(watchBtn);
+
                     expand.appendChild(actRow);
 
                     // ── Inline note editor ─────────────────────────────────────

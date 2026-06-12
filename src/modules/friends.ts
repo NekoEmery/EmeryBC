@@ -283,6 +283,17 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
         } catch { /* ignore */ }
     }
 
+    // Notify for watched friends who just came online.
+    // Skip the very first call after load (prevOnline is empty = not yet populated).
+    if (prevOnline.size > 0 && _onFriendCameOnline) {
+        const watchList = getOnlineWatchList();
+        for (const num of watchList) {
+            if (onlineSet.has(num) && !prevOnline.has(num)) {
+                try { _onFriendCameOnline(num); } catch { /* ignore */ }
+            }
+        }
+    }
+
     // Re-deliver any messages that were sent while the recipient was offline.
     // BC drops beeps to offline players, so we resend the originals now that they're back.
     // Messages are staggered 350 ms apart to avoid burst-sending.  A startup grace
@@ -478,6 +489,34 @@ export function togglePinFriend(memberNumber: number): boolean {
     store.pinnedFriends = list;
     sync();
     return idx < 0; // true = now pinned
+}
+
+// -- Online watch list --------------------------------------------------------
+
+let _onFriendCameOnline: ((memberNumber: number) => void) | null = null;
+
+export function setOnFriendCameOnlineCallback(fn: (memberNumber: number) => void): void {
+    _onFriendCameOnline = fn;
+}
+
+export function getOnlineWatchList(): number[] {
+    const v = getSettings().onlineWatchList;
+    return Array.isArray(v) ? (v as number[]) : [];
+}
+
+export function isOnWatchList(memberNumber: number): boolean {
+    return getOnlineWatchList().includes(memberNumber);
+}
+
+export function toggleOnlineWatch(memberNumber: number): boolean {
+    const store = getSettings();
+    const list = getOnlineWatchList();
+    const idx = list.indexOf(memberNumber);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.unshift(memberNumber);
+    store.onlineWatchList = list;
+    sync();
+    return idx < 0; // true = now watching
 }
 
 // -- Tags ----------------------------------------------------------------------
