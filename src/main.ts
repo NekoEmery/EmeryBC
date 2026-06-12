@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getShowMemberNumbers, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.4.1";
+const MOD_VERSION = "6.4.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.4.2",
+        changes: [
+            "Feature: Member number pills — a small #number label is drawn near the feet of every character in the chat room. Toggled via 'Show member #s' card in the Badge settings tab. On by default.",
+            "Feature: Online notification sound — plays a soft ascending tone when a watched friend comes online. Toggled via 'Sound when friend comes online' in Beep/Chat settings.",
+        ],
+    },
     {
         version: "6.4.1",
         changes: [
@@ -4879,6 +4886,25 @@ function showOnlineToast(memberNumber: number): void {
         };
         toast.addEventListener("click", remove);
         window.setTimeout(remove, 8000);
+        if (getOnlineSoundEnabled()) playOnlineSound();
+    } catch { /* ignore */ }
+}
+
+function playOnlineSound(): void {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.13, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.32);
+        osc.onended = () => ctx.close();
     } catch { /* ignore */ }
 }
 
@@ -5922,6 +5948,48 @@ function drawPresenceMarker(args: unknown[]): void {
 
     // Skip map / bird's-eye view
     if (zoom < 0.3) return;
+
+    // Member number pill — drawn for every character when enabled
+    if (getShowMemberNumbers()) {
+        const mnCanvas = getBCCanvas();
+        const mnCtx = mnCanvas?.getContext("2d");
+        const memberNum = character.MemberNumber;
+        if (mnCtx && memberNum != null) {
+            const mnLabel = "#" + memberNum;
+            const mnFs = Math.max(7, Math.round(9 * zoom));
+            mnCtx.save();
+            mnCtx.font = `bold ${mnFs}px "Trebuchet MS",sans-serif`;
+            mnCtx.textAlign = "center";
+            mnCtx.textBaseline = "middle";
+            const tw  = mnCtx.measureText(mnLabel).width;
+            const ph  = mnFs * 1.6;
+            const pw  = tw + mnFs;
+            const pr  = ph / 2;
+            const nx  = left + 250 * zoom;
+            const ny  = top  + 910 * zoom;
+            const plx = nx - pw / 2;
+            const ply = ny - ph / 2;
+            mnCtx.fillStyle = "rgba(12,8,18,0.72)";
+            mnCtx.beginPath();
+            mnCtx.moveTo(plx + pr, ply);
+            mnCtx.lineTo(plx + pw - pr, ply);
+            mnCtx.arcTo(plx + pw, ply, plx + pw, ply + pr, pr);
+            mnCtx.lineTo(plx + pw, ply + ph - pr);
+            mnCtx.arcTo(plx + pw, ply + ph, plx + pw - pr, ply + ph, pr);
+            mnCtx.lineTo(plx + pr, ply + ph);
+            mnCtx.arcTo(plx, ply + ph, plx, ply + ph - pr, pr);
+            mnCtx.lineTo(plx, ply + pr);
+            mnCtx.arcTo(plx, ply, plx + pr, ply, pr);
+            mnCtx.closePath();
+            mnCtx.fill();
+            mnCtx.strokeStyle = "rgba(80,100,130,0.55)";
+            mnCtx.lineWidth = Math.max(0.6, 0.7 * zoom);
+            mnCtx.stroke();
+            mnCtx.fillStyle = "#a0b8d8";
+            mnCtx.fillText(mnLabel, nx, ny);
+            mnCtx.restore();
+        }
+    }
 
     // Respect BC's "Show/hide character icons" toggle (0 = show, 1/2 = hide)
     if (((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState) ?? 0) return;

@@ -220,6 +220,35 @@ export function setSuppressNativeBeep(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Show member numbers -------------------------------------------------------
+// Draws a small #number pill on every character in the chat room.
+
+export function getShowMemberNumbers(): boolean {
+    try { return getSettings()?.showMemberNumbers !== false; } catch { return true; }
+}
+
+export function setShowMemberNumbers(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.showMemberNumbers = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Online friend notification sound -----------------------------------------
+
+export function getOnlineSoundEnabled(): boolean {
+    try { return getSettings()?.onlineSoundEnabled !== false; } catch { return true; }
+}
+
+export function setOnlineSoundEnabled(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.onlineSoundEnabled = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Use native BC beep sound --------------------------------------------------
 // When on, skip the addon's custom beep sound and let BC's native beep play.
 
