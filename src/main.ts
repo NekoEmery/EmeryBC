@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.2";
+const MOD_VERSION = "6.5.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.3",
+        changes: [
+            "Fix: Friend names no longer get wiped after using EBC on a second device (tablet/phone). Root cause: flushToExtensionSettings was a plain overwrite — a device that had only seen a few friends in its session pushed its tiny name cache over the full desktop cache. Fix: name cache dicts (friendNames, friendAccountNames) are now merged with the server copy instead of overwriting it, so the larger cache always wins.",
+        ],
+    },
     {
         version: "6.5.2",
         changes: [

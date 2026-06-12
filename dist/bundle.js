@@ -131,7 +131,31 @@
             // Remove stale _d blob if it somehow survived.
             delete target["_d"];
             for (const [k, v] of Object.entries(_mem)) {
-                target[k] = v;
+                // Name caches are MERGED with the server copy rather than overwritten.
+                // Without this, a secondary device (tablet) that has only seen a handful
+                // of friends pushes its tiny cache over the desktop's full one the moment
+                // any sync fires — leaving everyone as #number on next login.
+                if ((k === "friendNames" || k === "friendAccountNames") &&
+                    v && typeof v === "object" && !Array.isArray(v)) {
+                    const existing = target[k];
+                    if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+                        // Server data as base, in-memory (current session) wins on conflict.
+                        const merged = Object.assign(Object.assign({}, existing), v);
+                        // Keep within the 500-entry cap to avoid bloating the sync payload.
+                        const keys = Object.keys(merged);
+                        if (keys.length > 500) {
+                            for (const ek of keys.slice(0, keys.length - 500))
+                                delete merged[ek];
+                        }
+                        target[k] = merged;
+                    }
+                    else {
+                        target[k] = v;
+                    }
+                }
+                else {
+                    target[k] = v;
+                }
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -29202,7 +29226,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.2";
+    const MOD_VERSION = "6.5.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29213,6 +29237,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.3",
+            changes: [
+                "Fix: Friend names no longer get wiped after using EBC on a second device (tablet/phone). Root cause: flushToExtensionSettings was a plain overwrite — a device that had only seen a few friends in its session pushed its tiny name cache over the full desktop cache. Fix: name cache dicts (friendNames, friendAccountNames) are now merged with the server copy instead of overwriting it, so the larger cache always wins.",
+            ],
+        },
         {
             version: "6.5.2",
             changes: [
