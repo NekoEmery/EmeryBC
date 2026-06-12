@@ -22040,11 +22040,34 @@
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
                 zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
                 const zoomVal = document.createElement("span");
-                zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
-                zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
+                const refreshZoomVal = (v) => {
+                    zoomVal.textContent = Math.round(v * 100) + "%";
+                    const isDefault = Math.abs(v - 1) < 0.01;
+                    zoomVal.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:11px",
+                        "min-width:30px",
+                        "text-align:right",
+                        "flex-shrink:0",
+                        "color:" + (isDefault ? "#cf6f98" : "#f0c0d8"),
+                        "cursor:" + (isDefault ? "default" : "pointer"),
+                        "user-select:none",
+                    ].join(";");
+                    zoomVal.title = isDefault ? "" : "Click to reset to 100%";
+                };
+                refreshZoomVal(loadPanelZoom());
+                zoomVal.addEventListener("click", () => {
+                    const cur = parseFloat(zoomSlider.value);
+                    if (Math.abs(cur - 1) < 0.01)
+                        return;
+                    zoomSlider.value = "1";
+                    savePanelZoom(1);
+                    this.applyPanelZoom(1);
+                    refreshZoomVal(1);
+                });
                 zoomSlider.addEventListener("input", () => {
                     const v = parseFloat(zoomSlider.value);
-                    zoomVal.textContent = Math.round(v * 100) + "%";
+                    refreshZoomVal(v);
                     savePanelZoom(v);
                     this.applyPanelZoom(v);
                 });
@@ -29174,7 +29197,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.0";
+    const MOD_VERSION = "6.5.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29185,6 +29208,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.1",
+            changes: [
+                "Fix: Text size percentage label is now clickable to reset to 100% when not at default. Label brightens and shows a tooltip to indicate it's interactive.",
+            ],
+        },
         {
             version: "6.5.0",
             changes: [
