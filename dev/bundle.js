@@ -7840,7 +7840,7 @@
         var _a;
         try {
             const v = parseFloat((_a = localStorage.getItem(PANEL_ZOOM_KEY)) !== null && _a !== void 0 ? _a : "1");
-            return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
+            return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
         }
         catch (_b) {
             return 1;
@@ -13089,6 +13089,12 @@
                 wrapper.style.width = inv;
                 wrapper.style.height = inv;
             }
+            // Apply matching zoom to any open beep/group windows.
+            const zoomStr = scale === 1 ? "" : String(scale);
+            for (const { el } of this.beepWins.values())
+                el.style.zoom = zoomStr;
+            for (const { el } of this.groupWins.values())
+                el.style.zoom = zoomStr;
         }
         /**
          * Re-render the current tab in-place while preserving the panel's scroll
@@ -18661,6 +18667,9 @@
             win.className = "ebc-beep-win";
             win.style.bottom = `${80 + offset}px`;
             win.style.right = `${340 + offset}px`;
+            const _bScale = loadPanelZoom();
+            if (_bScale !== 1)
+                win.style.zoom = String(_bScale);
             this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
             if (startMinimized)
                 win.classList.add("minimized");
@@ -19851,6 +19860,9 @@
             win.className = "ebc-beep-win";
             win.style.bottom = `${80 + offset}px`;
             win.style.right = `${340 + offset}px`;
+            const _gScale = loadPanelZoom();
+            if (_gScale !== 1)
+                win.style.zoom = String(_gScale);
             this.groupWins.set(group.id, { el: win, minimized: false });
             // Drag
             const header = document.createElement("div");
@@ -22021,12 +22033,12 @@
                 zoomLbl.textContent = t("dev.textSize");
                 const zoomSlider = document.createElement("input");
                 zoomSlider.type = "range";
-                zoomSlider.min = "0.8";
-                zoomSlider.max = "1.4";
+                zoomSlider.min = "0.7";
+                zoomSlider.max = "2.0";
                 zoomSlider.step = "0.05";
                 zoomSlider.value = String(loadPanelZoom());
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-                zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+                zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
                 const zoomVal = document.createElement("span");
                 zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
                 zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
@@ -29162,7 +29174,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.4.4";
+    const MOD_VERSION = "6.5.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29173,6 +29185,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.0",
+            changes: [
+                "Feature: UI zoom now scales beep windows and group beep windows in addition to the EBC panel. Setting the slider live-updates all open windows immediately.",
+                "Feature: UI zoom range extended from 80%–140% to 70%–200%, making the addon fully usable on 2K/4K monitors at native resolution.",
+            ],
+        },
         {
             version: "6.4.4",
             changes: [
