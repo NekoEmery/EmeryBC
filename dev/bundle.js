@@ -5244,11 +5244,16 @@
                 }
                 for (const num of watchList) {
                     if (onlineSet.has(num) && !prevOnline.has(num)) {
-                        const name = (_c = (_b = (_a = entryNames.get(num)) !== null && _a !== void 0 ? _a : getCachedNames()[String(num)]) !== null && _b !== void 0 ? _b : getCachedAccountNames()[String(num)]) !== null && _c !== void 0 ? _c : `#${num}`;
-                        try {
-                            _onFriendCameOnline(num, name);
+                        // Capture the fallback name now (from entries), but delay the callback
+                        // by one tick so BC's own AccountQueryResult handler has run first and
+                        // Player.FriendNames is fully populated — then showOnlineToast can read
+                        // the authoritative name directly from there.
+                        const fallbackName = (_c = (_b = (_a = entryNames.get(num)) !== null && _a !== void 0 ? _a : getCachedNames()[String(num)]) !== null && _b !== void 0 ? _b : getCachedAccountNames()[String(num)]) !== null && _c !== void 0 ? _c : `#${num}`;
+                        const cb = _onFriendCameOnline;
+                        window.setTimeout(() => { try {
+                            cb === null || cb === void 0 ? void 0 : cb(num, fallbackName);
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_a) { /* ignore */ } }, 0);
                     }
                 }
             }
@@ -29157,7 +29162,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.4.3";
+    const MOD_VERSION = "6.4.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29168,6 +29173,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.4.4",
+            changes: [
+                "Fix: Online notification now shows the friend's actual name. Root cause: EBC's hook fired before BC's own AccountQueryResult handler populated Player.FriendNames. Fix: callback is delayed one tick (setTimeout 0) so BC's handler runs first; showOnlineToast reads Player.FriendNames directly as the authoritative source.",
+                "Feature: Online notification toast now has a pulsing green dot icon.",
+            ],
+        },
         {
             version: "6.4.3",
             changes: [
@@ -33995,8 +34007,13 @@
             ],
         },
     ];
-    function showOnlineToast(memberNumber, name) {
+    function showOnlineToast(memberNumber, fallbackName) {
+        var _a;
         try {
+            // Player.FriendNames is BC's authoritative name map, populated after our hook calls next().
+            // The callback fires on next tick so this is already up-to-date.
+            const friendNames = Player.FriendNames;
+            const name = (_a = friendNames === null || friendNames === void 0 ? void 0 : friendNames.get(memberNumber)) !== null && _a !== void 0 ? _a : fallbackName;
             const existing = document.querySelectorAll(".ebc-online-toast");
             const topOffset = 20 + existing.length * 52;
             const toast = document.createElement("div");
@@ -34011,8 +34028,27 @@
                 "transition:opacity 0.4s ease",
                 "cursor:pointer", "user-select:none",
                 "white-space:nowrap", "min-width:160px",
+                "display:flex", "align-items:center", "gap:9px",
             ].join(";");
-            toast.innerHTML = `<span style="color:#cf6f98;font-weight:bold;">${name.replace(/</g, "&lt;")}</span> is now online`;
+            // Pulsing green dot
+            const dot = document.createElement("span");
+            dot.style.cssText = [
+                "width:10px", "height:10px", "border-radius:50%",
+                "background:#44d477", "flex-shrink:0",
+                "box-shadow:0 0 0 0 rgba(68,212,119,0.7)",
+                "animation:ebc-pulse 1.6s ease-out infinite",
+            ].join(";");
+            // Inject keyframes once
+            if (!document.getElementById("ebc-pulse-style")) {
+                const style = document.createElement("style");
+                style.id = "ebc-pulse-style";
+                style.textContent = "@keyframes ebc-pulse{0%{box-shadow:0 0 0 0 rgba(68,212,119,0.7)}70%{box-shadow:0 0 0 7px rgba(68,212,119,0)}100%{box-shadow:0 0 0 0 rgba(68,212,119,0)}}";
+                document.head.appendChild(style);
+            }
+            const label = document.createElement("span");
+            label.innerHTML = `<span style="color:#cf6f98;font-weight:bold;">${name.replace(/</g, "&lt;")}</span> is now online`;
+            toast.appendChild(dot);
+            toast.appendChild(label);
             toast.title = "Click to dismiss";
             document.body.appendChild(toast);
             const remove = () => {
@@ -34027,7 +34063,7 @@
             if (getOnlineSoundEnabled())
                 playOnlineSound();
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     function playOnlineSound() {
         try {
