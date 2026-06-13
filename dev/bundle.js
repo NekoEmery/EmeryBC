@@ -11442,14 +11442,29 @@
             addPointerDown(resizeW, (start, e) => {
                 e.preventDefault();
                 const startW = slideContainer.offsetWidth;
+                // In free-float mode the panel is left-anchored (left: X, right: auto).
+                // Widening via the left handle must move the LEFT edge, not the right, so
+                // we track the right edge as the invariant and adjust style.left together
+                // with style.width.
+                const inFreeMode = this.panelPosition !== null;
+                const startPanelLeft = inFreeMode ? (parseFloat(slideContainer.style.left) || 0) : 0;
+                const startRightEdge = startPanelLeft + startW;
                 resizeW.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
                     const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
                     slideContainer.style.width = `${newW}px`;
                     this.userPanelWidth = newW;
+                    if (inFreeMode) {
+                        slideContainer.style.left = `${Math.max(0, startRightEdge - newW)}px`;
+                    }
                 }, () => {
                     resizeW.classList.remove("ebc-resizing");
                     savePanelWidth(this.userPanelWidth);
+                    if (inFreeMode && this.panelPosition !== null) {
+                        const x = parseFloat(slideContainer.style.left) || 0;
+                        this.panelPosition = { x, y: this.panelPosition.y };
+                        this.savePanelPosition(this.panelPosition);
+                    }
                 });
             });
             const resizeS = document.createElement("div");
@@ -29348,7 +29363,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.8";
+    const MOD_VERSION = "6.5.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29359,6 +29374,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.9",
+            changes: [
+                "Fix: Left resize handle scaled the panel rightward instead of leftward when the panel was in free-float mode. Root cause: in free mode the panel has position:fixed with an explicit left: value, so increasing width extends the right edge rather than moving the left edge. Now the handler tracks the right edge as the invariant and updates style.left together with style.width, and saves the new x position on mouseup.",
+            ],
+        },
         {
             version: "6.5.8",
             changes: [
