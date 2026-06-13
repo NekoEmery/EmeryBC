@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.5";
+const MOD_VERSION = "6.5.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.6",
+        changes: [
+            "Fix: Beep messages were being cut off at 200 characters when stored in history. Root cause: the 200-char cap was added to prevent WCE/FBC JSON metadata blobs from bloating history, but stripBeepMetadata already removes those blobs before the cap applies — so real message content was getting truncated. Cap raised to 1000 characters.",
+        ],
+    },
     {
         version: "6.5.5",
         changes: [

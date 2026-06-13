@@ -622,7 +622,7 @@ export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): vo
 
 // -- Beep history --------------------------------------------------------------
 
-const MAX_ENTRIES = 100; // reduced from 300 — each message can be 200-500 bytes
+const MAX_ENTRIES = 100; // 100 entries × up to 1 KB each ≈ 100 KB max for history
 
 export function getBeepHistory(): BeepEntry[] {
     const v = getSettings().beepHistory;
@@ -632,9 +632,10 @@ export function getBeepHistory(): BeepEntry[] {
 export function addBeepEntry(entry: BeepEntry): void {
     const store = getSettings();
     const history = getBeepHistory();
-    // Strip mod metadata and truncate before persisting — WCE/FBC append large
-    // JSON blobs to messages that bloat the stored history significantly.
-    const cleaned = stripBeepMetadata(entry.message).slice(0, 200);
+    // Strip mod metadata before persisting — WCE/FBC append large JSON blobs to
+    // messages that bloat stored history. stripBeepMetadata removes those blobs,
+    // so the 1000-char cap here only guards against truly pathological inputs.
+    const cleaned = stripBeepMetadata(entry.message).slice(0, 1000);
     history.push({ ...entry, message: cleaned });
     if (history.length > MAX_ENTRIES) history.splice(0, history.length - MAX_ENTRIES);
     store.beepHistory = history;
