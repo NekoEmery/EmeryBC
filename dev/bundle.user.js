@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.5.4
+// @version      6.5.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -8094,19 +8094,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
 /* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
 .ebc-resize-w {
-    position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
     cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
+    background: rgba(207,111,152,0.08);
     transition: background 0.15s;
 }
 .ebc-resize-s {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
     cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
+    background: rgba(207,111,152,0.08);
     transition: background 0.15s;
 }
-.ebc-resize-w:hover { background: rgba(207,111,152,0.25); }
-.ebc-resize-s:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-w:hover { background: rgba(207,111,152,0.3); }
+.ebc-resize-s:hover { background: rgba(207,111,152,0.3); }
 .ebc-resize-w.ebc-resizing,
-.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.4); }
+.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.5); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -11453,7 +11455,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const resizeW = document.createElement("div");
             resizeW.className = "ebc-resize-w";
             resizeW.title = "Drag to resize panel width";
-            addPointerDown(resizeW, (start) => {
+            addPointerDown(resizeW, (start, e) => {
+                e.preventDefault();
                 const startW = slideContainer.offsetWidth;
                 resizeW.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
@@ -11468,7 +11471,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const resizeS = document.createElement("div");
             resizeS.className = "ebc-resize-s";
             resizeS.title = "Drag to resize panel height";
-            addPointerDown(resizeS, (start) => {
+            addPointerDown(resizeS, (start, e) => {
+                e.preventDefault();
                 const startH = slideContainer.offsetHeight;
                 resizeS.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
@@ -29352,7 +29356,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.4";
+    const MOD_VERSION = "6.5.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29363,6 +29367,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.5",
+            changes: [
+                "Fix: Drag-resize handles on the left and bottom edges of the EBC panel now actually work. Root cause: mousedown handlers were not calling e.preventDefault(), causing the browser to intercept the drag as a native drag-and-drop operation and suppressing all mousemove events. Handles also made slightly wider/taller (10px) with a faint always-visible background so they are easier to find.",
+            ],
+        },
         {
             version: "6.5.4",
             changes: [
