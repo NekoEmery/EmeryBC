@@ -652,6 +652,16 @@ const CSS = `
 .ebc-resize-s:hover { background: rgba(207,111,152,0.3); }
 .ebc-resize-w.ebc-resizing,
 .ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.5); }
+.ebc-resize-corner {
+    position: absolute; left: 0; bottom: 0; width: 18px; height: 18px;
+    cursor: nesw-resize; z-index: 202;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(207,111,152,0.45);
+    transition: color 0.15s;
+    border-radius: 0 0 0 3px;
+}
+.ebc-resize-corner:hover { color: rgba(207,111,152,0.9); }
+.ebc-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -4125,8 +4135,51 @@ export class EBCDrawer {
             );
         });
 
+        // ── Corner resize handle (bottom-left) ───────────────────────────────
+        // Diagonal drag — resizes width and height simultaneously.
+        // Higher z-index than the edge handles so it captures the overlap area.
+        const resizeCorner = document.createElement("div");
+        resizeCorner.className = "ebc-resize-corner";
+        resizeCorner.title = "Drag to resize";
+        resizeCorner.dataset.guideTarget = "resize-corner";
+        resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="10" x2="10" y2="2"/><polyline points="10,2 10,6 6,2"/><polyline points="2,10 2,6 6,10"/></svg>`;
+
+        addPointerDown(resizeCorner, (start, e) => {
+            e.preventDefault();
+            const startW = slideContainer.offsetWidth;
+            const startH = slideContainer.offsetHeight;
+            const inFreeMode = this.panelPosition !== null;
+            const startPanelLeft = inFreeMode ? (parseFloat(slideContainer.style.left) || 0) : 0;
+            const startRightEdge = startPanelLeft + startW;
+            resizeCorner.classList.add("ebc-resizing");
+            addPointerTracking(
+                (pos) => {
+                    const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
+                    const newH = Math.max(150, Math.min(window.innerHeight - 20, startH + (pos.clientY - start.clientY)));
+                    slideContainer.style.width  = `${newW}px`;
+                    slideContainer.style.height = `${newH}px`;
+                    this.userPanelWidth  = newW;
+                    this.userPanelHeight = newH;
+                    if (inFreeMode) {
+                        slideContainer.style.left = `${Math.max(0, startRightEdge - newW)}px`;
+                    }
+                },
+                () => {
+                    resizeCorner.classList.remove("ebc-resizing");
+                    savePanelWidth(this.userPanelWidth);
+                    savePanelHeight(this.userPanelHeight);
+                    if (inFreeMode && this.panelPosition !== null) {
+                        const x = parseFloat(slideContainer.style.left) || 0;
+                        this.panelPosition = { x, y: this.panelPosition.y };
+                        this.savePanelPosition(this.panelPosition);
+                    }
+                },
+            );
+        });
+
         slideContainer.appendChild(resizeW);
         slideContainer.appendChild(resizeS);
+        slideContainer.appendChild(resizeCorner);
 
         root.appendChild(slideContainer);
         document.body.appendChild(root);
@@ -5484,8 +5537,9 @@ export class EBCDrawer {
         },
         {
             tab: null,
-            label: "Opening & Moving the Menu",
-            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel to any spot on screen.\n[[↻]] refreshes your friend list and room data.  [[✕]] closes the panel.\n((The [[?]] button in the header re-opens this guide any time.))",
+            label: "Opening, Moving & Resizing",
+            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner — this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
+            spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
@@ -5567,7 +5621,7 @@ export class EBCDrawer {
         {
             tab: null,
             label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
 

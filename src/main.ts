@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.6.0";
+const MOD_VERSION = "6.6.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.6.1",
+        changes: [
+            "UX: Added a visible diagonal-arrow icon (↗) in the bottom-left corner of the panel as a dedicated resize handle. Dragging it scales width and height simultaneously and is discoverable at a glance. The existing edge handles (left = width only, bottom = height only) are still present.",
+            "Guide: 'Opening & Moving' step renamed to 'Opening, Moving & Resizing' and updated to explain the corner icon, edge handles, and the Reset all button. Tips & Tricks step also updated with resize and Reset all shortcuts.",
+        ],
+    },
     {
         version: "6.6.0",
         changes: [
