@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.5.7
+// @version      6.5.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -19524,13 +19524,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.className = "ebc-beep-win-input";
             input.type = "text";
             input.placeholder = t("users.typeMessage");
-            input.maxLength = 300;
+            input.maxLength = 1000;
             // Character counter — flex item, sits between input and emoji button
             const charCounter = document.createElement("span");
             charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
-            charCounter.textContent = "300";
+            charCounter.textContent = "1000";
             const updateCounter = () => {
-                const rem = 300 - input.value.length;
+                const rem = 1000 - input.value.length;
                 charCounter.textContent = String(rem);
                 charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
             };
@@ -29365,7 +29365,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.7";
+    const MOD_VERSION = "6.5.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29376,6 +29376,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.8",
+            changes: [
+                "Fix: Beep window chat input was capped at 300 characters (maxLength on the HTML input element). BC's server has no client-enforced limit; pasting a longer message was silently truncated by the browser before sending. Limit raised to 1000 characters to match BC's standard message length.",
+            ],
+        },
         {
             version: "6.5.7",
             changes: [
