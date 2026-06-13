@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.7";
+const MOD_VERSION = "6.5.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.8",
+        changes: [
+            "Fix: Beep window chat input was capped at 300 characters (maxLength on the HTML input element). BC's server has no client-enforced limit; pasting a longer message was silently truncated by the browser before sending. Limit raised to 1000 characters to match BC's standard message length.",
+        ],
+    },
     {
         version: "6.5.7",
         changes: [

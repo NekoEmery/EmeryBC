@@ -12496,14 +12496,14 @@ export class EBCDrawer {
         input.className = "ebc-beep-win-input";
         input.type = "text";
         input.placeholder = t("users.typeMessage");
-        input.maxLength = 300;
+        input.maxLength = 1000;
 
         // Character counter — flex item, sits between input and emoji button
         const charCounter = document.createElement("span");
         charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
-        charCounter.textContent = "300";
+        charCounter.textContent = "1000";
         const updateCounter = (): void => {
-            const rem = 300 - input.value.length;
+            const rem = 1000 - input.value.length;
             charCounter.textContent = String(rem);
             charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
         };
