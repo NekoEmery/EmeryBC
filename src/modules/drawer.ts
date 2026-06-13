@@ -637,19 +637,21 @@ const CSS = `
 
 /* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
 .ebc-resize-w {
-    position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
     cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
+    background: rgba(207,111,152,0.08);
     transition: background 0.15s;
 }
 .ebc-resize-s {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
     cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
+    background: rgba(207,111,152,0.08);
     transition: background 0.15s;
 }
-.ebc-resize-w:hover { background: rgba(207,111,152,0.25); }
-.ebc-resize-s:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-w:hover { background: rgba(207,111,152,0.3); }
+.ebc-resize-s:hover { background: rgba(207,111,152,0.3); }
 .ebc-resize-w.ebc-resizing,
-.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.4); }
+.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.5); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -4070,7 +4072,8 @@ export class EBCDrawer {
         resizeW.className = "ebc-resize-w";
         resizeW.title = "Drag to resize panel width";
 
-        addPointerDown(resizeW, (start) => {
+        addPointerDown(resizeW, (start, e) => {
+            e.preventDefault();
             const startW = slideContainer.offsetWidth;
             resizeW.classList.add("ebc-resizing");
             addPointerTracking(
@@ -4090,7 +4093,8 @@ export class EBCDrawer {
         resizeS.className = "ebc-resize-s";
         resizeS.title = "Drag to resize panel height";
 
-        addPointerDown(resizeS, (start) => {
+        addPointerDown(resizeS, (start, e) => {
+            e.preventDefault();
             const startH = slideContainer.offsetHeight;
             resizeS.classList.add("ebc-resizing");
             addPointerTracking(

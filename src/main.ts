@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.4";
+const MOD_VERSION = "6.5.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.5",
+        changes: [
+            "Fix: Drag-resize handles on the left and bottom edges of the EBC panel now actually work. Root cause: mousedown handlers were not calling e.preventDefault(), causing the browser to intercept the drag as a native drag-and-drop operation and suppressing all mousemove events. Handles also made slightly wider/taller (10px) with a faint always-visible background so they are easier to find.",
+        ],
+    },
     {
         version: "6.5.4",
         changes: [
