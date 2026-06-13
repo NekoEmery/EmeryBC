@@ -4075,16 +4075,31 @@ export class EBCDrawer {
         addPointerDown(resizeW, (start, e) => {
             e.preventDefault();
             const startW = slideContainer.offsetWidth;
+            // In free-float mode the panel is left-anchored (left: X, right: auto).
+            // Widening via the left handle must move the LEFT edge, not the right, so
+            // we track the right edge as the invariant and adjust style.left together
+            // with style.width.
+            const inFreeMode = this.panelPosition !== null;
+            const startPanelLeft = inFreeMode ? (parseFloat(slideContainer.style.left) || 0) : 0;
+            const startRightEdge = startPanelLeft + startW;
             resizeW.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
                     const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
                     slideContainer.style.width = `${newW}px`;
                     this.userPanelWidth = newW;
+                    if (inFreeMode) {
+                        slideContainer.style.left = `${Math.max(0, startRightEdge - newW)}px`;
+                    }
                 },
                 () => {
                     resizeW.classList.remove("ebc-resizing");
                     savePanelWidth(this.userPanelWidth);
+                    if (inFreeMode && this.panelPosition !== null) {
+                        const x = parseFloat(slideContainer.style.left) || 0;
+                        this.panelPosition = { x, y: this.panelPosition.y };
+                        this.savePanelPosition(this.panelPosition);
+                    }
                 },
             );
         });

@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.8";
+const MOD_VERSION = "6.5.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.9",
+        changes: [
+            "Fix: Left resize handle scaled the panel rightward instead of leftward when the panel was in free-float mode. Root cause: in free mode the panel has position:fixed with an explicit left: value, so increasing width extends the right edge rather than moving the left edge. Now the handler tracks the right edge as the invariant and updates style.left together with style.width, and saves the new x position on mouseup.",
+        ],
+    },
     {
         version: "6.5.8",
         changes: [
