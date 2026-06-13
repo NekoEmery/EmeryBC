@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.5.5
+// @version      6.5.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -5588,7 +5588,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         sync();
     }
     // -- Beep history --------------------------------------------------------------
-    const MAX_ENTRIES$2 = 100; // reduced from 300 — each message can be 200-500 bytes
+    const MAX_ENTRIES$2 = 100; // 100 entries × up to 1 KB each ≈ 100 KB max for history
     function getBeepHistory() {
         const v = getSettings().beepHistory;
         return Array.isArray(v) ? v : [];
@@ -5596,9 +5596,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function addBeepEntry(entry) {
         const store = getSettings();
         const history = getBeepHistory();
-        // Strip mod metadata and truncate before persisting — WCE/FBC append large
-        // JSON blobs to messages that bloat the stored history significantly.
-        const cleaned = stripBeepMetadata(entry.message).slice(0, 200);
+        // Strip mod metadata before persisting — WCE/FBC append large JSON blobs to
+        // messages that bloat stored history. stripBeepMetadata removes those blobs,
+        // so the 1000-char cap here only guards against truly pathological inputs.
+        const cleaned = stripBeepMetadata(entry.message).slice(0, 1000);
         history.push(Object.assign(Object.assign({}, entry), { message: cleaned }));
         if (history.length > MAX_ENTRIES$2)
             history.splice(0, history.length - MAX_ENTRIES$2);
@@ -29356,7 +29357,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.5";
+    const MOD_VERSION = "6.5.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29367,6 +29368,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.6",
+            changes: [
+                "Fix: Beep messages were being cut off at 200 characters when stored in history. Root cause: the 200-char cap was added to prevent WCE/FBC JSON metadata blobs from bloating history, but stripBeepMetadata already removes those blobs before the cap applies — so real message content was getting truncated. Cap raised to 1000 characters.",
+            ],
+        },
         {
             version: "6.5.5",
             changes: [
