@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.5.6";
+const MOD_VERSION = "6.5.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.5.7",
+        changes: [
+            "Fix: After dragging the panel header to move it (entering free-float mode), user-resized width and height were being reset to defaults. Root cause: the ebc-free-mode CSS rule applied width/height with !important, which overrides inline styles — so both the resize handles and the drag-resize stored values were silently ignored. Removed !important from those two properties and updated enterFreeMode to re-apply the user's saved dimensions after the class is added.",
+        ],
+    },
     {
         version: "6.5.6",
         changes: [

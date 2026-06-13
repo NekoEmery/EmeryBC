@@ -2952,8 +2952,8 @@ const CSS = `
     position: fixed !important;
     right: auto !important;
     top: auto;           /* no !important — inline style.top must win during drag */
-    width: min(390px, calc(100vw - 16px)) !important;
-    height: min(80vh, 650px) !important;
+    width: min(390px, calc(100vw - 16px));
+    height: min(80vh, 650px);
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     transition: opacity 0.18s !important;
@@ -5209,14 +5209,20 @@ export class EBCDrawer {
 
     private enterFreeMode(pos: { x: number; y: number }): void {
         if (!this.panelEl) return;
+        const panel = this.panelEl as HTMLElement;
         const w = window.innerWidth;
         const h = window.innerHeight;
-        const pW = Math.min(390, w - 16);
+        // Use the actual rendered width (respects user's resize) for viewport clamping.
+        const pW = panel.offsetWidth || Math.min(390, w - 16);
         const x = Math.max(0, Math.min(w - pW, pos.x));
         const y = Math.max(0, Math.min(h - 80, pos.y));
-        this.panelEl.classList.add("ebc-free-mode");
-        this.panelEl.style.left = `${x}px`;
-        this.panelEl.style.top  = `${y}px`;
+        panel.classList.add("ebc-free-mode");
+        panel.style.left = `${x}px`;
+        panel.style.top  = `${y}px`;
+        // Restore user-resized dimensions — CSS width/height no longer use !important
+        // so inline styles must be (re-)applied after the class switch.
+        if (this.userPanelWidth  !== null) panel.style.width  = `${this.userPanelWidth}px`;
+        if (this.userPanelHeight !== null) panel.style.height = `${this.userPanelHeight}px`;
         if (this.resetLocationBtn) this.resetLocationBtn.style.display = "";
     }
 
