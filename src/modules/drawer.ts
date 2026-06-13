@@ -5034,6 +5034,11 @@ export class EBCDrawer {
             // Reset text size to default
             savePanelZoom(1);
             this.applyPanelZoom(1);
+            // Reset panel size to default
+            savePanelWidth(null);  this.userPanelWidth  = null; if (this.panelEl) (this.panelEl as HTMLElement).style.width  = "";
+            savePanelHeight(null); this.userPanelHeight = null; if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
+            // Force syncToChat to re-apply height from the chat log on next tick
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             // Also reset the hamburger tab to auto-position (follow CRABS)
             this.userTabOffset = null;
             this.lastCrabsBottom = -1;
