@@ -453,6 +453,29 @@ function savePanelZoom(v: number): void {
     try { localStorage.setItem(PANEL_ZOOM_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
 }
 
+// -- Panel size (width / height) persisted to localStorage ---------------------
+const PANEL_WIDTH_KEY  = "EBC_panelWidth";
+const PANEL_HEIGHT_KEY = "EBC_panelHeight";
+
+function loadPanelWidth(): number | null {
+    try {
+        const v = parseFloat(localStorage.getItem(PANEL_WIDTH_KEY) ?? "");
+        return isNaN(v) ? null : Math.max(200, Math.min(1400, v));
+    } catch { return null; }
+}
+function savePanelWidth(v: number | null): void {
+    try { if (v === null) localStorage.removeItem(PANEL_WIDTH_KEY); else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(v))); } catch { /* ignore */ }
+}
+function loadPanelHeight(): number | null {
+    try {
+        const v = parseFloat(localStorage.getItem(PANEL_HEIGHT_KEY) ?? "");
+        return isNaN(v) ? null : Math.max(150, Math.min(2000, v));
+    } catch { return null; }
+}
+function savePanelHeight(v: number | null): void {
+    try { if (v === null) localStorage.removeItem(PANEL_HEIGHT_KEY); else localStorage.setItem(PANEL_HEIGHT_KEY, String(Math.round(v))); } catch { /* ignore */ }
+}
+
 // -- Styles --------------------------------------------------------------------
 
 const CSS = `
@@ -611,6 +634,22 @@ const CSS = `
     visibility: hidden;
 }
 #emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
+
+/* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
+.ebc-resize-w {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
+    transition: background 0.15s;
+}
+.ebc-resize-s {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
+    transition: background 0.15s;
+}
+.ebc-resize-w:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-s:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-w.ebc-resizing,
+.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.4); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -3910,8 +3949,9 @@ export class EBCDrawer {
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
     // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
     private userTabOffset: { x: number; y: number } | null = null;
-    // User-dragged panel height (px). null = fill available space.
+    // User-dragged panel dimensions (px). null = use CSS defaults.
     private userPanelHeight: number | null = null;
+    private userPanelWidth:  number | null = null;
     // Set to true once we've confirmed no saved position exists, so we stop polling storage.
     private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
@@ -4020,10 +4060,65 @@ export class EBCDrawer {
         // throws, updateVisibility() can still show the tab and the panel won't be
         // permanently lost (content gets appended to the live panel as setup continues).
         slideContainer.appendChild(panel);
+
+        // ── Resize handles ────────────────────────────────────────────────────
+        // Left handle (ew-resize): drag left/right to widen/narrow the panel.
+        // Bottom handle (ns-resize): drag up/down to shorten/taller the panel.
+        // Both are absolute-positioned siblings of .ebc-panel so they aren't
+        // affected by the zoom wrapper's transform:scale().
+        const resizeW = document.createElement("div");
+        resizeW.className = "ebc-resize-w";
+        resizeW.title = "Drag to resize panel width";
+
+        addPointerDown(resizeW, (start) => {
+            const startW = slideContainer.offsetWidth;
+            resizeW.classList.add("ebc-resizing");
+            addPointerTracking(
+                (pos) => {
+                    const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
+                    slideContainer.style.width = `${newW}px`;
+                    this.userPanelWidth = newW;
+                },
+                () => {
+                    resizeW.classList.remove("ebc-resizing");
+                    savePanelWidth(this.userPanelWidth);
+                },
+            );
+        });
+
+        const resizeS = document.createElement("div");
+        resizeS.className = "ebc-resize-s";
+        resizeS.title = "Drag to resize panel height";
+
+        addPointerDown(resizeS, (start) => {
+            const startH = slideContainer.offsetHeight;
+            resizeS.classList.add("ebc-resizing");
+            addPointerTracking(
+                (pos) => {
+                    const newH = Math.max(150, Math.min(window.innerHeight - 20, startH + (pos.clientY - start.clientY)));
+                    this.userPanelHeight = newH;
+                    slideContainer.style.height = `${newH}px`;
+                },
+                () => {
+                    resizeS.classList.remove("ebc-resizing");
+                    savePanelHeight(this.userPanelHeight);
+                },
+            );
+        });
+
+        slideContainer.appendChild(resizeW);
+        slideContainer.appendChild(resizeS);
+
         root.appendChild(slideContainer);
         document.body.appendChild(root);
         this.rootEl  = root;
         this.panelEl = slideContainer;
+
+        // Restore user-saved panel dimensions.
+        this.userPanelWidth  = loadPanelWidth();
+        this.userPanelHeight = loadPanelHeight();
+        if (this.userPanelWidth  !== null) slideContainer.style.width  = `${this.userPanelWidth}px`;
+        // Height is applied by syncToChat once the chat log is positioned.
 
         // Stop BC's in-game touch handlers from eating our touch events.
         // BC registers touchmove/touchstart at document level (non-passive) and calls
@@ -4867,11 +4962,13 @@ export class EBCDrawer {
                     if (longPressed) {
                         // Emergency reset — shown after 5-second hold on the tab.
                         showConfirmOverlay(
-                            "Reset all EBC drawer settings?\n\nRestores the default position, text size, and panel opacity.",
+                            "Reset all EBC drawer settings?\n\nRestores the default position, text size, panel size, and panel opacity.",
                             "Cancel", "Reset",
                             () => {
                                 savePanelZoom(1);      this.applyPanelZoom(1);
                                 savePanelOpacity(1);   this.applyPanelOpacity(1);
+                                savePanelWidth(null);  this.userPanelWidth  = null; if (this.panelEl) (this.panelEl as HTMLElement).style.width  = "";
+                                savePanelHeight(null); this.userPanelHeight = null; if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
                                 this.panelPosition = null;
                                 this.savePanelPosition(null);
                                 this.exitFreeMode();

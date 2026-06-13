@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.5.3
+// @version      6.5.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -7893,6 +7893,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Panel size (width / height) persisted to localStorage ---------------------
+    const PANEL_WIDTH_KEY = "EBC_panelWidth";
+    const PANEL_HEIGHT_KEY = "EBC_panelHeight";
+    function loadPanelWidth() {
+        var _a;
+        try {
+            const v = parseFloat((_a = localStorage.getItem(PANEL_WIDTH_KEY)) !== null && _a !== void 0 ? _a : "");
+            return isNaN(v) ? null : Math.max(200, Math.min(1400, v));
+        }
+        catch (_b) {
+            return null;
+        }
+    }
+    function savePanelWidth(v) {
+        try {
+            if (v === null)
+                localStorage.removeItem(PANEL_WIDTH_KEY);
+            else
+                localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(v)));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function loadPanelHeight() {
+        var _a;
+        try {
+            const v = parseFloat((_a = localStorage.getItem(PANEL_HEIGHT_KEY)) !== null && _a !== void 0 ? _a : "");
+            return isNaN(v) ? null : Math.max(150, Math.min(2000, v));
+        }
+        catch (_b) {
+            return null;
+        }
+    }
+    function savePanelHeight(v) {
+        try {
+            if (v === null)
+                localStorage.removeItem(PANEL_HEIGHT_KEY);
+            else
+                localStorage.setItem(PANEL_HEIGHT_KEY, String(Math.round(v)));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Styles --------------------------------------------------------------------
     const CSS = `
 /*
@@ -8050,6 +8091,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     visibility: hidden;
 }
 #emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
+
+/* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
+.ebc-resize-w {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
+    transition: background 0.15s;
+}
+.ebc-resize-s {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
+    transition: background 0.15s;
+}
+.ebc-resize-w:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-s:hover { background: rgba(207,111,152,0.25); }
+.ebc-resize-w.ebc-resizing,
+.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.4); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -11306,8 +11363,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.timerPoller = null;
             // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
             this.userTabOffset = null;
-            // User-dragged panel height (px). null = fill available space.
+            // User-dragged panel dimensions (px). null = use CSS defaults.
             this.userPanelHeight = null;
+            this.userPanelWidth = null;
             // Set to true once we've confirmed no saved position exists, so we stop polling storage.
             this.tabOffsetChecked = false;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
@@ -11387,10 +11445,53 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // throws, updateVisibility() can still show the tab and the panel won't be
             // permanently lost (content gets appended to the live panel as setup continues).
             slideContainer.appendChild(panel);
+            // ── Resize handles ────────────────────────────────────────────────────
+            // Left handle (ew-resize): drag left/right to widen/narrow the panel.
+            // Bottom handle (ns-resize): drag up/down to shorten/taller the panel.
+            // Both are absolute-positioned siblings of .ebc-panel so they aren't
+            // affected by the zoom wrapper's transform:scale().
+            const resizeW = document.createElement("div");
+            resizeW.className = "ebc-resize-w";
+            resizeW.title = "Drag to resize panel width";
+            addPointerDown(resizeW, (start) => {
+                const startW = slideContainer.offsetWidth;
+                resizeW.classList.add("ebc-resizing");
+                addPointerTracking((pos) => {
+                    const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
+                    slideContainer.style.width = `${newW}px`;
+                    this.userPanelWidth = newW;
+                }, () => {
+                    resizeW.classList.remove("ebc-resizing");
+                    savePanelWidth(this.userPanelWidth);
+                });
+            });
+            const resizeS = document.createElement("div");
+            resizeS.className = "ebc-resize-s";
+            resizeS.title = "Drag to resize panel height";
+            addPointerDown(resizeS, (start) => {
+                const startH = slideContainer.offsetHeight;
+                resizeS.classList.add("ebc-resizing");
+                addPointerTracking((pos) => {
+                    const newH = Math.max(150, Math.min(window.innerHeight - 20, startH + (pos.clientY - start.clientY)));
+                    this.userPanelHeight = newH;
+                    slideContainer.style.height = `${newH}px`;
+                }, () => {
+                    resizeS.classList.remove("ebc-resizing");
+                    savePanelHeight(this.userPanelHeight);
+                });
+            });
+            slideContainer.appendChild(resizeW);
+            slideContainer.appendChild(resizeS);
             root.appendChild(slideContainer);
             document.body.appendChild(root);
             this.rootEl = root;
             this.panelEl = slideContainer;
+            // Restore user-saved panel dimensions.
+            this.userPanelWidth = loadPanelWidth();
+            this.userPanelHeight = loadPanelHeight();
+            if (this.userPanelWidth !== null)
+                slideContainer.style.width = `${this.userPanelWidth}px`;
+            // Height is applied by syncToChat once the chat log is positioned.
             // Stop BC's in-game touch handlers from eating our touch events.
             // BC registers touchmove/touchstart at document level (non-passive) and calls
             // preventDefault(), which kills native scroll inside HTML overlays.
@@ -12134,11 +12235,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.tabDragging = false;
                     if (longPressed) {
                         // Emergency reset — shown after 5-second hold on the tab.
-                        showConfirmOverlay("Reset all EBC drawer settings?\n\nRestores the default position, text size, and panel opacity.", "Cancel", "Reset", () => {
+                        showConfirmOverlay("Reset all EBC drawer settings?\n\nRestores the default position, text size, panel size, and panel opacity.", "Cancel", "Reset", () => {
                             savePanelZoom(1);
                             this.applyPanelZoom(1);
                             savePanelOpacity(1);
                             this.applyPanelOpacity(1);
+                            savePanelWidth(null);
+                            this.userPanelWidth = null;
+                            if (this.panelEl)
+                                this.panelEl.style.width = "";
+                            savePanelHeight(null);
+                            this.userPanelHeight = null;
+                            if (this.panelEl)
+                                this.panelEl.style.height = "";
                             this.panelPosition = null;
                             this.savePanelPosition(null);
                             this.exitFreeMode();
@@ -29243,7 +29352,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.3";
+    const MOD_VERSION = "6.5.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29254,6 +29363,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.5.4",
+            changes: [
+                "Feature: Drag the left edge of the EBC panel to resize its width, drag the bottom edge to resize its height. Both are saved to localStorage and restored on next load. 5-second tab hold reset also clears panel size.",
+            ],
+        },
         {
             version: "6.5.3",
             changes: [
