@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.7";
+const MOD_VERSION = "5.4.8";
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +38,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.4.7",
+        version: "5.4.8",
         changes: [
-            "Panel resize overhaul: added corner drag handle (filled wedge icon), fixed free-float mode losing saved size on move, fixed left edge scaling rightward instead of leftward, Reset All now also resets panel dimensions. Beep window input raised to 1000 chars.",
+            "UX: Beep window input is now a textarea — Shift+Enter inserts a new line, Enter sends. Input auto-grows up to 3 lines.",
+        ],
+    },
+    {
+        version: "6.6.8",
+        changes: [
+            "UX: Beep window input is now a textarea — Shift+Enter inserts a new line, Enter sends. Input auto-grows up to 3 lines.",
         ],
     },
     {
