@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.6.8
+// @version      6.6.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -9988,6 +9988,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
+.ebc-beep-resize-e {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 6px;
+    cursor: ew-resize; z-index: 200;
+}
+.ebc-beep-resize-n {
+    position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    cursor: ns-resize; z-index: 200;
+}
+.ebc-beep-resize-corner {
+    position: absolute; right: 0; top: 0; width: 28px; height: 28px;
+    cursor: nesw-resize; z-index: 202;
+    display: flex; align-items: flex-start; justify-content: flex-end;
+    padding: 2px; box-sizing: border-box;
+    color: rgba(207,111,152,0.7);
+    transition: color 0.15s;
+}
+.ebc-beep-resize-corner:hover { color: rgba(207,111,152,1); }
+.ebc-beep-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
+
 .ebc-beep-win.minimized {
     height: 44px !important;
     min-height: 0;
@@ -19862,6 +19881,66 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             renderQR();
             win.insertBefore(qrBar, footer);
             syncQrToggle(); // apply initial open/closed state from localStorage
+            // ── Resize handles ────────────────────────────────────────────────────
+            const savedSizeKey = `EBC_beepSize_${memberNumber}`;
+            let beepW = null;
+            let beepH = null;
+            try {
+                const saved = localStorage.getItem(savedSizeKey);
+                if (saved) {
+                    const p = JSON.parse(saved);
+                    beepW = p.w;
+                    beepH = p.h;
+                    win.style.width = `${p.w}px`;
+                    win.style.height = `${p.h}px`;
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            const saveBeepSize = () => {
+                try {
+                    localStorage.setItem(savedSizeKey, JSON.stringify({ w: beepW !== null && beepW !== void 0 ? beepW : win.offsetWidth, h: beepH !== null && beepH !== void 0 ? beepH : win.offsetHeight }));
+                }
+                catch ( /* */_a) { /* */ }
+            };
+            const resizeE = document.createElement("div");
+            resizeE.className = "ebc-beep-resize-e";
+            const resizeN = document.createElement("div");
+            resizeN.className = "ebc-beep-resize-n";
+            const resizeBWCorner = document.createElement("div");
+            resizeBWCorner.className = "ebc-beep-resize-corner";
+            resizeBWCorner.title = "Drag to resize";
+            resizeBWCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 16 16" style="transform:rotate(180deg)"><path fill="currentColor" d="M9.3 16l-9.3-9.3v-1.4l10.7 10.7z"/><path fill="currentColor" d="M6.3 16l-6.3-6.3v-1.4l7.7 7.7z"/><path fill="currentColor" d="M3.3 16l-3.3-3.3v-1.4l4.7 4.7z"/><path fill="currentColor" d="M0.3 16l-0.3-0.3v-1.4l1.7 1.7z"/></svg>`;
+            addPointerDown(resizeE, (start, e) => {
+                e.preventDefault();
+                const startW = win.offsetWidth;
+                addPointerTracking((pos) => {
+                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
+                    win.style.width = `${beepW}px`;
+                }, () => { saveBeepSize(); });
+            });
+            addPointerDown(resizeN, (start, e) => {
+                e.preventDefault();
+                const startH = win.offsetHeight;
+                addPointerTracking((pos) => {
+                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + (start.clientY - pos.clientY)));
+                    win.style.height = `${beepH}px`;
+                }, () => { saveBeepSize(); });
+            });
+            addPointerDown(resizeBWCorner, (start, e) => {
+                e.preventDefault();
+                const startW = win.offsetWidth;
+                const startH = win.offsetHeight;
+                resizeBWCorner.classList.add("ebc-resizing");
+                addPointerTracking((pos) => {
+                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
+                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + (start.clientY - pos.clientY)));
+                    win.style.width = `${beepW}px`;
+                    win.style.height = `${beepH}px`;
+                }, () => { resizeBWCorner.classList.remove("ebc-resizing"); saveBeepSize(); });
+            });
+            win.appendChild(resizeE);
+            win.appendChild(resizeN);
+            win.appendChild(resizeBWCorner);
             document.body.appendChild(win);
             // Now that the window is in the DOM it has real layout — scroll history to bottom.
             window.requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
@@ -29451,7 +29530,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.6.8";
+    const MOD_VERSION = "6.6.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29462,6 +29541,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.6.9",
+            changes: [
+                "UX: Beep window is now resizable — drag the top-right corner to resize both dimensions, right edge for width only, top edge for height only. Size persists per-contact in localStorage.",
+            ],
+        },
         {
             version: "6.6.8",
             changes: [
