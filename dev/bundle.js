@@ -8092,10 +8092,10 @@
     display: flex; align-items: flex-end; justify-content: flex-start;
     padding: 2px;
     box-sizing: border-box;
-    color: rgba(207,111,152,0.35);
+    color: rgba(207,111,152,0.7);
     transition: color 0.15s;
 }
-.ebc-resize-corner:hover { color: rgba(207,111,152,0.85); }
+.ebc-resize-corner:hover { color: rgba(207,111,152,1); }
 .ebc-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
 
 .ebc-panel {
@@ -29417,7 +29417,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.6.6";
+    const MOD_VERSION = "6.6.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29428,6 +29428,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.6.7",
+            changes: [
+                "UX: Raised corner resize icon default opacity from 35% to 70% so it's always clearly visible.",
+            ],
+        },
         {
             version: "6.6.6",
             changes: [
