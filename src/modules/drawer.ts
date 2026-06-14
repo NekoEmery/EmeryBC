@@ -2494,6 +2494,7 @@ const CSS = `
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
     min-width: 0;
+    align-items: flex-end;
 }
 
 .ebc-beep-win-input {
@@ -2506,6 +2507,12 @@ const CSS = `
     font-size: 11px;
     padding: 4px 7px;
     outline: none;
+    resize: none;
+    min-height: 24px;
+    max-height: 80px;
+    overflow-y: auto;
+    line-height: 1.4;
+    display: block;
 }
 .ebc-beep-win-input:focus { border-color: #cf6f98; }
 
@@ -12560,11 +12567,11 @@ export class EBCDrawer {
             syncQrToggle();
         });
 
-        const input = document.createElement("input");
+        const input = document.createElement("textarea");
         input.className = "ebc-beep-win-input";
-        input.type = "text";
         input.placeholder = t("users.typeMessage");
         input.maxLength = 1000;
+        input.rows = 1;
 
         // Character counter — flex item, sits between input and emoji button
         const charCounter = document.createElement("span");
@@ -12717,12 +12724,21 @@ export class EBCDrawer {
             clearReply();
             sendBeep(memberNumber, full);
             input.value = "";
+            input.style.height = "auto";
             updateCounter();
             renderHistory();
         };
 
+        const autoGrow = (): void => {
+            input.style.height = "auto";
+            input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
+        };
+        input.addEventListener("input", autoGrow);
+
         sendBtn.addEventListener("click", doSend);
-        input.addEventListener("keydown", (e: KeyboardEvent) => { if (e.key === "Enter") doSend(); });
+        input.addEventListener("keydown", (e: KeyboardEvent) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); }
+        });
 
         footer.appendChild(qrToggle);
         footer.appendChild(input);
