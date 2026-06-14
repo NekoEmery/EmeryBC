@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.6.7
+// @version      6.6.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -9952,6 +9952,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
     min-width: 0;
+    align-items: flex-end;
 }
 
 .ebc-beep-win-input {
@@ -9964,6 +9965,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     font-size: 11px;
     padding: 4px 7px;
     outline: none;
+    resize: none;
+    min-height: 24px;
+    max-height: 80px;
+    overflow-y: auto;
+    line-height: 1.4;
+    display: block;
 }
 .ebc-beep-win-input:focus { border-color: #cf6f98; }
 
@@ -19588,11 +19595,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_a) { /* ignore */ }
                 syncQrToggle();
             });
-            const input = document.createElement("input");
+            const input = document.createElement("textarea");
             input.className = "ebc-beep-win-input";
-            input.type = "text";
             input.placeholder = t("users.typeMessage");
             input.maxLength = 1000;
+            input.rows = 1;
             // Character counter — flex item, sits between input and emoji button
             const charCounter = document.createElement("span");
             charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
@@ -19739,12 +19746,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 clearReply();
                 sendBeep(memberNumber, full);
                 input.value = "";
+                input.style.height = "auto";
                 updateCounter();
                 renderHistory();
             };
+            const autoGrow = () => {
+                input.style.height = "auto";
+                input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
+            };
+            input.addEventListener("input", autoGrow);
             sendBtn.addEventListener("click", doSend);
-            input.addEventListener("keydown", (e) => { if (e.key === "Enter")
-                doSend(); });
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    doSend();
+                }
+            });
             footer.appendChild(qrToggle);
             footer.appendChild(input);
             footer.appendChild(charCounter);
@@ -29434,7 +29451,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.6.7";
+    const MOD_VERSION = "6.6.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29445,6 +29462,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.6.8",
+            changes: [
+                "UX: Beep window input is now a textarea — Shift+Enter inserts a new line, Enter sends. Input auto-grows up to 3 lines.",
+            ],
+        },
         {
             version: "6.6.7",
             changes: [
