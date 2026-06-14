@@ -4136,7 +4136,7 @@ export class EBCDrawer {
         resizeCorner.className = "ebc-resize-corner";
         resizeCorner.title = "Drag to resize";
         resizeCorner.dataset.guideTarget = "resize-corner";
-        resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="13" x2="13" y2="1"/><line x1="5" y1="13" x2="13" y2="5"/><line x1="9" y1="13" x2="13" y2="9"/></svg>`;
+        resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M9.3 16l-9.3-9.3v-1.4l10.7 10.7z"/><path fill="currentColor" d="M6.3 16l-6.3-6.3v-1.4l7.7 7.7z"/><path fill="currentColor" d="M3.3 16l-3.3-3.3v-1.4l4.7 4.7z"/><path fill="currentColor" d="M0.3 16l-0.3-0.3v-1.4l1.7 1.7z"/></svg>`;
 
         addPointerDown(resizeCorner, (start, e) => {
             e.preventDefault();
