@@ -651,10 +651,10 @@ const CSS = `
     display: flex; align-items: flex-end; justify-content: flex-start;
     padding: 2px;
     box-sizing: border-box;
-    color: rgba(207,111,152,0.35);
+    color: rgba(207,111,152,0.7);
     transition: color 0.15s;
 }
-.ebc-resize-corner:hover { color: rgba(207,111,152,0.85); }
+.ebc-resize-corner:hover { color: rgba(207,111,152,1); }
 .ebc-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
 
 .ebc-panel {
