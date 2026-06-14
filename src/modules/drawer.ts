@@ -635,32 +635,26 @@ const CSS = `
 }
 #emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
-/* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
+/* Drag-resize handles — invisible hit areas on the outer edges, cursor only */
 .ebc-resize-w {
     position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
-    cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
-    background: rgba(207,111,152,0.08);
-    transition: background 0.15s;
+    cursor: ew-resize; z-index: 200;
 }
 .ebc-resize-s {
     position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
-    cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
-    background: rgba(207,111,152,0.08);
-    transition: background 0.15s;
+    cursor: ns-resize; z-index: 200;
 }
-.ebc-resize-w:hover { background: rgba(207,111,152,0.3); }
-.ebc-resize-s:hover { background: rgba(207,111,152,0.3); }
-.ebc-resize-w.ebc-resizing,
-.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.5); }
+/* Corner resize grip — the only visible affordance */
 .ebc-resize-corner {
-    position: absolute; left: 0; bottom: 0; width: 18px; height: 18px;
+    position: absolute; left: 0; bottom: 0; width: 20px; height: 20px;
     cursor: nesw-resize; z-index: 202;
-    display: flex; align-items: center; justify-content: center;
-    color: rgba(207,111,152,0.45);
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 3px;
+    box-sizing: border-box;
+    color: rgba(207,111,152,0.35);
     transition: color 0.15s;
-    border-radius: 0 0 0 3px;
 }
-.ebc-resize-corner:hover { color: rgba(207,111,152,0.9); }
+.ebc-resize-corner:hover { color: rgba(207,111,152,0.85); }
 .ebc-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
 
 .ebc-panel {
@@ -4142,7 +4136,7 @@ export class EBCDrawer {
         resizeCorner.className = "ebc-resize-corner";
         resizeCorner.title = "Drag to resize";
         resizeCorner.dataset.guideTarget = "resize-corner";
-        resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="10" x2="10" y2="2"/><polyline points="10,2 10,6 6,2"/><polyline points="2,10 2,6 6,10"/></svg>`;
+        resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="13" x2="13" y2="1"/><line x1="5" y1="13" x2="13" y2="5"/><line x1="9" y1="13" x2="13" y2="9"/></svg>`;
 
         addPointerDown(resizeCorner, (start, e) => {
             e.preventDefault();

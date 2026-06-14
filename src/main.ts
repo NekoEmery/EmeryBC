@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.6.1";
+const MOD_VERSION = "6.6.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.6.2",
+        changes: [
+            "UX: Replaced corner resize arrow icon with a /// grip pattern (three parallel diagonal lines, standard resize-corner affordance). Removed visible pink backgrounds from the left and bottom edge handles — they now only change the cursor, keeping the edge areas visually clean.",
+        ],
+    },
     {
         version: "6.6.1",
         changes: [
