@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.4.6";
+const MOD_VERSION = "5.4.7";
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,14 +38,94 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.4.6",
+        version: "5.4.7",
         changes: [
-            "Dom tab redesign: Quick Actions, Expressions, Poses, Toy Control, collapsible sets, per-set bound targets, custom escape emote, configurable bound timer exclusions.",
-            "Shift+Enter in emote (*) messages now inserts a newline instead of sending.",
-            "Option to use BC's native beep sound instead of EBC's custom sound.",
-            "Online notifications: get a toast + optional sound when watched friends come online.",
-            "UI zoom (70%–200%) now also scales beep windows — useful on 2K/4K monitors. Reset button added.",
-            "Fix: friend names no longer get wiped after using EBC on a second device (tablet/phone).",
+            "Panel resize overhaul: added corner drag handle (filled wedge icon), fixed free-float mode losing saved size on move, fixed left edge scaling rightward instead of leftward, Reset All now also resets panel dimensions. Beep window input raised to 1000 chars.",
+        ],
+    },
+    {
+        version: "6.6.7",
+        changes: [
+            "UX: Raised corner resize icon default opacity from 35% to 70% so it's always clearly visible.",
+        ],
+    },
+    {
+        version: "6.6.6",
+        changes: [
+            "UX: Scaled up the corner resize icon (22px SVG in a 28px hit area) for better visibility.",
+        ],
+    },
+    {
+        version: "6.6.5",
+        changes: [
+            "UX: Replaced corner resize grip with proper filled-wedge resize icon (4 diagonal stripes, smallest at the panel corner, largest extending toward the interior).",
+        ],
+    },
+    {
+        version: "6.6.4",
+        changes: [
+            "UX: Reverted corner resize grip to original orientation — long line toward the panel corner, short line toward the interior.",
+        ],
+    },
+    {
+        version: "6.6.3",
+        changes: [
+            "UX: Flipped the corner resize grip so the short line is closest to the panel corner (bottom-left) and the long line extends toward the panel interior — matching the expected resize-corner direction.",
+        ],
+    },
+    {
+        version: "6.6.2",
+        changes: [
+            "UX: Replaced corner resize arrow icon with a /// grip pattern (three parallel diagonal lines, standard resize-corner affordance). Removed visible pink backgrounds from the left and bottom edge handles — they now only change the cursor, keeping the edge areas visually clean.",
+        ],
+    },
+    {
+        version: "6.6.1",
+        changes: [
+            "UX: Added a visible diagonal-arrow icon (↗) in the bottom-left corner of the panel as a dedicated resize handle. Dragging it scales width and height simultaneously and is discoverable at a glance. The existing edge handles (left = width only, bottom = height only) are still present.",
+            "Guide: 'Opening & Moving' step renamed to 'Opening, Moving & Resizing' and updated to explain the corner icon, edge handles, and the Reset all button. Tips & Tricks step also updated with resize and Reset all shortcuts.",
+        ],
+    },
+    {
+        version: "6.6.0",
+        changes: [
+            "⌖ Reset all button now also resets panel width and height back to default, in addition to position, text size, and tab position. Tooltip updated to reflect this.",
+        ],
+    },
+    {
+        version: "6.5.9",
+        changes: [
+            "Fix: Left resize handle scaled the panel rightward instead of leftward when the panel was in free-float mode. Root cause: in free mode the panel has position:fixed with an explicit left: value, so increasing width extends the right edge rather than moving the left edge. Now the handler tracks the right edge as the invariant and updates style.left together with style.width, and saves the new x position on mouseup.",
+        ],
+    },
+    {
+        version: "6.5.8",
+        changes: [
+            "Fix: Beep window chat input was capped at 300 characters (maxLength on the HTML input element). BC's server has no client-enforced limit; pasting a longer message was silently truncated by the browser before sending. Limit raised to 1000 characters to match BC's standard message length.",
+        ],
+    },
+    {
+        version: "6.5.7",
+        changes: [
+            "Fix: After dragging the panel header to move it (entering free-float mode), user-resized width and height were being reset to defaults. Root cause: the ebc-free-mode CSS rule applied width/height with !important, which overrides inline styles — so both the resize handles and the drag-resize stored values were silently ignored. Removed !important from those two properties and updated enterFreeMode to re-apply the user's saved dimensions after the class is added.",
+        ],
+    },
+    {
+        version: "6.5.6",
+        changes: [
+            "Fix: Beep messages were being cut off at 200 characters when stored in history. Root cause: the 200-char cap was added to prevent WCE/FBC JSON metadata blobs from bloating history, but stripBeepMetadata already removes those blobs before the cap applies — so real message content was getting truncated. Cap raised to 1000 characters.",
+        ],
+    },
+    {
+        version: "6.5.5",
+        changes: [
+            "Fix: Drag-resize handles on the left and bottom edges of the EBC panel now actually work. Root cause: mousedown handlers were not calling e.preventDefault(), causing the browser to intercept the drag as a native drag-and-drop operation and suppressing all mousemove events. Handles also made slightly wider/taller (10px) with a faint always-visible background so they are easier to find.",
+        ],
+    },
+    {
+        version: "6.5.4",
+        changes: [
+            "Feature: Drag the left edge of the EBC panel to resize its width, drag the bottom edge to resize its height. Both are saved to localStorage and restored on next load. 5-second tab hold reset also clears panel size.",
         ],
     },
     {
