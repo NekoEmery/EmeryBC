@@ -8087,10 +8087,10 @@
 }
 /* Corner resize grip — the only visible affordance */
 .ebc-resize-corner {
-    position: absolute; left: 0; bottom: 0; width: 20px; height: 20px;
+    position: absolute; left: 0; bottom: 0; width: 28px; height: 28px;
     cursor: nesw-resize; z-index: 202;
     display: flex; align-items: flex-end; justify-content: flex-start;
-    padding: 3px;
+    padding: 2px;
     box-sizing: border-box;
     color: rgba(207,111,152,0.35);
     transition: color 0.15s;
@@ -11494,7 +11494,7 @@
             resizeCorner.className = "ebc-resize-corner";
             resizeCorner.title = "Drag to resize";
             resizeCorner.dataset.guideTarget = "resize-corner";
-            resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M9.3 16l-9.3-9.3v-1.4l10.7 10.7z"/><path fill="currentColor" d="M6.3 16l-6.3-6.3v-1.4l7.7 7.7z"/><path fill="currentColor" d="M3.3 16l-3.3-3.3v-1.4l4.7 4.7z"/><path fill="currentColor" d="M0.3 16l-0.3-0.3v-1.4l1.7 1.7z"/></svg>`;
+            resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 16 16"><path fill="currentColor" d="M9.3 16l-9.3-9.3v-1.4l10.7 10.7z"/><path fill="currentColor" d="M6.3 16l-6.3-6.3v-1.4l7.7 7.7z"/><path fill="currentColor" d="M3.3 16l-3.3-3.3v-1.4l4.7 4.7z"/><path fill="currentColor" d="M0.3 16l-0.3-0.3v-1.4l1.7 1.7z"/></svg>`;
             addPointerDown(resizeCorner, (start, e) => {
                 e.preventDefault();
                 const startW = slideContainer.offsetWidth;
@@ -29417,7 +29417,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.6.5";
+    const MOD_VERSION = "6.6.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29428,6 +29428,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.6.6",
+            changes: [
+                "UX: Scaled up the corner resize icon (22px SVG in a 28px hit area) for better visibility.",
+            ],
+        },
         {
             version: "6.6.5",
             changes: [
