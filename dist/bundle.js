@@ -7135,7 +7135,7 @@
         // ─── HEADER ────────────────────────────────────────────────────────────
         "header.dragToMove": { en: "Drag to move", de: "Ziehen zum Verschieben", zh: "拖动以移动", fr: "Glisser pour déplacer", es: "Arrastrar para mover", ru: "Перетащить", ja: "ドラッグして移動" },
         "header.resetPos": { en: "⌖ Reset all", de: "⌖ Zurücksetzen", zh: "⌖ 全部重置", fr: "⌖ Réinitialiser", es: "⌖ Restablecer todo", ru: "⌖ Сбросить всё", ja: "⌖ すべてリセット" },
-        "header.resetPosTitle": { en: "Reset panel to default position and text size", de: "Position und Textgröße zurücksetzen", zh: "重置面板位置和文字大小", fr: "Réinitialiser la position et la taille du texte", es: "Restablecer posición y tamaño de texto", ru: "Сбросить позицию и размер текста", ja: "パネルの位置と文字サイズをデフォルトに戻す" },
+        "header.resetPosTitle": { en: "Reset panel to default position, text size, and panel size", de: "Position, Textgröße und Panelgröße zurücksetzen", zh: "重置面板位置、文字大小和面板尺寸", fr: "Réinitialiser la position, la taille du texte et la taille du panneau", es: "Restablecer posición, tamaño de texto y tamaño del panel", ru: "Сбросить позицию, размер текста и размер панели", ja: "パネルの位置、文字サイズ、パネルサイズをデフォルトに戻す" },
         "header.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar", ru: "Закрыть", ja: "閉じる" },
         "header.refresh": { en: "Refresh", de: "Aktualisieren", zh: "刷新", fr: "Actualiser", es: "Actualizar", ru: "Обновить", ja: "更新" },
         "header.language": { en: "Language", de: "Sprache", zh: "语言", fr: "Langue", es: "Idioma", ru: "Язык", ja: "言語" },
@@ -8076,23 +8076,27 @@
 }
 #emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
-/* Drag-resize handles — sit on the outer edges of #emerybc-panel, outside the zoom wrapper */
+/* Drag-resize handles — invisible hit areas on the outer edges, cursor only */
 .ebc-resize-w {
     position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
-    cursor: ew-resize; z-index: 200; border-radius: 3px 0 0 3px;
-    background: rgba(207,111,152,0.08);
-    transition: background 0.15s;
+    cursor: ew-resize; z-index: 200;
 }
 .ebc-resize-s {
     position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
-    cursor: ns-resize; z-index: 200; border-radius: 0 0 3px 3px;
-    background: rgba(207,111,152,0.08);
-    transition: background 0.15s;
+    cursor: ns-resize; z-index: 200;
 }
-.ebc-resize-w:hover { background: rgba(207,111,152,0.3); }
-.ebc-resize-s:hover { background: rgba(207,111,152,0.3); }
-.ebc-resize-w.ebc-resizing,
-.ebc-resize-s.ebc-resizing { background: rgba(207,111,152,0.5); }
+/* Corner resize grip — the only visible affordance */
+.ebc-resize-corner {
+    position: absolute; left: 0; bottom: 0; width: 20px; height: 20px;
+    cursor: nesw-resize; z-index: 202;
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 3px;
+    box-sizing: border-box;
+    color: rgba(207,111,152,0.35);
+    transition: color 0.15s;
+}
+.ebc-resize-corner:hover { color: rgba(207,111,152,0.85); }
+.ebc-resize-corner.ebc-resizing { color: rgba(207,111,152,1); }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -11442,14 +11446,29 @@
             addPointerDown(resizeW, (start, e) => {
                 e.preventDefault();
                 const startW = slideContainer.offsetWidth;
+                // In free-float mode the panel is left-anchored (left: X, right: auto).
+                // Widening via the left handle must move the LEFT edge, not the right, so
+                // we track the right edge as the invariant and adjust style.left together
+                // with style.width.
+                const inFreeMode = this.panelPosition !== null;
+                const startPanelLeft = inFreeMode ? (parseFloat(slideContainer.style.left) || 0) : 0;
+                const startRightEdge = startPanelLeft + startW;
                 resizeW.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
                     const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
                     slideContainer.style.width = `${newW}px`;
                     this.userPanelWidth = newW;
+                    if (inFreeMode) {
+                        slideContainer.style.left = `${Math.max(0, startRightEdge - newW)}px`;
+                    }
                 }, () => {
                     resizeW.classList.remove("ebc-resizing");
                     savePanelWidth(this.userPanelWidth);
+                    if (inFreeMode && this.panelPosition !== null) {
+                        const x = parseFloat(slideContainer.style.left) || 0;
+                        this.panelPosition = { x, y: this.panelPosition.y };
+                        this.savePanelPosition(this.panelPosition);
+                    }
                 });
             });
             const resizeS = document.createElement("div");
@@ -11468,8 +11487,46 @@
                     savePanelHeight(this.userPanelHeight);
                 });
             });
+            // ── Corner resize handle (bottom-left) ───────────────────────────────
+            // Diagonal drag — resizes width and height simultaneously.
+            // Higher z-index than the edge handles so it captures the overlap area.
+            const resizeCorner = document.createElement("div");
+            resizeCorner.className = "ebc-resize-corner";
+            resizeCorner.title = "Drag to resize";
+            resizeCorner.dataset.guideTarget = "resize-corner";
+            resizeCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="12" x2="4" y2="9"/><line x1="3" y1="12" x2="9" y2="6"/><line x1="5" y1="12" x2="13" y2="4"/></svg>`;
+            addPointerDown(resizeCorner, (start, e) => {
+                e.preventDefault();
+                const startW = slideContainer.offsetWidth;
+                const startH = slideContainer.offsetHeight;
+                const inFreeMode = this.panelPosition !== null;
+                const startPanelLeft = inFreeMode ? (parseFloat(slideContainer.style.left) || 0) : 0;
+                const startRightEdge = startPanelLeft + startW;
+                resizeCorner.classList.add("ebc-resizing");
+                addPointerTracking((pos) => {
+                    const newW = Math.max(200, Math.min(window.innerWidth - 54, startW + (start.clientX - pos.clientX)));
+                    const newH = Math.max(150, Math.min(window.innerHeight - 20, startH + (pos.clientY - start.clientY)));
+                    slideContainer.style.width = `${newW}px`;
+                    slideContainer.style.height = `${newH}px`;
+                    this.userPanelWidth = newW;
+                    this.userPanelHeight = newH;
+                    if (inFreeMode) {
+                        slideContainer.style.left = `${Math.max(0, startRightEdge - newW)}px`;
+                    }
+                }, () => {
+                    resizeCorner.classList.remove("ebc-resizing");
+                    savePanelWidth(this.userPanelWidth);
+                    savePanelHeight(this.userPanelHeight);
+                    if (inFreeMode && this.panelPosition !== null) {
+                        const x = parseFloat(slideContainer.style.left) || 0;
+                        this.panelPosition = { x, y: this.panelPosition.y };
+                        this.savePanelPosition(this.panelPosition);
+                    }
+                });
+            });
             slideContainer.appendChild(resizeW);
             slideContainer.appendChild(resizeS);
+            slideContainer.appendChild(resizeCorner);
             root.appendChild(slideContainer);
             document.body.appendChild(root);
             this.rootEl = root;
@@ -12281,6 +12338,17 @@
                 // Reset text size to default
                 savePanelZoom(1);
                 this.applyPanelZoom(1);
+                // Reset panel size to default
+                savePanelWidth(null);
+                this.userPanelWidth = null;
+                if (this.panelEl)
+                    this.panelEl.style.width = "";
+                savePanelHeight(null);
+                this.userPanelHeight = null;
+                if (this.panelEl)
+                    this.panelEl.style.height = "";
+                // Force syncToChat to re-apply height from the chat log on next tick
+                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
                 // Also reset the hamburger tab to auto-position (follow CRABS)
                 this.userTabOffset = null;
                 this.lastCrabsBottom = -1;
@@ -19507,13 +19575,13 @@
             input.className = "ebc-beep-win-input";
             input.type = "text";
             input.placeholder = t("users.typeMessage");
-            input.maxLength = 300;
+            input.maxLength = 1000;
             // Character counter — flex item, sits between input and emoji button
             const charCounter = document.createElement("span");
             charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
-            charCounter.textContent = "300";
+            charCounter.textContent = "1000";
             const updateCounter = () => {
-                const rem = 300 - input.value.length;
+                const rem = 1000 - input.value.length;
                 charCounter.textContent = String(rem);
                 charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
             };
@@ -29201,8 +29269,9 @@
         },
         {
             tab: null,
-            label: "Opening & Moving the Menu",
-            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel to any spot on screen.\n[[↻]] refreshes your friend list and room data.  [[✕]] closes the panel.\n((The [[?]] button in the header re-opens this guide any time.))",
+            label: "Opening, Moving & Resizing",
+            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner — this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
+            spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
@@ -29284,7 +29353,7 @@
         {
             tab: null,
             label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
 
@@ -29348,7 +29417,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.5.7";
+    const MOD_VERSION = "6.6.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29359,6 +29428,43 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.6.3",
+            changes: [
+                "UX: Flipped the corner resize grip so the short line is closest to the panel corner (bottom-left) and the long line extends toward the panel interior — matching the expected resize-corner direction.",
+            ],
+        },
+        {
+            version: "6.6.2",
+            changes: [
+                "UX: Replaced corner resize arrow icon with a /// grip pattern (three parallel diagonal lines, standard resize-corner affordance). Removed visible pink backgrounds from the left and bottom edge handles — they now only change the cursor, keeping the edge areas visually clean.",
+            ],
+        },
+        {
+            version: "6.6.1",
+            changes: [
+                "UX: Added a visible diagonal-arrow icon (↗) in the bottom-left corner of the panel as a dedicated resize handle. Dragging it scales width and height simultaneously and is discoverable at a glance. The existing edge handles (left = width only, bottom = height only) are still present.",
+                "Guide: 'Opening & Moving' step renamed to 'Opening, Moving & Resizing' and updated to explain the corner icon, edge handles, and the Reset all button. Tips & Tricks step also updated with resize and Reset all shortcuts.",
+            ],
+        },
+        {
+            version: "6.6.0",
+            changes: [
+                "⌖ Reset all button now also resets panel width and height back to default, in addition to position, text size, and tab position. Tooltip updated to reflect this.",
+            ],
+        },
+        {
+            version: "6.5.9",
+            changes: [
+                "Fix: Left resize handle scaled the panel rightward instead of leftward when the panel was in free-float mode. Root cause: in free mode the panel has position:fixed with an explicit left: value, so increasing width extends the right edge rather than moving the left edge. Now the handler tracks the right edge as the invariant and updates style.left together with style.width, and saves the new x position on mouseup.",
+            ],
+        },
+        {
+            version: "6.5.8",
+            changes: [
+                "Fix: Beep window chat input was capped at 300 characters (maxLength on the HTML input element). BC's server has no client-enforced limit; pasting a longer message was silently truncated by the browser before sending. Limit raised to 1000 characters to match BC's standard message length.",
+            ],
+        },
         {
             version: "6.5.7",
             changes: [
