@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.11
+// @version      6.9.12
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -29325,7 +29325,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const ACT_DEFS = [
                 ["👋", "Spank", "Spank", "ItemButt"],
                 ["🖐", "Pat", "Pat", "ItemHead"],
-                ["💋", "Kiss", "Kiss", "ItemHead"],
+                ["💋", "Kiss", "Kiss", "ItemMouth"],
                 ["🦷", "Bite", "Bite", "ItemNeck"],
                 ["✋", "Slap", "Slap", "ItemHead"],
                 ["🖐", "Caress", "Caress", "ItemArms"],
@@ -30115,7 +30115,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.11";
+    const MOD_VERSION = "6.9.12";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30126,6 +30126,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.12",
+            changes: [
+                "Fix: Kiss action now targets ItemMouth ('Kiss Lips') instead of ItemHead ('Kiss Forehead') — gets proper lip emotes and BC animations.",
+            ],
+        },
         {
             version: "6.9.11",
             changes: [

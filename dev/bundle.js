@@ -29308,7 +29308,7 @@
             const ACT_DEFS = [
                 ["👋", "Spank", "Spank", "ItemButt"],
                 ["🖐", "Pat", "Pat", "ItemHead"],
-                ["💋", "Kiss", "Kiss", "ItemHead"],
+                ["💋", "Kiss", "Kiss", "ItemMouth"],
                 ["🦷", "Bite", "Bite", "ItemNeck"],
                 ["✋", "Slap", "Slap", "ItemHead"],
                 ["🖐", "Caress", "Caress", "ItemArms"],
@@ -30098,7 +30098,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.11";
+    const MOD_VERSION = "6.9.12";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30109,6 +30109,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.12",
+            changes: [
+                "Fix: Kiss action now targets ItemMouth ('Kiss Lips') instead of ItemHead ('Kiss Forehead') — gets proper lip emotes and BC animations.",
+            ],
+        },
         {
             version: "6.9.11",
             changes: [
