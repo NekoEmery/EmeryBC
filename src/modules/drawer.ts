@@ -7246,10 +7246,7 @@ export class EBCDrawer {
                             : prop?.MemberNumberListKeys         ? "Key"
                             : "Lock";
 
-                        const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined;
-                        const locker = chars?.find(c => c.MemberNumber === lockedBy);
-                        const lockerNick = locker ? ((locker as unknown as Record<string, unknown>).Nickname as string | undefined) : undefined;
-                        const lockerName = locker ? (lockerNick || locker.Name) : `#${lockedBy}`;
+                        const lockerName = lockedBy != null ? resolveName(lockedBy) : `#${lockedBy}`;
                         lockEl.textContent = `🔒 ${lockType} · ${lockerName}`;
                     } else {
                         lockEl.className = "ebc-restraint-lock unlocked";

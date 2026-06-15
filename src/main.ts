@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.18";
+const MOD_VERSION = "6.9.19";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.19",
+        changes: [
+            "Fix: Friend names no longer reset to #number after leaving a room. ChatRoomSync and ChatRoomSyncSingle hooks now cache every character's name into friendNames before BC mutates the bundle. Previously only ChatRoomSyncMemberJoin cached names, so players already present when you joined were never cached — once you left the room and ChatRoomCharacter was cleared, resolveName() fell through to #number.",
+            "Fix: Locker name in the restraints section now uses resolveName() so it shows the correct cached name even when the locker has left the room (previously fell back to #number for anyone not in ChatRoomCharacter).",
+        ],
+    },
     {
         version: "6.9.18",
         changes: [
@@ -6922,6 +6929,12 @@ function init(): void {
                     const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
                     if (num && num !== Player.MemberNumber) {
                         try { copies.push(structuredClone(c)); } catch { /* ignore */ }
+                        // Cache name before next() mutates the bundle — ensures resolveName()
+                        // works after leaving the room (ChatRoomCharacter is cleared on leave).
+                        const nick = typeof c?.Nickname === "string" ? (c.Nickname as string).trim() : "";
+                        const acct = typeof c?.Name === "string" ? (c.Name as string) : "";
+                        cacheName(num, nick || acct || String(num));
+                        if (acct) cacheAccountName(num, acct);
                     }
                 }
             }
@@ -6942,6 +6955,11 @@ function init(): void {
             const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
             if (num && num !== Player.MemberNumber) {
                 try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
+                // Keep name cache up-to-date when a character's appearance refreshes.
+                const nick = typeof c?.Nickname === "string" ? (c.Nickname as string).trim() : "";
+                const acct = typeof c?.Name === "string" ? (c.Name as string) : "";
+                cacheName(num, nick || acct || String(num));
+                if (acct) cacheAccountName(num, acct);
             }
         } catch { /* ignore */ }
         return next(args);
