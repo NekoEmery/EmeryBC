@@ -29340,7 +29340,7 @@
             posePanel.appendChild(poseGrid);
             posePanel.appendChild(poseStatus);
             // ── 🎮 Toy Control ────────────────────────────────────────────────────
-            const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
+            const { panel: toyPanel, hdr: toyHdr, isOpen: isToyOpen } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
             const TOY_MODES = [
                 ["⏹", "Off", "#2a1020", "Off"],
                 ["🔅", "Low", "#1a2030", "Low"],
@@ -29409,6 +29409,11 @@
                     mkChip(t.name, t.group);
             };
             qtSel.addEventListener("change", () => { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); });
+            toyHdr.addEventListener("click", () => { if (isToyOpen()) {
+                selectedToyGroup = null;
+                refreshToyChips();
+                refreshToyInfo();
+            } });
             for (const [emoji, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
@@ -29434,6 +29439,8 @@
             toyPanel.appendChild(toyGrid);
             toyPanel.appendChild(toyStatus);
             toyPanel.appendChild(toyInfoEl);
+            refreshToyChips();
+            refreshToyInfo();
             // ── ⛓ Curse ──────────────────────────────────────────────────────────
             const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
             const curseHint = document.createElement("div");
@@ -29947,7 +29954,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.3";
+    const MOD_VERSION = "6.9.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29958,6 +29965,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.4",
+            changes: [
+                "Fix: Toy control now detects toys immediately on accordion open and on tab render — chips and status were only refreshing on target change, never on accordion open.",
+            ],
+        },
         {
             version: "6.9.3",
             changes: [
