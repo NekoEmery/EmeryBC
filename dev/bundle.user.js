@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.31
+// @version      6.9.32
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11573,6 +11573,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.tagTooltipMoveListener = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             this.pishockLastOpTimes = new Map(); // per-shocker cooldown timestamps
+            this._lovBtDevice = null; // BluetoothDevice
+            this._lovBtChar = null; // BluetoothRemoteGATTCharacteristic (write)
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -28303,7 +28305,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return m ? m[1].trim() : raw.trim();
         }
         renderToys() {
-            var _a, _b;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -28650,80 +28652,72 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lovContent.appendChild(offNote);
             }
             else {
-                const lovWarn = mk("div", `${FONT}font-size:11px;color:#9a6fd0;background:#0e0820;border:1px solid #4a2080;border-radius:4px;padding:8px 10px;margin:4px 0 8px;line-height:1.6;`);
-                lovWarn.innerHTML = "<b>Requires Lovense Connect app</b> running on this PC. Sends vibrate commands via the local HTTP API — no data leaves your machine.";
-                lovContent.appendChild(lovWarn);
                 // ── Connection ────────────────────────────────────────────────────
                 lovContent.appendChild(sectionHdr("CONNECTION"));
-                const lovStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                const lovDot = mk("span", "font-size:13px;");
-                lovDot.textContent = "🔴";
-                const lovStatusTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
-                lovStatusTxt.textContent = "Not connected";
-                const lovScanBtn = mkBtn("🔍 Scan", `${FONT}font-size:11px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
-                lovStatusRow.appendChild(lovDot);
-                lovStatusRow.appendChild(lovStatusTxt);
-                lovStatusRow.appendChild(lovScanBtn);
-                lovContent.appendChild(lovStatusRow);
-                const lovPortRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
-                const lovPortLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:90px;flex-shrink:0;font-weight:bold;`);
-                lovPortLbl.textContent = "Port";
-                const lovPortInp = document.createElement("input");
-                lovPortInp.type = "number";
-                lovPortInp.min = "1";
-                lovPortInp.max = "65535";
-                lovPortInp.value = (_b = localStorage.getItem("EBC_lvs_port")) !== null && _b !== void 0 ? _b : "20010";
-                lovPortInp.style.cssText = `${FONT}font-size:11px;padding:4px 6px;border-radius:3px;border:1px solid var(--ebc-border);background:var(--ebc-input-bg);color:var(--ebc-text);width:80px;`;
-                lovPortInp.addEventListener("change", () => localStorage.setItem("EBC_lvs_port", lovPortInp.value.trim() || "20010"));
-                lovPortRow.appendChild(lovPortLbl);
-                lovPortRow.appendChild(lovPortInp);
-                lovContent.appendChild(lovPortRow);
-                const lovProbePort = async (p) => {
-                    try {
-                        const r = await fetch(`http://127.0.0.1:${p}/GetToys`, { signal: AbortSignal.timeout(1500) });
-                        if (!r.ok && r.status >= 500)
-                            return { ok: false, label: "" };
-                        const data = await r.json();
-                        const toys = data.data;
-                        const connected = toys ? Object.values(toys).filter(t => t.status === 1) : [];
-                        const label = connected.length ? connected.map(t => t.nickname || t.name || "Toy").join(", ") : "(no toys, check app)";
-                        return { ok: true, label };
-                    }
-                    catch (_a) {
-                        return { ok: false, label: "" };
-                    }
-                };
-                const lovDoScan = async () => {
-                    lovScanBtn.disabled = true;
-                    lovDot.textContent = "🔄";
-                    lovStatusTxt.textContent = "Scanning…";
-                    for (const p of [20010, 20011, 20012, 20013, 30010]) {
-                        const res = await lovProbePort(p);
-                        if (res.ok) {
-                            localStorage.setItem("EBC_lvs_port", String(p));
-                            lovPortInp.value = String(p);
-                            lovDot.textContent = "🟢";
-                            lovStatusTxt.textContent = `Port ${p} — ${res.label}`;
-                            lovScanBtn.disabled = false;
-                            return;
-                        }
-                    }
-                    lovDot.textContent = "🔴";
-                    lovStatusTxt.textContent = "Not found — is Lovense Connect open?";
-                    lovScanBtn.disabled = false;
-                };
-                lovScanBtn.addEventListener("click", () => { lovDoScan().catch(() => { }); });
-                // Auto-probe on open (silent)
-                (() => {
-                    var _a;
-                    const p = parseInt((_a = localStorage.getItem("EBC_lvs_port")) !== null && _a !== void 0 ? _a : "20010", 10) || 20010;
-                    lovProbePort(p).then(res => {
-                        if (res.ok) {
-                            lovDot.textContent = "🟢";
-                            lovStatusTxt.textContent = `Port ${p} — ${res.label}`;
-                        }
-                    }).catch(() => { });
-                })();
+                const nav = navigator;
+                const btApi = nav["bluetooth"];
+                if (!btApi) {
+                    const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:4px;padding:8px 10px;margin:4px 0 8px;line-height:1.6;`);
+                    noBlue.innerHTML = "<b>Web Bluetooth not supported</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys via Bluetooth.";
+                    lovContent.appendChild(noBlue);
+                }
+                else {
+                    const lovStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                    const lovDot = mk("span", "font-size:13px;");
+                    const lovStatusTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                    const lovConnBtn = mkBtn("🔵 Connect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid #4a2080;background:transparent;color:#9a6fd0;`);
+                    const lovDiscBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);display:none;`);
+                    lovStatusRow.appendChild(lovDot);
+                    lovStatusRow.appendChild(lovStatusTxt);
+                    lovStatusRow.appendChild(lovConnBtn);
+                    lovStatusRow.appendChild(lovDiscBtn);
+                    lovContent.appendChild(lovStatusRow);
+                    const lovNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
+                    lovNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to another device.";
+                    lovContent.appendChild(lovNote);
+                    const lovUpdateStatus = () => {
+                        var _a, _b;
+                        const dev = this._lovBtDevice;
+                        const connected = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
+                        lovDot.textContent = connected ? "🟢" : "🔴";
+                        lovStatusTxt.textContent = connected ? `Connected: ${(_b = dev === null || dev === void 0 ? void 0 : dev.name) !== null && _b !== void 0 ? _b : "Lovense toy"}` : "Not connected";
+                        lovConnBtn.style.display = connected ? "none" : "";
+                        lovDiscBtn.style.display = connected ? "" : "none";
+                    };
+                    lovUpdateStatus();
+                    lovConnBtn.addEventListener("click", () => {
+                        lovConnBtn.disabled = true;
+                        lovDot.textContent = "🔄";
+                        lovStatusTxt.textContent = "Opening Bluetooth picker…";
+                        const LVS_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
+                        const LVS_WRITE = "0000fff2-0000-1000-8000-00805f9b34fb";
+                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: [LVS_SERVICE] })
+                            .then(async (rawDevice) => {
+                            const device = rawDevice;
+                            this._lovBtDevice = device;
+                            device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
+                            const server = await device.gatt.connect();
+                            const service = await server.getPrimaryService(LVS_SERVICE);
+                            this._lovBtChar = await service.getCharacteristic(LVS_WRITE);
+                            lovUpdateStatus();
+                            lovConnBtn.disabled = false;
+                        })
+                            .catch((err) => {
+                            const msg = err instanceof Error ? err.message : String(err);
+                            lovDot.textContent = "🔴";
+                            lovStatusTxt.textContent = (err instanceof Error && err.name === "NotFoundError") ? "Cancelled / no toy found" : `Error: ${msg}`;
+                            lovConnBtn.disabled = false;
+                        });
+                    });
+                    lovDiscBtn.addEventListener("click", () => {
+                        var _a;
+                        const dev = this._lovBtDevice;
+                        (_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.disconnect();
+                        this._lovBtChar = null;
+                        this._lovBtDevice = null;
+                        lovUpdateStatus();
+                    });
+                }
                 // ── Vibrate defaults ──────────────────────────────────────────────
                 lovContent.appendChild(sep());
                 lovContent.appendChild(sectionHdr("VIBRATE DEFAULTS"));
@@ -28980,30 +28974,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         async fireLovense(intensity, duration) {
-            var _a, _b, _c;
+            var _a;
+            const s = getSettings();
+            if (s.lovenseEnabled !== true)
+                return "";
+            const writeChar = this._lovBtChar;
+            const dev = this._lovBtDevice;
+            if (!writeChar || ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) !== true)
+                return "⚠ Lovense: not connected via Bluetooth";
+            const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
+            const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
+            const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
+            const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 30));
+            const enc = new TextEncoder();
             try {
-                const s = getSettings();
-                if (s.lovenseEnabled !== true)
-                    return "";
-                const port = ((_a = localStorage.getItem("EBC_lvs_port")) !== null && _a !== void 0 ? _a : "20010").trim() || "20010";
-                const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
-                const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
-                const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
-                const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 30));
-                const resp = await fetch(`http://127.0.0.1:${port}/command`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ command: "Function", action: `Vibrate:${finalI}`, timeSec: finalD, loopRunningSec: 0, loopPauseSec: 0, stopPrevious: 1, toy: "", apiVer: 1 }),
-                });
-                const data = JSON.parse(await resp.text());
-                if (data.code === 200)
-                    return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
-                return `⚠ Lovense: ${String((_b = data.type) !== null && _b !== void 0 ? _b : "error")}`;
+                await writeChar.writeValue(enc.encode(`Vibrate:${finalI};`));
+                setTimeout(() => { writeChar.writeValue(enc.encode("Vibrate:0;")).catch(() => { }); }, finalD * 1000);
+                return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
             }
             catch (err) {
-                console.warn("[EBC Lovense] fireLovense failed:", err);
-                const port = ((_c = localStorage.getItem("EBC_lvs_port")) !== null && _c !== void 0 ? _c : "20010").trim() || "20010";
-                return `⚠ Lovense Connect not found on :${port} — is the app open?`;
+                console.warn("[EBC Lovense] BLE write failed:", err);
+                return `⚠ Lovense BLE error: ${err instanceof Error ? err.message : String(err)}`;
             }
         }
         /** Called from the ChatRoomMessage hook in main.ts when a player says something in the room. */
@@ -31021,7 +31012,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.31";
+    const MOD_VERSION = "6.9.32";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31032,6 +31023,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.32",
+            changes: [
+                "Lovense: Replaced Lovense Connect local HTTP API with direct Web Bluetooth (BLE). Click 'Connect' to pair your toy directly in the browser — no Lovense Connect app needed. Chrome/Edge only. Service 0000fff0, write characteristic 0000fff2. Vibrate:N; command sent on trigger; Vibrate:0; stop sent after duration via setTimeout.",
+            ],
+        },
         {
             version: "6.9.31",
             changes: [
