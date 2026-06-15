@@ -6571,7 +6571,7 @@
             const name = charDisplayName(char);
             const label = poseName !== null && poseName !== void 0 ? poseName : (poses.length ? poses.join("+") : "stand");
             const desc = poses.length
-                ? `guides ${name} into the ${label} position.`
+                ? `guides ${name} ${label}.`
                 : `lets ${name} return to a comfortable position.`;
             sendRoomAction(desc);
         }
@@ -29306,18 +29306,18 @@
             // ── 🧎 Poses ──────────────────────────────────────────────────────────
             const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
             const POSE_DEFS = [
-                ["🚶", "Stand", []],
-                ["🧎", "Kneel", ["Kneel"]],
-                ["🐈", "All Fours", ["AllFours"]],
-                ["🙌", "Hands Up", ["OverTheHead"]],
-                ["🫸", "Spread", ["KneelingSpread"]],
-                ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"]],
+                ["🚶", "Stand", [], ""],
+                ["🧎", "Kneel", ["Kneel"], "into a kneeling position"],
+                ["🐈", "All Fours", ["AllFours"], "onto all fours"],
+                ["🙌", "Hands Up", ["OverTheHead"], "into a hands-up pose"],
+                ["🫸", "Spread", ["KneelingSpread"], "into a kneeling spread"],
+                ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"], "into a kneeling position with arms raised"],
             ];
             const poseGrid = document.createElement("div");
             poseGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
             const poseStatus = document.createElement("div");
             poseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
-            for (const [emoji, label, poses] of POSE_DEFS) {
+            for (const [emoji, label, poses, actionDesc] of POSE_DEFS) {
                 const btn = document.createElement("button");
                 btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
                 btn.textContent = `${emoji} ${label}`;
@@ -29331,7 +29331,7 @@
                         window.setTimeout(() => { poseStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setTargetPoses(id, poses, label);
+                    setTargetPoses(id, poses, actionDesc || undefined);
                     poseStatus.textContent = `✓ ${label} applied.`;
                     window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
                 });
@@ -29947,7 +29947,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.2";
+    const MOD_VERSION = "6.9.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29958,6 +29958,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.3",
+            changes: [
+                "Fix: Pose action messages now read naturally — 'guides Angel into a kneeling position with arms raised.' instead of 'guides Angel into the Kneel+Up position.'",
+            ],
+        },
         {
             version: "6.9.2",
             changes: [
