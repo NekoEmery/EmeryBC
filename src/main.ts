@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.6";
+const MOD_VERSION = "6.9.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.7",
+        changes: [
+            "Cursed items now resist removal by anyone: if a dom or other player removes a cursed item via the normal BC UI, it is immediately re-equipped on the target's client and a notification fires. Self-removal attempts also show an EBC notification.",
+            "Curse beep now includes item name (group=assetName) so the target's client knows exactly which item to restore. Per-item lift now sends clear:group (precise) instead of re-applying remaining curses.",
+        ],
+    },
     {
         version: "6.9.6",
         changes: [
@@ -6899,6 +6906,37 @@ function init(): void {
                 // via setPendingLogApplier when the Action message arrives.
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
+                // Curse re-equip: if an external actor removed a cursed item, put it back
+                if (!reEquipping) {
+                    try {
+                        const cursed = getCursedGroups();
+                        if (cursed.size > 0) {
+                            const itemMap = getCurseItemMap();
+                            const invGet = (window as unknown as Record<string, unknown>).InventoryGet as
+                                ((c: Character, g: string) => { Asset: { Name: string } } | null | undefined) | undefined;
+                            const invAdd = (window as unknown as Record<string, unknown>).InventoryAdd as
+                                ((c: Character, name: string, g: string, locked: boolean) => void) | undefined;
+                            const itemUpdate = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+                                ((c: Character, g: string) => void) | undefined;
+                            for (const group of cursed) {
+                                const storedName = itemMap[group];
+                                if (!storedName) continue;
+                                const current = invGet ? invGet(Player, group) : null;
+                                if (!current) {
+                                    reEquipping = true;
+                                    try {
+                                        if (invAdd) invAdd(Player, storedName, group, false);
+                                        if (itemUpdate) itemUpdate(Player, group);
+                                        appendLocalLogLine(
+                                            `[EBC] ⛓ ${group.replace("Item", "")} is cursed — removed by someone, restored.`,
+                                            UI.accent
+                                        );
+                                    } finally { reEquipping = false; }
+                                }
+                            }
+                        }
+                    } catch { /* ignore */ }
+                }
             } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
                 // Record this person in the persistent "people met" list.
                 // seenThisSession guard prevents repeated syncs when CharacterRefresh
@@ -6967,6 +7005,7 @@ function init(): void {
 
     // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
     const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
+    const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
     const getCursedGroups = (): Set<string> => {
         try {
             const raw = localStorage.getItem(getCurseKey());
@@ -6979,19 +7018,42 @@ function init(): void {
     const saveCursedGroups = (groups: Set<string>): void => {
         try { localStorage.setItem(getCurseKey(), JSON.stringify([...groups])); } catch { /* ignore */ }
     };
+    const getCurseItemMap = (): Record<string, string> => {
+        try {
+            const raw = localStorage.getItem(getCurseItemKey());
+            return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+        } catch { return {}; }
+    };
+    const saveCurseItemMap = (map: Record<string, string>): void => {
+        try { localStorage.setItem(getCurseItemKey(), JSON.stringify(map)); } catch { /* ignore */ }
+    };
     const handleCurseCommand = (msg: string): void => {
         const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
         const current = getCursedGroups();
         if (inner.startsWith("apply:")) {
-            for (const g of inner.slice("apply:".length).split(",").filter(Boolean)) current.add(g);
+            const itemMap = getCurseItemMap();
+            for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const itemName = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                if (g) { current.add(g); if (itemName) itemMap[g] = itemName; }
+            }
             saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
         } else if (inner === "clear") {
             saveCursedGroups(new Set());
+            saveCurseItemMap({});
         } else if (inner.startsWith("clear:")) {
-            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) current.delete(g);
+            const itemMap = getCurseItemMap();
+            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
+                current.delete(g);
+                delete itemMap[g];
+            }
             saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
         }
     };
+    let reEquipping = false;
 
     // Hook InventoryRemove: block removal of cursed item groups on Lucy's client.
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
@@ -6999,7 +7061,10 @@ function init(): void {
             const [char, group] = args as [Character, string, boolean?];
             if (char === Player && typeof group === "string") {
                 const cursed = getCursedGroups();
-                if (cursed.has(group)) return; // block self-removal of cursed item
+                if (cursed.has(group)) {
+                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
+                    return; // block self-removal of cursed item
+                }
             }
         } catch { /* ignore */ }
         return next(args);

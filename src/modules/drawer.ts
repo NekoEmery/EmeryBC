@@ -21967,7 +21967,11 @@ export class EBCDrawer {
             const newGroups = [...curseSelGroups];
             const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
             setCurseRecord(id, merged);
-            sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+            // Include item name so the target can restore the exact item if it gets removed
+            const roomItems = getRoomMemberItems(id);
+            const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
+            const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+            sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
             const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
             appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
@@ -22033,8 +22037,8 @@ export class EBCDrawer {
                 liftOneBtn.addEventListener("click", () => {
                     const remaining = getCurseRecord(id).filter(g => g !== group);
                     setCurseRecord(id, remaining);
-                    if (remaining.length > 0) sendBeep(id, `[EBC-CURSE:apply:${remaining.join(",")}]`);
-                    else sendBeep(id, "[EBC-CURSE:clear]");
+                    // Use clear:group to precisely remove just this curse from target's record
+                    sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                     const label = nameMap.get(group) ?? group.replace("Item", "");
                     const targetName4 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
                     appendLocalLogLine(`[EBC] ✓ Lifted ${label} curse on ${targetName4}.`, UI.textMuted);

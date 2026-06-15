@@ -29598,7 +29598,11 @@
                 const newGroups = [...curseSelGroups];
                 const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
                 setCurseRecord(id, merged);
-                sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+                // Include item name so the target can restore the exact item if it gets removed
+                const roomItems = getRoomMemberItems(id);
+                const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
+                const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+                sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
                 const targetName2 = (_b = (_a = getRoomMembers().find(m => m.id === id)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : `#${id}`;
                 const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
                 appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
@@ -29673,10 +29677,8 @@
                         var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
                         setCurseRecord(id, remaining);
-                        if (remaining.length > 0)
-                            sendBeep(id, `[EBC-CURSE:apply:${remaining.join(",")}]`);
-                        else
-                            sendBeep(id, "[EBC-CURSE:clear]");
+                        // Use clear:group to precisely remove just this curse from target's record
+                        sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                         const label = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                         const targetName4 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
                         appendLocalLogLine(`[EBC] ✓ Lifted ${label} curse on ${targetName4}.`, UI.textMuted);
@@ -30029,7 +30031,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.6";
+    const MOD_VERSION = "6.9.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30040,6 +30042,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.7",
+            changes: [
+                "Cursed items now resist removal by anyone: if a dom or other player removes a cursed item via the normal BC UI, it is immediately re-equipped on the target's client and a notification fires. Self-removal attempts also show an EBC notification.",
+                "Curse beep now includes item name (group=assetName) so the target's client knows exactly which item to restore. Per-item lift now sends clear:group (precise) instead of re-applying remaining curses.",
+            ],
+        },
         {
             version: "6.9.6",
             changes: [
@@ -36974,6 +36983,38 @@
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
+                    // Curse re-equip: if an external actor removed a cursed item, put it back
+                    if (!reEquipping) {
+                        try {
+                            const cursed = getCursedGroups();
+                            if (cursed.size > 0) {
+                                const itemMap = getCurseItemMap();
+                                const invGet = window.InventoryGet;
+                                const invAdd = window.InventoryAdd;
+                                const itemUpdate = window.ChatRoomCharacterItemUpdate;
+                                for (const group of cursed) {
+                                    const storedName = itemMap[group];
+                                    if (!storedName)
+                                        continue;
+                                    const current = invGet ? invGet(Player, group) : null;
+                                    if (!current) {
+                                        reEquipping = true;
+                                        try {
+                                            if (invAdd)
+                                                invAdd(Player, storedName, group, false);
+                                            if (itemUpdate)
+                                                itemUpdate(Player, group);
+                                            appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removed by someone, restored.`, UI.accent);
+                                        }
+                                        finally {
+                                            reEquipping = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch ( /* ignore */_c) { /* ignore */ }
+                    }
                 }
                 else if ((C === null || C === void 0 ? void 0 : C.MemberNumber) != null && C.MemberNumber !== Player.MemberNumber) {
                     // Record this person in the persistent "people met" list.
@@ -36992,11 +37033,11 @@
                             if (C.Name)
                                 cacheAccountName(C.MemberNumber, C.Name);
                         }
-                        catch ( /* ignore */_c) { /* ignore */ }
+                        catch ( /* ignore */_d) { /* ignore */ }
                     }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.
@@ -37068,6 +37109,7 @@
         });
         // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
         const getCurseKey = () => { var _a; return `EBC_curses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+        const getCurseItemKey = () => { var _a; return `EBC_curseItems_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
         const getCursedGroups = () => {
             try {
                 const raw = localStorage.getItem(getCurseKey());
@@ -37086,31 +37128,64 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         };
+        const getCurseItemMap = () => {
+            try {
+                const raw = localStorage.getItem(getCurseItemKey());
+                return raw ? JSON.parse(raw) : {};
+            }
+            catch (_a) {
+                return {};
+            }
+        };
+        const saveCurseItemMap = (map) => {
+            try {
+                localStorage.setItem(getCurseItemKey(), JSON.stringify(map));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        };
         const handleCurseCommand = (msg) => {
             const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
             const current = getCursedGroups();
             if (inner.startsWith("apply:")) {
-                for (const g of inner.slice("apply:".length).split(",").filter(Boolean))
-                    current.add(g);
+                const itemMap = getCurseItemMap();
+                for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
+                    const eqIdx = entry.indexOf("=");
+                    const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                    const itemName = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                    if (g) {
+                        current.add(g);
+                        if (itemName)
+                            itemMap[g] = itemName;
+                    }
+                }
                 saveCursedGroups(current);
+                saveCurseItemMap(itemMap);
             }
             else if (inner === "clear") {
                 saveCursedGroups(new Set());
+                saveCurseItemMap({});
             }
             else if (inner.startsWith("clear:")) {
-                for (const g of inner.slice("clear:".length).split(",").filter(Boolean))
+                const itemMap = getCurseItemMap();
+                for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
                     current.delete(g);
+                    delete itemMap[g];
+                }
                 saveCursedGroups(current);
+                saveCurseItemMap(itemMap);
             }
         };
+        let reEquipping = false;
         // Hook InventoryRemove: block removal of cursed item groups on Lucy's client.
         tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
             try {
                 const [char, group] = args;
                 if (char === Player && typeof group === "string") {
                     const cursed = getCursedGroups();
-                    if (cursed.has(group))
+                    if (cursed.has(group)) {
+                        appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                         return; // block self-removal of cursed item
+                    }
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
