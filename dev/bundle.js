@@ -28875,7 +28875,7 @@
                 const proxyUrl = ((_d = localStorage.getItem("EBC_ps_proxy")) !== null && _d !== void 0 ? _d : "").trim();
                 if (proxyUrl) {
                     console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
-                    console.log(`[EBC PiShock] Payload → user="${username}" code="${code}" op=${op} i=${finalI} d=${finalD}`);
+                    console.log(`[EBC PiShock] Payload → user="${username}" key="${apiKey.slice(0, 8)}…"(len=${apiKey.length}) code="${code}" op=${op} i=${finalI} d=${finalD}`);
                     try {
                         const resp = await fetch(proxyUrl, {
                             method: "POST",
@@ -31001,7 +31001,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.35";
+    const MOD_VERSION = "6.9.36";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31012,6 +31012,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.36",
+            changes: [
+                "PiShock: Expand debug log to show first 8 chars and length of API key — helps diagnose 404 errors caused by a missing or incorrect API key.",
+            ],
+        },
         {
             version: "6.9.35",
             changes: [
