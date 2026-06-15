@@ -117,13 +117,24 @@ export function resolveName(memberNumber: number): string {
             return name;
         }
     } catch { /* ignore */ }
-    // Prefer cached display name, then cached account name, then #number fallback.
-    // Account name is used as fallback so friends show their real name even if the
-    // display-name cache (friendNames) hasn't been populated yet for this member.
+    // Prefer cached display name, then cached account name.
     const displayName = getCachedNames()[String(memberNumber)];
     if (displayName) return displayName;
     const accountName = getCachedAccountNames()[String(memberNumber)];
     if (accountName) return accountName;
+    // Last resort: BC's own FriendNames map, populated at login from the server's
+    // LZ-compressed friend name store. Covers offline friends EBC hasn't seen yet.
+    try {
+        const bcNames = (Player as unknown as { FriendNames?: Map<number, string> }).FriendNames;
+        if (bcNames instanceof Map) {
+            const bcName = bcNames.get(memberNumber);
+            if (bcName) {
+                cacheName(memberNumber, bcName);
+                cacheAccountName(memberNumber, bcName);
+                return bcName;
+            }
+        }
+    } catch { /* ignore */ }
     return `#${memberNumber}`;
 }
 

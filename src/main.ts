@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.22";
+const MOD_VERSION = "6.9.23";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -39,7 +39,13 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "6.9.22",
+        version: "6.9.23",
+        changes: [
+            "Fix: Friend names now resolve correctly for offline friends and friends not yet seen in a room. Root cause: resolveName() never checked BC's own Player.FriendNames map, which is populated at login from the server's LZ-compressed friend name store and covers ALL friends (online and offline). resolveName() now checks Player.FriendNames as a final fallback before #number, and caches the name on find. handleAccountQueryResult also proactively seeds the EBC cache from Player.FriendNames so offline friends are populated the first time AccountQueryResult fires (3 s after load).",
+        ],
+    },
+    {
+        version: "6.9.23",
         changes: [
             "TOYS tab: PiShock and Lovense are now collapsible sections within the same tab (▼/▶ header). Lovense removed as a standalone tab.",
             "TOYS tab: Lovense section added with ON/OFF toggle — shows 'coming soon' placeholder when enabled, off-note when disabled. Collapse state persists in localStorage.",
@@ -7451,6 +7457,22 @@ function init(): void {
                 }
             }
             updateOnlineFriends(results);
+            // Proactively seed EBC name cache from BC's own FriendNames map.
+            // Player.FriendNames is populated at login from the server's LZ-compressed
+            // store and includes ALL friends (online and offline). Seeding here ensures
+            // offline friends show real names without needing to share a room first.
+            try {
+                const bcNames = (Player as unknown as { FriendNames?: Map<number, string> }).FriendNames;
+                if (bcNames instanceof Map && bcNames.size > 0) {
+                    const cached = getCachedNames();
+                    for (const [num, name] of bcNames) {
+                        if (num && name && !cached[String(num)]) {
+                            cacheName(num, name);
+                            cacheAccountName(num, name);
+                        }
+                    }
+                }
+            } catch { /* ignore */ }
             try { syncFriendsSince(); } catch { /* ignore */ }
             try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
             try { drawer?.refreshFriendList(); } catch { /* ignore */ }
