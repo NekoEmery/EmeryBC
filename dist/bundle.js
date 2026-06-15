@@ -11537,6 +11537,8 @@
             this.tagTooltipMoveListener = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             this.pishockLastOpTimes = new Map(); // per-shocker cooldown timestamps
+            this._lovBtDevice = null; // BluetoothDevice
+            this._lovBtChar = null; // BluetoothRemoteGATTCharacteristic (write)
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -28245,6 +28247,21 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        static getLovenseTriggers() {
+            try {
+                const raw = localStorage.getItem("EBC_lvs_triggers");
+                return raw ? JSON.parse(raw) : [];
+            }
+            catch (_a) {
+                return [];
+            }
+        }
+        static saveLovenseTriggers(triggers) {
+            try {
+                localStorage.setItem("EBC_lvs_triggers", JSON.stringify(triggers));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         static extractPiShockCode(raw) {
             var _a;
             // Auto-strip full PiShock share URLs → just the code
@@ -28365,10 +28382,13 @@
                     eyeBtn.style.color = apiKeyInp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
                 });
                 apiKeyRow.appendChild(eyeBtn);
-                // CORS Proxy URL (required when loaded via FUSAM/page context)
-                mkField("Proxy URL", "text", "EBC_ps_proxy", "https://your-worker.workers.dev  (leave empty if not needed)");
+                // CORS proxy — pre-filled with the shared EBC Worker; user can override with their own
+                const DEFAULT_PS_PROXY = "https://pishock.bdsmbondageneko.workers.dev/";
+                if (!localStorage.getItem("EBC_ps_proxy"))
+                    localStorage.setItem("EBC_ps_proxy", DEFAULT_PS_PROXY);
+                mkField("Proxy URL", "text", "EBC_ps_proxy", DEFAULT_PS_PROXY);
                 const proxyNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:-2px 0 6px;line-height:1.5;`);
-                proxyNote.innerHTML = `PiShock blocks requests from non-pishock.com origins. If you're using FUSAM, set up a free <b style="color:var(--ebc-text)">Cloudflare Worker</b> proxy and paste its URL here. <a href="https://github.com/NekoEmery/EmeryBC/wiki/PiShock-Proxy" target="_blank" style="color:var(--ebc-accent);text-decoration:none;">Setup guide ↗</a>`;
+                proxyNote.innerHTML = `Pre-configured shared EBC relay (Cloudflare Worker — blind passthrough, no logging). Replace with your own Worker URL if you prefer to self-host.`;
                 psContent.appendChild(proxyNote);
                 // Limits
                 psContent.appendChild(sep());
@@ -28592,13 +28612,210 @@
             card.appendChild(lovWrap);
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-                offNote.textContent = "Enable Lovense above to configure settings.";
+                offNote.textContent = "Enable Lovense above to configure.";
                 lovContent.appendChild(offNote);
             }
             else {
-                const placeholder = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.7;padding:8px 0;`);
-                placeholder.innerHTML = "Connect your Lovense toys and map them to in-game actions.<br><b style=\"color:var(--ebc-text);\">Full integration coming soon.</b>";
-                lovContent.appendChild(placeholder);
+                // ── Connection ────────────────────────────────────────────────────
+                lovContent.appendChild(sectionHdr("CONNECTION"));
+                const nav = navigator;
+                const btApi = nav["bluetooth"];
+                if (!btApi) {
+                    const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:4px;padding:8px 10px;margin:4px 0 8px;line-height:1.6;`);
+                    noBlue.innerHTML = "<b>Web Bluetooth not supported</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys via Bluetooth.";
+                    lovContent.appendChild(noBlue);
+                }
+                else {
+                    const lovStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                    const lovDot = mk("span", "font-size:13px;");
+                    const lovStatusTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                    const lovConnBtn = mkBtn("🔵 Connect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid #4a2080;background:transparent;color:#9a6fd0;`);
+                    const lovDiscBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);display:none;`);
+                    lovStatusRow.appendChild(lovDot);
+                    lovStatusRow.appendChild(lovStatusTxt);
+                    lovStatusRow.appendChild(lovConnBtn);
+                    lovStatusRow.appendChild(lovDiscBtn);
+                    lovContent.appendChild(lovStatusRow);
+                    const lovNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
+                    lovNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to another device.";
+                    lovContent.appendChild(lovNote);
+                    const lovUpdateStatus = () => {
+                        var _a, _b;
+                        const dev = this._lovBtDevice;
+                        const connected = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
+                        lovDot.textContent = connected ? "🟢" : "🔴";
+                        lovStatusTxt.textContent = connected ? `Connected: ${(_b = dev === null || dev === void 0 ? void 0 : dev.name) !== null && _b !== void 0 ? _b : "Lovense toy"}` : "Not connected";
+                        lovConnBtn.style.display = connected ? "none" : "";
+                        lovDiscBtn.style.display = connected ? "" : "none";
+                    };
+                    lovUpdateStatus();
+                    lovConnBtn.addEventListener("click", () => {
+                        lovConnBtn.disabled = true;
+                        lovDot.textContent = "🔄";
+                        lovStatusTxt.textContent = "Opening Bluetooth picker…";
+                        // List all known Lovense service UUIDs — getPrimaryServices() returns whichever actually exist on the device
+                        const LVS_SERVICES = [
+                            "0000fff0-0000-1000-8000-00805f9b34fb", // Gen1
+                            "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Gen2 Nordic UART
+                            "50300001-0023-4bd4-bbd5-a6920e4c5653", // Alternate Lovense
+                        ];
+                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
+                            .then(async (rawDevice) => {
+                            var _a;
+                            const device = rawDevice;
+                            this._lovBtDevice = device;
+                            device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
+                            lovStatusTxt.textContent = "Connecting…";
+                            const server = await device.gatt.connect();
+                            const services = await server.getPrimaryServices();
+                            console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
+                            let char = null;
+                            for (const svc of services) {
+                                const chars = await svc.getCharacteristics();
+                                console.log(`[EBC Lovense] ${svc.uuid}:`, chars.map(c => `${c.uuid}(w:${c.properties["write"]},wr:${c.properties["writeWithoutResponse"]})`));
+                                char = (_a = chars.find(c => c.properties["write"] || c.properties["writeWithoutResponse"])) !== null && _a !== void 0 ? _a : null;
+                                if (char)
+                                    break;
+                            }
+                            if (!char)
+                                throw new Error("No writable characteristic found");
+                            this._lovBtChar = char;
+                            lovUpdateStatus();
+                            lovConnBtn.disabled = false;
+                        })
+                            .catch((err) => {
+                            const msg = err instanceof Error ? err.message : String(err);
+                            lovDot.textContent = "🔴";
+                            lovStatusTxt.textContent = (err instanceof Error && err.name === "NotFoundError" && !this._lovBtDevice)
+                                ? "Cancelled" : `Error: ${msg}`;
+                            lovConnBtn.disabled = false;
+                        });
+                    });
+                    lovDiscBtn.addEventListener("click", () => {
+                        var _a;
+                        const dev = this._lovBtDevice;
+                        (_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.disconnect();
+                        this._lovBtChar = null;
+                        this._lovBtDevice = null;
+                        lovUpdateStatus();
+                    });
+                }
+                // ── Vibrate defaults ──────────────────────────────────────────────
+                lovContent.appendChild(sep());
+                lovContent.appendChild(sectionHdr("VIBRATE DEFAULTS"));
+                const mkLovSlider = (label, key, min, max, def, unit) => {
+                    const cur = typeof s[key] === "number" ? s[key] : def;
+                    const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
+                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:90px;flex-shrink:0;font-weight:bold;`);
+                    lbl.textContent = label;
+                    const sl = document.createElement("input");
+                    sl.type = "range";
+                    sl.min = String(min);
+                    sl.max = String(max);
+                    sl.value = String(Math.min(Math.max(cur, min), max));
+                    sl.style.cssText = "flex:1;min-width:0;accent-color:#9a6fd0;cursor:pointer;";
+                    const val = mk("span", `${FONT}font-size:12px;color:#9a6fd0;min-width:40px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                    val.textContent = sl.value + unit;
+                    sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
+                    row.appendChild(lbl);
+                    row.appendChild(sl);
+                    row.appendChild(val);
+                    lovContent.appendChild(row);
+                };
+                mkLovSlider("Intensity", "lovenseIntensity", 1, 20, 10, "/20");
+                mkLovSlider("Duration", "lovenseDuration", 1, 30, 5, "s");
+                // Test button
+                const lovTestRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                const lovTestLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:40px;font-weight:bold;`);
+                lovTestLbl.textContent = "TEST:";
+                const lovTestBtn = mkBtn("〜 Vibrate", `${FONT}font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
+                const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+                lovTestBtn.addEventListener("click", () => {
+                    lovTestRes.textContent = "…";
+                    this.fireLovense().then(r => { lovTestRes.textContent = r || "✓"; }).catch(e => { lovTestRes.textContent = `⚠ ${e}`; });
+                });
+                lovTestRow.appendChild(lovTestLbl);
+                lovTestRow.appendChild(lovTestBtn);
+                lovTestRow.appendChild(lovTestRes);
+                lovContent.appendChild(lovTestRow);
+                // ── Triggers ──────────────────────────────────────────────────────
+                lovContent.appendChild(sep());
+                lovContent.appendChild(sectionHdr("TRIGGERS"));
+                // Mirror PiShock shocks toggle
+                const mirrorRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+                const mirrorCb = document.createElement("input");
+                mirrorCb.type = "checkbox";
+                mirrorCb.checked = s.lovenseMirrorShocks !== false;
+                mirrorCb.style.cssText = "cursor:pointer;accent-color:#9a6fd0;width:14px;height:14px;flex-shrink:0;";
+                const mirrorLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);cursor:pointer;`);
+                mirrorLbl.textContent = "Vibrate when a PiShock shock trigger fires";
+                mirrorLbl.addEventListener("click", () => { mirrorCb.checked = !mirrorCb.checked; s["lovenseMirrorShocks"] = mirrorCb.checked; syncSettings(); });
+                mirrorCb.addEventListener("change", () => { s["lovenseMirrorShocks"] = mirrorCb.checked; syncSettings(); });
+                mirrorRow.appendChild(mirrorCb);
+                mirrorRow.appendChild(mirrorLbl);
+                lovContent.appendChild(mirrorRow);
+                // Own trigger phrases
+                lovContent.appendChild(sectionHdr("OWN PHRASES"));
+                const lovAddHRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;");
+                const lovAddNote = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                lovAddNote.textContent = "Vibrate when phrase is said in chat";
+                const lovAddBtn = mkBtn("+ Add", `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent-dim);background:transparent;color:var(--ebc-accent);`);
+                lovAddHRow.appendChild(lovAddNote);
+                lovAddHRow.appendChild(lovAddBtn);
+                lovContent.appendChild(lovAddHRow);
+                const lovTriggers = EBCDrawer.getLovenseTriggers();
+                const lovListEl = mk("div");
+                const renderLovTriggers = () => {
+                    while (lovListEl.firstChild)
+                        lovListEl.removeChild(lovListEl.firstChild);
+                    lovTriggers.forEach((tr, idx) => {
+                        const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
+                        const r1 = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
+                        const phraseInp = document.createElement("input");
+                        phraseInp.type = "text";
+                        phraseInp.value = tr.phrase;
+                        phraseInp.placeholder = "Trigger phrase";
+                        phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                        phraseInp.addEventListener("input", () => { lovTriggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.saveLovenseTriggers(lovTriggers); });
+                        const removeBtn = mkBtn("×", `${FONT}font-size:14px;line-height:1;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        removeBtn.addEventListener("click", () => { lovTriggers.splice(idx, 1); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
+                        r1.appendChild(phraseInp);
+                        r1.appendChild(removeBtn);
+                        tCard.appendChild(r1);
+                        // Per-trigger intensity/duration override (blank = use defaults)
+                        const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+                        const mkOvr = (label, curVal, min, max, onChange) => {
+                            const oLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                            oLbl.textContent = `${label}:`;
+                            const oInp = document.createElement("input");
+                            oInp.type = "number";
+                            oInp.min = String(min);
+                            oInp.max = String(max);
+                            oInp.value = curVal !== undefined ? String(curVal) : "";
+                            oInp.placeholder = "default";
+                            oInp.style.cssText = `${FONT}font-size:11px;padding:3px 5px;border-radius:3px;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text);width:70px;`;
+                            oInp.addEventListener("change", () => {
+                                const n = oInp.value.trim() ? parseInt(oInp.value, 10) : undefined;
+                                onChange(n !== undefined && !isNaN(n) ? Math.min(Math.max(n, min), max) : undefined);
+                                EBCDrawer.saveLovenseTriggers(lovTriggers);
+                            });
+                            r2.appendChild(oLbl);
+                            r2.appendChild(oInp);
+                        };
+                        mkOvr("Intensity", tr.intensity, 1, 20, v => { lovTriggers[idx].intensity = v; });
+                        mkOvr("Duration", tr.duration, 1, 30, v => { lovTriggers[idx].duration = v; });
+                        tCard.appendChild(r2);
+                        lovListEl.appendChild(tCard);
+                    });
+                    if (!lovTriggers.length) {
+                        const empty = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);text-align:center;padding:10px 0;`);
+                        empty.textContent = "No triggers. Click + Add.";
+                        lovListEl.appendChild(empty);
+                    }
+                };
+                lovAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
+                renderLovTriggers();
+                lovContent.appendChild(lovListEl);
             }
             body.appendChild(card);
         }
@@ -28634,14 +28851,15 @@
                 const maxD = typeof s.pishockMaxDuration === "number" ? s.pishockMaxDuration : 2;
                 const finalI = bypass ? (intensity !== null && intensity !== void 0 ? intensity : 1) : Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : maxI, maxI));
                 const finalD = bypass ? (duration !== null && duration !== void 0 ? duration : 1) : Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : maxD, maxD));
+                // PiShock API requires Op/Duration/Intensity as strings, not numbers
                 const payload = JSON.stringify({
                     Username: username,
                     Apikey: apiKey,
                     Code: code,
                     Name: "EBC",
-                    Op: op,
-                    Duration: finalD,
-                    Intensity: finalI,
+                    Op: String(op),
+                    Duration: String(finalD),
+                    Intensity: String(finalI),
                 });
                 const opName = op === 0 ? "Shock" : op === 1 ? "Vibrate" : "Beep";
                 const parseResult = (text, status) => {
@@ -28657,10 +28875,11 @@
                 const proxyUrl = ((_d = localStorage.getItem("EBC_ps_proxy")) !== null && _d !== void 0 ? _d : "").trim();
                 if (proxyUrl) {
                     console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
+                    console.log(`[EBC PiShock] Payload → user="${username}" key="${apiKey.slice(0, 8)}…"(len=${apiKey.length}) code="${code}" op=${op} i=${finalI} d=${finalD}`);
                     try {
                         const resp = await fetch(proxyUrl, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: { "Content-Type": "application/json", "X-EBC-Key": "ebc-proxy-neko26" },
                             credentials: "omit",
                             body: payload,
                         });
@@ -28737,6 +28956,36 @@
                 return `⚠ ${msg}`;
             }
         }
+        async fireLovense(intensity, duration) {
+            var _a;
+            const s = getSettings();
+            if (s.lovenseEnabled !== true)
+                return "";
+            const writeChar = this._lovBtChar;
+            const dev = this._lovBtDevice;
+            if (!writeChar || ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) !== true)
+                return "⚠ Lovense: not connected via Bluetooth";
+            const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
+            const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
+            const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
+            const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 30));
+            const enc = new TextEncoder();
+            const doWrite = (cmd) => {
+                const d = enc.encode(cmd);
+                return (writeChar.writeValueWithoutResponse && writeChar.properties["writeWithoutResponse"])
+                    ? writeChar.writeValueWithoutResponse(d)
+                    : writeChar.writeValue(d);
+            };
+            try {
+                await doWrite(`Vibrate:${finalI};`);
+                setTimeout(() => { doWrite("Vibrate:0;").catch(() => { }); }, finalD * 1000);
+                return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
+            }
+            catch (err) {
+                console.warn("[EBC Lovense] BLE write failed:", err);
+                return `⚠ Lovense BLE error: ${err instanceof Error ? err.message : String(err)}`;
+            }
+        }
         /** Called from the ChatRoomMessage hook in main.ts when a player says something in the room. */
         checkPiShockChatCommand(content) {
             var _a;
@@ -28768,9 +29017,31 @@
                         op = shocker.allowShock ? 0 : shocker.allowVibrate ? 1 : 2;
                     }
                     this.firePiShock(idx, op).catch(() => { });
+                    // Mirror shock triggers to Lovense if enabled
+                    if (op === 0) {
+                        const ls = getSettings();
+                        if (ls.lovenseEnabled === true && ls.lovenseMirrorShocks !== false) {
+                            this.fireLovense().catch(() => { });
+                        }
+                    }
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
+        }
+        checkLovenseTriggers(content) {
+            try {
+                const s = getSettings();
+                if (s.lovenseEnabled !== true)
+                    return;
+                const lower = content.toLowerCase();
+                const triggers = EBCDrawer.getLovenseTriggers();
+                for (const tr of triggers) {
+                    if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase()))
+                        continue;
+                    this.fireLovense(tr.intensity, tr.duration).catch(() => { });
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         // ─────────────────────────────────────────────────────────────────────────────
         // ─────────────────────────────────────────────────────────────────────────────
@@ -30081,10 +30352,10 @@
                 refreshToyChips();
                 refreshToyInfo();
             } });
-            for (const [emoji, label, bg, bcMode] of TOY_MODES) {
+            for (const [, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
-                btn.textContent = `${emoji} ${label}`;
+                btn.textContent = label;
                 btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; });
                 btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#5a3a50"; });
                 btn.addEventListener("click", () => {
@@ -30730,7 +31001,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.28";
+    const MOD_VERSION = "6.9.36";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30741,6 +31012,55 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.36",
+            changes: [
+                "PiShock: Expand debug log to show first 8 chars and length of API key — helps diagnose 404 errors caused by a missing or incorrect API key.",
+            ],
+        },
+        {
+            version: "6.9.35",
+            changes: [
+                "Lovense BLE: Replace static service UUID guessing with dynamic service discovery — connects to any Lovense toy by enumerating all primary services and finding the first writable characteristic. Supports writeValueWithoutResponse for characteristics that require it. Logs discovered services/characteristics to console for debugging.",
+            ],
+        },
+        {
+            version: "6.9.34",
+            changes: [
+                "PiShock: Add debug console log showing username, share code, op, intensity, and duration before each proxy call — makes it easy to verify credentials are loaded correctly.",
+            ],
+        },
+        {
+            version: "6.9.33",
+            changes: [
+                "Lovense BLE: Fix connection for Gen2+ toys (Domi 2, Lush 3, etc.) that use Nordic UART Service (6e400001) instead of the Gen1 fff0 service. Now tries fff0 first, falls back to NUS automatically. Both services declared in optionalServices so Chrome grants access to either.",
+            ],
+        },
+        {
+            version: "6.9.32",
+            changes: [
+                "Lovense: Replaced Lovense Connect local HTTP API with direct Web Bluetooth (BLE). Click 'Connect' to pair your toy directly in the browser — no Lovense Connect app needed. Chrome/Edge only. Service 0000fff0, write characteristic 0000fff2. Vibrate:N; command sent on trigger; Vibrate:0; stop sent after duration via setTimeout.",
+            ],
+        },
+        {
+            version: "6.9.31",
+            changes: [
+                "PiShock: Send Op/Duration/Intensity as strings in the API payload — the PiShock docs show these as quoted strings and sending integers was causing 404 rejections.",
+            ],
+        },
+        {
+            version: "6.9.30",
+            changes: [
+                "DOM: Removed emojis from toy control mode buttons (Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge).",
+            ],
+        },
+        {
+            version: "6.9.29",
+            changes: [
+                "PiShock: Shared EBC Cloudflare Worker proxy pre-configured as default — no setup needed for FUSAM users. Proxy URL field auto-populates on first open. Requests include an abuse-prevention token. Users can still replace with their own Worker.",
+                "Lovense Connect: Full integration added to TOYS tab. Connection scan (auto-detects port 20010-30010), vibrate defaults (intensity 1-20, duration 1-30s), test button, and two trigger modes: (1) mirror PiShock shock triggers, (2) own phrase list with per-trigger intensity/duration overrides.",
+            ],
+        },
         {
             version: "6.9.28",
             changes: [
@@ -38104,6 +38424,7 @@
                 if (data.Type === "Chat" && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockChatCommand(data.Content);
+                    drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }

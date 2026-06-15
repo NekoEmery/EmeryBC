@@ -21152,7 +21152,7 @@ export class EBCDrawer {
             const proxyUrl = (localStorage.getItem("EBC_ps_proxy") ?? "").trim();
             if (proxyUrl) {
                 console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
-                console.log(`[EBC PiShock] Payload → user="${username}" code="${code}" op=${op} i=${finalI} d=${finalD}`);
+                console.log(`[EBC PiShock] Payload → user="${username}" key="${apiKey.slice(0,8)}…"(len=${apiKey.length}) code="${code}" op=${op} i=${finalI} d=${finalD}`);
                 try {
                     const resp = await fetch(proxyUrl, {
                         method: "POST",
