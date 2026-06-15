@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.32";
+const MOD_VERSION = "6.9.33";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.33",
+        changes: [
+            "Lovense BLE: Fix connection for Gen2+ toys (Domi 2, Lush 3, etc.) that use Nordic UART Service (6e400001) instead of the Gen1 fff0 service. Now tries fff0 first, falls back to NUS automatically. Both services declared in optionalServices so Chrome grants access to either.",
+        ],
+    },
     {
         version: "6.9.32",
         changes: [
