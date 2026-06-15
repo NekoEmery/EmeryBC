@@ -20954,11 +20954,14 @@ export class EBCDrawer {
 
                 lovConnBtn.addEventListener("click", () => {
                     lovConnBtn.disabled = true; lovDot.textContent = "🔄"; lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                    // List all known Lovense service UUIDs — getPrimaryServices() returns whichever actually exist on the device
+                    // All known Lovense service UUIDs — browser only returns ones that exist on the device
                     const LVS_SERVICES = [
                         "0000fff0-0000-1000-8000-00805f9b34fb",  // Gen1
                         "6e400001-b5a3-f393-e0a9-e50e24dcca9e",  // Gen2 Nordic UART
-                        "50300001-0023-4bd4-bbd5-a6920e4c5653",  // Alternate Lovense
+                        "50300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v1
+                        "57300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v2
+                        "5a300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v3
+                        "55300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v4
                     ];
                     btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                         .then(async (rawDevice: unknown) => {
@@ -20969,8 +20972,15 @@ export class EBCDrawer {
                             type WriteChar = { uuid: string; properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
                             type Svc = { uuid: string; getCharacteristics: () => Promise<WriteChar[]> };
                             const server = await device.gatt!.connect() as { getPrimaryServices: () => Promise<Svc[]> };
-                            const services = await server.getPrimaryServices();
+                            // Retry getPrimaryServices — GATT discovery sometimes needs a moment after connect
+                            let services: Svc[] = [];
+                            for (let attempt = 0; attempt < 3; attempt++) {
+                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                                try { services = await server.getPrimaryServices(); } catch { /* try again */ }
+                                if (services.length > 0) break;
+                            }
                             console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
+                            if (!services.length) throw new Error("No services found — make sure Lovense Connect / the Lovense app is fully closed and the toy is not connected to anything else, then reconnect.");
                             let char: WriteChar | null = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();

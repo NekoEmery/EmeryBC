@@ -28653,11 +28653,14 @@
                         lovConnBtn.disabled = true;
                         lovDot.textContent = "🔄";
                         lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                        // List all known Lovense service UUIDs — getPrimaryServices() returns whichever actually exist on the device
+                        // All known Lovense service UUIDs — browser only returns ones that exist on the device
                         const LVS_SERVICES = [
                             "0000fff0-0000-1000-8000-00805f9b34fb", // Gen1
                             "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Gen2 Nordic UART
-                            "50300001-0023-4bd4-bbd5-a6920e4c5653", // Alternate Lovense
+                            "50300001-0023-4bd4-bbd5-a6920e4c5653", // Lovense proprietary v1
+                            "57300001-0023-4bd4-bbd5-a6920e4c5653", // Lovense proprietary v2
+                            "5a300001-0023-4bd4-bbd5-a6920e4c5653", // Lovense proprietary v3
+                            "55300001-0023-4bd4-bbd5-a6920e4c5653", // Lovense proprietary v4
                         ];
                         btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                             .then(async (rawDevice) => {
@@ -28667,8 +28670,20 @@
                             device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
                             lovStatusTxt.textContent = "Connecting…";
                             const server = await device.gatt.connect();
-                            const services = await server.getPrimaryServices();
+                            // Retry getPrimaryServices — GATT discovery sometimes needs a moment after connect
+                            let services = [];
+                            for (let attempt = 0; attempt < 3; attempt++) {
+                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                                try {
+                                    services = await server.getPrimaryServices();
+                                }
+                                catch ( /* try again */_b) { /* try again */ }
+                                if (services.length > 0)
+                                    break;
+                            }
                             console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
+                            if (!services.length)
+                                throw new Error("No services found — make sure Lovense Connect / the Lovense app is fully closed and the toy is not connected to anything else, then reconnect.");
                             let char = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -31001,7 +31016,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.36";
+    const MOD_VERSION = "6.9.37";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31012,6 +31027,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.37",
+            changes: [
+                "Lovense BLE: Expand optionalServices list with four more Lovense proprietary UUIDs (v1–v4 variants). Add retry logic — getPrimaryServices() is retried up to 3 times with delays after connect to handle GATT discovery timing. Improved error message when no services are found.",
+            ],
+        },
         {
             version: "6.9.36",
             changes: [
