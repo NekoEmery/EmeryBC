@@ -10,6 +10,31 @@ const channel = isProd ? "stable" : "dev";
 const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
 const baseUrl = `https://nekoemery.github.io/EmeryBC/${channel}`;
 
+// When @inject-into auto is combined with @grant GM_xmlhttpRequest, both Tampermonkey
+// and Violentmonkey inject the script in content-script context, where GM_xmlhttpRequest
+// is available and bypasses CORS entirely.  The bridge below runs before the bundle IIFE
+// and re-exposes BC's page-context globals (Player, ChatRoomCharacter, etc.) in the
+// content-script scope via unsafeWindow getters, so the rest of EBC works unchanged.
+const pageBridge = `\
+(function(){
+  var uw=typeof unsafeWindow!=="undefined"?unsafeWindow:null;
+  if(!uw||uw===window)return;
+  try{Object.defineProperty(globalThis,"window",{get:function(){return uw},configurable:true})}catch(e){}
+  ["Player","ChatRoomCharacter","ChatRoomData","ChatRoomMenuDraw","CurrentScreen",
+   "ServerPlayerExtensionSettingsSync","ServerPlayerAppearanceSync","ServerAccountBeep",
+   "ServerSend","ChatRoomCharacterUpdate","CharacterRefresh","CharacterNickname",
+   "CharacterCanChangeTalk","CharacterGetCurrentName","PreferenceInitPlayer","CommonSetScreen",
+   "ChatRoomSendChat","ChatRoomKeyDown","DrawProcess","DrawCharacter","DrawArousalMeter",
+   "InventoryRemove","ChatRoomSync","ChatRoomSyncItem","ChatRoomSyncSingle",
+   "ChatRoomSyncMemberJoin","ChatRoomSyncMemberLeave","ChatRoomMessage","ChatRoomSendWhisper",
+   "ChatRoomSearchResult","ChatRoomRun","ChatRoomClick","ChatRoomLeave",
+   "ServerSendBeepMessage","FriendListBeep","AccountQueryResult","TextGet","bcModSdk"
+  ].forEach(function(k){
+    if(Object.prototype.hasOwnProperty.call(globalThis,k))return;
+    try{Object.defineProperty(globalThis,k,{get:function(){return uw[k]},set:function(v){uw[k]=v},configurable:true,enumerable:false})}catch(e){}
+  });
+})();`;
+
 const userscriptBanner = `\
 // ==UserScript==
 // @name         EmeryBC (${channel})
@@ -24,11 +49,13 @@ const userscriptBanner = `\
 // @match        https://www.bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.com/*
 // @run-at       document-start
-// @inject-into  page
+// @inject-into  auto
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
 // @connect      do.pishock.com
 // ==/UserScript==
-console.log("[EmeryBC] userscript injected, waiting for BC...");`;
+console.log("[EmeryBC] userscript injected, waiting for BC...");
+${pageBridge}`;
 
 export default {
     input: "src/main.ts",
