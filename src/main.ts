@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.4";
+const MOD_VERSION = "6.7.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.5",
+        changes: [
+            "Fix: Friend names showing as numbers on tablet now fully fixed — reinitFromExtensionSettings merges the server's full name cache instead of skipping keys already set by the tablet's smaller local cache.",
+            "Dom menu: Reordered sections — Restraint Sets → Target → Actions → Release Tools → Room Rescue (Target now directly above Actions; Release Tools grouped with Room Rescue below).",
+            "Dom menu: Restraint Sets 'Chat:' announce dropdown renamed from '✓ Emote / Silent' to '📢 Announce / 🤫 Silent' with tooltip — much clearer what it does.",
+            "New: 'Fade when not hovered' toggle in Drawer Preferences — when on, the panel fades to 20% opacity when your mouse leaves it and fades back on hover. Default off.",
+        ],
+    },
     {
         version: "6.7.4",
         changes: [

@@ -15437,6 +15437,44 @@ export class EBCDrawer {
             opacityRow.appendChild(opacityVal);
             cnt.appendChild(opacityRow);
 
+            // ── Auto-fade when not hovered ────────────────────────────────────
+            const fadeRow = document.createElement("div");
+            fadeRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const fadeLbl = document.createElement("span");
+            fadeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+            fadeLbl.textContent = "Fade when not hovered";
+            fadeLbl.title = "Panel fades to semi-transparent when your mouse leaves it";
+            let fadeOn = Boolean(getSettings().drawerAutoFade);
+            const fadeBtn = document.createElement("button");
+            const refreshFadeBtn = (): void => {
+                fadeBtn.textContent = fadeOn ? "ON" : "OFF";
+                fadeBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:11px", "font-weight:bold",
+                    "padding:4px 10px", "border-radius:4px",
+                    "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (fadeOn ? "#cf6f98" : "#3a1928"),
+                    "background:" + (fadeOn ? "#4a1f30" : "#100508"),
+                    "color:" + (fadeOn ? "#f7e6ee" : "#7a5070"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshFadeBtn();
+            fadeBtn.addEventListener("click", () => {
+                fadeOn = !fadeOn;
+                getSettings().drawerAutoFade = fadeOn;
+                syncSettings();
+                refreshFadeBtn();
+                // Restore full opacity if turning feature off
+                if (!fadeOn) {
+                    const p = this.rootEl?.querySelector<HTMLElement>("#emerybc-panel");
+                    if (p) p.style.opacity = "1";
+                }
+            });
+            fadeRow.appendChild(fadeLbl);
+            fadeRow.appendChild(fadeBtn);
+            cnt.appendChild(fadeRow);
+
             // ── Panel zoom slider ─────────────────────────────────────────────
             const zoomRow = document.createElement("div");
             zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -20752,7 +20790,8 @@ export class EBCDrawer {
         const dsSel = document.createElement("select");
         dsSel.className = "ebc-form-input";
         dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
-        const dsOpts: [string, string][] = [["1","✓ Emote"],["0","Silent"]];
+        dsSel.title = "Whether to send a chat announcement when applying a restraint set";
+        const dsOpts: [string, string][] = [["1", "📢 Announce"], ["0", "🤫 Silent"]];
         for (const [v, dsOptLbl] of dsOpts) {
             const o = document.createElement("option"); o.value = v; o.textContent = dsOptLbl;
             if (getDomSetAnnounce() ? v === "1" : v === "0") o.selected = true;
@@ -20801,7 +20840,7 @@ export class EBCDrawer {
         targetTopRow.appendChild(qtSel);
         targetTopRow.appendChild(qtRefresh);
         targetCard.appendChild(targetTopRow);
-        body.appendChild(targetCard);
+        // targetCard appended later, right before actionsCard
 
         // Helper: labelled text input row
         const makeField = (label: string, value: string, prefix = "", placeholder = ""): { row: HTMLDivElement; input: HTMLInputElement } => {
@@ -21153,7 +21192,7 @@ export class EBCDrawer {
         const pickPanel = document.createElement("div");
         pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;";
         releaseCard.appendChild(pickPanel);
-        body.appendChild(releaseCard);
+        // releaseCard appended later, right after actionsCard
 
         const rebuildPickPanel = (): void => {
             while (pickPanel.firstChild) pickPanel.removeChild(pickPanel.firstChild);
@@ -21260,7 +21299,11 @@ export class EBCDrawer {
         fromCurBtn.title = "Create a set from your currently worn restraints";
         fromCurBtn.addEventListener("mouseenter", () => { fromCurBtn.style.background = "#2a3818"; });
         fromCurBtn.addEventListener("mouseleave", () => { if (!fromCurOpen) fromCurBtn.style.background = "#1a2010"; });
+        const dsLbl = document.createElement("span");
+        dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;white-space:nowrap;";
+        dsLbl.textContent = "Chat:";
         setsHeader.appendChild(setsLbl);
+        setsHeader.appendChild(dsLbl);
         setsHeader.appendChild(dsSel);
         setsHeader.appendChild(fromCurBtn);
         setsHeader.appendChild(newSetBtn);
@@ -21446,7 +21489,7 @@ export class EBCDrawer {
 
         const setsContainer = document.createElement("div");
         setsCard.appendChild(setsContainer);
-        body.appendChild(setsCard);
+        // setsCard appended later, right before actionsCard
 
         let activeEditorId: string | null = null;
 
@@ -22149,7 +22192,11 @@ export class EBCDrawer {
         cursePanel.appendChild(curseBtnRow);
         cursePanel.appendChild(curseStatus);
 
+        // Order: Restraint Sets → Target → Actions → Release Tools → Room Rescue
+        body.appendChild(setsCard);
+        body.appendChild(targetCard);
         body.appendChild(actionsCard);
+        body.appendChild(releaseCard);
 
         // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
         body.appendChild(divRescue);
@@ -22164,6 +22211,19 @@ export class EBCDrawer {
     public open(): void {
         if (!this.panelEl) return;
         this.isOpen = true;
+
+        // Auto-fade on blur — wire up once, check setting at call-time
+        if (!this.panelEl.dataset.fadeListenersAdded) {
+            this.panelEl.dataset.fadeListenersAdded = "1";
+            this.panelEl.style.transition = (this.panelEl.style.transition || "") + ",opacity 0.4s ease";
+            this.panelEl.addEventListener("mouseleave", () => {
+                if (Boolean(getSettings().drawerAutoFade)) (this.panelEl as HTMLElement).style.opacity = "0.2";
+            });
+            this.panelEl.addEventListener("mouseenter", () => {
+                (this.panelEl as HTMLElement).style.opacity = "1";
+            });
+        }
+        this.panelEl.style.opacity = "1";
 
         // Panel is opening — restore full tab hit area
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");

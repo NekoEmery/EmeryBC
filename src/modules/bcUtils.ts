@@ -101,7 +101,21 @@ export function reinitFromExtensionSettings(): void {
         const src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
         for (const [k, v] of Object.entries(src)) {
             if (k === "_d") continue;
-            if (_mem[k] === undefined) _mem[k] = v;
+            // Name caches: merge server data (full cache) with whatever is in _mem
+            // (which may be a smaller tablet-local cache), with in-memory winning on conflict.
+            // Without this merge, a tablet session that ran initSettings() before the server
+            // response arrived sees only its own partial friendNames and reinit skips the key.
+            if ((k === "friendNames" || k === "friendAccountNames") &&
+                v && typeof v === "object" && !Array.isArray(v)) {
+                const inMem = _mem[k];
+                if (inMem && typeof inMem === "object" && !Array.isArray(inMem)) {
+                    _mem[k] = { ...(v as Record<string, string>), ...(inMem as Record<string, string>) };
+                } else {
+                    _mem[k] = v;
+                }
+            } else if (_mem[k] === undefined) {
+                _mem[k] = v;
+            }
         }
         _initialized = true;
     } catch { /* ignore */ }
