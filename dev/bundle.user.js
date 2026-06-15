@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.10
+// @version      6.9.11
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -136,18 +136,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return _mem;
     }
     /**
-     * Re-seed _mem from Player.ExtensionSettings.EmeryBC without overwriting
-     * keys that already have in-session values. Call this after BC confirms
-     * player data is fully loaded (e.g. inside the PreferenceInitPlayer hook)
-     * to fix the race where initSettings() ran before the server response arrived,
-     * leaving the name cache (and other settings) empty.
+     * Re-seed _mem from EmeryBC settings data without overwriting keys that already
+     * have in-session values.
+     *
+     * Pass ebcData (the raw EmeryBC object from the server response, i.e.
+     * args[1].ExtensionSettings.EmeryBC from the PreferenceInitPlayer hook) when
+     * calling from PreferenceInitPlayer. BC sets Player.ExtensionSettings at line
+     * 1183 of LoginSetupPlayer, which is AFTER PreferenceInitPlayer is called at
+     * line 1098 — so reading from Player.ExtensionSettings inside that hook always
+     * sees stale/empty data. Passing the raw server value bypasses this race.
+     *
+     * When ebcData is omitted, falls back to Player.ExtensionSettings.EmeryBC (for
+     * call sites outside the login flow where the race doesn't apply).
      */
-    function reinitFromExtensionSettings() {
+    function reinitFromExtensionSettings(ebcData) {
         var _a;
         try {
-            if (!Player.ExtensionSettings)
-                return;
-            const src = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+            let src;
+            if (ebcData !== undefined) {
+                src = ebcData;
+            }
+            else {
+                if (!Player.ExtensionSettings)
+                    return;
+                src = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+            }
             for (const [k, v] of Object.entries(src)) {
                 if (k === "_d")
                     continue;
@@ -30102,7 +30115,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.10";
+    const MOD_VERSION = "6.9.11";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30113,6 +30126,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.11",
+            changes: [
+                "Fix: Friend names now correctly persist across browser restarts. Root cause: reinitFromExtensionSettings() was called inside the PreferenceInitPlayer hook (BC line 1098) but Player.ExtensionSettings is set 85 lines later (BC line 1183) — so the reinit always read stale/empty data. Fix: pass args[1].ExtensionSettings.EmeryBC (the raw server response) directly to reinitFromExtensionSettings() instead of reading the not-yet-set Player.ExtensionSettings.",
+            ],
+        },
         {
             version: "6.9.10",
             changes: [
@@ -36563,6 +36582,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // alone is too late because PreferenceInitPlayer can fire before initSettings
         // finishes (or it was already called before init() runs).
         tryHookFunction(modAPI, "PreferenceInitPlayer", 1, (args, next) => {
+            var _a;
             try {
                 const onlineSettings = Player.OnlineSettings;
                 if (onlineSettings && "EmeryBC" in onlineSettings) {
@@ -36573,19 +36593,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (typeof syncFn === "function")
                             syncFn();
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
-            const result = next(args);
-            // Re-seed _mem from ExtensionSettings now that BC has confirmed all player
-            // data is loaded. Fixes a race where initSettings() ran before the server
-            // response arrived (leaving the name cache empty on a second device like a
-            // tablet), which would cause all friends to show as #number.
-            try {
-                reinitFromExtensionSettings();
-            }
             catch ( /* ignore */_c) { /* ignore */ }
+            const result = next(args);
+            // Re-seed _mem from the server's raw response data.
+            // CRITICAL: Player.ExtensionSettings is set at line 1183 of LoginSetupPlayer,
+            // but PreferenceInitPlayer is called at line 1098 — reading Player.ExtensionSettings
+            // here would get stale/empty data. Read from args[1].ExtensionSettings.EmeryBC
+            // (the raw ServerAccountData) instead, which always has the correct server values.
+            try {
+                const serverData = args[1];
+                const serverES = serverData === null || serverData === void 0 ? void 0 : serverData.ExtensionSettings;
+                const ebcData = ((_a = serverES === null || serverES === void 0 ? void 0 : serverES["EmeryBC"]) !== null && _a !== void 0 ? _a : {});
+                reinitFromExtensionSettings(ebcData);
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
