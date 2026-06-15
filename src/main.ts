@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.24";
+const MOD_VERSION = "6.9.25";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.25",
+        changes: [
+            "PiShock CORS fix attempt 2: fetch fallback now tries Content-Type: text/plain first (avoids CORS OPTIONS preflight; PiShock's server handles simple cross-origin POST), then falls back to application/json if that fails. Both paths log to F12 Console under [EBC PiShock]. Error message now directs users to F12 Console for diagnosis.",
+        ],
+    },
     {
         version: "6.9.24",
         changes: [

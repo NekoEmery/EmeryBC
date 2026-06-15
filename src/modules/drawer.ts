@@ -20980,22 +20980,39 @@ export class EBCDrawer {
                 return parseResult(text, status);
             }
 
-            // Fallback: fetch with credentials:'omit' to avoid sending cookies which can trigger preflight.
-            console.log("[EBC PiShock] GM_xmlhttpRequest not available — falling back to fetch (may CORS-fail)");
-            const resp = await fetch("https://do.pishock.com/api/apioperate", {
+            // Fallback A: text/plain avoids the CORS OPTIONS preflight (only application/json triggers it).
+            // PiShock's server returns Access-Control-Allow-Origin on simple requests, so this should work.
+            console.log("[EBC PiShock] GM_xmlhttpRequest not available — trying fetch with text/plain (no preflight)");
+            try {
+                const respA = await fetch("https://do.pishock.com/api/apioperate", {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain" },
+                    credentials: "omit",
+                    body: payload,
+                });
+                const textA = (await respA.text()).trim();
+                console.log(`[EBC PiShock] text/plain response: HTTP ${respA.status} — ${textA.slice(0, 200)}`);
+                return parseResult(textA, respA.status);
+            } catch (eA) {
+                console.warn("[EBC PiShock] text/plain fetch failed:", eA);
+            }
+
+            // Fallback B: application/json with credentials:omit — triggers preflight, works if PiShock handles OPTIONS.
+            console.log("[EBC PiShock] Retrying with application/json (will preflight)...");
+            const respB = await fetch("https://do.pishock.com/api/apioperate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "omit",
                 body: payload,
             });
-            const text = (await resp.text()).trim();
-            console.log(`[EBC PiShock] fetch response: HTTP ${resp.status} — ${text.slice(0, 200)}`);
-            return parseResult(text, resp.status);
+            const textB = (await respB.text()).trim();
+            console.log(`[EBC PiShock] application/json response: HTTP ${respB.status} — ${textB.slice(0, 200)}`);
+            return parseResult(textB, respB.status);
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            console.error("[EBC PiShock] Error:", err);
-            if (msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("CORS")) {
-                return "⚠ CORS/network error. Check DevTools Console (F12) for details. If using Tampermonkey, reinstall the script to apply @grant GM_xmlhttpRequest.";
+            console.error("[EBC PiShock] Final error:", err);
+            if (msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("CORS") || msg.includes("network")) {
+                return "⚠ Network error — open F12 Console and filter '[EBC PiShock]' to see what failed.";
             }
             return `⚠ ${msg}`;
         }
