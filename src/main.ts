@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.7";
+const MOD_VERSION = "6.9.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.8",
+        changes: [
+            "Fix: cursed item removal by other players now correctly blocked via ChatRoomSyncItem hook (fires before the item leaves Player.Appearance). Previous CharacterRefresh re-equip approach came too late. Blocked sync is immediately corrected back to the server so all clients see the item restored.",
+        ],
+    },
     {
         version: "6.9.7",
         changes: [
@@ -6906,37 +6912,6 @@ function init(): void {
                 // via setPendingLogApplier when the Action message arrives.
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
-                // Curse re-equip: if an external actor removed a cursed item, put it back
-                if (!reEquipping) {
-                    try {
-                        const cursed = getCursedGroups();
-                        if (cursed.size > 0) {
-                            const itemMap = getCurseItemMap();
-                            const invGet = (window as unknown as Record<string, unknown>).InventoryGet as
-                                ((c: Character, g: string) => { Asset: { Name: string } } | null | undefined) | undefined;
-                            const invAdd = (window as unknown as Record<string, unknown>).InventoryAdd as
-                                ((c: Character, name: string, g: string, locked: boolean) => void) | undefined;
-                            const itemUpdate = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
-                                ((c: Character, g: string) => void) | undefined;
-                            for (const group of cursed) {
-                                const storedName = itemMap[group];
-                                if (!storedName) continue;
-                                const current = invGet ? invGet(Player, group) : null;
-                                if (!current) {
-                                    reEquipping = true;
-                                    try {
-                                        if (invAdd) invAdd(Player, storedName, group, false);
-                                        if (itemUpdate) itemUpdate(Player, group);
-                                        appendLocalLogLine(
-                                            `[EBC] ⛓ ${group.replace("Item", "")} is cursed — removed by someone, restored.`,
-                                            UI.accent
-                                        );
-                                    } finally { reEquipping = false; }
-                                }
-                            }
-                        }
-                    } catch { /* ignore */ }
-                }
             } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
                 // Record this person in the persistent "people met" list.
                 // seenThisSession guard prevents repeated syncs when CharacterRefresh
@@ -7053,9 +7028,8 @@ function init(): void {
             saveCurseItemMap(itemMap);
         }
     };
-    let reEquipping = false;
 
-    // Hook InventoryRemove: block removal of cursed item groups on Lucy's client.
+    // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
         try {
             const [char, group] = args as [Character, string, boolean?];
@@ -7064,6 +7038,34 @@ function init(): void {
                 if (cursed.has(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                     return; // block self-removal of cursed item
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Hook ChatRoomSyncItem: block EXTERNAL removal of cursed items (another player removing via BC UI).
+    // This fires BEFORE InventoryRemove, so returning early keeps the item in Player.Appearance.
+    // We then immediately send a correction sync so the server and other clients restore the item.
+    tryHookFunction(modAPI, "ChatRoomSyncItem", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const item = data.Item as Record<string, unknown> | undefined;
+            if (!item) return next(args);
+            const targetNum = typeof item.Target === "number" ? item.Target : 0;
+            const group = typeof item.Group === "string" ? item.Group : "";
+            const nameVal = item.Name; // undefined = removal
+            if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
+                const cursed = getCursedGroups();
+                if (cursed.has(group)) {
+                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+                    // Send correction: our item is still here, push it back to the server
+                    const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+                        ((c: Character, g: string) => void) | undefined;
+                    window.setTimeout(() => {
+                        try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
+                    }, 0);
+                    return; // block the removal sync
                 }
             }
         } catch { /* ignore */ }
