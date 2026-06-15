@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.1
+// @version      6.9.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -22552,55 +22552,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 opacityRow.appendChild(opacitySlider);
                 opacityRow.appendChild(opacityVal);
                 cnt.appendChild(opacityRow);
-                // ── Auto-fade when not hovered ────────────────────────────────────
-                const fadeRow = document.createElement("div");
-                fadeRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-                const fadeLbl = document.createElement("span");
-                fadeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
-                fadeLbl.textContent = "Fade when not hovered";
-                fadeLbl.title = "Panel fades to semi-transparent when your mouse leaves it";
-                let fadeOn = Boolean(getSettings().drawerAutoFade);
-                const fadeBtn = document.createElement("button");
-                const refreshFadeBtn = () => {
-                    fadeBtn.textContent = fadeOn ? "ON" : "OFF";
-                    fadeBtn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif",
-                        "font-size:11px", "font-weight:bold",
-                        "padding:4px 10px", "border-radius:4px",
-                        "cursor:pointer", "flex-shrink:0",
-                        "border:1px solid " + (fadeOn ? "#cf6f98" : "#3a1928"),
-                        "background:" + (fadeOn ? "#4a1f30" : "#100508"),
-                        "color:" + (fadeOn ? "#f7e6ee" : "#7a5070"),
-                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                    ].join(";");
-                };
-                refreshFadeBtn();
-                fadeBtn.addEventListener("click", () => {
-                    fadeOn = !fadeOn;
-                    getSettings().drawerAutoFade = fadeOn;
-                    syncSettings();
-                    refreshFadeBtn();
-                    const el = this.panelEl;
-                    if (!el)
-                        return;
-                    const old = el.__ebcFade;
-                    if (old) {
-                        el.removeEventListener("mouseenter", old.enter);
-                        el.removeEventListener("mouseleave", old.leave);
-                    }
-                    delete el.__ebcFade;
-                    el.style.opacity = "";
-                    if (fadeOn) {
-                        const fe = () => { el.style.opacity = ""; };
-                        const fl = () => { el.style.opacity = "0.15"; };
-                        el.addEventListener("mouseenter", fe);
-                        el.addEventListener("mouseleave", fl);
-                        el.__ebcFade = { enter: fe, leave: fl };
-                    }
-                });
-                fadeRow.appendChild(fadeLbl);
-                fadeRow.appendChild(fadeBtn);
-                cnt.appendChild(fadeRow);
                 // ── Panel zoom slider ─────────────────────────────────────────────
                 const zoomRow = document.createElement("div");
                 zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -29745,23 +29696,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!this.panelEl)
                 return;
             this.isOpen = true;
-            // Fade-when-not-hovered via JS events so inline style doesn't fight the CSS
-            // slide-in/out transitions that also rely on opacity via class toggles.
-            const _fp = this.panelEl;
-            const _fo = _fp.__ebcFade;
-            if (_fo) {
-                _fp.removeEventListener("mouseenter", _fo.enter);
-                _fp.removeEventListener("mouseleave", _fo.leave);
-            }
-            delete _fp.__ebcFade;
-            _fp.style.opacity = "";
-            if (Boolean(getSettings().drawerAutoFade)) {
-                const _fe = () => { _fp.style.opacity = ""; };
-                const _fl = () => { _fp.style.opacity = "0.15"; };
-                _fp.addEventListener("mouseenter", _fe);
-                _fp.addEventListener("mouseleave", _fl);
-                _fp.__ebcFade = { enter: _fe, leave: _fl };
-            }
             // Panel is opening — restore full tab hit area
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -29830,15 +29764,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.closeGuide(); // remove floating guide side panel if open
             this.stopDevLogPoller();
             this.isOpen = false;
-            // Remove fade listeners and reset opacity so CSS slide-out plays at full opacity
-            const _cp = this.panelEl;
-            const _cf = _cp.__ebcFade;
-            if (_cf) {
-                _cp.removeEventListener("mouseenter", _cf.enter);
-                _cp.removeEventListener("mouseleave", _cf.leave);
-                delete _cp.__ebcFade;
-                _cp.style.opacity = "";
-            }
             // Panel is closing — clip tab so it no longer blocks the BC canvas
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -30039,7 +29964,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.1";
+    const MOD_VERSION = "6.9.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30050,6 +29975,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.2",
+            changes: [
+                "Remove: 'Fade when not hovered' feature and toggle removed entirely.",
+            ],
+        },
         {
             version: "6.9.1",
             changes: [
