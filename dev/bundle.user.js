@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.18
+// @version      6.9.19
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14555,10 +14555,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 : (prop === null || prop === void 0 ? void 0 : prop.Password) ? "Pwd"
                                     : (prop === null || prop === void 0 ? void 0 : prop.MemberNumberListKeys) ? "Key"
                                         : "Lock";
-                            const chars = window.ChatRoomCharacter;
-                            const locker = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === lockedBy);
-                            const lockerNick = locker ? locker.Nickname : undefined;
-                            const lockerName = locker ? (lockerNick || locker.Name) : `#${lockedBy}`;
+                            const lockerName = lockedBy != null ? resolveName(lockedBy) : `#${lockedBy}`;
                             lockEl.textContent = `🔒 ${lockType} · ${lockerName}`;
                         }
                         else {
@@ -30473,7 +30470,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.18";
+    const MOD_VERSION = "6.9.19";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30484,6 +30481,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.19",
+            changes: [
+                "Fix: Friend names no longer reset to #number after leaving a room. ChatRoomSync and ChatRoomSyncSingle hooks now cache every character's name into friendNames before BC mutates the bundle. Previously only ChatRoomSyncMemberJoin cached names, so players already present when you joined were never cached — once you left the room and ChatRoomCharacter was cleared, resolveName() fell through to #number.",
+                "Fix: Locker name in the restraints section now uses resolveName() so it shows the correct cached name even when the locker has left the room (previously fell back to #number for anyone not in ChatRoomCharacter).",
+            ],
+        },
         {
             version: "6.9.18",
             changes: [
@@ -37414,6 +37418,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 copies.push(structuredClone(c));
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
+                            // Cache name before next() mutates the bundle — ensures resolveName()
+                            // works after leaving the room (ChatRoomCharacter is cleared on leave).
+                            const nick = typeof (c === null || c === void 0 ? void 0 : c.Nickname) === "string" ? c.Nickname.trim() : "";
+                            const acct = typeof (c === null || c === void 0 ? void 0 : c.Name) === "string" ? c.Name : "";
+                            cacheName(num, nick || acct || String(num));
+                            if (acct)
+                                cacheAccountName(num, acct);
                         }
                     }
                 }
@@ -37445,6 +37456,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         storeRawBundle(structuredClone(c));
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    // Keep name cache up-to-date when a character's appearance refreshes.
+                    const nick = typeof (c === null || c === void 0 ? void 0 : c.Nickname) === "string" ? c.Nickname.trim() : "";
+                    const acct = typeof (c === null || c === void 0 ? void 0 : c.Name) === "string" ? c.Name : "";
+                    cacheName(num, nick || acct || String(num));
+                    if (acct)
+                        cacheAccountName(num, acct);
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
