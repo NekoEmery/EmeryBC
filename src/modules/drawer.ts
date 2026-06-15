@@ -22110,6 +22110,27 @@ export class EBCDrawer {
         posPanel.appendChild(posGrid);
         posPanel.appendChild(posStatus);
 
+        const releaseBtn = document.createElement("button");
+        releaseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 6px;margin-top:4px;width:100%;border-radius:6px;border:1px solid #7a4050;background:#3a1020;color:#e08090;cursor:pointer;transition:background 0.12s,border-color 0.12s;";
+        releaseBtn.textContent = "🔓 Release from Arms";
+        releaseBtn.addEventListener("mouseenter", () => { releaseBtn.style.background = "#6a1830"; releaseBtn.style.borderColor = "#e08090"; });
+        releaseBtn.addEventListener("mouseleave", () => { releaseBtn.style.background = "#3a1020"; releaseBtn.style.borderColor = "#7a4050"; });
+        releaseBtn.addEventListener("click", () => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { posStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
+            clearPosition(id);
+            const sendFn = (window as unknown as Record<string, unknown>).ServerSend as ((type: string, data: unknown) => void) | undefined;
+            if (sendFn) {
+                const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+                const char = room?.find(c => c.MemberNumber === id);
+                const name = (char?.Name as string | undefined) ?? `#${id}`;
+                sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
+            }
+            posStatus.textContent = "✓ Released.";
+            window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+        });
+        posPanel.appendChild(releaseBtn);
+
         // Order: Restraint Sets → Target → Actions → Release Tools
         body.appendChild(setsCard);
         body.appendChild(targetCard);

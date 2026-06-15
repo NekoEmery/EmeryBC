@@ -726,7 +726,7 @@ export function setTargetSingleToyMode(targetId: number, group: string, mode: st
 
 // ── Activity control ──────────────────────────────────────────────────────────
 
-/** Activity label -> room action description. */
+/** Activity label -> room action description (used as fallback when ActivityRun is unavailable). */
 const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Spank":   n => `gives ${n} a firm spank.`,
     "Pat":     n => `pats ${n} on the head.`,
@@ -738,20 +738,39 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Lick":    n => `licks ${n}.`,
 };
 
+/** EBC activity label → BC asset activity name (where they differ). */
+const BC_ACTIVITY_NAME: Record<string, string> = {
+    "Pat": "Pet", // BC uses "Pet" for patting/headpats
+};
+
 /**
- * Perform a quick action on an in-room character.
- * Uses Type:"Action" so the description always appears correctly in the room chat.
- * Type:"Activity" keys like "PlayerSpank" are not in BC R129's ActivityDictionary.csv
- * and produce "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" errors for all room members.
+ * Perform a quick action on an in-room character using BC's ActivityRun pipeline.
+ * Produces correct sounds, arousal updates, and BCX/LSCG reactions — identical to
+ * clicking the activity in BC's character dialog. Falls back to a room action emote
+ * if ActivityRun is unavailable.
  */
-export function performActivityOnTarget(targetId: number, activityName: string, _zone: string): boolean {
+export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
+        const win = window as unknown as Record<string, unknown>;
+        const ActivityRun = win.ActivityRun as
+            ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
+        const AssetGetActivity = win.AssetGetActivity as
+            ((family: string, name: string) => unknown) | undefined;
+        if (ActivityRun && AssetGetActivity && zone) {
+            const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
+            const bcName = BC_ACTIVITY_NAME[activityName] ?? activityName;
+            const act = AssetGetActivity(family, bcName);
+            if (act) {
+                ActivityRun(Player, target, { Name: zone }, { Activity: act, Item: null });
+                return true;
+            }
+        }
+        // Fallback: room action text (no sounds)
         const name = charDisplayName(target);
         const descFn = ACTIVITY_DESCS[activityName];
-        const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-        sendRoomAction(desc);
+        sendRoomAction(descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`);
         return true;
     } catch { return false; }
 }

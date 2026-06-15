@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.8";
+const MOD_VERSION = "6.9.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.9",
+        changes: [
+            "Fix: DOM action buttons (Spank, Pat, Kiss, etc.) now use BC's ActivityRun pipeline — correct sounds, arousal updates, and BCX/LSCG reactions fire as if the button was clicked in BC's own dialog. Pat maps to BC's 'Pet' activity. Falls back to room action emote if ActivityRun is unavailable.",
+            "Fix: ECHO position buttons (Pull to Side, Get in Arms, Hold in Arms) no longer show 'MISSING ACTIVITY DESCRIPTION FOR KEYWORD' in chat. A ChatRoomMessage hook intercepts at priority 0, lets ECHO process the position effect via next(), then immediately replaces any BC-rendered MISSING element with a proper action description.",
+            "New: 'Release from Arms' button in DOM POSITION panel — sends a room action and clears local position tracking.",
+        ],
+    },
     {
         version: "6.9.8",
         changes: [
@@ -7067,6 +7075,49 @@ function init(): void {
                     }, 0);
                     return; // block the removal sync
                 }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Hook ChatRoomMessage: intercept ECHO addon activity messages and replace BC's
+    // "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" rendering with proper descriptions.
+    // ECHO (echo-activity-ext) uses Chinese keywords as Type:"Activity" content that BC's
+    // activity dictionary doesn't know about. We fire at priority 0 (before ECHO's own hook),
+    // call next(args) so ECHO still processes the position/arms effect, then immediately
+    // replace any "MISSING ACTIVITY DESCRIPTION" element BC added with our own action text.
+    const ECHO_ACTIVITY_DESCS: Readonly<Record<string, (src: string, tgt: string) => string>> = {
+        "拉到身边": (s, t) => `${s} pulls ${t} to their side.`,
+        "钻进怀里": (s, t) => `${t} cuddles into ${s}'s arms.`,
+        "抱入怀中": (s, t) => `${s} holds ${t} tightly in their arms.`,
+    };
+    tryHookFunction(modAPI, "ChatRoomMessage", 0, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            if (data.Type === "Activity" && typeof data.Content === "string" &&
+                data.Content in ECHO_ACTIVITY_DESCS) {
+                const log = document.getElementById("TextAreaChatLog");
+                const prevCount = log?.childElementCount ?? 0;
+                const result = next(args); // let ECHO process movement, let BC try to render
+                if (log && log.childElementCount > prevCount) {
+                    // Scan newly added elements for BC's "MISSING" text and replace
+                    const dict = Array.isArray(data.Dictionary)
+                        ? (data.Dictionary as Record<string, unknown>[])
+                        : [];
+                    const srcNum = dict.find(e => "SourceCharacter" in e)?.SourceCharacter as number | undefined;
+                    const tgtNum = dict.find(e => "TargetCharacter" in e)?.TargetCharacter as number | undefined;
+                    const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined;
+                    const srcName = room?.find(c => c.MemberNumber === srcNum)?.Name ?? `#${srcNum ?? "?"}`;
+                    const tgtName = room?.find(c => c.MemberNumber === tgtNum)?.Name ?? `#${tgtNum ?? "?"}`;
+                    const desc = `(${ECHO_ACTIVITY_DESCS[data.Content]!(srcName, tgtName)})`;
+                    for (let i = prevCount; i < log.childElementCount; i++) {
+                        const el = log.children[i] as HTMLElement;
+                        if (el.textContent?.includes("MISSING ACTIVITY DESCRIPTION")) {
+                            el.textContent = desc;
+                        }
+                    }
+                }
+                return result;
             }
         } catch { /* ignore */ }
         return next(args);
