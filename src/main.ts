@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.17";
+const MOD_VERSION = "6.9.18";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.18",
+        changes: [
+            "Fix: TOYS tab credentials (username, API key, share code) now persist across relogs. Were using 'change' event which only fires on blur — clicking a toggle before leaving a field would destroy the input and lose the typed value. Switched to 'input' event so every keystroke writes to localStorage immediately.",
+            "Fix: 'Failed to fetch' PiShock API error now shows a clearer message (network/ad-blocker/VPN hint) instead of the raw error string.",
+            "New: 'Test Connection' button in the credentials section — fires a 1s/1% beep bypassing allow-toggles and cooldown to confirm credentials are valid.",
+            "New: Chat trigger Action selector — choose Beep, Vibrate, Shock, or Auto (strongest allowed) per trigger phrase instead of always auto-picking.",
+            "UI: Share code field now has a descriptive placeholder explaining what it is; credentials section is cleaner overall.",
+        ],
+    },
     {
         version: "6.9.17",
         changes: [
