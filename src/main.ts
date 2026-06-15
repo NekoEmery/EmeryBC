@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.37";
+const MOD_VERSION = "6.9.38";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.38",
+        changes: [
+            "TOYS: Removed PiShock integration entirely.",
+        ],
+    },
     {
         version: "6.9.37",
         changes: [
@@ -7333,7 +7339,6 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             if (data.Type === "Chat" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
-                drawer?.checkPiShockChatCommand(data.Content as string);
                 drawer?.checkLovenseTriggers(data.Content as string);
             }
         } catch { /* ignore */ }

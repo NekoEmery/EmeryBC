@@ -49,7 +49,6 @@ const userscriptBanner = `\
 // @run-at       document-start
 // @inject-into  page
 // @grant        none
-// @connect      do.pishock.com
 // ==/UserScript==
 console.log("[EmeryBC] userscript injected, waiting for BC...");
 ${pageBridge}`;
