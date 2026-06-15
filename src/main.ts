@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.31";
+const MOD_VERSION = "6.9.32";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.32",
+        changes: [
+            "Lovense: Replaced Lovense Connect local HTTP API with direct Web Bluetooth (BLE). Click 'Connect' to pair your toy directly in the browser — no Lovense Connect app needed. Chrome/Edge only. Service 0000fff0, write characteristic 0000fff2. Vibrate:N; command sent on trigger; Vibrate:0; stop sent after duration via setTimeout.",
+        ],
+    },
     {
         version: "6.9.31",
         changes: [
