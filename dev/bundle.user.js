@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.7.4
+// @version      6.7.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -151,8 +151,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             for (const [k, v] of Object.entries(src)) {
                 if (k === "_d")
                     continue;
-                if (_mem[k] === undefined)
+                // Name caches: merge server data (full cache) with whatever is in _mem
+                // (which may be a smaller tablet-local cache), with in-memory winning on conflict.
+                // Without this merge, a tablet session that ran initSettings() before the server
+                // response arrived sees only its own partial friendNames and reinit skips the key.
+                if ((k === "friendNames" || k === "friendAccountNames") &&
+                    v && typeof v === "object" && !Array.isArray(v)) {
+                    const inMem = _mem[k];
+                    if (inMem && typeof inMem === "object" && !Array.isArray(inMem)) {
+                        _mem[k] = Object.assign(Object.assign({}, v), inMem);
+                    }
+                    else {
+                        _mem[k] = v;
+                    }
+                }
+                else if (_mem[k] === undefined) {
                     _mem[k] = v;
+                }
             }
             _initialized = true;
         }
@@ -22485,6 +22500,45 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 opacityRow.appendChild(opacitySlider);
                 opacityRow.appendChild(opacityVal);
                 cnt.appendChild(opacityRow);
+                // ── Auto-fade when not hovered ────────────────────────────────────
+                const fadeRow = document.createElement("div");
+                fadeRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const fadeLbl = document.createElement("span");
+                fadeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+                fadeLbl.textContent = "Fade when not hovered";
+                fadeLbl.title = "Panel fades to semi-transparent when your mouse leaves it";
+                let fadeOn = Boolean(getSettings().drawerAutoFade);
+                const fadeBtn = document.createElement("button");
+                const refreshFadeBtn = () => {
+                    fadeBtn.textContent = fadeOn ? "ON" : "OFF";
+                    fadeBtn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:11px", "font-weight:bold",
+                        "padding:4px 10px", "border-radius:4px",
+                        "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (fadeOn ? "#cf6f98" : "#3a1928"),
+                        "background:" + (fadeOn ? "#4a1f30" : "#100508"),
+                        "color:" + (fadeOn ? "#f7e6ee" : "#7a5070"),
+                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                    ].join(";");
+                };
+                refreshFadeBtn();
+                fadeBtn.addEventListener("click", () => {
+                    var _a;
+                    fadeOn = !fadeOn;
+                    getSettings().drawerAutoFade = fadeOn;
+                    syncSettings();
+                    refreshFadeBtn();
+                    // Restore full opacity if turning feature off
+                    if (!fadeOn) {
+                        const p = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#emerybc-panel");
+                        if (p)
+                            p.style.opacity = "1";
+                    }
+                });
+                fadeRow.appendChild(fadeLbl);
+                fadeRow.appendChild(fadeBtn);
+                cnt.appendChild(fadeRow);
                 // ── Panel zoom slider ─────────────────────────────────────────────
                 const zoomRow = document.createElement("div");
                 zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -28308,7 +28362,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const dsSel = document.createElement("select");
             dsSel.className = "ebc-form-input";
             dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
-            const dsOpts = [["1", "✓ Emote"], ["0", "Silent"]];
+            dsSel.title = "Whether to send a chat announcement when applying a restraint set";
+            const dsOpts = [["1", "📢 Announce"], ["0", "🤫 Silent"]];
             for (const [v, dsOptLbl] of dsOpts) {
                 const o = document.createElement("option");
                 o.value = v;
@@ -28364,7 +28419,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             targetTopRow.appendChild(qtSel);
             targetTopRow.appendChild(qtRefresh);
             targetCard.appendChild(targetTopRow);
-            body.appendChild(targetCard);
+            // targetCard appended later, right before actionsCard
             // Helper: labelled text input row
             const makeField = (label, value, prefix = "", placeholder = "") => {
                 const row = document.createElement("div");
@@ -28714,7 +28769,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const pickPanel = document.createElement("div");
             pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;";
             releaseCard.appendChild(pickPanel);
-            body.appendChild(releaseCard);
+            // releaseCard appended later, right after actionsCard
             const rebuildPickPanel = () => {
                 while (pickPanel.firstChild)
                     pickPanel.removeChild(pickPanel.firstChild);
@@ -28824,7 +28879,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             fromCurBtn.addEventListener("mouseenter", () => { fromCurBtn.style.background = "#2a3818"; });
             fromCurBtn.addEventListener("mouseleave", () => { if (!fromCurOpen)
                 fromCurBtn.style.background = "#1a2010"; });
+            const dsLbl = document.createElement("span");
+            dsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;white-space:nowrap;";
+            dsLbl.textContent = "Chat:";
             setsHeader.appendChild(setsLbl);
+            setsHeader.appendChild(dsLbl);
             setsHeader.appendChild(dsSel);
             setsHeader.appendChild(fromCurBtn);
             setsHeader.appendChild(newSetBtn);
@@ -29011,7 +29070,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             const setsContainer = document.createElement("div");
             setsCard.appendChild(setsContainer);
-            body.appendChild(setsCard);
+            // setsCard appended later, right before actionsCard
             let activeEditorId = null;
             const rebuildSets = () => {
                 var _a;
@@ -29712,7 +29771,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             curseBtnRow.appendChild(liftCurseBtn);
             cursePanel.appendChild(curseBtnRow);
             cursePanel.appendChild(curseStatus);
+            // Order: Restraint Sets → Target → Actions → Release Tools → Room Rescue
+            body.appendChild(setsCard);
+            body.appendChild(targetCard);
             body.appendChild(actionsCard);
+            body.appendChild(releaseCard);
             // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
             body.appendChild(divRescue);
             body.appendChild(rescueHdr);
@@ -29725,6 +29788,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!this.panelEl)
                 return;
             this.isOpen = true;
+            // Auto-fade on blur — wire up once, check setting at call-time
+            if (!this.panelEl.dataset.fadeListenersAdded) {
+                this.panelEl.dataset.fadeListenersAdded = "1";
+                this.panelEl.style.transition = (this.panelEl.style.transition || "") + ",opacity 0.4s ease";
+                this.panelEl.addEventListener("mouseleave", () => {
+                    if (Boolean(getSettings().drawerAutoFade))
+                        this.panelEl.style.opacity = "0.2";
+                });
+                this.panelEl.addEventListener("mouseenter", () => {
+                    this.panelEl.style.opacity = "1";
+                });
+            }
+            this.panelEl.style.opacity = "1";
             // Panel is opening — restore full tab hit area
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -29991,7 +30067,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.4";
+    const MOD_VERSION = "6.7.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30002,6 +30078,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.5",
+            changes: [
+                "Fix: Friend names showing as numbers on tablet now fully fixed — reinitFromExtensionSettings merges the server's full name cache instead of skipping keys already set by the tablet's smaller local cache.",
+                "Dom menu: Reordered sections — Restraint Sets → Target → Actions → Release Tools → Room Rescue (Target now directly above Actions; Release Tools grouped with Room Rescue below).",
+                "Dom menu: Restraint Sets 'Chat:' announce dropdown renamed from '✓ Emote / Silent' to '📢 Announce / 🤫 Silent' with tooltip — much clearer what it does.",
+                "New: 'Fade when not hovered' toggle in Drawer Preferences — when on, the panel fades to 20% opacity when your mouse leaves it and fades back on hover. Default off.",
+            ],
+        },
         {
             version: "6.7.4",
             changes: [
