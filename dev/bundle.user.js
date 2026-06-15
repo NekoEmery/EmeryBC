@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.38
+// @version      6.9.39
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6815,11 +6815,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     const _posSlots = new Map();
+    function setPositionSilent(memberNumber, mode) {
+        _posSlots.set(memberNumber, mode);
+        applyPositions();
+    }
     function clearPosition(memberNumber) {
         _posSlots.delete(memberNumber);
+        applyPositions();
     }
     function clearAllPositions() {
         _posSlots.clear();
+        applyPositions();
     }
     function applyPositions() {
         try {
@@ -30150,17 +30156,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
             posHint.textContent = "Dispatches ECHO addon activities. Requires ECHO to be installed on both sides.";
             posPanel.appendChild(posHint);
-            // [echoName, label, emoji, focusGroup]
+            // [emoji, label, echoName, focusGroup, posMode]
             const POS_DEFS = [
-                ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints"],
-                ["🤗", "Get in Arms", "钻进怀里", "ItemTorso"],
-                ["💪", "Hold in Arms", "抱入怀中", "ItemTorso"],
+                ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints", "side"],
+                ["🤗", "Get in Arms", "钻进怀里", "ItemTorso", "arms"],
+                ["💪", "Hold in Arms", "抱入怀中", "ItemTorso", "hold"],
             ];
             const posGrid = document.createElement("div");
             posGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
             const posStatus = document.createElement("div");
             posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
-            for (const [emoji, label, echoName, focusGroup] of POS_DEFS) {
+            for (const [emoji, label, echoName, focusGroup, posMode] of POS_DEFS) {
                 const btn = document.createElement("button");
                 btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
                 btn.textContent = `${emoji} ${label}`;
@@ -30173,6 +30179,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
                         return;
                     }
+                    // Apply position locally immediately — moves target next to player on DOM's screen.
+                    // setPositionSilent skips the room action (ECHO activity below handles the message).
+                    setPositionSilent(id, posMode);
                     try {
                         const sendFn = window.ServerSend;
                         if (!sendFn) {
@@ -30180,10 +30189,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
                             return;
                         }
-                        // "Pull to Side" requires BC's leash to be actively held — ECHO checks
-                        // ChatRoomLeashPlayer on the target's client. Sending HoldLeash first
-                        // sets that, allowing ECHO to trigger with ANY leash-effect item
-                        // (ChainLeash, ChokeChain, CollarLeash, etc.), not just a "full leash".
+                        // Pull to Side: send HoldLeash first so ECHO can trigger with any leash-effect
+                        // item (ChainLeash, ChokeChain, CollarLeash, etc.) on the target's client.
                         if (echoName === "拉到身边") {
                             sendFn("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: id });
                         }
@@ -30520,7 +30527,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.38";
+    const MOD_VERSION = "6.9.39";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30531,6 +30538,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.39",
+            changes: [
+                "DOM POSITION: Pull to Side / Get in Arms / Hold in Arms now immediately apply the position on the DOM player's screen (setPositionSilent) in addition to dispatching the ECHO activity — previously only the ECHO activity was sent so nothing moved locally.",
+                "DOM POSITION: Release from Arms now clears the EBC position slot and immediately re-applies remaining positions (clearPosition now calls applyPositions) — previously the released character stayed in their moved spot until the next BC room sync.",
+            ],
+        },
         {
             version: "6.9.38",
             changes: [
