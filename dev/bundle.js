@@ -6660,6 +6660,54 @@
             return false;
         }
     }
+    const _posSlots = new Map();
+    function setPosition(memberNumber, mode) {
+        _posSlots.set(memberNumber, mode);
+        applyPositions();
+        const char = findRoomChar(memberNumber);
+        if (!char)
+            return;
+        const name = charDisplayName(char);
+        const desc = mode === "side"
+            ? `pulls ${name} to their side.`
+            : mode === "arms"
+                ? `scoops ${name} up in their arms.`
+                : `holds ${name} tightly in their arms.`;
+        sendRoomAction(desc);
+    }
+    function clearPosition(memberNumber) {
+        _posSlots.delete(memberNumber);
+    }
+    function clearAllPositions() {
+        _posSlots.clear();
+    }
+    function getPositionSlots() {
+        return _posSlots;
+    }
+    function applyPositions() {
+        if (_posSlots.size === 0)
+            return;
+        const arr = window.ChatRoomCharacter;
+        if (!Array.isArray(arr))
+            return;
+        const playerIdx = arr.findIndex(c => { var _a; return (_a = c.IsPlayer) === null || _a === void 0 ? void 0 : _a.call(c); });
+        if (playerIdx < 0)
+            return;
+        let insertAt = playerIdx + 1;
+        for (const memberNum of _posSlots.keys()) {
+            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+            if (currentIdx < 0)
+                continue; // not in room
+            if (currentIdx === insertAt) {
+                insertAt++;
+                continue; // already in correct slot
+            }
+            const [charToMove] = arr.splice(currentIdx, 1);
+            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+            arr.splice(adjusted, 0, charToMove);
+            insertAt = adjusted + 1;
+        }
+    }
     // Handle a chat command (e.g. /gag → apply the matching set).
     function handleDomCommand(input) {
         if (!isDomEnabled())
@@ -29426,6 +29474,86 @@
             curseBtnRow.appendChild(liftCurseBtn);
             cursePanel.appendChild(curseBtnRow);
             cursePanel.appendChild(curseStatus);
+            // ── 📍 Position ────────────────────────────────────────────────────────
+            const { panel: posPanel } = makeDomAccordion("📍", "POSITION", actionsCard);
+            const posHint = document.createElement("div");
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
+            posHint.textContent = "Moves target next to you locally. Others see the original order.";
+            posPanel.appendChild(posHint);
+            const POS_DEFS = [
+                ["🔗", "Pull to Side", "side"],
+                ["🤗", "Get in Arms", "arms"],
+                ["💪", "Hold in Arms", "hold"],
+            ];
+            const posGrid = document.createElement("div");
+            posGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+            const posStatus = document.createElement("div");
+            posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
+            const posActiveList = document.createElement("div");
+            posActiveList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:4px;";
+            const rebuildPosActive = () => {
+                var _a;
+                while (posActiveList.firstChild)
+                    posActiveList.removeChild(posActiveList.firstChild);
+                const slots = getPositionSlots();
+                if (slots.size === 0)
+                    return;
+                const memberMap = new Map(getRoomMembers().map(m => [m.id, m.name]));
+                for (const [memberNum, mode] of slots) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;background:#1e0d18;border:1px solid #3a1928;border-radius:5px;padding:3px 7px;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    const modeLabel = mode === "side" ? "at side" : mode === "arms" ? "in arms" : "held";
+                    nameEl.textContent = `${(_a = memberMap.get(memberNum)) !== null && _a !== void 0 ? _a : "#" + memberNum} — ${modeLabel}`;
+                    const relBtn = document.createElement("button");
+                    relBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    relBtn.textContent = "✕";
+                    relBtn.title = "Release";
+                    relBtn.addEventListener("click", () => {
+                        clearPosition(memberNum);
+                        rebuildPosActive();
+                        posStatus.textContent = "✓ Released.";
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
+                    });
+                    row.appendChild(nameEl);
+                    row.appendChild(relBtn);
+                    posActiveList.appendChild(row);
+                }
+            };
+            for (const [emoji, label, mode] of POS_DEFS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        posStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    setPosition(id, mode);
+                    rebuildPosActive();
+                    posStatus.textContent = `✓ ${label} → applied.`;
+                    window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                });
+                posGrid.appendChild(btn);
+            }
+            const releaseAllPosBtn = document.createElement("button");
+            releaseAllPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;width:100%;margin-top:4px;";
+            releaseAllPosBtn.textContent = "↺ Release All";
+            releaseAllPosBtn.addEventListener("click", () => {
+                clearAllPositions();
+                rebuildPosActive();
+                posStatus.textContent = "✓ All released.";
+                window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
+            });
+            posPanel.appendChild(posGrid);
+            posPanel.appendChild(posActiveList);
+            posPanel.appendChild(releaseAllPosBtn);
+            posPanel.appendChild(posStatus);
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -29715,7 +29843,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.9";
+    const MOD_VERSION = "6.8.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29726,6 +29854,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.8.0",
+            changes: [
+                "Dom menu: Added POSITION accordion — 'Pull to Side', 'Get in Arms', 'Hold in Arms' buttons reorder ChatRoomCharacter[] locally so the target appears next to you. Positions re-apply after every room sync and clear automatically on room leave.",
+            ],
+        },
         {
             version: "6.7.9",
             changes: [
@@ -36555,6 +36689,10 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                 }, 0);
             }
+            try {
+                applyPositions();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
@@ -36600,7 +36738,12 @@
                 syncPresenceMarker();
             }
             catch ( /* ignore */_c) { /* ignore */ }
-            return next(args);
+            const joinResult = next(args);
+            try {
+                applyPositions();
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            return joinResult;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
         // Also record every non-player character we see as a "person met".
@@ -36675,6 +36818,10 @@
                 _dragTarget = null;
             }
             catch ( /* ignore */_d) { /* ignore */ }
+            try {
+                clearAllPositions();
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.
