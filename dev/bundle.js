@@ -6762,28 +6762,34 @@
         return _posSlots;
     }
     function applyPositions() {
-        if (_posSlots.size === 0)
-            return;
-        const arr = window.ChatRoomCharacter;
-        if (!Array.isArray(arr))
-            return;
-        const playerIdx = arr.findIndex(c => { var _a; return (_a = c.IsPlayer) === null || _a === void 0 ? void 0 : _a.call(c); });
-        if (playerIdx < 0)
-            return;
-        let insertAt = playerIdx + 1;
-        for (const memberNum of _posSlots.keys()) {
-            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
-            if (currentIdx < 0)
-                continue; // not in room
-            if (currentIdx === insertAt) {
-                insertAt++;
-                continue; // already in correct slot
+        try {
+            if (_posSlots.size === 0)
+                return;
+            const arr = window.ChatRoomCharacter;
+            if (!Array.isArray(arr))
+                return;
+            // Use MemberNumber comparison — IsPlayer may be a boolean property, not a function,
+            // in some BC versions; calling it with ?.() would throw "true is not a function".
+            const pNum = Player.MemberNumber;
+            const playerIdx = arr.findIndex(c => c.MemberNumber === pNum);
+            if (playerIdx < 0)
+                return;
+            let insertAt = playerIdx + 1;
+            for (const memberNum of _posSlots.keys()) {
+                const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+                if (currentIdx < 0)
+                    continue;
+                if (currentIdx === insertAt) {
+                    insertAt++;
+                    continue;
+                }
+                const [charToMove] = arr.splice(currentIdx, 1);
+                const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+                arr.splice(adjusted, 0, charToMove);
+                insertAt = adjusted + 1;
             }
-            const [charToMove] = arr.splice(currentIdx, 1);
-            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
-            arr.splice(adjusted, 0, charToMove);
-            insertAt = adjusted + 1;
         }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Handle a chat command (e.g. /gag → apply the matching set).
     function handleDomCommand(input) {
@@ -29625,7 +29631,7 @@
             cursePanel.appendChild(curseBtnRow);
             cursePanel.appendChild(curseStatus);
             // ── 📍 Position ────────────────────────────────────────────────────────
-            const { panel: posPanel } = makeDomAccordion("📍", "POSITION", actionsCard);
+            const { panel: posPanel, hdr: posHdr, isOpen: isPosOpen } = makeDomAccordion("📍", "POSITION", actionsCard);
             const posHint = document.createElement("div");
             posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
             posHint.textContent = "Moves target next to you locally. Others see the original order.";
@@ -29704,6 +29710,11 @@
             posPanel.appendChild(posActiveList);
             posPanel.appendChild(releaseAllPosBtn);
             posPanel.appendChild(posStatus);
+            // Refresh active list when accordion is opened and on initial render
+            // (the DOM tab may re-render while _posSlots has entries from before)
+            posHdr.addEventListener("click", () => { if (isPosOpen())
+                rebuildPosActive(); });
+            rebuildPosActive();
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -30011,7 +30022,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.0";
+    const MOD_VERSION = "6.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30022,6 +30033,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.1",
+            changes: [
+                "Fix: Position (Pull to Side / Get in Arms / Hold in Arms) now works — applyPositions() was calling c.IsPlayer?.() which throws 'true is not a function' when IsPlayer is a boolean property in BC; switched to MemberNumber comparison.",
+                "Fix: Active position list now shows entries after clicking a position button and after tab re-renders — rebuildPosActive() is now called on initial render and when the POSITION accordion is opened.",
+            ],
+        },
         {
             version: "6.9.0",
             changes: [
