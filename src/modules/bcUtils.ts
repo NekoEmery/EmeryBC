@@ -89,16 +89,28 @@ export function getSettings(): Record<string, unknown> {
 }
 
 /**
- * Re-seed _mem from Player.ExtensionSettings.EmeryBC without overwriting
- * keys that already have in-session values. Call this after BC confirms
- * player data is fully loaded (e.g. inside the PreferenceInitPlayer hook)
- * to fix the race where initSettings() ran before the server response arrived,
- * leaving the name cache (and other settings) empty.
+ * Re-seed _mem from EmeryBC settings data without overwriting keys that already
+ * have in-session values.
+ *
+ * Pass ebcData (the raw EmeryBC object from the server response, i.e.
+ * args[1].ExtensionSettings.EmeryBC from the PreferenceInitPlayer hook) when
+ * calling from PreferenceInitPlayer. BC sets Player.ExtensionSettings at line
+ * 1183 of LoginSetupPlayer, which is AFTER PreferenceInitPlayer is called at
+ * line 1098 — so reading from Player.ExtensionSettings inside that hook always
+ * sees stale/empty data. Passing the raw server value bypasses this race.
+ *
+ * When ebcData is omitted, falls back to Player.ExtensionSettings.EmeryBC (for
+ * call sites outside the login flow where the race doesn't apply).
  */
-export function reinitFromExtensionSettings(): void {
+export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): void {
     try {
-        if (!Player.ExtensionSettings) return;
-        const src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+        let src: Record<string, unknown>;
+        if (ebcData !== undefined) {
+            src = ebcData;
+        } else {
+            if (!Player.ExtensionSettings) return;
+            src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+        }
         for (const [k, v] of Object.entries(src)) {
             if (k === "_d") continue;
             // Name caches: merge server data (full cache) with whatever is in _mem

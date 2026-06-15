@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.10";
+const MOD_VERSION = "6.9.11";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.11",
+        changes: [
+            "Fix: Friend names now correctly persist across browser restarts. Root cause: reinitFromExtensionSettings() was called inside the PreferenceInitPlayer hook (BC line 1098) but Player.ExtensionSettings is set 85 lines later (BC line 1183) — so the reinit always read stale/empty data. Fix: pass args[1].ExtensionSettings.EmeryBC (the raw server response) directly to reinitFromExtensionSettings() instead of reading the not-yet-set Player.ExtensionSettings.",
+        ],
+    },
     {
         version: "6.9.10",
         changes: [
@@ -6529,11 +6535,17 @@ function init(): void {
             }
         } catch { /* ignore */ }
         const result = next(args);
-        // Re-seed _mem from ExtensionSettings now that BC has confirmed all player
-        // data is loaded. Fixes a race where initSettings() ran before the server
-        // response arrived (leaving the name cache empty on a second device like a
-        // tablet), which would cause all friends to show as #number.
-        try { reinitFromExtensionSettings(); } catch { /* ignore */ }
+        // Re-seed _mem from the server's raw response data.
+        // CRITICAL: Player.ExtensionSettings is set at line 1183 of LoginSetupPlayer,
+        // but PreferenceInitPlayer is called at line 1098 — reading Player.ExtensionSettings
+        // here would get stale/empty data. Read from args[1].ExtensionSettings.EmeryBC
+        // (the raw ServerAccountData) instead, which always has the correct server values.
+        try {
+            const serverData = args[1] as Record<string, unknown>;
+            const serverES = serverData?.ExtensionSettings as Record<string, unknown> | undefined;
+            const ebcData = (serverES?.["EmeryBC"] ?? {}) as Record<string, unknown>;
+            reinitFromExtensionSettings(ebcData);
+        } catch { /* ignore */ }
         return result;
     });
 
