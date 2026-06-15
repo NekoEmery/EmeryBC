@@ -2534,14 +2534,10 @@ const CSS = `
     position: absolute; right: 0; top: 0; bottom: 0; width: 6px;
     cursor: ew-resize; z-index: 200;
 }
-.ebc-beep-resize-n {
-    position: absolute; top: 0; left: 0; right: 0; height: 6px;
-    cursor: ns-resize; z-index: 200;
-}
 .ebc-beep-resize-corner {
-    position: absolute; right: 0; top: 0; width: 28px; height: 28px;
-    cursor: nesw-resize; z-index: 202;
-    display: flex; align-items: flex-start; justify-content: flex-end;
+    position: absolute; right: 0; bottom: 0; width: 28px; height: 28px;
+    cursor: nwse-resize; z-index: 202;
+    display: flex; align-items: flex-end; justify-content: flex-end;
     padding: 2px; box-sizing: border-box;
     color: rgba(207,111,152,0.7);
     transition: color 0.15s;
@@ -12882,13 +12878,10 @@ export class EBCDrawer {
         const resizeE = document.createElement("div");
         resizeE.className = "ebc-beep-resize-e";
 
-        const resizeN = document.createElement("div");
-        resizeN.className = "ebc-beep-resize-n";
-
         const resizeBWCorner = document.createElement("div");
         resizeBWCorner.className = "ebc-beep-resize-corner";
         resizeBWCorner.title = "Drag to resize";
-        resizeBWCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 16 16" style="transform:rotate(180deg)"><path fill="currentColor" d="M9.3 16l-9.3-9.3v-1.4l10.7 10.7z"/><path fill="currentColor" d="M6.3 16l-6.3-6.3v-1.4l7.7 7.7z"/><path fill="currentColor" d="M3.3 16l-3.3-3.3v-1.4l4.7 4.7z"/><path fill="currentColor" d="M0.3 16l-0.3-0.3v-1.4l1.7 1.7z"/></svg>`;
+        resizeBWCorner.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 16 16"><path fill="currentColor" d="M6.7 16l9.3-9.3v-1.4l-10.7 10.7z"/><path fill="currentColor" d="M9.7 16l6.3-6.3v-1.4l-7.7 7.7z"/><path fill="currentColor" d="M12.7 16l3.3-3.3v-1.4l-4.7 4.7z"/><path fill="currentColor" d="M15.7 16l0.3-0.3v-1.4l-1.7 1.7z"/></svg>`;
 
         addPointerDown(resizeE, (start, e) => {
             e.preventDefault();
@@ -12902,36 +12895,37 @@ export class EBCDrawer {
             );
         });
 
-        addPointerDown(resizeN, (start, e) => {
-            e.preventDefault();
-            const startH = win.offsetHeight;
-            addPointerTracking(
-                (pos) => {
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + (start.clientY - pos.clientY)));
-                    win.style.height = `${beepH}px`;
-                },
-                () => { saveBeepSize(); },
-            );
-        });
-
         addPointerDown(resizeBWCorner, (start, e) => {
             e.preventDefault();
-            const startW = win.offsetWidth;
-            const startH = win.offsetHeight;
+            const startW      = win.offsetWidth;
+            const startH      = win.offsetHeight;
+            const startBottom = parseFloat(win.style.bottom) || 0;
             resizeBWCorner.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + (start.clientY - pos.clientY)));
+                    const dX = pos.clientX - start.clientX;
+                    const dY = pos.clientY - start.clientY;
+                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + dX));
+                    // Drag down = taller: bottom edge follows cursor, top stays fixed
+                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + dY));
+                    const actualDY = beepH - startH;
                     win.style.width  = `${beepW}px`;
                     win.style.height = `${beepH}px`;
+                    win.style.bottom = `${Math.max(0, startBottom - actualDY)}px`;
                 },
-                () => { resizeBWCorner.classList.remove("ebc-resizing"); saveBeepSize(); },
+                () => {
+                    resizeBWCorner.classList.remove("ebc-resizing");
+                    try {
+                        const left   = parseFloat(win.style.left)   || 0;
+                        const bottom = parseFloat(win.style.bottom) || 0;
+                        localStorage.setItem(savedPosKey, JSON.stringify({ left, bottom }));
+                    } catch { /* */ }
+                    saveBeepSize();
+                },
             );
         });
 
         win.appendChild(resizeE);
-        win.appendChild(resizeN);
         win.appendChild(resizeBWCorner);
 
         document.body.appendChild(win);

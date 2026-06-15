@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.6.9";
+const MOD_VERSION = "6.7.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.0",
+        changes: [
+            "Fix: Moved beep window resize grip to bottom-right corner (was top-right, overlapping header buttons). Drag down/right to grow, up/left to shrink. Bottom edge follows cursor naturally.",
+        ],
+    },
     {
         version: "6.6.9",
         changes: [
