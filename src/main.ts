@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.3";
+const MOD_VERSION = "6.7.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.4",
+        changes: [
+            "Feature: Dom menu '↳ From Current' picker now has a Source selector — choose yourself or any character currently in the room; captures their worn restraints as a dom set.",
+            "Feature: Main Saved Restraints panel '+ New Restraint Set from Current' now shows a per-item checkbox picker (with All toggle) before saving, so you can include only specific worn items instead of all of them.",
+        ],
+    },
     {
         version: "6.7.3",
         changes: [

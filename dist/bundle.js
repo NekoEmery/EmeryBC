@@ -118,6 +118,29 @@
             initSettings();
         return _mem;
     }
+    /**
+     * Re-seed _mem from Player.ExtensionSettings.EmeryBC without overwriting
+     * keys that already have in-session values. Call this after BC confirms
+     * player data is fully loaded (e.g. inside the PreferenceInitPlayer hook)
+     * to fix the race where initSettings() ran before the server response arrived,
+     * leaving the name cache (and other settings) empty.
+     */
+    function reinitFromExtensionSettings() {
+        var _a;
+        try {
+            if (!Player.ExtensionSettings)
+                return;
+            const src = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+            for (const [k, v] of Object.entries(src)) {
+                if (k === "_d")
+                    continue;
+                if (_mem[k] === undefined)
+                    _mem[k] = v;
+            }
+            _initialized = true;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
     function flushToExtensionSettings() {
         try {
@@ -1419,7 +1442,7 @@
         }, 80);
         localNotice$2(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
     }
-    function createRestraintFromCurrent(command, displayName, announceText) {
+    function createRestraintFromItems(command, displayName, announceText, items) {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -1440,7 +1463,7 @@
             preserveClothing: true,
             nameInAnnounce: true,
             expressionPresetId: null,
-            items: captureRestraints(),
+            items,
         };
         saveRestraints([...getRestraints(), restraint]);
         localNotice$2(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
@@ -16147,6 +16170,13 @@
                 const form = document.createElement("div");
                 form.className = "ebc-new-form";
                 sectionBody.appendChild(form);
+                // Picker section — rebuilt each time the form opens
+                const newPickerWrap = document.createElement("div");
+                newPickerWrap.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
+                form.appendChild(newPickerWrap);
+                const newPickerSep = document.createElement("div");
+                newPickerSep.style.cssText = "border-top:1px solid #4a2038;margin:2px 0 6px;";
+                form.appendChild(newPickerSep);
                 const makeRow = (labelText, input) => {
                     const row = document.createElement("div");
                     row.className = "ebc-form-row";
@@ -16176,12 +16206,92 @@
                 // Start hidden via inline style (CSS default is display:none but inline style
                 // starts as "" which the toggle check misreads — set it explicitly)
                 form.style.display = "none";
+                let newPickerSelected = new Set();
+                let newPickerChks = [];
+                const rebuildNewPicker = () => {
+                    while (newPickerWrap.firstChild)
+                        newPickerWrap.removeChild(newPickerWrap.firstChild);
+                    newPickerSelected = new Set();
+                    newPickerChks = [];
+                    const worn = Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    const pickerLbl = document.createElement("div");
+                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9ab870;font-weight:bold;margin-bottom:2px;";
+                    pickerLbl.textContent = "Items to include (" + worn.length + "):";
+                    newPickerWrap.appendChild(pickerLbl);
+                    if (worn.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                        hint.textContent = "No restraints worn — set will be empty.";
+                        newPickerWrap.appendChild(hint);
+                        return;
+                    }
+                    const allRow = document.createElement("div");
+                    allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #4a2038;margin-bottom:2px;";
+                    const allChk = document.createElement("input");
+                    allChk.type = "checkbox";
+                    allChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    const allLbl = document.createElement("span");
+                    allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c890a0;font-weight:bold;";
+                    allLbl.textContent = "All (" + worn.length + " items)";
+                    allRow.appendChild(allChk);
+                    allRow.appendChild(allLbl);
+                    newPickerWrap.appendChild(allRow);
+                    const itemsWrap = document.createElement("div");
+                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;border:1px solid #4a2038;border-radius:5px;padding:4px;background:rgba(22,10,16,0.5);";
+                    for (const itm of worn) {
+                        const group = itm.Asset.Group.Name;
+                        const lbl2 = document.createElement("label");
+                        lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                        lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(60,20,34,0.4)"; });
+                        lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.dataset.group = group;
+                        cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                        newPickerChks.push(cb);
+                        cb.addEventListener("change", () => {
+                            if (cb.checked)
+                                newPickerSelected.add(group);
+                            else
+                                newPickerSelected.delete(group);
+                            const n = newPickerChks.filter(c => c.checked).length;
+                            allChk.indeterminate = n > 0 && n < newPickerChks.length;
+                            allChk.checked = n === newPickerChks.length;
+                        });
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nameEl.textContent = itm.Asset.Name;
+                        const grpEl = document.createElement("span");
+                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;white-space:nowrap;flex-shrink:0;";
+                        grpEl.textContent = group.replace("Item", "");
+                        lbl2.appendChild(cb);
+                        lbl2.appendChild(nameEl);
+                        lbl2.appendChild(grpEl);
+                        itemsWrap.appendChild(lbl2);
+                    }
+                    newPickerWrap.appendChild(itemsWrap);
+                    allChk.addEventListener("change", () => {
+                        newPickerChks.forEach(c => {
+                            c.checked = allChk.checked;
+                            const g = c.dataset.group;
+                            if (g) {
+                                if (allChk.checked)
+                                    newPickerSelected.add(g);
+                                else
+                                    newPickerSelected.delete(g);
+                            }
+                        });
+                        allChk.indeterminate = false;
+                    });
+                };
                 newBtn.addEventListener("click", () => {
                     const open = form.style.display !== "none";
                     form.style.display = open ? "none" : "flex";
                     newBtn.textContent = open ? t("restraints.newRestraint") : t("core.cancel");
-                    if (!open)
+                    if (!open) {
+                        rebuildNewPicker();
                         cmdInput.focus();
+                    }
                 });
                 createBtn.addEventListener("click", () => {
                     cmdInput.style.borderColor = cmdInput.value.trim() ? "" : "#cf6f98";
@@ -16190,7 +16300,18 @@
                         return;
                     createBtn.disabled = true;
                     createBtn.textContent = "Saving...";
-                    const result = createRestraintFromCurrent(cmdInput.value, nameInput.value, announceInput.value);
+                    const selectedItems = Player.Appearance
+                        .filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name) &&
+                        (newPickerSelected.size === 0 || newPickerSelected.has(itm.Asset.Group.Name)))
+                        .map((itm) => ({
+                        Group: itm.Asset.Group.Name,
+                        Name: itm.Asset.Name,
+                        Color: itm.Color,
+                        Difficulty: itm.Difficulty,
+                        Property: itm.Property,
+                        Craft: itm.Craft,
+                    }));
+                    const result = createRestraintFromItems(cmdInput.value, nameInput.value, announceInput.value, selectedItems);
                     if (result) {
                         form.style.display = "none";
                         newBtn.textContent = t("restraints.newRestraint");
@@ -21386,10 +21507,17 @@
                             const own = Player.Ownership;
                             if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num)
                                 icons.push("👑");
-                            // Lover
+                            // Lover / Engaged / Married
                             const loves = Player.Lovership;
-                            if (loves === null || loves === void 0 ? void 0 : loves.some(l => l.MemberNumber === num))
-                                icons.push("❤️");
+                            const loveEntry = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
+                            if (loveEntry) {
+                                if (loveEntry.Stage === 2)
+                                    icons.push("💒");
+                                else if (loveEntry.Stage === 1)
+                                    icons.push("💍");
+                                else
+                                    icons.push("❤️");
+                            }
                             // You own them — lock = "you have them locked"
                             const room = window.ChatRoomCharacter;
                             const roomChar = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === num);
@@ -21824,16 +21952,21 @@
                                     : "👑 Owned by them";
                                 infoBox.appendChild(ownEl);
                             }
-                            // Lovership
+                            // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                             const loves = Player.Lovership;
                             const love = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
                             if (love) {
                                 const loveEl = document.createElement("div");
                                 loveEl.style.color = "#e87090";
                                 const ts = parseRelStart(love.Start);
+                                const [ico, label] = love.Stage === 2
+                                    ? ["💒", "Married"]
+                                    : love.Stage === 1
+                                        ? ["💍", "Engaged"]
+                                        : ["❤️", "Lovers"];
                                 loveEl.textContent = ts
-                                    ? `❤️ Lovers since: ${relFmt(ts)}`
-                                    : "❤️ Lovers";
+                                    ? `${ico} ${label} since: ${relFmt(ts)}`
+                                    : `${ico} ${label}`;
                                 infoBox.appendChild(loveEl);
                             }
                             // You own them (room data only — offline skip)
@@ -28687,91 +28820,151 @@
             const rebuildFromCurPanel = () => {
                 while (fromCurPanel.firstChild)
                     fromCurPanel.removeChild(fromCurPanel.firstChild);
-                const wornRestraints = Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
-                if (wornRestraints.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                    hint.textContent = "You're not wearing any restraints right now.";
-                    fromCurPanel.appendChild(hint);
-                    return;
-                }
-                const selectedGroups = new Set();
-                const checkboxes = [];
-                // All toggle row
-                const allRow = document.createElement("div");
-                allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #3a4428;margin-bottom:3px;";
-                const allChk = document.createElement("input");
-                allChk.type = "checkbox";
-                allChk.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
-                const allLbl = document.createElement("span");
-                allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;font-weight:bold;";
-                allLbl.textContent = "All  (" + wornRestraints.length + " items)";
-                allRow.appendChild(allChk);
-                allRow.appendChild(allLbl);
-                fromCurPanel.appendChild(allRow);
-                // Item list
-                const itemsWrap = document.createElement("div");
-                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:120px;overflow-y:auto;border:1px solid #3a4428;border-radius:5px;padding:4px;background:rgba(16,22,8,0.5);";
-                for (const itm of wornRestraints) {
-                    const group = itm.Asset.Group.Name;
-                    const lbl2 = document.createElement("label");
-                    lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
-                    lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,56,20,0.4)"; });
-                    lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
-                    const cb = document.createElement("input");
-                    cb.type = "checkbox";
-                    cb.dataset.group = group;
-                    cb.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
-                    checkboxes.push(cb);
-                    cb.addEventListener("change", () => {
-                        if (cb.checked)
-                            selectedGroups.add(group);
-                        else
-                            selectedGroups.delete(group);
-                        const n = checkboxes.filter(c => c.checked).length;
-                        allChk.indeterminate = n > 0 && n < checkboxes.length;
-                        allChk.checked = n === checkboxes.length;
-                    });
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nameEl.textContent = itm.Asset.Name;
-                    const grpEl = document.createElement("span");
-                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;white-space:nowrap;flex-shrink:0;";
-                    grpEl.textContent = group.replace("Item", "");
-                    lbl2.appendChild(cb);
-                    lbl2.appendChild(nameEl);
-                    lbl2.appendChild(grpEl);
-                    itemsWrap.appendChild(lbl2);
-                }
-                fromCurPanel.appendChild(itemsWrap);
-                allChk.addEventListener("change", () => {
-                    checkboxes.forEach(c => {
-                        c.checked = allChk.checked;
-                        const g = c.dataset.group;
-                        if (g) {
-                            if (allChk.checked)
-                                selectedGroups.add(g);
-                            else
-                                selectedGroups.delete(g);
+                // Source selector row
+                const sourceRow = document.createElement("div");
+                sourceRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;";
+                const sourceLbl = document.createElement("span");
+                sourceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;flex-shrink:0;";
+                sourceLbl.textContent = "Source:";
+                const sourceSel = document.createElement("select");
+                sourceSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:#1a2010;border:1px solid #4a5a30;border-radius:4px;color:#c8e0a0;padding:2px 4px;cursor:pointer;";
+                const myselfOpt = document.createElement("option");
+                myselfOpt.value = "self";
+                myselfOpt.textContent = "Myself (" + (Player.Name || "Me") + ")";
+                sourceSel.appendChild(myselfOpt);
+                try {
+                    const roomChars = window.ChatRoomCharacter;
+                    if (Array.isArray(roomChars)) {
+                        for (const c of roomChars) {
+                            if (!(c === null || c === void 0 ? void 0 : c.MemberNumber) || c.MemberNumber === Player.MemberNumber)
+                                continue;
+                            const opt = document.createElement("option");
+                            opt.value = String(c.MemberNumber);
+                            opt.textContent = c.Name || String(c.MemberNumber);
+                            sourceSel.appendChild(opt);
                         }
-                    });
-                    allChk.indeterminate = false;
-                });
+                    }
+                }
+                catch ( /* not in a room */_a) { /* not in a room */ }
+                sourceRow.appendChild(sourceLbl);
+                sourceRow.appendChild(sourceSel);
+                fromCurPanel.appendChild(sourceRow);
+                // Helper: get restraint Items from the currently selected source
+                const getSourceItems = () => {
+                    var _a;
+                    if (sourceSel.value === "self") {
+                        return Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    }
+                    const id = parseInt(sourceSel.value, 10);
+                    if (isNaN(id))
+                        return [];
+                    try {
+                        const chars = window.ChatRoomCharacter;
+                        const c = Array.isArray(chars) ? chars.find(ch => (ch === null || ch === void 0 ? void 0 : ch.MemberNumber) === id) : undefined;
+                        return ((_a = c === null || c === void 0 ? void 0 : c.Appearance) !== null && _a !== void 0 ? _a : []).filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    }
+                    catch (_b) {
+                        return [];
+                    }
+                };
+                // Item list section — rebuilt when source changes
+                const itemsSection = document.createElement("div");
+                itemsSection.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+                fromCurPanel.appendChild(itemsSection);
                 const fromCurStatus = document.createElement("div");
                 fromCurStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#ff6b6b;min-height:13px;";
+                fromCurPanel.appendChild(fromCurStatus);
                 const createBtn = document.createElement("button");
                 createBtn.style.cssText = "width:100%;background:#1a2010;border:1px solid #5a7040;border-radius:5px;color:#9ab870;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;";
                 createBtn.textContent = "✓ Create Set from Selected";
                 createBtn.addEventListener("mouseenter", () => { createBtn.style.background = "#2a3818"; });
                 createBtn.addEventListener("mouseleave", () => { createBtn.style.background = "#1a2010"; });
+                fromCurPanel.appendChild(createBtn);
+                let selectedGroups = new Set();
+                let checkboxes = [];
+                const rebuildItemList = () => {
+                    while (itemsSection.firstChild)
+                        itemsSection.removeChild(itemsSection.firstChild);
+                    selectedGroups = new Set();
+                    checkboxes = [];
+                    const wornRestraints = getSourceItems();
+                    if (wornRestraints.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
+                        hint.textContent = "No restraints found on this character.";
+                        itemsSection.appendChild(hint);
+                        return;
+                    }
+                    const allRow = document.createElement("div");
+                    allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #3a4428;margin-bottom:3px;";
+                    const allChk = document.createElement("input");
+                    allChk.type = "checkbox";
+                    allChk.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+                    const allLbl = document.createElement("span");
+                    allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;font-weight:bold;";
+                    allLbl.textContent = "All (" + wornRestraints.length + " items)";
+                    allRow.appendChild(allChk);
+                    allRow.appendChild(allLbl);
+                    itemsSection.appendChild(allRow);
+                    const itemsWrap = document.createElement("div");
+                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:120px;overflow-y:auto;border:1px solid #3a4428;border-radius:5px;padding:4px;background:rgba(16,22,8,0.5);";
+                    for (const itm of wornRestraints) {
+                        const group = itm.Asset.Group.Name;
+                        const lbl2 = document.createElement("label");
+                        lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                        lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,56,20,0.4)"; });
+                        lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.dataset.group = group;
+                        cb.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+                        checkboxes.push(cb);
+                        cb.addEventListener("change", () => {
+                            if (cb.checked)
+                                selectedGroups.add(group);
+                            else
+                                selectedGroups.delete(group);
+                            const n = checkboxes.filter(c => c.checked).length;
+                            allChk.indeterminate = n > 0 && n < checkboxes.length;
+                            allChk.checked = n === checkboxes.length;
+                        });
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nameEl.textContent = itm.Asset.Name;
+                        const grpEl = document.createElement("span");
+                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;white-space:nowrap;flex-shrink:0;";
+                        grpEl.textContent = group.replace("Item", "");
+                        lbl2.appendChild(cb);
+                        lbl2.appendChild(nameEl);
+                        lbl2.appendChild(grpEl);
+                        itemsWrap.appendChild(lbl2);
+                    }
+                    itemsSection.appendChild(itemsWrap);
+                    allChk.addEventListener("change", () => {
+                        checkboxes.forEach(c => {
+                            c.checked = allChk.checked;
+                            const g = c.dataset.group;
+                            if (g) {
+                                if (allChk.checked)
+                                    selectedGroups.add(g);
+                                else
+                                    selectedGroups.delete(g);
+                            }
+                        });
+                        allChk.indeterminate = false;
+                    });
+                };
+                sourceSel.addEventListener("change", rebuildItemList);
+                rebuildItemList();
                 createBtn.addEventListener("click", () => {
                     if (selectedGroups.size === 0) {
                         fromCurStatus.textContent = "Select at least one item.";
                         window.setTimeout(() => { fromCurStatus.textContent = ""; }, 2000);
                         return;
                     }
-                    const items = Player.Appearance
-                        .filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name) && selectedGroups.has(itm.Asset.Group.Name))
+                    const wornRestraints = getSourceItems();
+                    const items = wornRestraints
+                        .filter((itm) => selectedGroups.has(itm.Asset.Group.Name))
                         .map((itm) => ({
                         Group: itm.Asset.Group.Name,
                         Name: itm.Asset.Name,
@@ -28790,8 +28983,6 @@
                     rebuildSets();
                     body.scrollTop = body.scrollHeight;
                 });
-                fromCurPanel.appendChild(fromCurStatus);
-                fromCurPanel.appendChild(createBtn);
             };
             fromCurBtn.addEventListener("click", () => {
                 fromCurOpen = !fromCurOpen;
@@ -29783,7 +29974,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.2";
+    const MOD_VERSION = "6.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29794,6 +29985,21 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.4",
+            changes: [
+                "Feature: Dom menu '↳ From Current' picker now has a Source selector — choose yourself or any character currently in the room; captures their worn restraints as a dom set.",
+                "Feature: Main Saved Restraints panel '+ New Restraint Set from Current' now shows a per-item checkbox picker (with All toggle) before saving, so you can include only specific worn items instead of all of them.",
+            ],
+        },
+        {
+            version: "6.7.3",
+            changes: [
+                "Fix: Friend names showing as #number after using a second device (tablet) — re-seeds the name cache from server data in the PreferenceInitPlayer hook, fixing a race where initSettings() ran before ExtensionSettings arrived from the server.",
+                "Fix: Curse feature now works between any two EBC users (not just Emery→Lucy); curses are accepted from anyone on your friend list, so you can curse anyone who has EBC loaded.",
+                "UX: Relationship status in friends list now shows 💍 Engaged / 💒 Married based on BC's Lovership Stage, in both the friend-row badge icon and the expanded info panel with dates.",
+            ],
+        },
         {
             version: "6.7.2",
             changes: [
@@ -36144,7 +36350,16 @@
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
-            return next(args);
+            const result = next(args);
+            // Re-seed _mem from ExtensionSettings now that BC has confirmed all player
+            // data is loaded. Fixes a race where initSettings() ran before the server
+            // response arrived (leaving the name cache empty on a second device like a
+            // tablet), which would cause all friends to show as #number.
+            try {
+                reinitFromExtensionSettings();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
@@ -36763,7 +36978,7 @@
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             try {
                 const [beep] = args;
                 // Silent kitty commands from Lucy — checked first so BeepType "Beep" (used by
@@ -36774,12 +36989,18 @@
                     handleKittyCommand(beep.Message);
                     return; // suppress notification
                 }
-                // Curse commands from Emery — runs on Lucy's client.
-                if (beep.MemberNumber === EMERY_MEMBER &&
-                    typeof beep.Message === "string" &&
+                // Curse commands from any EBC user — runs on the receiver's client.
+                // Only accepted from friends to prevent random abuse.
+                if (typeof beep.Message === "string" &&
                     beep.Message.startsWith("[EBC-CURSE:")) {
-                    handleCurseCommand(beep.Message);
-                    return; // suppress notification
+                    const senderNum = typeof beep.MemberNumber === "number"
+                        ? beep.MemberNumber
+                        : (parseInt(String(beep.MemberNumber), 10) || 0);
+                    const friendList2 = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                    if (senderNum && friendList2.includes(senderNum)) {
+                        handleCurseCommand(beep.Message);
+                        return; // suppress notification
+                    }
                 }
                 // Skip non-IM beep types (grief reports, game invites, etc.).
                 // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -36802,26 +37023,26 @@
                 }
                 // Non-friend beeps (addon bots, update notices, etc.) always pass through
                 // to BC's native handler so they stay visible regardless of suppress setting.
-                const friendList = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                const friendList = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
                 const isFriendBeep = friendList.includes(fromNum);
                 // AFK auto-reply — runs for all plain beeps before any early-return
                 try {
                     if (isFriendBeep && getAfkEnabled()
                         && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
-                        && Date.now() - ((_b = afkBeepCooldown.get(fromNum)) !== null && _b !== void 0 ? _b : 0) > AFK_REPLY_COOLDOWN_MS) {
+                        && Date.now() - ((_c = afkBeepCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0) > AFK_REPLY_COOLDOWN_MS) {
                         afkBeepCooldown.set(fromNum, Date.now());
                         const replyMsg = `[AFK] ${getAfkMessage()}`;
                         ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
-                        addBeepEntry({ from: (_c = Player.MemberNumber) !== null && _c !== void 0 ? _c : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        addBeepEntry({ from: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, to: fromNum, message: replyMsg, ts: Date.now() });
                         const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
                         appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_f) { /* ignore */ }
                     }
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 if (!isFriendBeep)
                     return next(args);
                 // Strip metadata and add to IM — isolated in its own try so any
@@ -36836,27 +37057,27 @@
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_g) { /* ignore */ }
+                            catch ( /* ignore */_h) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members);
                         }
-                        catch ( /* ignore */_h) { /* ignore */ }
+                        catch ( /* ignore */_j) { /* ignore */ }
                         return; // suppress BC native popup for group messages
                     }
                     const msg = stripBeepMetadata(rawMsg);
                     if (msg) {
-                        addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
+                        addBeepEntry({ from: fromNum, to: (_e = Player.MemberNumber) !== null && _e !== void 0 ? _e : 0, message: msg, ts: Date.now() });
                         if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_j) { /* ignore */ }
+                            catch ( /* ignore */_k) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                         }
-                        catch ( /* ignore */_k) { /* ignore */ }
+                        catch ( /* ignore */_l) { /* ignore */ }
                         // Room invite messages are handled entirely by EBC's invite card in the
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
@@ -36866,14 +37087,14 @@
                             return;
                     }
                 }
-                catch ( /* ignore */_l) { /* ignore */ }
+                catch ( /* ignore */_m) { /* ignore */ }
                 // Suppress BC's native chat-log notification for ALL friend beeps when
                 // the toggle is on. document.hidden is intentionally NOT checked here —
                 // OS-level notifications come through FriendListBeep, not this path.
                 if (!getUseNativeBeepSound() && getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
