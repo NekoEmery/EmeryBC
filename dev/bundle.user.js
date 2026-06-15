@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.25
+// @version      6.9.26
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11,11 +11,30 @@
 // @match        https://www.bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.com/*
 // @run-at       document-start
-// @inject-into  page
+// @inject-into  auto
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
 // @connect      do.pishock.com
 // ==/UserScript==
 console.log("[EmeryBC] userscript injected, waiting for BC...");
+(function(){
+  var uw=typeof unsafeWindow!=="undefined"?unsafeWindow:null;
+  if(!uw||uw===window)return;
+  try{Object.defineProperty(globalThis,"window",{get:function(){return uw},configurable:true})}catch(e){}
+  ["Player","ChatRoomCharacter","ChatRoomData","ChatRoomMenuDraw","CurrentScreen",
+   "ServerPlayerExtensionSettingsSync","ServerPlayerAppearanceSync","ServerAccountBeep",
+   "ServerSend","ChatRoomCharacterUpdate","CharacterRefresh","CharacterNickname",
+   "CharacterCanChangeTalk","CharacterGetCurrentName","PreferenceInitPlayer","CommonSetScreen",
+   "ChatRoomSendChat","ChatRoomKeyDown","DrawProcess","DrawCharacter","DrawArousalMeter",
+   "InventoryRemove","ChatRoomSync","ChatRoomSyncItem","ChatRoomSyncSingle",
+   "ChatRoomSyncMemberJoin","ChatRoomSyncMemberLeave","ChatRoomMessage","ChatRoomSendWhisper",
+   "ChatRoomSearchResult","ChatRoomRun","ChatRoomClick","ChatRoomLeave",
+   "ServerSendBeepMessage","FriendListBeep","AccountQueryResult","TextGet","bcModSdk"
+  ].forEach(function(k){
+    if(Object.prototype.hasOwnProperty.call(globalThis,k))return;
+    try{Object.defineProperty(globalThis,k,{get:function(){return uw[k]},set:function(v){uw[k]=v},configurable:true,enumerable:false})}catch(e){}
+  });
+})();
 (function () {
     'use strict';
 
@@ -30729,7 +30748,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.25";
+    const MOD_VERSION = "6.9.26";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30740,6 +30759,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.26",
+            changes: [
+                "PiShock CORS fix (root cause): PiShock's API allows only pishock.com as CORS origin — no browser fetch from bondage-europe.com can ever succeed. Fix: changed userscript from @inject-into page to @inject-into auto + @grant GM_xmlhttpRequest. Both Tampermonkey and Violentmonkey now inject EBC in content-script context where GM_xmlhttpRequest bypasses CORS entirely. A page-bridge IIFE (added to the banner) re-exposes BC's globals (Player, ChatRoomCharacter, etc.) via unsafeWindow getters so the rest of EBC works unchanged. REQUIRES REINSTALL — update button alone won't apply new @grant/@inject-into directives.",
+            ],
+        },
         {
             version: "6.9.25",
             changes: [
