@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.19";
+const MOD_VERSION = "6.9.20";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.20",
+        changes: [
+            "PiShock: Redesigned to support multiple shockers and multiple chat triggers. Each shocker has its own name, share code, and per-shocker allow toggles (Beep/Vibrate/Shock). Chat triggers each specify a phrase, which shocker to fire, and which operation. All matching triggers fire independently (previously only one phrase was supported).",
+            "PiShock: Share code field now auto-strips full PiShock share URLs (e.g. https://pishock.com/#/Control?sharecode=ABC) down to just the code. Placeholder updated to make the format clear.",
+            "PiShock: Added credentials: 'omit' to API fetch to fix '⚠ Network error' that appeared on some setups due to CORS preflight issues.",
+            "Fix: View Profile button in the friends/beep panel now works for users who have left the room — synthesizes a minimal bundle so the info sheet opens with the cached name and member number.",
+            "Fix: People Met profile button now passes ID field in minimal bundle so CharacterLoadOnline no longer throws a TypeError when the person is not in the current room.",
+        ],
+    },
     {
         version: "6.9.19",
         changes: [

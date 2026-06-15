@@ -3920,6 +3920,19 @@ function saveStripTabFilter(key: string, tabs: Set<DrawerTab> | null): void {
 
 const EBC_OPEN_BEEP_WINS_KEY  = "EBC_openBeepWins";
 
+interface PiShockShocker {
+    name: string;
+    code: string;
+    allowBeep: boolean;
+    allowVibrate: boolean;
+    allowShock: boolean;
+}
+interface PiShockTrigger {
+    phrase: string;
+    shockerIdx: number;
+    op: "strongest" | "beep" | "vibrate" | "shock";
+}
+
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
     /** Gold paw data URI — set from main.ts after EBC_PAW_DATA is defined. */
@@ -4006,7 +4019,7 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
-    private pishockLastOpTime = 0; // ms timestamp of last PiShock operation
+    private pishockLastOpTimes = new Map<number, number>(); // per-shocker cooldown timestamps
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
@@ -14777,6 +14790,17 @@ export class EBCDrawer {
                             if (C) { openProfile(C); return; }
                         } catch { /* ignore */ }
                     }
+                    // Synthesize minimal bundle so profile opens even if user left the room
+                    try {
+                        const minBundle = {
+                            ID: String(num),
+                            MemberNumber: num,
+                            Name: resolveName(num),
+                            Appearance: [],
+                        };
+                        const C = loadOnline(minBundle, num);
+                        if (C) { openProfile(C); return; }
+                    } catch { /* ignore */ }
                     try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
                     } catch { /* ignore — prevent unhandled rejection from async listener */ }
                 });
@@ -16843,6 +16867,7 @@ export class EBCDrawer {
                             try {
                                 const acctName = getAccountName(person.n) ?? person.name;
                                 const minBundle = {
+                                    ID: String(person.n),
                                     MemberNumber: person.n,
                                     Name: acctName,
                                     Appearance: [],
@@ -20508,6 +20533,57 @@ export class EBCDrawer {
 
     // ── Toys tab ─────────────────────────────────────────────────────────────────
 
+    private static getPiShockShockers(): PiShockShocker[] {
+        try {
+            const raw = localStorage.getItem("EBC_ps_shockers");
+            if (raw) return JSON.parse(raw) as PiShockShocker[];
+            // Migrate from old single-shocker format
+            const code = (localStorage.getItem("EBC_ps_code") ?? "").trim();
+            if (code) {
+                const s = getSettings();
+                return [{
+                    name: "Shocker 1", code,
+                    allowBeep:    s.pishockAllowBeep    !== false,
+                    allowVibrate: s.pishockAllowVibrate !== false,
+                    allowShock:   s.pishockAllowShock   === true,
+                }];
+            }
+            return [];
+        } catch { return []; }
+    }
+
+    private static savePiShockShockers(shockers: PiShockShocker[]): void {
+        try { localStorage.setItem("EBC_ps_shockers", JSON.stringify(shockers)); } catch { /* ignore */ }
+    }
+
+    private static getPiShockTriggers(): PiShockTrigger[] {
+        try {
+            const raw = localStorage.getItem("EBC_ps_triggers");
+            if (raw) return JSON.parse(raw) as PiShockTrigger[];
+            // Migrate from old single-trigger format
+            const s = getSettings();
+            const phrase = typeof s.pishockCmdPhrase === "string" ? (s.pishockCmdPhrase as string).trim() : "";
+            if (s.pishockCmdEnabled === true && phrase) {
+                return [{
+                    phrase,
+                    shockerIdx: 0,
+                    op: ((s.pishockCmdOp as string) || "strongest") as PiShockTrigger["op"],
+                }];
+            }
+            return [];
+        } catch { return []; }
+    }
+
+    private static savePiShockTriggers(triggers: PiShockTrigger[]): void {
+        try { localStorage.setItem("EBC_ps_triggers", JSON.stringify(triggers)); } catch { /* ignore */ }
+    }
+
+    private static extractPiShockCode(raw: string): string {
+        // Auto-strip full PiShock share URLs → just the code
+        const m = raw.match(/[?&#]sharecode=([^&#\s]+)/i) ?? raw.match(/sharecode[=/]([^/#&\s]+)/i);
+        return m ? m[1].trim() : raw.trim();
+    }
+
     private renderToys(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -20552,239 +20628,229 @@ export class EBCDrawer {
         warn.innerHTML = "<b>⚠ USE AT YOUR OWN RISK</b><br>PiShock can deliver real electrical shocks to a physical device. By enabling this feature you take <b>full personal responsibility</b>. Start with Beep, then Vibrate, and only enable Shock when ready.";
         card.appendChild(warn);
 
-        if (!psEnabled) {
-            body.appendChild(card);
-            return;
-        }
+        if (!psEnabled) { body.appendChild(card); return; }
 
-        // ── Credentials ───────────────────────────────────────────────────────
+        // ── Global credentials ────────────────────────────────────────────────
         card.appendChild(sep());
         card.appendChild(sectionHdr("CREDENTIALS — stored in browser only"));
-
         const credNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
-        credNote.textContent = "Username, API key, and share code are stored only in your browser's localStorage — never sent to BC servers.";
+        credNote.textContent = "Credentials are stored in your browser only — never synced to BC servers.";
         card.appendChild(credNote);
-
         for (const [lsKey, label, typ, hint] of [
-            ["EBC_ps_user",  "Username",   "text",     "Your PiShock account username"],
-            ["EBC_ps_key",   "API Key",    "password", "API key from PiShock account settings"],
-            ["EBC_ps_code",  "Share Code", "text",     "Shocker's share code (PiShock dashboard → Shockers)"],
+            ["EBC_ps_user", "Username", "text",     "Your PiShock account username"],
+            ["EBC_ps_key",  "API Key",  "password", "API key from PiShock account settings"],
         ] as [string, string, string, string][]) {
             const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:74px;flex-shrink:0;`);
+            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
             lbl.textContent = label;
             const inp = document.createElement("input");
-            inp.type = typ;
-            inp.value = localStorage.getItem(lsKey) ?? "";
-            inp.placeholder = hint;
-            inp.autocomplete = "off";
+            inp.type = typ; inp.value = localStorage.getItem(lsKey) ?? "";
+            inp.placeholder = hint; inp.autocomplete = "off";
             inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
-            // Use "input" (not "change") so values are saved on every keystroke.
-            // "change" only fires on blur, so clicking a toggle before blurring would lose typed text.
-            inp.addEventListener("input", () => {
-                try { localStorage.setItem(lsKey, inp.value); } catch { /* ignore */ }
-            });
+            inp.addEventListener("input", () => { try { localStorage.setItem(lsKey, inp.value); } catch { /* ignore */ } });
             row.appendChild(lbl); row.appendChild(inp);
             card.appendChild(row);
         }
 
-        // Test connection button
-        const pingRow = mk("div", "display:flex;align-items:center;gap:8px;margin-top:5px;");
-        const pingBtn = mkBtn("📡 Test Connection",
-            `${FONT}font-size:10px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
-        const pingStatus = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-        pingBtn.addEventListener("click", async () => {
-            pingBtn.disabled = true;
-            pingStatus.textContent = "Connecting…";
-            pingStatus.style.color = "var(--ebc-text-muted)";
-            // bypass=true: skip allow toggles & cooldown — pure credentials check (1s beep at 1%)
-            const result = await this.firePiShock(2, 1, 1, true);
-            pingStatus.textContent = result;
-            pingStatus.style.color = result.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
-            window.setTimeout(() => {
-                pingStatus.textContent = "";
-                if (!pingBtn.isConnected) return;
-                pingBtn.disabled = false;
-            }, 5000);
-        });
-        pingRow.appendChild(pingBtn); pingRow.appendChild(pingStatus);
-        card.appendChild(pingRow);
-
-        // ── Limits ────────────────────────────────────────────────────────────
+        // ── Global limits ─────────────────────────────────────────────────────
         card.appendChild(sep());
         card.appendChild(sectionHdr("LIMITS"));
-
         const mkSlider = (label: string, key: string, min: number, max: number, def: number, unit: string): void => {
             const cur = typeof s[key] === "number" ? (s[key] as number) : def;
             const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
             const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:84px;flex-shrink:0;`);
             lbl.textContent = label;
             const sl = document.createElement("input");
-            sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(Math.min(Math.max(cur, min), max));
+            sl.type = "range"; sl.min = String(min); sl.max = String(max);
+            sl.value = String(Math.min(Math.max(cur, min), max));
             sl.style.cssText = "flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;";
             const val = mk("span", `${FONT}font-size:10px;color:var(--ebc-accent);min-width:38px;text-align:right;flex-shrink:0;`);
             val.textContent = sl.value + unit;
-            sl.addEventListener("input", () => {
-                s[key] = parseInt(sl.value, 10);
-                val.textContent = sl.value + unit;
-                syncSettings();
-            });
+            sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
             row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
             card.appendChild(row);
         };
-
         mkSlider("Max Intensity", "pishockMaxIntensity", 1, 100, 30, "%");
         mkSlider("Max Duration",  "pishockMaxDuration",  1,  15,  2, "s");
         mkSlider("Cooldown",      "pishockCooldownSec",  3, 120, 10, "s");
 
-        // ── Allowed operations ────────────────────────────────────────────────
+        // ── Shockers ──────────────────────────────────────────────────────────
         card.appendChild(sep());
-        card.appendChild(sectionHdr("ALLOW"));
+        {
+            const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
+            hRow.appendChild(sectionHdr("SHOCKERS"));
+            const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+            hRow.appendChild(addBtn);
+            card.appendChild(hRow);
 
-        const allowRow = mk("div", "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px;");
-        for (const [key, label, def, isShock] of [
-            ["pishockAllowBeep",    "🔔 Beep",   true,  false],
-            ["pishockAllowVibrate", "〜 Vibrate", true,  false],
-            ["pishockAllowShock",   "⚡ Shock",   false, true],
-        ] as [string, string, boolean, boolean][]) {
-            const on = s[key] !== undefined ? s[key] === true : def;
-            const accentColor = isShock ? "#e04050" : "var(--ebc-accent)";
-            const accentDim   = isShock ? "#7a2030" : "var(--ebc-accent-dim)";
-            const cardBg      = isShock ? "#1a0008" : "var(--ebc-card)";
-            const btn = mkBtn(label, `${FONT}font-size:11px;padding:4px 11px;border-radius:4px;cursor:pointer;border:1px solid ${on ? accentDim : "var(--ebc-border)"};background:${on ? cardBg : "transparent"};color:${on ? accentColor : "var(--ebc-text-muted)"};`);
-            btn.addEventListener("click", () => {
-                if (isShock && !on) {
-                    const ok = window.confirm("Enable Shock?\n\nThis will allow real electrical shocks to be sent to your device.\n\nOnly proceed if you own the device and fully consent to receiving shocks.");
-                    if (!ok) return;
+            const shockers = EBCDrawer.getPiShockShockers();
+            const listEl = mk("div");
+
+            const renderShockers = (): void => {
+                while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+                shockers.forEach((sh, idx) => {
+                    const shCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
+                    // Name + code + remove
+                    const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
+                    const nameInp = document.createElement("input");
+                    nameInp.type = "text"; nameInp.value = sh.name; nameInp.placeholder = "Name";
+                    nameInp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                    nameInp.addEventListener("input", () => { shockers[idx].name = nameInp.value; EBCDrawer.savePiShockShockers(shockers); });
+                    const codeInp = document.createElement("input");
+                    codeInp.type = "text"; codeInp.value = sh.code; codeInp.placeholder = "Share code (e.g. 6AB05223773)";
+                    codeInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                    codeInp.addEventListener("input", () => {
+                        const extracted = EBCDrawer.extractPiShockCode(codeInp.value);
+                        if (extracted !== codeInp.value) codeInp.value = extracted;
+                        shockers[idx].code = extracted;
+                        EBCDrawer.savePiShockShockers(shockers);
+                    });
+                    const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    removeBtn.title = "Remove shocker";
+                    removeBtn.addEventListener("click", () => { shockers.splice(idx, 1); EBCDrawer.savePiShockShockers(shockers); renderShockers(); });
+                    r1.appendChild(nameInp); r1.appendChild(codeInp); r1.appendChild(removeBtn);
+                    shCard.appendChild(r1);
+                    // Allow toggles + test button
+                    const r2 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;");
+                    for (const [key, label, isShk] of [
+                        ["allowBeep",    "🔔 Beep",  false],
+                        ["allowVibrate", "〜 Vib",   false],
+                        ["allowShock",   "⚡ Shock",  true],
+                    ] as [keyof PiShockShocker, string, boolean][]) {
+                        const on = sh[key] === true;
+                        const aC = isShk ? "#e04050" : "var(--ebc-accent)";
+                        const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)";
+                        const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
+                        const tBtn = mkBtn(label, `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid ${on ? aDim : "var(--ebc-border)"};background:${on ? aBg : "transparent"};color:${on ? aC : "var(--ebc-text-muted)"};`);
+                        tBtn.addEventListener("click", () => {
+                            if (isShk && !on) {
+                                if (!window.confirm("Enable Shock?\n\nThis allows real electrical shocks to be sent to this device.\nOnly proceed if you own it and fully consent.")) return;
+                            }
+                            (shockers[idx] as unknown as Record<string, unknown>)[key as string] = !on;
+                            EBCDrawer.savePiShockShockers(shockers);
+                            renderShockers();
+                        });
+                        r2.appendChild(tBtn);
+                    }
+                    const statusSpan = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex:1;text-align:right;`);
+                    const pingBtn = mkBtn("📡 Test", `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);flex-shrink:0;`);
+                    pingBtn.title = "Send a test beep (bypasses toggles)";
+                    pingBtn.addEventListener("click", async () => {
+                        pingBtn.disabled = true; statusSpan.textContent = "…"; statusSpan.style.color = "var(--ebc-text-muted)";
+                        const res = await this.firePiShock(idx, 2, 1, 1, true);
+                        statusSpan.textContent = res; statusSpan.style.color = res.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
+                        window.setTimeout(() => { statusSpan.textContent = ""; if (pingBtn.isConnected) pingBtn.disabled = false; }, 4000);
+                    });
+                    r2.appendChild(statusSpan); r2.appendChild(pingBtn);
+                    shCard.appendChild(r2);
+                    listEl.appendChild(shCard);
+                });
+                if (!shockers.length) {
+                    const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
+                    empty.textContent = "No shockers added. Click + Add.";
+                    listEl.appendChild(empty);
                 }
-                s[key] = !on;
-                syncSettings();
-                this.renderToys();
+            };
+            addBtn.addEventListener("click", () => {
+                shockers.push({ name: `Shocker ${shockers.length + 1}`, code: "", allowBeep: true, allowVibrate: true, allowShock: false });
+                EBCDrawer.savePiShockShockers(shockers);
+                renderShockers();
             });
-            allowRow.appendChild(btn);
+            renderShockers();
+            card.appendChild(listEl);
         }
-        card.appendChild(allowRow);
 
-        // ── Chat trigger ──────────────────────────────────────────────────────
+        // ── Chat triggers ─────────────────────────────────────────────────────
         card.appendChild(sep());
-        card.appendChild(sectionHdr("CHAT TRIGGER"));
+        {
+            const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;");
+            hRow.appendChild(sectionHdr("CHAT TRIGGERS"));
+            const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+            hRow.appendChild(addBtn);
+            card.appendChild(hRow);
+            const trigNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
+            trigNote.textContent = "When anyone in the room says a phrase, fire the chosen action on the selected shocker. Respects limits and cooldown.";
+            card.appendChild(trigNote);
 
-        const cmdEnabled = s.pishockCmdEnabled === true;
-        const cmdToggleRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;");
-        const cmdToggleLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text);`);
-        cmdToggleLbl.textContent = "Trigger from room chat";
-        const cmdToggleBtn = mkBtn(cmdEnabled ? "ON" : "OFF",
-            `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${cmdEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${cmdEnabled ? "var(--ebc-card)" : "transparent"};color:${cmdEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
-        cmdToggleBtn.addEventListener("click", () => { s.pishockCmdEnabled = !cmdEnabled; syncSettings(); this.renderToys(); });
-        cmdToggleRow.appendChild(cmdToggleLbl); cmdToggleRow.appendChild(cmdToggleBtn);
-        card.appendChild(cmdToggleRow);
+            const shockers = EBCDrawer.getPiShockShockers();
+            const triggers = EBCDrawer.getPiShockTriggers();
+            const listEl = mk("div");
 
-        if (cmdEnabled) {
-            // Phrase
-            const phraseRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
-            const phraseLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:50px;flex-shrink:0;`);
-            phraseLbl.textContent = "Phrase";
-            const phraseInp = document.createElement("input");
-            phraseInp.type = "text";
-            phraseInp.value = typeof s.pishockCmdPhrase === "string" ? (s.pishockCmdPhrase as string) : "";
-            phraseInp.placeholder = "e.g. shock emery";
-            phraseInp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
-            phraseInp.addEventListener("input", () => {
-                s.pishockCmdPhrase = phraseInp.value.trim().toLowerCase();
-                syncSettings();
-            });
-            phraseRow.appendChild(phraseLbl); phraseRow.appendChild(phraseInp);
-            card.appendChild(phraseRow);
-
-            // Op selector — radio-style: Auto / Beep / Vibrate / Shock
-            const opRow = mk("div", "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
-            const opLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:50px;flex-shrink:0;`);
-            opLbl.textContent = "Action";
-            opRow.appendChild(opLbl);
-
-            const curOp = (s.pishockCmdOp as string | undefined) ?? "strongest";
-            for (const [val, label, isShockOp] of [
-                ["strongest", "⚡ Auto",   false],
-                ["beep",      "🔔 Beep",   false],
-                ["vibrate",   "〜 Vibrate", false],
-                ["shock",     "⚡ Shock",   true],
-            ] as [string, string, boolean][]) {
-                const sel = curOp === val;
-                const aC = isShockOp ? "#e04050" : "var(--ebc-accent)";
-                const aDim = isShockOp ? "#7a2030" : "var(--ebc-accent-dim)";
-                const aBg = isShockOp ? "#1a0008" : "var(--ebc-card)";
-                const opBtn = mkBtn(label,
-                    `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid ${sel ? aDim : "var(--ebc-border)"};background:${sel ? aBg : "transparent"};color:${sel ? aC : "var(--ebc-text-muted)"};`);
-                opBtn.addEventListener("click", () => { s.pishockCmdOp = val; syncSettings(); this.renderToys(); });
-                opRow.appendChild(opBtn);
-            }
-            card.appendChild(opRow);
-
-            const cmdNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.4;`);
-            cmdNote.textContent = "Anyone in the room saying this phrase fires the chosen action. Auto picks the strongest enabled type. Respects limits and cooldown.";
-            card.appendChild(cmdNote);
+            const renderTriggers = (): void => {
+                while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+                triggers.forEach((tr, idx) => {
+                    const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
+                    const r1 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;");
+                    const phraseInp = document.createElement("input");
+                    phraseInp.type = "text"; phraseInp.value = tr.phrase; phraseInp.placeholder = "Trigger phrase";
+                    phraseInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:80px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                    phraseInp.addEventListener("input", () => { triggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.savePiShockTriggers(triggers); });
+                    const shSel = document.createElement("select");
+                    shSel.style.cssText = `${FONT}font-size:10px;flex:1;min-width:60px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 4px;box-sizing:border-box;`;
+                    shockers.forEach((sh, si) => {
+                        const opt = document.createElement("option");
+                        opt.value = String(si); opt.textContent = sh.name || `Shocker ${si + 1}`;
+                        opt.selected = si === (tr.shockerIdx ?? 0);
+                        shSel.appendChild(opt);
+                    });
+                    if (!shockers.length) { const o = document.createElement("option"); o.textContent = "(no shockers)"; shSel.appendChild(o); }
+                    shSel.addEventListener("change", () => { triggers[idx].shockerIdx = parseInt(shSel.value, 10) || 0; EBCDrawer.savePiShockTriggers(triggers); });
+                    const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    removeBtn.addEventListener("click", () => { triggers.splice(idx, 1); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+                    r1.appendChild(phraseInp); r1.appendChild(shSel); r1.appendChild(removeBtn);
+                    tCard.appendChild(r1);
+                    const opRow = mk("div", "display:flex;align-items:center;gap:4px;flex-wrap:wrap;");
+                    for (const [val, lbl, isShk] of [
+                        ["strongest", "⚡ Auto", false], ["beep", "🔔 Beep", false],
+                        ["vibrate", "〜 Vib", false], ["shock", "⚡ Shock", true],
+                    ] as [string, string, boolean][]) {
+                        const sel = tr.op === val;
+                        const aC = isShk ? "#e04050" : "var(--ebc-accent)"; const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)"; const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
+                        const opBtn = mkBtn(lbl, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${sel ? aDim : "var(--ebc-border)"};background:${sel ? aBg : "transparent"};color:${sel ? aC : "var(--ebc-text-muted)"};`);
+                        opBtn.addEventListener("click", () => { triggers[idx].op = val as PiShockTrigger["op"]; EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+                        opRow.appendChild(opBtn);
+                    }
+                    tCard.appendChild(opRow);
+                    listEl.appendChild(tCard);
+                });
+                if (!triggers.length) {
+                    const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
+                    empty.textContent = "No triggers. Click + Add.";
+                    listEl.appendChild(empty);
+                }
+            };
+            addBtn.addEventListener("click", () => { triggers.push({ phrase: "", shockerIdx: 0, op: "strongest" }); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+            renderTriggers();
+            card.appendChild(listEl);
         }
-
-        // ── Test ──────────────────────────────────────────────────────────────
-        card.appendChild(sep());
-        card.appendChild(sectionHdr("TEST"));
-
-        const statusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:15px;margin-top:5px;text-align:center;`);
-
-        const testRow = mk("div", "display:flex;gap:6px;flex-wrap:wrap;");
-        for (const [op, label, allowKey] of [
-            [2, "🔔 Beep",   "pishockAllowBeep"],
-            [1, "〜 Vibrate", "pishockAllowVibrate"],
-            [0, "⚡ Shock",  "pishockAllowShock"],
-        ] as [number, string, string][]) {
-            const isShock = op === 0;
-            const allowed = s[allowKey] === true;
-            const btn = mkBtn(label, `${FONT}font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;border:1px solid ${isShock ? "#7a2030" : "var(--ebc-border)"};background:${isShock ? "#1a0008" : "var(--ebc-bg)"};color:${isShock ? "#e04050" : "var(--ebc-text)"};opacity:${allowed ? "1" : "0.4"};`) as HTMLButtonElement;
-            btn.disabled = !allowed;
-            btn.addEventListener("click", async () => {
-                btn.disabled = true;
-                statusEl.textContent = "Sending…";
-                statusEl.style.color = "var(--ebc-text-muted)";
-                const result = await this.firePiShock(op as 0 | 1 | 2);
-                statusEl.textContent = result;
-                statusEl.style.color = result.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
-                window.setTimeout(() => {
-                    statusEl.textContent = "";
-                    if (!btn.isConnected) return;
-                    btn.disabled = !allowed;
-                }, 3000);
-            });
-            testRow.appendChild(btn);
-        }
-        card.appendChild(testRow);
-        card.appendChild(statusEl);
 
         body.appendChild(card);
     }
 
-    // bypass=true skips allow-toggles and cooldown — used for "Test Connection" credential check only
-    private async firePiShock(op: 0 | 1 | 2, intensity?: number, duration?: number, bypass?: boolean): Promise<string> {
+    private async firePiShock(shockerIdx: number, op: 0 | 1 | 2, intensity?: number, duration?: number, bypass?: boolean): Promise<string> {
         try {
             const s = getSettings();
+            const shockers = EBCDrawer.getPiShockShockers();
+            const shocker = shockers[shockerIdx];
+            if (!shocker) return `⚠ Shocker #${shockerIdx + 1} not configured.`;
+            const username = (localStorage.getItem("EBC_ps_user") ?? "").trim();
+            const apiKey   = (localStorage.getItem("EBC_ps_key")  ?? "").trim();
+            const code     = shocker.code.trim();
+            if (!username || !apiKey || !code) return "⚠ Username, API key, and share code required.";
             if (!bypass) {
                 if (s.pishockEnabled !== true) return "⚠ PiShock not enabled.";
-                const allowKey = op === 0 ? "pishockAllowShock" : op === 1 ? "pishockAllowVibrate" : "pishockAllowBeep";
-                if (s[allowKey] !== true) return "⚠ That operation type is disabled.";
+                const allowKey = op === 0 ? "allowShock" : op === 1 ? "allowVibrate" : "allowBeep";
+                if (!shocker[allowKey as keyof PiShockShocker]) return "⚠ That operation type is disabled on this shocker.";
 
                 const coolSec = typeof s.pishockCooldownSec === "number" ? (s.pishockCooldownSec as number) : 10;
                 const now = Date.now();
-                const elapsed = (now - this.pishockLastOpTime) / 1000;
-                if (this.pishockLastOpTime > 0 && elapsed < coolSec) {
+                const lastOp = this.pishockLastOpTimes.get(shockerIdx) ?? 0;
+                const elapsed = (now - lastOp) / 1000;
+                if (lastOp > 0 && elapsed < coolSec) {
                     return `⏳ Cooldown: ${Math.ceil(coolSec - elapsed)}s remaining`;
                 }
-                // Set before the await so rapid clicks are blocked even during a slow request
-                this.pishockLastOpTime = now;
+                this.pishockLastOpTimes.set(shockerIdx, now);
             }
-
-            const username = (localStorage.getItem("EBC_ps_user") ?? "").trim();
-            const apiKey   = (localStorage.getItem("EBC_ps_key")  ?? "").trim();
-            const code     = (localStorage.getItem("EBC_ps_code") ?? "").trim();
-            if (!username || !apiKey || !code) return "⚠ Fill in all credentials first.";
 
             const maxI = typeof s.pishockMaxIntensity === "number" ? (s.pishockMaxIntensity as number) : 30;
             const maxD = typeof s.pishockMaxDuration  === "number" ? (s.pishockMaxDuration  as number) : 2;
@@ -20813,7 +20879,7 @@ export class EBCDrawer {
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (msg === "Failed to fetch") {
-                return "⚠ Network error — check connection, ad-blockers, or VPN";
+                return "⚠ Network error — CORS or connection issue. Try disabling ad-blockers or VPN.";
             }
             return `⚠ ${msg}`;
         }
@@ -20824,26 +20890,26 @@ export class EBCDrawer {
         try {
             const s = getSettings();
             if (s.pishockEnabled !== true) return;
-            if (s.pishockCmdEnabled !== true) return;
-            const phrase = typeof s.pishockCmdPhrase === "string" ? (s.pishockCmdPhrase as string).trim() : "";
-            if (!phrase || !content.toLowerCase().includes(phrase.toLowerCase())) return;
-
-            const cmdOp = (s.pishockCmdOp as string | undefined) ?? "strongest";
-            let op: 0 | 1 | 2;
-            if (cmdOp === "shock") {
-                op = 0;
-            } else if (cmdOp === "vibrate") {
-                op = 1;
-            } else if (cmdOp === "beep") {
-                op = 2;
-            } else {
-                // "strongest" — pick the highest-impact enabled type
-                op = s.pishockAllowShock === true ? 0
-                    : s.pishockAllowVibrate === true ? 1
-                    : 2;
+            const lower = content.toLowerCase();
+            const triggers = EBCDrawer.getPiShockTriggers();
+            const shockers = EBCDrawer.getPiShockShockers();
+            for (const tr of triggers) {
+                if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase())) continue;
+                const idx = tr.shockerIdx ?? 0;
+                const shocker = shockers[idx];
+                if (!shocker) continue;
+                let op: 0 | 1 | 2;
+                if (tr.op === "shock") {
+                    op = 0;
+                } else if (tr.op === "vibrate") {
+                    op = 1;
+                } else if (tr.op === "beep") {
+                    op = 2;
+                } else {
+                    op = shocker.allowShock ? 0 : shocker.allowVibrate ? 1 : 2;
+                }
+                this.firePiShock(idx, op).catch(() => { /* silently ignore */ });
             }
-
-            this.firePiShock(op).catch(() => { /* silently ignore */ });
         } catch { /* ignore */ }
     }
 
