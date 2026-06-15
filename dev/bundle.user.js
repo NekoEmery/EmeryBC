@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.20
+// @version      6.9.21
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11249,7 +11249,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-        notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
+        notes: "USERS", toys: "TOYS", lovense: "LOVENSE", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
         bg: "#1b0d17", // main panel + most element backgrounds
@@ -11853,6 +11853,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             toysTabBtn.textContent = "TOYS";
             toysTabBtn.title = "Toys & Integrations (PiShock)";
             toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
+            const lovenseTabBtn = document.createElement("button");
+            lovenseTabBtn.className = "ebc-tab-btn";
+            lovenseTabBtn.id = "ebc-tab-lovense";
+            lovenseTabBtn.textContent = "LOVENSE";
+            lovenseTabBtn.title = "Lovense toy integrations";
+            lovenseTabBtn.style.display = "none"; // Emery-only — revealed in open()
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -11900,6 +11906,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(toysTabBtn);
+            tabBar.appendChild(lovenseTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
             tabBar.appendChild(domTabBtn);
@@ -12544,6 +12551,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             toysTabBtn.addEventListener("click", () => this.switchTab("toys"));
+            lovenseTabBtn.addEventListener("click", () => this.switchTab("lovense"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
@@ -13281,6 +13289,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderNotes();
             else if (this.currentTab === "toys")
                 this.renderToys();
+            else if (this.currentTab === "lovense")
+                this.renderLovense();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
             else if (this.currentTab === "dev")
@@ -28257,7 +28267,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return m ? m[1].trim() : raw.trim();
         }
         renderToys() {
-            var _a, _b;
+            var _a, _b, _c;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -28305,29 +28315,53 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             // ── Global credentials ────────────────────────────────────────────────
             card.appendChild(sep());
-            card.appendChild(sectionHdr("CREDENTIALS — stored in browser only"));
+            card.appendChild(sectionHdr("CREDENTIALS - stored locally on your machine"));
             const credNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
-            credNote.textContent = "Credentials are stored in your browser only — never synced to BC servers.";
+            credNote.textContent = "Stored locally in your browser's localStorage only. EmeryBC never saves your credentials - not to BC servers, not to any external service.";
             card.appendChild(credNote);
-            for (const [lsKey, label, typ, hint] of [
-                ["EBC_ps_user", "Username", "text", "Your PiShock account username"],
-                ["EBC_ps_key", "API Key", "password", "API key from PiShock account settings"],
-            ]) {
+            // Username field
+            {
                 const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
                 const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
-                lbl.textContent = label;
+                lbl.textContent = "Username";
                 const inp = document.createElement("input");
-                inp.type = typ;
-                inp.value = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
-                inp.placeholder = hint;
+                inp.type = "text";
+                inp.value = (_b = localStorage.getItem("EBC_ps_user")) !== null && _b !== void 0 ? _b : "";
+                inp.placeholder = "Your PiShock account username";
                 inp.autocomplete = "off";
                 inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
                 inp.addEventListener("input", () => { try {
-                    localStorage.setItem(lsKey, inp.value);
+                    localStorage.setItem("EBC_ps_user", inp.value);
                 }
                 catch ( /* ignore */_a) { /* ignore */ } });
                 row.appendChild(lbl);
                 row.appendChild(inp);
+                card.appendChild(row);
+            }
+            // API Key field with show/hide toggle
+            {
+                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
+                lbl.textContent = "API Key";
+                const inp = document.createElement("input");
+                inp.type = "password";
+                inp.value = (_c = localStorage.getItem("EBC_ps_key")) !== null && _c !== void 0 ? _c : "";
+                inp.placeholder = "API key from PiShock account settings";
+                inp.autocomplete = "off";
+                inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                inp.addEventListener("input", () => { try {
+                    localStorage.setItem("EBC_ps_key", inp.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } });
+                const eyeBtn = mkBtn("👁", `${FONT}font-size:12px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;line-height:1;`);
+                eyeBtn.title = "Show / hide API key";
+                eyeBtn.addEventListener("click", () => {
+                    inp.type = inp.type === "password" ? "text" : "password";
+                    eyeBtn.style.color = inp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+                });
+                row.appendChild(lbl);
+                row.appendChild(inp);
+                row.appendChild(eyeBtn);
                 card.appendChild(row);
             }
             // ── Global limits ─────────────────────────────────────────────────────
@@ -28622,6 +28656,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
+        }
+        // ─────────────────────────────────────────────────────────────────────────────
+        renderLovense() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            const FONT = "font-family:'Trebuchet MS',serif;";
+            const mk = (tag, css) => {
+                const el = document.createElement(tag);
+                el.style.cssText = css;
+                return el;
+            };
+            const card = mk("div", "padding:10px 8px 8px;");
+            // Header
+            const hdr = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
+            const title = mk("span", `${FONT}font-size:13px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
+            title.textContent = "💜 LOVENSE";
+            hdr.appendChild(title);
+            card.appendChild(hdr);
+            const sep = () => {
+                const d = document.createElement("hr");
+                d.style.cssText = "border:none;border-top:1px solid var(--ebc-border);margin:8px 0;";
+                return d;
+            };
+            card.appendChild(sep());
+            const placeholder = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);line-height:1.6;text-align:center;padding:20px 8px;`);
+            placeholder.innerHTML = [
+                "<b style=\"color:var(--ebc-text);\">Coming soon</b>",
+                "Connect your Lovense toys and map them to",
+                "in-game actions — spanks, restraints, poses,",
+                "chat triggers, and more.",
+            ].join("<br>");
+            card.appendChild(placeholder);
+            body.appendChild(card);
         }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
@@ -30304,7 +30375,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e, _f, _g;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -30349,7 +30420,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -30366,11 +30437,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
             if (toysTabEl)
                 toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
+            // Show the Lovense tab only for Emery (#130267) while it's in development
+            const lovenseTabEl = (_g = this.rootEl) === null || _g === void 0 ? void 0 : _g.querySelector("#ebc-tab-lovense");
+            if (lovenseTabEl)
+                lovenseTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_h) { /* ignore */ }
+            catch ( /* ignore */_j) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -30580,7 +30655,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.20";
+    const MOD_VERSION = "6.9.21";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30591,6 +30666,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.21",
+            changes: [
+                "New: Lovense tab added (placeholder — integration coming soon). Emery-only while in development.",
+                "PiShock: API Key field now has a show/hide toggle (👁 eye button) so you can reveal the key to verify it without re-typing.",
+                "PiShock: Credentials section header and note now use plain hyphens instead of em-dashes, and the note makes clear that EmeryBC never stores credentials anywhere — only in your own browser's localStorage.",
+            ],
+        },
         {
             version: "6.9.20",
             changes: [
