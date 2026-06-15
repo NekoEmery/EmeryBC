@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.2";
+const MOD_VERSION = "6.7.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.3",
+        changes: [
+            "Fix: Friend names showing as #number after using a second device (tablet) — re-seeds the name cache from server data in the PreferenceInitPlayer hook, fixing a race where initSettings() ran before ExtensionSettings arrived from the server.",
+            "Fix: Curse feature now works between any two EBC users (not just Emery→Lucy); curses are accepted from anyone on your friend list, so you can curse anyone who has EBC loaded.",
+            "UX: Relationship status in friends list now shows 💍 Engaged / 💒 Married based on BC's Lovership Stage, in both the friend-row badge icon and the expanded info panel with dates.",
+        ],
+    },
     {
         version: "6.7.2",
         changes: [
@@ -6412,7 +6420,13 @@ function init(): void {
                 } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
-        return next(args);
+        const result = next(args);
+        // Re-seed _mem from ExtensionSettings now that BC has confirmed all player
+        // data is loaded. Fixes a race where initSettings() ran before the server
+        // response arrived (leaving the name cache empty on a second device like a
+        // tablet), which would cause all friends to show as #number.
+        try { reinitFromExtensionSettings(); } catch { /* ignore */ }
+        return result;
     });
 
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
@@ -6918,12 +6932,18 @@ function init(): void {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
             }
-            // Curse commands from Emery — runs on Lucy's client.
-            if (beep.MemberNumber === EMERY_MEMBER &&
-                typeof beep.Message === "string" &&
+            // Curse commands from any EBC user — runs on the receiver's client.
+            // Only accepted from friends to prevent random abuse.
+            if (typeof beep.Message === "string" &&
                 beep.Message.startsWith("[EBC-CURSE:")) {
-                handleCurseCommand(beep.Message);
-                return; // suppress notification
+                const senderNum = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                const friendList2 = (Player.FriendList as number[] | undefined) ?? [];
+                if (senderNum && friendList2.includes(senderNum)) {
+                    handleCurseCommand(beep.Message);
+                    return; // suppress notification
+                }
             }
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which

@@ -14409,10 +14409,15 @@ export class EBCDrawer {
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number } | undefined;
                         if (own?.MemberNumber === num) icons.push("👑");
-                        // Lover
+                        // Lover / Engaged / Married
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
-                            Array<{ MemberNumber?: number }> | undefined;
-                        if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
+                            Array<{ MemberNumber?: number; Stage?: number }> | undefined;
+                        const loveEntry = loves?.find(l => l.MemberNumber === num);
+                        if (loveEntry) {
+                            if (loveEntry.Stage === 2) icons.push("💒");
+                            else if (loveEntry.Stage === 1) icons.push("💍");
+                            else icons.push("❤️");
+                        }
                         // You own them — lock = "you have them locked"
                         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number } }> | undefined;
@@ -14814,17 +14819,22 @@ export class EBCDrawer {
                                 : "👑 Owned by them";
                             infoBox.appendChild(ownEl);
                         }
-                        // Lovership
+                        // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
-                            Array<{ MemberNumber?: number; Start?: string | number }> | undefined;
+                            Array<{ MemberNumber?: number; Start?: string | number; Stage?: number }> | undefined;
                         const love = loves?.find(l => l.MemberNumber === num);
                         if (love) {
                             const loveEl = document.createElement("div");
                             loveEl.style.color = "#e87090";
                             const ts = parseRelStart(love.Start);
+                            const [ico, label] = love.Stage === 2
+                                ? ["💒", "Married"]
+                                : love.Stage === 1
+                                    ? ["💍", "Engaged"]
+                                    : ["❤️", "Lovers"];
                             loveEl.textContent = ts
-                                ? `❤️ Lovers since: ${relFmt(ts)}`
-                                : "❤️ Lovers";
+                                ? `${ico} ${label} since: ${relFmt(ts)}`
+                                : `${ico} ${label}`;
                             infoBox.appendChild(loveEl);
                         }
                         // You own them (room data only — offline skip)

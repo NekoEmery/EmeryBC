@@ -88,6 +88,25 @@ export function getSettings(): Record<string, unknown> {
     return _mem;
 }
 
+/**
+ * Re-seed _mem from Player.ExtensionSettings.EmeryBC without overwriting
+ * keys that already have in-session values. Call this after BC confirms
+ * player data is fully loaded (e.g. inside the PreferenceInitPlayer hook)
+ * to fix the race where initSettings() ran before the server response arrived,
+ * leaving the name cache (and other settings) empty.
+ */
+export function reinitFromExtensionSettings(): void {
+    try {
+        if (!Player.ExtensionSettings) return;
+        const src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+        for (const [k, v] of Object.entries(src)) {
+            if (k === "_d") continue;
+            if (_mem[k] === undefined) _mem[k] = v;
+        }
+        _initialized = true;
+    } catch { /* ignore */ }
+}
+
 /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
 export function flushToExtensionSettings(): void {
     try {
