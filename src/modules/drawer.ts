@@ -21743,7 +21743,7 @@ export class EBCDrawer {
         posePanel.appendChild(poseStatus);
 
         // ── 🎮 Toy Control ────────────────────────────────────────────────────
-        const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
+        const { panel: toyPanel, hdr: toyHdr, isOpen: isToyOpen } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
 
         const TOY_MODES: ReadonlyArray<[string, string, string, string]> = [
             ["⏹", "Off",       "#2a1020", "Off"],
@@ -21808,6 +21808,7 @@ export class EBCDrawer {
         };
 
         qtSel.addEventListener("change", () => { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); });
+        toyHdr.addEventListener("click", () => { if (isToyOpen()) { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); } });
 
         for (const [emoji, label, bg, bcMode] of TOY_MODES) {
             const btn = document.createElement("button");
@@ -21828,6 +21829,8 @@ export class EBCDrawer {
         toyPanel.appendChild(toyGrid);
         toyPanel.appendChild(toyStatus);
         toyPanel.appendChild(toyInfoEl);
+        refreshToyChips();
+        refreshToyInfo();
 
         // ── ⛓ Curse ──────────────────────────────────────────────────────────
         const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
