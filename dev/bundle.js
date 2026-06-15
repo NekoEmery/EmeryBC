@@ -28365,6 +28365,11 @@
                     eyeBtn.style.color = apiKeyInp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
                 });
                 apiKeyRow.appendChild(eyeBtn);
+                // CORS Proxy URL (required when loaded via FUSAM/page context)
+                mkField("Proxy URL", "text", "EBC_ps_proxy", "https://your-worker.workers.dev  (leave empty if not needed)");
+                const proxyNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:-2px 0 6px;line-height:1.5;`);
+                proxyNote.innerHTML = `PiShock blocks requests from non-pishock.com origins. If you're using FUSAM, set up a free <b style="color:var(--ebc-text)">Cloudflare Worker</b> proxy and paste its URL here. <a href="https://github.com/NekoEmery/EmeryBC/wiki/PiShock-Proxy" target="_blank" style="color:var(--ebc-accent);text-decoration:none;">Setup guide ↗</a>`;
+                psContent.appendChild(proxyNote);
                 // Limits
                 psContent.appendChild(sep());
                 psContent.appendChild(sectionHdr("LIMITS"));
@@ -28598,7 +28603,7 @@
             body.appendChild(card);
         }
         async firePiShock(shockerIdx, op, intensity, duration, bypass) {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             try {
                 const s = getSettings();
                 const shockers = EBCDrawer.getPiShockShockers();
@@ -28647,7 +28652,28 @@
                         return bypass ? "✓ Connected — credentials OK!" : `✓ ${opName} sent (${finalI}% / ${finalD}s)`;
                     return `⚠ ${t || `HTTP ${status !== null && status !== void 0 ? status : "?"}`}`;
                 };
-                // Try GM_xmlhttpRequest first — available in Tampermonkey with @grant GM_xmlhttpRequest.
+                // CORS proxy path — user supplies a Cloudflare Worker URL that forwards to PiShock.
+                // This is the only reliable path when loaded via FUSAM (page context, no GM APIs).
+                const proxyUrl = ((_d = localStorage.getItem("EBC_ps_proxy")) !== null && _d !== void 0 ? _d : "").trim();
+                if (proxyUrl) {
+                    console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
+                    try {
+                        const resp = await fetch(proxyUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "omit",
+                            body: payload,
+                        });
+                        const text = (await resp.text()).trim();
+                        console.log(`[EBC PiShock] Proxy response: HTTP ${resp.status} — ${text.slice(0, 200)}`);
+                        return parseResult(text, resp.status);
+                    }
+                    catch (eProxy) {
+                        console.error("[EBC PiShock] Proxy fetch failed:", eProxy);
+                        return "⚠ Proxy unreachable — check the Proxy URL field or your Worker deployment.";
+                    }
+                }
+                // Try GM_xmlhttpRequest — available in Tampermonkey with @grant GM_xmlhttpRequest.
                 // It runs via the extension background and bypasses the browser's CORS policy entirely.
                 // Violentmonkey ignores @grant when @inject-into page is set, so this will be undefined there.
                 const gmXhr = globalThis.GM_xmlhttpRequest;
@@ -30704,7 +30730,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.27";
+    const MOD_VERSION = "6.9.28";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30715,6 +30741,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.28",
+            changes: [
+                "PiShock: Added CORS Proxy URL field to credentials section. Set this to your own Cloudflare Worker URL to bypass the PiShock CORS wall in FUSAM/page-context mode. When set, firePiShock() routes all requests through the proxy using Content-Type: application/json and reads the real server response — no more blind fire-and-forget.",
+                "PiShock: Reverted @inject-into from 'auto' back to 'page' — the auto mode broke TOYS and DOM tabs for FUSAM users by making Player.MemberNumber unavailable. Proxy URL field is the correct CORS solution for FUSAM.",
+                "rollup.config.mjs: Cleaned up stale comment about @inject-into auto / GM_xmlhttpRequest content-script approach.",
+            ],
+        },
         {
             version: "6.9.27",
             changes: [
