@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.20
+// @version      6.9.21
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30655,7 +30655,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.20";
+    const MOD_VERSION = "6.9.21";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30666,6 +30666,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.21",
+            changes: [
+                "New: Lovense tab added (placeholder — integration coming soon). Emery-only while in development.",
+                "PiShock: API Key field now has a show/hide toggle (👁 eye button) so you can reveal the key to verify it without re-typing.",
+                "PiShock: Credentials section header and note now use plain hyphens instead of em-dashes, and the note makes clear that EmeryBC never stores credentials anywhere — only in your own browser's localStorage.",
+            ],
+        },
         {
             version: "6.9.20",
             changes: [
