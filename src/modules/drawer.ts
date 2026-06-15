@@ -22087,6 +22087,13 @@ export class EBCDrawer {
                 try {
                     const sendFn = (window as unknown as Record<string, unknown>).ServerSend as ((type: string, data: unknown) => void) | undefined;
                     if (!sendFn) { posStatus.textContent = "⚠ BC not loaded."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
+                    // "Pull to Side" requires BC's leash to be actively held — ECHO checks
+                    // ChatRoomLeashPlayer on the target's client. Sending HoldLeash first
+                    // sets that, allowing ECHO to trigger with ANY leash-effect item
+                    // (ChainLeash, ChokeChain, CollarLeash, etc.), not just a "full leash".
+                    if (echoName === "拉到身边") {
+                        sendFn("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: id });
+                    }
                     sendFn("ChatRoomChat", {
                         Content: echoName,
                         Type: "Activity",
@@ -22124,6 +22131,8 @@ export class EBCDrawer {
                 const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
                 const char = room?.find(c => c.MemberNumber === id);
                 const name = (char?.Name as string | undefined) ?? `#${id}`;
+                // Release BC's leash grip (clears ChatRoomLeashPlayer on target's client)
+                sendFn("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: id });
                 sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
             }
             posStatus.textContent = "✓ Released.";
