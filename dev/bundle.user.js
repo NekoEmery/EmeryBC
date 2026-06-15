@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.7.7
+// @version      6.7.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6577,15 +6577,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!char)
                 return;
             let changed = false;
-            // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
-            // derived-state updates (Effect, Intensity …) AND the server push in one call.
-            // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
-            // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
-            const extSetFn = window.ExtendedItemSetValue;
-            // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+            // Use InventoryGet for the canonical live reference, then mutate in-place.
             const invGetFn = window.InventoryGet;
-            const updateFn = window.ChatRoomCharacterUpdate;
-            let usedExtSet = false;
+            // ChatRoomCharacterItemUpdate is the correct call for pushing item changes on OTHER
+            // characters — it sends a per-item update packet that the server broadcasts to the room.
+            // ChatRoomCharacterUpdate only propagates full appearance for the player's own character,
+            // so it does nothing when called with another player's Character object.
+            const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
             for (const item of char.Appearance) {
                 const asset = item.Asset;
                 const prop = item.Property;
@@ -6593,28 +6591,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string"))
                     continue;
                 try {
-                    if (extSetFn) {
-                        // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
-                        extSetFn(char, item, { Mode: mode }, true);
-                        changed = true;
-                        usedExtSet = true;
-                    }
-                    else {
-                        // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
-                        const liveItem = invGetFn ? ((_a = invGetFn(char, item.Asset.Group.Name)) !== null && _a !== void 0 ? _a : item) : item;
-                        if (!liveItem.Property)
-                            liveItem.Property = {};
-                        liveItem.Property.Mode = mode;
-                        changed = true;
-                    }
+                    const liveItem = invGetFn ? ((_a = invGetFn(char, item.Asset.Group.Name)) !== null && _a !== void 0 ? _a : item) : item;
+                    if (!liveItem.Property)
+                        liveItem.Property = {};
+                    liveItem.Property.Mode = mode;
+                    // Push per-item so the server + all room clients see the change on the target
+                    if (itemUpdateFn)
+                        callBC(() => itemUpdateFn(char, liveItem.Asset.Group.Name));
+                    changed = true;
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
             }
             if (changed) {
-                if (!usedExtSet) {
-                    // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
-                    callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
-                }
                 const name = charDisplayName(char);
                 const desc = mode === "Off"
                     ? `turns ${name}'s toy off.`
@@ -29740,7 +29728,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.7";
+    const MOD_VERSION = "6.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29751,6 +29739,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.8",
+            changes: [
+                "Fix: Toy control now actually works on others — was using ChatRoomCharacterUpdate which BC ignores for non-player characters; switched to ChatRoomCharacterItemUpdate which sends a per-item update packet that the server correctly broadcasts to the whole room.",
+            ],
+        },
         {
             version: "6.7.7",
             changes: [
