@@ -15,7 +15,7 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine } from "./modules/notify";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.13";
+const MOD_VERSION = "6.9.14";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.14",
+        changes: [
+            "Fix: ECHO addon activity messages (cuddle, pull to side, hold in arms) now show nicknames instead of account names. Was reading .Name directly from ChatRoomCharacter; now uses resolveName() which correctly prefers Nickname over Name.",
+        ],
+    },
     {
         version: "6.9.13",
         changes: [
@@ -7136,9 +7142,8 @@ function init(): void {
                         : [];
                     const srcNum = dict.find(e => "SourceCharacter" in e)?.SourceCharacter as number | undefined;
                     const tgtNum = dict.find(e => "TargetCharacter" in e)?.TargetCharacter as number | undefined;
-                    const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined;
-                    const srcName = room?.find(c => c.MemberNumber === srcNum)?.Name ?? `#${srcNum ?? "?"}`;
-                    const tgtName = room?.find(c => c.MemberNumber === tgtNum)?.Name ?? `#${tgtNum ?? "?"}`;
+                    const srcName = srcNum ? resolveName(srcNum) : `#?`;
+                    const tgtName = tgtNum ? resolveName(tgtNum) : `#?`;
                     const desc = `(${ECHO_ACTIVITY_DESCS[data.Content]!(srcName, tgtName)})`;
                     for (let i = prevCount; i < log.childElementCount; i++) {
                         const el = log.children[i] as HTMLElement;

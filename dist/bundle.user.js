@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.13
+// @version      6.9.14
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30120,7 +30120,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.13";
+    const MOD_VERSION = "6.9.14";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30131,6 +30131,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.14",
+            changes: [
+                "Fix: ECHO addon activity messages (cuddle, pull to side, hold in arms) now show nicknames instead of account names. Was reading .Name directly from ChatRoomCharacter; now uses resolveName() which correctly prefers Nickname over Name.",
+            ],
+        },
         {
             version: "6.9.13",
             changes: [
@@ -37334,7 +37340,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             "抱入怀中": (s, t) => `${s} holds ${t} tightly in their arms.`,
         };
         tryHookFunction(modAPI, "ChatRoomMessage", 0, (args, next) => {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d;
             try {
                 const [data] = args;
                 if (data.Type === "Activity" && typeof data.Content === "string" &&
@@ -37349,13 +37355,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             : [];
                         const srcNum = (_b = dict.find(e => "SourceCharacter" in e)) === null || _b === void 0 ? void 0 : _b.SourceCharacter;
                         const tgtNum = (_c = dict.find(e => "TargetCharacter" in e)) === null || _c === void 0 ? void 0 : _c.TargetCharacter;
-                        const room = window.ChatRoomCharacter;
-                        const srcName = (_e = (_d = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === srcNum)) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : `#${srcNum !== null && srcNum !== void 0 ? srcNum : "?"}`;
-                        const tgtName = (_g = (_f = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === tgtNum)) === null || _f === void 0 ? void 0 : _f.Name) !== null && _g !== void 0 ? _g : `#${tgtNum !== null && tgtNum !== void 0 ? tgtNum : "?"}`;
+                        const srcName = srcNum ? resolveName(srcNum) : `#?`;
+                        const tgtName = tgtNum ? resolveName(tgtNum) : `#?`;
                         const desc = `(${ECHO_ACTIVITY_DESCS[data.Content](srcName, tgtName)})`;
                         for (let i = prevCount; i < log.childElementCount; i++) {
                             const el = log.children[i];
-                            if ((_h = el.textContent) === null || _h === void 0 ? void 0 : _h.includes("MISSING ACTIVITY DESCRIPTION")) {
+                            if ((_d = el.textContent) === null || _d === void 0 ? void 0 : _d.includes("MISSING ACTIVITY DESCRIPTION")) {
                                 el.textContent = desc;
                             }
                         }
@@ -37363,7 +37368,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return result;
                 }
             }
-            catch ( /* ignore */_j) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
