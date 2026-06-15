@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.8.0";
+const MOD_VERSION = "6.9.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,19 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.0",
+        changes: [
+            "Fix: Activity buttons (Spank, Pat, Kiss, etc.) now show correct room text — switched from Type:Activity (keys not in BC R129 ActivityDictionary.csv) to Type:Action via sendRoomAction.",
+            "Fix: Stand pose now clears kneeling — setTargetPoses now runs CharacterRefresh first, then sets ActivePose, then pushes directly; prevents CharacterRefresh from overwriting the pose.",
+            "Fix: Toy control now actually changes toy state — setTargetToyMode/setTargetSingleToyMode now set Intensity, Effect, and TypeRecord alongside Mode, matching BC's VibratorModeOptions.",
+            "Fix: Fade when not hovered now works — replaced CSS class toggle (fought with CSS opacity transitions) with JS mouseenter/mouseleave listeners storing handlers on __ebcFade.",
+            "Toy control: Added 'Deny' and 'Edge' modes; added per-toy chip selector above mode buttons — clicking a chip targets only that toy.",
+            "Curse panel: Now rebuilds item list when accordion is opened (previously only rebuilt on target change while already open).",
+            "Curse panel: Items now show lock icon (🔒) and crafted names when available.",
+            "Release tools: Added 'Unlock Selected' button in pick panel (uses clearLocksOnMember for selected groups only).",
+        ],
+    },
     {
         version: "6.8.0",
         changes: [

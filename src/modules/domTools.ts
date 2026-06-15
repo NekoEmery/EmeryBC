@@ -419,7 +419,7 @@ export function getRoomMembers(): Array<{ id: number; name: string }> {
 }
 
 // Returns a snapshot of what a room member is wearing, split into restraints and locks.
-export function getRoomMemberItems(memberId: number): Array<{ group: string; name: string; locked: boolean }> {
+export function getRoomMemberItems(memberId: number): Array<{ group: string; name: string; locked: boolean; craftName?: string }> {
     try {
         const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
         const char = room.find(c => c.MemberNumber === memberId);
@@ -431,7 +431,9 @@ export function getRoomMemberItems(memberId: number): Array<{ group: string; nam
             .map((item: Item) => {
                 const prop = item.Property as Record<string, unknown> | undefined;
                 const locked = typeof prop?.LockedBy === "string" && prop.LockedBy !== "";
-                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
+                const craft = (item as unknown as Record<string, unknown>).Craft as Record<string, unknown> | undefined;
+                const craftName = typeof craft?.Name === "string" && craft.Name.trim() ? craft.Name.trim() : undefined;
+                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked, craftName };
             });
     } catch { return []; }
 }
@@ -578,12 +580,23 @@ export function setTargetPoses(targetId: number, poses: string[], poseName?: str
     try {
         const char = findRoomChar(targetId);
         if (!char) return;
-        // Set ActivePose directly - works for single and multi-pose combinations
-        // across all BC versions (CharacterSetActivePose only accepts a single string
-        // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+        // CharacterRefresh re-applies item pose constraints and would overwrite ActivePose
+        // if we set it before calling refresh.  Run it first, sort layers, THEN override
+        // the pose — that way the push carries our intended pose, not the item-forced one.
+        callBC(() => CharacterRefresh(char, false, false));
+        try {
+            const sortFn = (window as unknown as Record<string, unknown>).CharacterAppearanceSortLayers as
+                ((c: Character) => Character) | undefined;
+            if (sortFn) sortFn(char);
+        } catch { /* ignore */ }
         (char as unknown as Record<string, unknown>).ActivePose = poses.length ? poses : [];
-        syncChar(char);
-        // Send a visible room emote so others know what's happening
+        // Push directly without a second CharacterRefresh (which would wipe our pose)
+        try {
+            const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+                ((c: Character) => void) | undefined;
+            if (updateFn) callBC(() => updateFn(char));
+            else callBC(() => CharacterRefresh(char, true, false));
+        } catch { /* ignore */ }
         const name = charDisplayName(char);
         const label = poseName ?? (poses.length ? poses.join("+") : "stand");
         const desc = poses.length
@@ -594,6 +607,38 @@ export function setTargetPoses(targetId: number, poses: string[], poseName?: str
 }
 
 // ── Toy control ───────────────────────────────────────────────────────────────
+
+/** Maps BC VibratorMode name → Intensity and Effect, per VibratorMode.js. */
+const VIBRATOR_MODE_PROPS: Record<string, { Intensity: number; Effect: string[] }> = {
+    "Off":      { Intensity: -1, Effect: ["Egged"] },
+    "Low":      { Intensity: 0,  Effect: ["Egged", "Vibrating"] },
+    "Medium":   { Intensity: 1,  Effect: ["Egged", "Vibrating"] },
+    "High":     { Intensity: 2,  Effect: ["Egged", "Vibrating"] },
+    "Maximum":  { Intensity: 3,  Effect: ["Egged", "Vibrating"] },
+    "Random":   { Intensity: 0,  Effect: ["Egged"] },
+    "Escalate": { Intensity: 0,  Effect: ["Egged", "Vibrating"] },
+    "Tease":    { Intensity: 0,  Effect: ["Egged"] },
+    "Deny":     { Intensity: 0,  Effect: ["Egged", "Edged"] },
+    "Edge":     { Intensity: 0,  Effect: ["Egged", "Vibrating", "Edged"] },
+};
+/** Combined STANDARD + ADVANCED mode list order, matching VibratorModeOptions index. */
+const VIBRATOR_MODE_ORDER = ["Off", "Low", "Medium", "High", "Maximum", "Random", "Escalate", "Tease", "Deny", "Edge"];
+
+/** Write Mode/Intensity/Effect and update TypeRecord on an item's Property in-place. */
+function applyVibratorModeProps(prop: Record<string, unknown>, mode: string): void {
+    const mp = VIBRATOR_MODE_PROPS[mode];
+    if (!mp) return;
+    prop.Mode = mode;
+    prop.Intensity = mp.Intensity;
+    prop.Effect = [...mp.Effect];
+    // TypeRecord key = asset name (first key), value = mode index in combined list
+    const modeIdx = VIBRATOR_MODE_ORDER.indexOf(mode);
+    const tr = prop.TypeRecord as Record<string, unknown> | undefined;
+    if (tr && modeIdx >= 0) {
+        const key = Object.keys(tr)[0];
+        if (key !== undefined) tr[key] = modeIdx;
+    }
+}
 
 /** Returns vibrating items currently worn by an in-room character. */
 export function getTargetVibratingItems(targetId: number): Array<{ group: string; name: string; mode: string }> {
@@ -639,7 +684,7 @@ export function setTargetToyMode(targetId: number, mode: string): void {
             try {
                 const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
                 if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
-                (liveItem.Property as Record<string, unknown>).Mode = mode;
+                applyVibratorModeProps(liveItem.Property as Record<string, unknown>, mode);
                 // Push per-item so the server + all room clients see the change on the target
                 if (itemUpdateFn) callBC(() => itemUpdateFn(char, liveItem.Asset.Group.Name));
                 changed = true;
@@ -653,6 +698,29 @@ export function setTargetToyMode(targetId: number, mode: string): void {
                 : `sets ${name}'s toy to ${mode}.`;
             sendRoomAction(desc);
         }
+    } catch { /* ignore */ }
+}
+
+/** Set the vibrator mode on ONE specific group slot worn by an in-room character. */
+export function setTargetSingleToyMode(targetId: number, group: string, mode: string): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
+            ((c: Character, group: string) => Item | null | undefined) | undefined;
+        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+            ((c: Character, group: string) => void) | undefined;
+        const liveItem = invGetFn ? (invGetFn(char, group) ?? null) : null;
+        if (!liveItem) return;
+        if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+        applyVibratorModeProps(liveItem.Property as Record<string, unknown>, mode);
+        if (itemUpdateFn) callBC(() => itemUpdateFn(char, group));
+        const name = charDisplayName(char);
+        const itemName = liveItem.Asset.Name;
+        const desc = mode === "Off"
+            ? `turns off ${name}'s ${itemName}.`
+            : `sets ${name}'s ${itemName} to ${mode}.`;
+        sendRoomAction(desc);
     } catch { /* ignore */ }
 }
 
@@ -671,50 +739,19 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
 };
 
 /**
- * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
- * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
- */
-const BC_ACTIVITY_NAME: Record<string, string> = {
-    "Pat": "Caress",  // no native "Pat" in BC — use Caress animation on the head
-    "Bap": "Slap",    // no native "Bap" in BC — use Slap animation on the head
-};
-
-/**
  * Perform a quick action on an in-room character.
- * Sends a Type:"Activity" message so BC clients play the matching facial
- * expressions and sounds.
- *
- * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
- * can resolve the activity audio path.  Using arbitrary text as Content causes
- * BC's audio system to produce a "Failed to load — no supported source found"
- * unhandled rejection because the audio URL lookup returns null.
- *
- * If BC's text system can't find the "Player<X>" key (unlikely for standard
- * activities), the MISSING TEXT fallback shows our custom description instead.
+ * Uses Type:"Action" so the description always appears correctly in the room chat.
+ * Type:"Activity" keys like "PlayerSpank" are not in BC R129's ActivityDictionary.csv
+ * and produce "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" errors for all room members.
  */
-export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
+export function performActivityOnTarget(targetId: number, activityName: string, _zone: string): boolean {
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
         const name = charDisplayName(target);
         const descFn = ACTIVITY_DESCS[activityName];
         const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-        // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
-        const bcActivity = BC_ACTIVITY_NAME[activityName] ?? activityName;
-        callBC(() => ServerSend("ChatRoomChat", {
-            Type: "Activity",
-            // "Player<X>" is BC's canonical content key — resolves text template AND audio
-            Content: "Player" + bcActivity,
-            Dictionary: [
-                // Fallback text if BC can't find the key in its CSV (normally not needed)
-                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
-                { Tag: "SourceCharacter",  MemberNumber: Player.MemberNumber },
-                { Tag: "TargetCharacter",  MemberNumber: targetId },
-                { Tag: "ActivityName",     ActivityName: bcActivity }, // animation compat
-                { Tag: "FocusGroup",       AssetGroupName: zone },     // BC R113+ zone tag
-                { Tag: "AssetGroupName",   AssetGroupName: zone },     // older compat
-            ],
-        }));
+        sendRoomAction(desc);
         return true;
     } catch { return false; }
 }

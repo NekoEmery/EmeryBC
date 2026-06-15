@@ -6457,11 +6457,47 @@
                 .map((item) => {
                 const prop = item.Property;
                 const locked = typeof (prop === null || prop === void 0 ? void 0 : prop.LockedBy) === "string" && prop.LockedBy !== "";
-                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
+                const craft = item.Craft;
+                const craftName = typeof (craft === null || craft === void 0 ? void 0 : craft.Name) === "string" && craft.Name.trim() ? craft.Name.trim() : undefined;
+                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked, craftName };
             });
         }
         catch (_b) {
             return [];
+        }
+    }
+    /**
+     * Clear locks (LockedBy / Password / CombinationNumber) on specific item groups
+     * for a room member.  Returns the number of items unlocked.
+     */
+    function clearLocksOnMember(memberId, groups) {
+        var _a;
+        try {
+            const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+            const char = room.find(c => c.MemberNumber === memberId);
+            if (!char)
+                return 0;
+            const groupSet = new Set(groups);
+            let count = 0;
+            for (const item of char.Appearance) {
+                if (!groupSet.has(item.Asset.Group.Name))
+                    continue;
+                const prop = item.Property;
+                if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                    prop.LockedBy = "";
+                    if ("Password" in prop)
+                        delete prop.Password;
+                    if ("CombinationNumber" in prop)
+                        delete prop.CombinationNumber;
+                    count++;
+                }
+            }
+            if (count > 0)
+                syncChar(char);
+            return count;
+        }
+        catch (_b) {
+            return 0;
         }
     }
     /**
@@ -6512,12 +6548,26 @@
             const char = findRoomChar(targetId);
             if (!char)
                 return;
-            // Set ActivePose directly - works for single and multi-pose combinations
-            // across all BC versions (CharacterSetActivePose only accepts a single string
-            // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+            // CharacterRefresh re-applies item pose constraints and would overwrite ActivePose
+            // if we set it before calling refresh.  Run it first, sort layers, THEN override
+            // the pose — that way the push carries our intended pose, not the item-forced one.
+            callBC(() => CharacterRefresh(char, false, false));
+            try {
+                const sortFn = window.CharacterAppearanceSortLayers;
+                if (sortFn)
+                    sortFn(char);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             char.ActivePose = poses.length ? poses : [];
-            syncChar(char);
-            // Send a visible room emote so others know what's happening
+            // Push directly without a second CharacterRefresh (which would wipe our pose)
+            try {
+                const updateFn = window.ChatRoomCharacterUpdate;
+                if (updateFn)
+                    callBC(() => updateFn(char));
+                else
+                    callBC(() => CharacterRefresh(char, true, false));
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
             const name = charDisplayName(char);
             const label = poseName !== null && poseName !== void 0 ? poseName : (poses.length ? poses.join("+") : "stand");
             const desc = poses.length
@@ -6525,9 +6575,41 @@
                 : `lets ${name} return to a comfortable position.`;
             sendRoomAction(desc);
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // ── Toy control ───────────────────────────────────────────────────────────────
+    /** Maps BC VibratorMode name → Intensity and Effect, per VibratorMode.js. */
+    const VIBRATOR_MODE_PROPS = {
+        "Off": { Intensity: -1, Effect: ["Egged"] },
+        "Low": { Intensity: 0, Effect: ["Egged", "Vibrating"] },
+        "Medium": { Intensity: 1, Effect: ["Egged", "Vibrating"] },
+        "High": { Intensity: 2, Effect: ["Egged", "Vibrating"] },
+        "Maximum": { Intensity: 3, Effect: ["Egged", "Vibrating"] },
+        "Random": { Intensity: 0, Effect: ["Egged"] },
+        "Escalate": { Intensity: 0, Effect: ["Egged", "Vibrating"] },
+        "Tease": { Intensity: 0, Effect: ["Egged"] },
+        "Deny": { Intensity: 0, Effect: ["Egged", "Edged"] },
+        "Edge": { Intensity: 0, Effect: ["Egged", "Vibrating", "Edged"] },
+    };
+    /** Combined STANDARD + ADVANCED mode list order, matching VibratorModeOptions index. */
+    const VIBRATOR_MODE_ORDER = ["Off", "Low", "Medium", "High", "Maximum", "Random", "Escalate", "Tease", "Deny", "Edge"];
+    /** Write Mode/Intensity/Effect and update TypeRecord on an item's Property in-place. */
+    function applyVibratorModeProps(prop, mode) {
+        const mp = VIBRATOR_MODE_PROPS[mode];
+        if (!mp)
+            return;
+        prop.Mode = mode;
+        prop.Intensity = mp.Intensity;
+        prop.Effect = [...mp.Effect];
+        // TypeRecord key = asset name (first key), value = mode index in combined list
+        const modeIdx = VIBRATOR_MODE_ORDER.indexOf(mode);
+        const tr = prop.TypeRecord;
+        if (tr && modeIdx >= 0) {
+            const key = Object.keys(tr)[0];
+            if (key !== undefined)
+                tr[key] = modeIdx;
+        }
+    }
     /** Returns vibrating items currently worn by an in-room character. */
     function getTargetVibratingItems(targetId) {
         try {
@@ -6578,7 +6660,7 @@
                     const liveItem = invGetFn ? ((_a = invGetFn(char, item.Asset.Group.Name)) !== null && _a !== void 0 ? _a : item) : item;
                     if (!liveItem.Property)
                         liveItem.Property = {};
-                    liveItem.Property.Mode = mode;
+                    applyVibratorModeProps(liveItem.Property, mode);
                     // Push per-item so the server + all room clients see the change on the target
                     if (itemUpdateFn)
                         callBC(() => itemUpdateFn(char, liveItem.Asset.Group.Name));
@@ -6596,6 +6678,32 @@
         }
         catch ( /* ignore */_c) { /* ignore */ }
     }
+    /** Set the vibrator mode on ONE specific group slot worn by an in-room character. */
+    function setTargetSingleToyMode(targetId, group, mode) {
+        var _a;
+        try {
+            const char = findRoomChar(targetId);
+            if (!char)
+                return;
+            const invGetFn = window.InventoryGet;
+            const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
+            const liveItem = invGetFn ? ((_a = invGetFn(char, group)) !== null && _a !== void 0 ? _a : null) : null;
+            if (!liveItem)
+                return;
+            if (!liveItem.Property)
+                liveItem.Property = {};
+            applyVibratorModeProps(liveItem.Property, mode);
+            if (itemUpdateFn)
+                callBC(() => itemUpdateFn(char, group));
+            const name = charDisplayName(char);
+            const itemName = liveItem.Asset.Name;
+            const desc = mode === "Off"
+                ? `turns off ${name}'s ${itemName}.`
+                : `sets ${name}'s ${itemName} to ${mode}.`;
+            sendRoomAction(desc);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     // ── Activity control ──────────────────────────────────────────────────────────
     /** Activity label -> room action description. */
     const ACTIVITY_DESCS = {
@@ -6609,28 +6717,12 @@
         "Lick": n => `licks ${n}.`,
     };
     /**
-     * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
-     * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
-     */
-    const BC_ACTIVITY_NAME = {
-        "Pat": "Caress", // no native "Pat" in BC — use Caress animation on the head
-        "Bap": "Slap", // no native "Bap" in BC — use Slap animation on the head
-    };
-    /**
      * Perform a quick action on an in-room character.
-     * Sends a Type:"Activity" message so BC clients play the matching facial
-     * expressions and sounds.
-     *
-     * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
-     * can resolve the activity audio path.  Using arbitrary text as Content causes
-     * BC's audio system to produce a "Failed to load — no supported source found"
-     * unhandled rejection because the audio URL lookup returns null.
-     *
-     * If BC's text system can't find the "Player<X>" key (unlikely for standard
-     * activities), the MISSING TEXT fallback shows our custom description instead.
+     * Uses Type:"Action" so the description always appears correctly in the room chat.
+     * Type:"Activity" keys like "PlayerSpank" are not in BC R129's ActivityDictionary.csv
+     * and produce "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" errors for all room members.
      */
-    function performActivityOnTarget(targetId, activityName, zone) {
-        var _a;
+    function performActivityOnTarget(targetId, activityName, _zone) {
         try {
             const target = findRoomChar(targetId);
             if (!target)
@@ -6638,26 +6730,59 @@
             const name = charDisplayName(target);
             const descFn = ACTIVITY_DESCS[activityName];
             const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-            // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
-            const bcActivity = (_a = BC_ACTIVITY_NAME[activityName]) !== null && _a !== void 0 ? _a : activityName;
-            callBC(() => ServerSend("ChatRoomChat", {
-                Type: "Activity",
-                // "Player<X>" is BC's canonical content key — resolves text template AND audio
-                Content: "Player" + bcActivity,
-                Dictionary: [
-                    // Fallback text if BC can't find the key in its CSV (normally not needed)
-                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
-                    { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                    { Tag: "TargetCharacter", MemberNumber: targetId },
-                    { Tag: "ActivityName", ActivityName: bcActivity }, // animation compat
-                    { Tag: "FocusGroup", AssetGroupName: zone }, // BC R113+ zone tag
-                    { Tag: "AssetGroupName", AssetGroupName: zone }, // older compat
-                ],
-            }));
+            sendRoomAction(desc);
             return true;
         }
-        catch (_b) {
+        catch (_a) {
             return false;
+        }
+    }
+    const _posSlots = new Map();
+    function setPosition(memberNumber, mode) {
+        _posSlots.set(memberNumber, mode);
+        applyPositions();
+        const char = findRoomChar(memberNumber);
+        if (!char)
+            return;
+        const name = charDisplayName(char);
+        const desc = mode === "side"
+            ? `pulls ${name} to their side.`
+            : mode === "arms"
+                ? `scoops ${name} up in their arms.`
+                : `holds ${name} tightly in their arms.`;
+        sendRoomAction(desc);
+    }
+    function clearPosition(memberNumber) {
+        _posSlots.delete(memberNumber);
+    }
+    function clearAllPositions() {
+        _posSlots.clear();
+    }
+    function getPositionSlots() {
+        return _posSlots;
+    }
+    function applyPositions() {
+        if (_posSlots.size === 0)
+            return;
+        const arr = window.ChatRoomCharacter;
+        if (!Array.isArray(arr))
+            return;
+        const playerIdx = arr.findIndex(c => { var _a; return (_a = c.IsPlayer) === null || _a === void 0 ? void 0 : _a.call(c); });
+        if (playerIdx < 0)
+            return;
+        let insertAt = playerIdx + 1;
+        for (const memberNum of _posSlots.keys()) {
+            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+            if (currentIdx < 0)
+                continue; // not in room
+            if (currentIdx === insertAt) {
+                insertAt++;
+                continue; // already in correct slot
+            }
+            const [charToMove] = arr.splice(currentIdx, 1);
+            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+            arr.splice(adjusted, 0, charToMove);
+            insertAt = adjusted + 1;
         }
     }
     // Handle a chat command (e.g. /gag → apply the matching set).
@@ -22428,12 +22553,27 @@
                 };
                 refreshFadeBtn();
                 fadeBtn.addEventListener("click", () => {
-                    var _a;
                     fadeOn = !fadeOn;
                     getSettings().drawerAutoFade = fadeOn;
                     syncSettings();
                     refreshFadeBtn();
-                    (_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.classList.toggle("ebc-fade-hover", fadeOn);
+                    const el = this.panelEl;
+                    if (!el)
+                        return;
+                    const old = el.__ebcFade;
+                    if (old) {
+                        el.removeEventListener("mouseenter", old.enter);
+                        el.removeEventListener("mouseleave", old.leave);
+                    }
+                    delete el.__ebcFade;
+                    el.style.opacity = "";
+                    if (fadeOn) {
+                        const fe = () => { el.style.opacity = ""; };
+                        const fl = () => { el.style.opacity = "0.15"; };
+                        el.addEventListener("mouseenter", fe);
+                        el.addEventListener("mouseleave", fl);
+                        el.__ebcFade = { enter: fe, leave: fl };
+                    }
                 });
                 fadeRow.appendChild(fadeLbl);
                 fadeRow.appendChild(fadeBtn);
@@ -28466,7 +28606,7 @@
                     lockIco.textContent = item.locked ? "🔒" : "";
                     const cbN = document.createElement("span");
                     cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    cbN.textContent = item.name;
+                    cbN.textContent = item.craftName ? `${item.craftName} (${item.name})` : item.name;
                     const cbG = document.createElement("span");
                     cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                     cbG.textContent = item.group.replace("Item", "");
@@ -28492,6 +28632,21 @@
                     rebuildPickPanel();
                 });
                 pickPanel.appendChild(removeSelBtn);
+                const unlockSelBtn = document.createElement("button");
+                unlockSelBtn.style.cssText = "width:100%;background:#1e2210;border:1px solid #5a6030;border-radius:5px;color:#b0c860;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+                unlockSelBtn.textContent = "🔓 Unlock Selected";
+                unlockSelBtn.addEventListener("click", () => {
+                    if (pendingGroups.size === 0) {
+                        releaseStatus.textContent = "Nothing selected.";
+                        window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    const count = clearLocksOnMember(selectedId, [...pendingGroups]);
+                    releaseStatus.textContent = count > 0 ? `✓ Unlocked ${count} item(s).` : "Nothing to unlock.";
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 3000);
+                    rebuildPickPanel();
+                });
+                pickPanel.appendChild(unlockSelBtn);
             };
             pickToggle.addEventListener("click", () => {
                 const isOpenNow = pickPanel.style.display === "none";
@@ -29183,7 +29338,7 @@
                         window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    const ok = performActivityOnTarget(id, actName, zone);
+                    const ok = performActivityOnTarget(id, actName);
                     actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
                     window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                 });
@@ -29229,7 +29384,6 @@
             posePanel.appendChild(poseStatus);
             // ── 🎮 Toy Control ────────────────────────────────────────────────────
             const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
-            // BC vibrator mode names: Off, Low, Medium, High, Maximum, Tease, Random, Escalate, Edge
             const TOY_MODES = [
                 ["⏹", "Off", "#2a1020", "Off"],
                 ["🔅", "Low", "#1a2030", "Low"],
@@ -29239,13 +29393,20 @@
                 ["😤", "Tease", "#1a2a30", "Tease"],
                 ["🎲", "Random", "#2a1a30", "Random"],
                 ["📈", "Escalate", "#3a0e18", "Escalate"],
+                ["🚫", "Deny", "#301828", "Deny"],
+                ["🌊", "Edge", "#182830", "Edge"],
             ];
             const toyHint = document.createElement("div");
-            toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
-            toyHint.textContent = "Sets all vibrating toys on the Focus Target.";
+            toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:5px;";
+            toyHint.textContent = "Select a toy chip to target one toy, or leave on All.";
             toyPanel.appendChild(toyHint);
+            // Toy selection chips (All + one per detected toy)
+            let selectedToyGroup = null;
+            const toyChipsRow = document.createElement("div");
+            toyChipsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;min-height:18px;margin-bottom:5px;";
+            toyPanel.appendChild(toyChipsRow);
             const toyGrid = document.createElement("div");
-            toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+            toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(5,1fr);gap:4px;";
             const toyStatus = document.createElement("div");
             toyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
             const toyInfoEl = document.createElement("div");
@@ -29261,9 +29422,36 @@
                     toyInfoEl.textContent = "No toys detected.";
                     return;
                 }
-                toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+                if (selectedToyGroup) {
+                    const t = toys.find(x => x.group === selectedToyGroup);
+                    toyInfoEl.textContent = t ? `${t.name}: ${t.mode}` : "Toy not found.";
+                }
+                else {
+                    toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+                }
             };
-            qtSel.addEventListener("change", refreshToyInfo);
+            const refreshToyChips = () => {
+                while (toyChipsRow.firstChild)
+                    toyChipsRow.removeChild(toyChipsRow.firstChild);
+                const id = parseInt(qtSel.value, 10);
+                if (!id)
+                    return;
+                const toys = getTargetVibratingItems(id);
+                if (toys.length === 0)
+                    return;
+                const mkChip = (label, grp) => {
+                    const isSel = grp === selectedToyGroup;
+                    const chip = document.createElement("button");
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${isSel ? "#cf6f98" : "#5a3a50"};background:${isSel ? "#3a1028" : "#1a0d16"};color:${isSel ? "#cf6f98" : "#9a6878"};cursor:pointer;white-space:nowrap;`;
+                    chip.textContent = label;
+                    chip.addEventListener("click", () => { selectedToyGroup = grp; refreshToyChips(); refreshToyInfo(); });
+                    toyChipsRow.appendChild(chip);
+                };
+                mkChip("All", null);
+                for (const t of toys)
+                    mkChip(t.name, t.group);
+            };
+            qtSel.addEventListener("change", () => { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); });
             for (const [emoji, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
@@ -29277,9 +29465,12 @@
                         window.setTimeout(() => { toyStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setTargetToyMode(id, bcMode);
+                    if (selectedToyGroup)
+                        setTargetSingleToyMode(id, selectedToyGroup, bcMode);
+                    else
+                        setTargetToyMode(id, bcMode);
                     toyStatus.textContent = `✓ Set to ${label}.`;
-                    window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); }, 1500);
+                    window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); refreshToyChips(); }, 1500);
                 });
                 toyGrid.appendChild(btn);
             }
@@ -29287,7 +29478,7 @@
             toyPanel.appendChild(toyStatus);
             toyPanel.appendChild(toyInfoEl);
             // ── ⛓ Curse ──────────────────────────────────────────────────────────
-            const { panel: cursePanel } = makeDomAccordion("⛓", "CURSE", actionsCard);
+            const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
             const curseHint = document.createElement("div");
             curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
             curseHint.textContent = "Target can't remove cursed items while EBC is loaded. Only you can lift the curse.";
@@ -29348,13 +29539,17 @@
                         curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
                         curseSelAllChk.checked = n === curseCbs.length;
                     });
+                    const lockIco2 = document.createElement("span");
+                    lockIco2.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
+                    lockIco2.textContent = it.locked ? "🔒" : "";
                     const nm2 = document.createElement("span");
                     nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nm2.textContent = it.name;
+                    nm2.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
                     const grp2 = document.createElement("span");
                     grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                     grp2.textContent = it.group.replace("Item", "");
                     row2.appendChild(chk);
+                    row2.appendChild(lockIco2);
                     row2.appendChild(nm2);
                     row2.appendChild(grp2);
                     curseItemsEl.appendChild(row2);
@@ -29374,9 +29569,12 @@
                 curseSelAllChk.indeterminate = false;
             });
             qtSel.addEventListener("change", () => {
-                if (cursePanel.style.display !== "none")
+                if (isCurseOpen())
                     rebuildCurseItems();
             });
+            // Also rebuild when the accordion is opened (target may already be selected)
+            curseHdr.addEventListener("click", () => { if (isCurseOpen())
+                rebuildCurseItems(); });
             cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
             const curseStatus = document.createElement("div");
             curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
@@ -29426,6 +29624,86 @@
             curseBtnRow.appendChild(liftCurseBtn);
             cursePanel.appendChild(curseBtnRow);
             cursePanel.appendChild(curseStatus);
+            // ── 📍 Position ────────────────────────────────────────────────────────
+            const { panel: posPanel } = makeDomAccordion("📍", "POSITION", actionsCard);
+            const posHint = document.createElement("div");
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
+            posHint.textContent = "Moves target next to you locally. Others see the original order.";
+            posPanel.appendChild(posHint);
+            const POS_DEFS = [
+                ["🔗", "Pull to Side", "side"],
+                ["🤗", "Get in Arms", "arms"],
+                ["💪", "Hold in Arms", "hold"],
+            ];
+            const posGrid = document.createElement("div");
+            posGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+            const posStatus = document.createElement("div");
+            posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
+            const posActiveList = document.createElement("div");
+            posActiveList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:4px;";
+            const rebuildPosActive = () => {
+                var _a;
+                while (posActiveList.firstChild)
+                    posActiveList.removeChild(posActiveList.firstChild);
+                const slots = getPositionSlots();
+                if (slots.size === 0)
+                    return;
+                const memberMap = new Map(getRoomMembers().map(m => [m.id, m.name]));
+                for (const [memberNum, mode] of slots) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;background:#1e0d18;border:1px solid #3a1928;border-radius:5px;padding:3px 7px;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    const modeLabel = mode === "side" ? "at side" : mode === "arms" ? "in arms" : "held";
+                    nameEl.textContent = `${(_a = memberMap.get(memberNum)) !== null && _a !== void 0 ? _a : "#" + memberNum} — ${modeLabel}`;
+                    const relBtn = document.createElement("button");
+                    relBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    relBtn.textContent = "✕";
+                    relBtn.title = "Release";
+                    relBtn.addEventListener("click", () => {
+                        clearPosition(memberNum);
+                        rebuildPosActive();
+                        posStatus.textContent = "✓ Released.";
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
+                    });
+                    row.appendChild(nameEl);
+                    row.appendChild(relBtn);
+                    posActiveList.appendChild(row);
+                }
+            };
+            for (const [emoji, label, mode] of POS_DEFS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    const id = parseInt(qtSel.value, 10);
+                    if (!id) {
+                        posStatus.textContent = "Pick a Focus Target first.";
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                        return;
+                    }
+                    setPosition(id, mode);
+                    rebuildPosActive();
+                    posStatus.textContent = `✓ ${label} → applied.`;
+                    window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                });
+                posGrid.appendChild(btn);
+            }
+            const releaseAllPosBtn = document.createElement("button");
+            releaseAllPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;width:100%;margin-top:4px;";
+            releaseAllPosBtn.textContent = "↺ Release All";
+            releaseAllPosBtn.addEventListener("click", () => {
+                clearAllPositions();
+                rebuildPosActive();
+                posStatus.textContent = "✓ All released.";
+                window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
+            });
+            posPanel.appendChild(posGrid);
+            posPanel.appendChild(posActiveList);
+            posPanel.appendChild(releaseAllPosBtn);
+            posPanel.appendChild(posStatus);
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -29439,14 +29717,23 @@
             if (!this.panelEl)
                 return;
             this.isOpen = true;
-            // Inject fade-on-hover style once; toggle class based on current setting
-            if (!document.getElementById("ebc-fade-hover-style")) {
-                const st = document.createElement("style");
-                st.id = "ebc-fade-hover-style";
-                st.textContent = ".ebc-fade-hover{transition:opacity 0.4s ease !important;}.ebc-fade-hover:not(:hover){opacity:0.2 !important;}";
-                document.head.appendChild(st);
+            // Fade-when-not-hovered via JS events so inline style doesn't fight the CSS
+            // slide-in/out transitions that also rely on opacity via class toggles.
+            const _fp = this.panelEl;
+            const _fo = _fp.__ebcFade;
+            if (_fo) {
+                _fp.removeEventListener("mouseenter", _fo.enter);
+                _fp.removeEventListener("mouseleave", _fo.leave);
             }
-            this.panelEl.classList.toggle("ebc-fade-hover", Boolean(getSettings().drawerAutoFade));
+            delete _fp.__ebcFade;
+            _fp.style.opacity = "";
+            if (Boolean(getSettings().drawerAutoFade)) {
+                const _fe = () => { _fp.style.opacity = ""; };
+                const _fl = () => { _fp.style.opacity = "0.15"; };
+                _fp.addEventListener("mouseenter", _fe);
+                _fp.addEventListener("mouseleave", _fl);
+                _fp.__ebcFade = { enter: _fe, leave: _fl };
+            }
             // Panel is opening — restore full tab hit area
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -29515,6 +29802,15 @@
             this.closeGuide(); // remove floating guide side panel if open
             this.stopDevLogPoller();
             this.isOpen = false;
+            // Remove fade listeners and reset opacity so CSS slide-out plays at full opacity
+            const _cp = this.panelEl;
+            const _cf = _cp.__ebcFade;
+            if (_cf) {
+                _cp.removeEventListener("mouseenter", _cf.enter);
+                _cp.removeEventListener("mouseleave", _cf.leave);
+                delete _cp.__ebcFade;
+                _cp.style.opacity = "";
+            }
             // Panel is closing — clip tab so it no longer blocks the BC canvas
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -29715,7 +30011,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.9";
+    const MOD_VERSION = "6.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29726,6 +30022,25 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.0",
+            changes: [
+                "Fix: Activity buttons (Spank, Pat, Kiss, etc.) now show correct room text — switched from Type:Activity (keys not in BC R129 ActivityDictionary.csv) to Type:Action via sendRoomAction.",
+                "Fix: Stand pose now clears kneeling — setTargetPoses now runs CharacterRefresh first, then sets ActivePose, then pushes directly; prevents CharacterRefresh from overwriting the pose.",
+                "Fix: Toy control now actually changes toy state — setTargetToyMode/setTargetSingleToyMode now set Intensity, Effect, and TypeRecord alongside Mode, matching BC's VibratorModeOptions.",
+                "Fix: Fade when not hovered now works — replaced CSS class toggle (fought with CSS opacity transitions) with JS mouseenter/mouseleave listeners storing handlers on __ebcFade.",
+                "Toy control: Added 'Deny' and 'Edge' modes; added per-toy chip selector above mode buttons — clicking a chip targets only that toy.",
+                "Curse panel: Now rebuilds item list when accordion is opened (previously only rebuilt on target change while already open).",
+                "Curse panel: Items now show lock icon (🔒) and crafted names when available.",
+                "Release tools: Added 'Unlock Selected' button in pick panel (uses clearLocksOnMember for selected groups only).",
+            ],
+        },
+        {
+            version: "6.8.0",
+            changes: [
+                "Dom menu: Added POSITION accordion — 'Pull to Side', 'Get in Arms', 'Hold in Arms' buttons reorder ChatRoomCharacter[] locally so the target appears next to you. Positions re-apply after every room sync and clear automatically on room leave.",
+            ],
+        },
         {
             version: "6.7.9",
             changes: [
@@ -36555,6 +36870,10 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                 }, 0);
             }
+            try {
+                applyPositions();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
@@ -36600,7 +36919,12 @@
                 syncPresenceMarker();
             }
             catch ( /* ignore */_c) { /* ignore */ }
-            return next(args);
+            const joinResult = next(args);
+            try {
+                applyPositions();
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            return joinResult;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
         // Also record every non-player character we see as a "person met".
@@ -36675,6 +36999,10 @@
                 _dragTarget = null;
             }
             catch ( /* ignore */_d) { /* ignore */ }
+            try {
+                clearAllPositions();
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.

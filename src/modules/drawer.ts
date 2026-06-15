@@ -122,10 +122,12 @@ import {
     getRoomMembers,
     getRoomMemberItems,
     removeItemsFromMember,
+    clearLocksOnMember,
 
     setTargetPoses,
     getTargetVibratingItems,
     setTargetToyMode,
+    setTargetSingleToyMode,
     performActivityOnTarget,
     type PositionMode,
     setPosition,
@@ -15468,7 +15470,20 @@ export class EBCDrawer {
                 getSettings().drawerAutoFade = fadeOn;
                 syncSettings();
                 refreshFadeBtn();
-                this.panelEl?.classList.toggle("ebc-fade-hover", fadeOn);
+                const el = this.panelEl;
+                if (!el) return;
+                const old = (el as unknown as Record<string, unknown>).__ebcFade as
+                    { enter: EventListener; leave: EventListener } | undefined;
+                if (old) { el.removeEventListener("mouseenter", old.enter); el.removeEventListener("mouseleave", old.leave); }
+                delete (el as unknown as Record<string, unknown>).__ebcFade;
+                el.style.opacity = "";
+                if (fadeOn) {
+                    const fe: EventListener = () => { el.style.opacity = ""; };
+                    const fl: EventListener = () => { el.style.opacity = "0.15"; };
+                    el.addEventListener("mouseenter", fe);
+                    el.addEventListener("mouseleave", fl);
+                    (el as unknown as Record<string, unknown>).__ebcFade = { enter: fe, leave: fl };
+                }
             });
             fadeRow.appendChild(fadeLbl);
             fadeRow.appendChild(fadeBtn);
@@ -20986,7 +21001,7 @@ export class EBCDrawer {
                 lockIco.textContent = item.locked ? "🔒" : "";
                 const cbN = document.createElement("span");
                 cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                cbN.textContent = item.name;
+                cbN.textContent = item.craftName ? `${item.craftName} (${item.name})` : item.name;
                 const cbG = document.createElement("span");
                 cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                 cbG.textContent = item.group.replace("Item", "");
@@ -21009,6 +21024,21 @@ export class EBCDrawer {
                 rebuildPickPanel();
             });
             pickPanel.appendChild(removeSelBtn);
+            const unlockSelBtn = document.createElement("button");
+            unlockSelBtn.style.cssText = "width:100%;background:#1e2210;border:1px solid #5a6030;border-radius:5px;color:#b0c860;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+            unlockSelBtn.textContent = "🔓 Unlock Selected";
+            unlockSelBtn.addEventListener("click", () => {
+                if (pendingGroups.size === 0) {
+                    releaseStatus.textContent = "Nothing selected.";
+                    window.setTimeout(() => { releaseStatus.textContent = ""; }, 2500);
+                    return;
+                }
+                const count = clearLocksOnMember(selectedId, [...pendingGroups]);
+                releaseStatus.textContent = count > 0 ? `✓ Unlocked ${count} item(s).` : "Nothing to unlock.";
+                window.setTimeout(() => { releaseStatus.textContent = ""; }, 3000);
+                rebuildPickPanel();
+            });
+            pickPanel.appendChild(unlockSelBtn);
         };
 
         pickToggle.addEventListener("click", () => {
@@ -21762,7 +21792,6 @@ export class EBCDrawer {
         // ── 🎮 Toy Control ────────────────────────────────────────────────────
         const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
 
-        // BC vibrator mode names: Off, Low, Medium, High, Maximum, Tease, Random, Escalate, Edge
         const TOY_MODES: ReadonlyArray<[string, string, string, string]> = [
             ["⏹", "Off",       "#2a1020", "Off"],
             ["🔅", "Low",       "#1a2030", "Low"],
@@ -21772,18 +21801,25 @@ export class EBCDrawer {
             ["😤", "Tease",     "#1a2a30", "Tease"],
             ["🎲", "Random",    "#2a1a30", "Random"],
             ["📈", "Escalate",  "#3a0e18", "Escalate"],
+            ["🚫", "Deny",      "#301828", "Deny"],
+            ["🌊", "Edge",      "#182830", "Edge"],
         ];
 
         const toyHint = document.createElement("div");
-        toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
-        toyHint.textContent = "Sets all vibrating toys on the Focus Target.";
+        toyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:5px;";
+        toyHint.textContent = "Select a toy chip to target one toy, or leave on All.";
         toyPanel.appendChild(toyHint);
 
+        // Toy selection chips (All + one per detected toy)
+        let selectedToyGroup: string | null = null;
+        const toyChipsRow = document.createElement("div");
+        toyChipsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;min-height:18px;margin-bottom:5px;";
+        toyPanel.appendChild(toyChipsRow);
+
         const toyGrid = document.createElement("div");
-        toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;";
+        toyGrid.style.cssText = "display:grid;grid-template-columns:repeat(5,1fr);gap:4px;";
         const toyStatus = document.createElement("div");
         toyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
-
         const toyInfoEl = document.createElement("div");
         toyInfoEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;min-height:13px;margin-top:3px;font-style:italic;";
 
@@ -21792,9 +21828,33 @@ export class EBCDrawer {
             if (!id) { toyInfoEl.textContent = ""; return; }
             const toys = getTargetVibratingItems(id);
             if (toys.length === 0) { toyInfoEl.textContent = "No toys detected."; return; }
-            toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+            if (selectedToyGroup) {
+                const t = toys.find(x => x.group === selectedToyGroup);
+                toyInfoEl.textContent = t ? `${t.name}: ${t.mode}` : "Toy not found.";
+            } else {
+                toyInfoEl.textContent = toys.map(t => `${t.name}: ${t.mode}`).join("  ·  ");
+            }
         };
-        qtSel.addEventListener("change", refreshToyInfo);
+
+        const refreshToyChips = (): void => {
+            while (toyChipsRow.firstChild) toyChipsRow.removeChild(toyChipsRow.firstChild);
+            const id = parseInt(qtSel.value, 10);
+            if (!id) return;
+            const toys = getTargetVibratingItems(id);
+            if (toys.length === 0) return;
+            const mkChip = (label: string, grp: string | null): void => {
+                const isSel = grp === selectedToyGroup;
+                const chip = document.createElement("button");
+                chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${isSel ? "#cf6f98" : "#5a3a50"};background:${isSel ? "#3a1028" : "#1a0d16"};color:${isSel ? "#cf6f98" : "#9a6878"};cursor:pointer;white-space:nowrap;`;
+                chip.textContent = label;
+                chip.addEventListener("click", () => { selectedToyGroup = grp; refreshToyChips(); refreshToyInfo(); });
+                toyChipsRow.appendChild(chip);
+            };
+            mkChip("All", null);
+            for (const t of toys) mkChip(t.name, t.group);
+        };
+
+        qtSel.addEventListener("change", () => { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); });
 
         for (const [emoji, label, bg, bcMode] of TOY_MODES) {
             const btn = document.createElement("button");
@@ -21805,9 +21865,10 @@ export class EBCDrawer {
             btn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) { toyStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { toyStatus.textContent = ""; }, 2500); return; }
-                setTargetToyMode(id, bcMode);
+                if (selectedToyGroup) setTargetSingleToyMode(id, selectedToyGroup, bcMode);
+                else setTargetToyMode(id, bcMode);
                 toyStatus.textContent = `✓ Set to ${label}.`;
-                window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); }, 1500);
+                window.setTimeout(() => { toyStatus.textContent = ""; refreshToyInfo(); refreshToyChips(); }, 1500);
             });
             toyGrid.appendChild(btn);
         }
@@ -21816,7 +21877,7 @@ export class EBCDrawer {
         toyPanel.appendChild(toyInfoEl);
 
         // ── ⛓ Curse ──────────────────────────────────────────────────────────
-        const { panel: cursePanel } = makeDomAccordion("⛓", "CURSE", actionsCard);
+        const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
 
         const curseHint = document.createElement("div");
         curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
@@ -21878,13 +21939,16 @@ export class EBCDrawer {
                     curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
                     curseSelAllChk.checked = n === curseCbs.length;
                 });
+                const lockIco2 = document.createElement("span");
+                lockIco2.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
+                lockIco2.textContent = it.locked ? "🔒" : "";
                 const nm2 = document.createElement("span");
                 nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                nm2.textContent = it.name;
+                nm2.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
                 const grp2 = document.createElement("span");
                 grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
                 grp2.textContent = it.group.replace("Item", "");
-                row2.appendChild(chk); row2.appendChild(nm2); row2.appendChild(grp2);
+                row2.appendChild(chk); row2.appendChild(lockIco2); row2.appendChild(nm2); row2.appendChild(grp2);
                 curseItemsEl.appendChild(row2);
             }
         };
@@ -21899,8 +21963,10 @@ export class EBCDrawer {
         });
 
         qtSel.addEventListener("change", () => {
-            if (cursePanel.style.display !== "none") rebuildCurseItems();
+            if (isCurseOpen()) rebuildCurseItems();
         });
+        // Also rebuild when the accordion is opened (target may already be selected)
+        curseHdr.addEventListener("click", () => { if (isCurseOpen()) rebuildCurseItems(); });
 
         cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
 
@@ -22044,14 +22110,21 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = true;
 
-        // Inject fade-on-hover style once; toggle class based on current setting
-        if (!document.getElementById("ebc-fade-hover-style")) {
-            const st = document.createElement("style");
-            st.id = "ebc-fade-hover-style";
-            st.textContent = ".ebc-fade-hover{transition:opacity 0.4s ease !important;}.ebc-fade-hover:not(:hover){opacity:0.2 !important;}";
-            document.head.appendChild(st);
+        // Fade-when-not-hovered via JS events so inline style doesn't fight the CSS
+        // slide-in/out transitions that also rely on opacity via class toggles.
+        const _fp = this.panelEl;
+        const _fo = (_fp as unknown as Record<string, unknown>).__ebcFade as
+            { enter: EventListener; leave: EventListener } | undefined;
+        if (_fo) { _fp.removeEventListener("mouseenter", _fo.enter); _fp.removeEventListener("mouseleave", _fo.leave); }
+        delete (_fp as unknown as Record<string, unknown>).__ebcFade;
+        _fp.style.opacity = "";
+        if (Boolean(getSettings().drawerAutoFade)) {
+            const _fe: EventListener = () => { _fp.style.opacity = ""; };
+            const _fl: EventListener = () => { _fp.style.opacity = "0.15"; };
+            _fp.addEventListener("mouseenter", _fe);
+            _fp.addEventListener("mouseleave", _fl);
+            (_fp as unknown as Record<string, unknown>).__ebcFade = { enter: _fe, leave: _fl };
         }
-        this.panelEl.classList.toggle("ebc-fade-hover", Boolean(getSettings().drawerAutoFade));
 
         // Panel is opening — restore full tab hit area
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
@@ -22109,6 +22182,16 @@ export class EBCDrawer {
         this.closeGuide();      // remove floating guide side panel if open
         this.stopDevLogPoller();
         this.isOpen = false;
+        // Remove fade listeners and reset opacity so CSS slide-out plays at full opacity
+        const _cp = this.panelEl;
+        const _cf = (_cp as unknown as Record<string, unknown>).__ebcFade as
+            { enter: EventListener; leave: EventListener } | undefined;
+        if (_cf) {
+            _cp.removeEventListener("mouseenter", _cf.enter);
+            _cp.removeEventListener("mouseleave", _cf.leave);
+            delete (_cp as unknown as Record<string, unknown>).__ebcFade;
+            _cp.style.opacity = "";
+        }
 
         // Panel is closing — clip tab so it no longer blocks the BC canvas
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
