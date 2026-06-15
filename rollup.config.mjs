@@ -10,11 +10,9 @@ const channel = isProd ? "stable" : "dev";
 const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
 const baseUrl = `https://nekoemery.github.io/EmeryBC/${channel}`;
 
-// When @inject-into auto is combined with @grant GM_xmlhttpRequest, both Tampermonkey
-// and Violentmonkey inject the script in content-script context, where GM_xmlhttpRequest
-// is available and bypasses CORS entirely.  The bridge below runs before the bundle IIFE
-// and re-exposes BC's page-context globals (Player, ChatRoomCharacter, etc.) in the
-// content-script scope via unsafeWindow getters, so the rest of EBC works unchanged.
+// pageBridge runs in page context before the bundle IIFE.
+// When @inject-into page is set the unsafeWindow guard returns early and this is a no-op,
+// but it's harmless to keep so the bridge is ready if the inject mode ever changes.
 const pageBridge = `\
 (function(){
   var uw=typeof unsafeWindow!=="undefined"?unsafeWindow:null;
@@ -49,9 +47,8 @@ const userscriptBanner = `\
 // @match        https://www.bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.com/*
 // @run-at       document-start
-// @inject-into  auto
-// @grant        GM_xmlhttpRequest
-// @grant        unsafeWindow
+// @inject-into  page
+// @grant        none
 // @connect      do.pishock.com
 // ==/UserScript==
 console.log("[EmeryBC] userscript injected, waiting for BC...");

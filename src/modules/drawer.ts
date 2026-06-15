@@ -20689,6 +20689,12 @@ export class EBCDrawer {
             });
             apiKeyRow.appendChild(eyeBtn);
 
+            // CORS Proxy URL (required when loaded via FUSAM/page context)
+            mkField("Proxy URL", "text", "EBC_ps_proxy", "https://your-worker.workers.dev  (leave empty if not needed)");
+            const proxyNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:-2px 0 6px;line-height:1.5;`);
+            proxyNote.innerHTML = `PiShock blocks requests from non-pishock.com origins. If you're using FUSAM, set up a free <b style="color:var(--ebc-text)">Cloudflare Worker</b> proxy and paste its URL here. <a href="https://github.com/NekoEmery/EmeryBC/wiki/PiShock-Proxy" target="_blank" style="color:var(--ebc-accent);text-decoration:none;">Setup guide ↗</a>`;
+            psContent.appendChild(proxyNote);
+
             // Limits
             psContent.appendChild(sep());
             psContent.appendChild(sectionHdr("LIMITS"));
@@ -20950,7 +20956,28 @@ export class EBCDrawer {
                 return `⚠ ${t || `HTTP ${status ?? "?"}`}`;
             };
 
-            // Try GM_xmlhttpRequest first — available in Tampermonkey with @grant GM_xmlhttpRequest.
+            // CORS proxy path — user supplies a Cloudflare Worker URL that forwards to PiShock.
+            // This is the only reliable path when loaded via FUSAM (page context, no GM APIs).
+            const proxyUrl = (localStorage.getItem("EBC_ps_proxy") ?? "").trim();
+            if (proxyUrl) {
+                console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
+                try {
+                    const resp = await fetch(proxyUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "omit",
+                        body: payload,
+                    });
+                    const text = (await resp.text()).trim();
+                    console.log(`[EBC PiShock] Proxy response: HTTP ${resp.status} — ${text.slice(0, 200)}`);
+                    return parseResult(text, resp.status);
+                } catch (eProxy) {
+                    console.error("[EBC PiShock] Proxy fetch failed:", eProxy);
+                    return "⚠ Proxy unreachable — check the Proxy URL field or your Worker deployment.";
+                }
+            }
+
+            // Try GM_xmlhttpRequest — available in Tampermonkey with @grant GM_xmlhttpRequest.
             // It runs via the extension background and bypasses the browser's CORS policy entirely.
             // Violentmonkey ignores @grant when @inject-into page is set, so this will be undefined there.
             const gmXhr = (globalThis as unknown as Record<string, unknown>).GM_xmlhttpRequest as

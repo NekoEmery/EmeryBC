@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.27";
+const MOD_VERSION = "6.9.28";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.28",
+        changes: [
+            "PiShock: Added CORS Proxy URL field to credentials section. Set this to your own Cloudflare Worker URL to bypass the PiShock CORS wall in FUSAM/page-context mode. When set, firePiShock() routes all requests through the proxy using Content-Type: application/json and reads the real server response — no more blind fire-and-forget.",
+            "PiShock: Reverted @inject-into from 'auto' back to 'page' — the auto mode broke TOYS and DOM tabs for FUSAM users by making Player.MemberNumber unavailable. Proxy URL field is the correct CORS solution for FUSAM.",
+            "rollup.config.mjs: Cleaned up stale comment about @inject-into auto / GM_xmlhttpRequest content-script approach.",
+        ],
+    },
     {
         version: "6.9.27",
         changes: [
