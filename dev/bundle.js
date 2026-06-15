@@ -1442,7 +1442,7 @@
         }, 80);
         localNotice$2(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
     }
-    function createRestraintFromCurrent(command, displayName, announceText) {
+    function createRestraintFromItems(command, displayName, announceText, items) {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -1463,7 +1463,7 @@
             preserveClothing: true,
             nameInAnnounce: true,
             expressionPresetId: null,
-            items: captureRestraints(),
+            items,
         };
         saveRestraints([...getRestraints(), restraint]);
         localNotice$2(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
@@ -16170,6 +16170,13 @@
                 const form = document.createElement("div");
                 form.className = "ebc-new-form";
                 sectionBody.appendChild(form);
+                // Picker section — rebuilt each time the form opens
+                const newPickerWrap = document.createElement("div");
+                newPickerWrap.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
+                form.appendChild(newPickerWrap);
+                const newPickerSep = document.createElement("div");
+                newPickerSep.style.cssText = "border-top:1px solid #4a2038;margin:2px 0 6px;";
+                form.appendChild(newPickerSep);
                 const makeRow = (labelText, input) => {
                     const row = document.createElement("div");
                     row.className = "ebc-form-row";
@@ -16199,12 +16206,92 @@
                 // Start hidden via inline style (CSS default is display:none but inline style
                 // starts as "" which the toggle check misreads — set it explicitly)
                 form.style.display = "none";
+                let newPickerSelected = new Set();
+                let newPickerChks = [];
+                const rebuildNewPicker = () => {
+                    while (newPickerWrap.firstChild)
+                        newPickerWrap.removeChild(newPickerWrap.firstChild);
+                    newPickerSelected = new Set();
+                    newPickerChks = [];
+                    const worn = Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    const pickerLbl = document.createElement("div");
+                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9ab870;font-weight:bold;margin-bottom:2px;";
+                    pickerLbl.textContent = "Items to include (" + worn.length + "):";
+                    newPickerWrap.appendChild(pickerLbl);
+                    if (worn.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                        hint.textContent = "No restraints worn — set will be empty.";
+                        newPickerWrap.appendChild(hint);
+                        return;
+                    }
+                    const allRow = document.createElement("div");
+                    allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #4a2038;margin-bottom:2px;";
+                    const allChk = document.createElement("input");
+                    allChk.type = "checkbox";
+                    allChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    const allLbl = document.createElement("span");
+                    allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c890a0;font-weight:bold;";
+                    allLbl.textContent = "All (" + worn.length + " items)";
+                    allRow.appendChild(allChk);
+                    allRow.appendChild(allLbl);
+                    newPickerWrap.appendChild(allRow);
+                    const itemsWrap = document.createElement("div");
+                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;border:1px solid #4a2038;border-radius:5px;padding:4px;background:rgba(22,10,16,0.5);";
+                    for (const itm of worn) {
+                        const group = itm.Asset.Group.Name;
+                        const lbl2 = document.createElement("label");
+                        lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                        lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(60,20,34,0.4)"; });
+                        lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.dataset.group = group;
+                        cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                        newPickerChks.push(cb);
+                        cb.addEventListener("change", () => {
+                            if (cb.checked)
+                                newPickerSelected.add(group);
+                            else
+                                newPickerSelected.delete(group);
+                            const n = newPickerChks.filter(c => c.checked).length;
+                            allChk.indeterminate = n > 0 && n < newPickerChks.length;
+                            allChk.checked = n === newPickerChks.length;
+                        });
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nameEl.textContent = itm.Asset.Name;
+                        const grpEl = document.createElement("span");
+                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;white-space:nowrap;flex-shrink:0;";
+                        grpEl.textContent = group.replace("Item", "");
+                        lbl2.appendChild(cb);
+                        lbl2.appendChild(nameEl);
+                        lbl2.appendChild(grpEl);
+                        itemsWrap.appendChild(lbl2);
+                    }
+                    newPickerWrap.appendChild(itemsWrap);
+                    allChk.addEventListener("change", () => {
+                        newPickerChks.forEach(c => {
+                            c.checked = allChk.checked;
+                            const g = c.dataset.group;
+                            if (g) {
+                                if (allChk.checked)
+                                    newPickerSelected.add(g);
+                                else
+                                    newPickerSelected.delete(g);
+                            }
+                        });
+                        allChk.indeterminate = false;
+                    });
+                };
                 newBtn.addEventListener("click", () => {
                     const open = form.style.display !== "none";
                     form.style.display = open ? "none" : "flex";
                     newBtn.textContent = open ? t("restraints.newRestraint") : t("core.cancel");
-                    if (!open)
+                    if (!open) {
+                        rebuildNewPicker();
                         cmdInput.focus();
+                    }
                 });
                 createBtn.addEventListener("click", () => {
                     cmdInput.style.borderColor = cmdInput.value.trim() ? "" : "#cf6f98";
@@ -16213,7 +16300,18 @@
                         return;
                     createBtn.disabled = true;
                     createBtn.textContent = "Saving...";
-                    const result = createRestraintFromCurrent(cmdInput.value, nameInput.value, announceInput.value);
+                    const selectedItems = Player.Appearance
+                        .filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name) &&
+                        (newPickerSelected.size === 0 || newPickerSelected.has(itm.Asset.Group.Name)))
+                        .map((itm) => ({
+                        Group: itm.Asset.Group.Name,
+                        Name: itm.Asset.Name,
+                        Color: itm.Color,
+                        Difficulty: itm.Difficulty,
+                        Property: itm.Property,
+                        Craft: itm.Craft,
+                    }));
+                    const result = createRestraintFromItems(cmdInput.value, nameInput.value, announceInput.value, selectedItems);
                     if (result) {
                         form.style.display = "none";
                         newBtn.textContent = t("restraints.newRestraint");
@@ -28722,91 +28820,151 @@
             const rebuildFromCurPanel = () => {
                 while (fromCurPanel.firstChild)
                     fromCurPanel.removeChild(fromCurPanel.firstChild);
-                const wornRestraints = Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
-                if (wornRestraints.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
-                    hint.textContent = "You're not wearing any restraints right now.";
-                    fromCurPanel.appendChild(hint);
-                    return;
-                }
-                const selectedGroups = new Set();
-                const checkboxes = [];
-                // All toggle row
-                const allRow = document.createElement("div");
-                allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #3a4428;margin-bottom:3px;";
-                const allChk = document.createElement("input");
-                allChk.type = "checkbox";
-                allChk.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
-                const allLbl = document.createElement("span");
-                allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;font-weight:bold;";
-                allLbl.textContent = "All  (" + wornRestraints.length + " items)";
-                allRow.appendChild(allChk);
-                allRow.appendChild(allLbl);
-                fromCurPanel.appendChild(allRow);
-                // Item list
-                const itemsWrap = document.createElement("div");
-                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:120px;overflow-y:auto;border:1px solid #3a4428;border-radius:5px;padding:4px;background:rgba(16,22,8,0.5);";
-                for (const itm of wornRestraints) {
-                    const group = itm.Asset.Group.Name;
-                    const lbl2 = document.createElement("label");
-                    lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
-                    lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,56,20,0.4)"; });
-                    lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
-                    const cb = document.createElement("input");
-                    cb.type = "checkbox";
-                    cb.dataset.group = group;
-                    cb.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
-                    checkboxes.push(cb);
-                    cb.addEventListener("change", () => {
-                        if (cb.checked)
-                            selectedGroups.add(group);
-                        else
-                            selectedGroups.delete(group);
-                        const n = checkboxes.filter(c => c.checked).length;
-                        allChk.indeterminate = n > 0 && n < checkboxes.length;
-                        allChk.checked = n === checkboxes.length;
-                    });
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nameEl.textContent = itm.Asset.Name;
-                    const grpEl = document.createElement("span");
-                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;white-space:nowrap;flex-shrink:0;";
-                    grpEl.textContent = group.replace("Item", "");
-                    lbl2.appendChild(cb);
-                    lbl2.appendChild(nameEl);
-                    lbl2.appendChild(grpEl);
-                    itemsWrap.appendChild(lbl2);
-                }
-                fromCurPanel.appendChild(itemsWrap);
-                allChk.addEventListener("change", () => {
-                    checkboxes.forEach(c => {
-                        c.checked = allChk.checked;
-                        const g = c.dataset.group;
-                        if (g) {
-                            if (allChk.checked)
-                                selectedGroups.add(g);
-                            else
-                                selectedGroups.delete(g);
+                // Source selector row
+                const sourceRow = document.createElement("div");
+                sourceRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;";
+                const sourceLbl = document.createElement("span");
+                sourceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;flex-shrink:0;";
+                sourceLbl.textContent = "Source:";
+                const sourceSel = document.createElement("select");
+                sourceSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:#1a2010;border:1px solid #4a5a30;border-radius:4px;color:#c8e0a0;padding:2px 4px;cursor:pointer;";
+                const myselfOpt = document.createElement("option");
+                myselfOpt.value = "self";
+                myselfOpt.textContent = "Myself (" + (Player.Name || "Me") + ")";
+                sourceSel.appendChild(myselfOpt);
+                try {
+                    const roomChars = window.ChatRoomCharacter;
+                    if (Array.isArray(roomChars)) {
+                        for (const c of roomChars) {
+                            if (!(c === null || c === void 0 ? void 0 : c.MemberNumber) || c.MemberNumber === Player.MemberNumber)
+                                continue;
+                            const opt = document.createElement("option");
+                            opt.value = String(c.MemberNumber);
+                            opt.textContent = c.Name || String(c.MemberNumber);
+                            sourceSel.appendChild(opt);
                         }
-                    });
-                    allChk.indeterminate = false;
-                });
+                    }
+                }
+                catch ( /* not in a room */_a) { /* not in a room */ }
+                sourceRow.appendChild(sourceLbl);
+                sourceRow.appendChild(sourceSel);
+                fromCurPanel.appendChild(sourceRow);
+                // Helper: get restraint Items from the currently selected source
+                const getSourceItems = () => {
+                    var _a;
+                    if (sourceSel.value === "self") {
+                        return Player.Appearance.filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    }
+                    const id = parseInt(sourceSel.value, 10);
+                    if (isNaN(id))
+                        return [];
+                    try {
+                        const chars = window.ChatRoomCharacter;
+                        const c = Array.isArray(chars) ? chars.find(ch => (ch === null || ch === void 0 ? void 0 : ch.MemberNumber) === id) : undefined;
+                        return ((_a = c === null || c === void 0 ? void 0 : c.Appearance) !== null && _a !== void 0 ? _a : []).filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+                    }
+                    catch (_b) {
+                        return [];
+                    }
+                };
+                // Item list section — rebuilt when source changes
+                const itemsSection = document.createElement("div");
+                itemsSection.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+                fromCurPanel.appendChild(itemsSection);
                 const fromCurStatus = document.createElement("div");
                 fromCurStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#ff6b6b;min-height:13px;";
+                fromCurPanel.appendChild(fromCurStatus);
                 const createBtn = document.createElement("button");
                 createBtn.style.cssText = "width:100%;background:#1a2010;border:1px solid #5a7040;border-radius:5px;color:#9ab870;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;";
                 createBtn.textContent = "✓ Create Set from Selected";
                 createBtn.addEventListener("mouseenter", () => { createBtn.style.background = "#2a3818"; });
                 createBtn.addEventListener("mouseleave", () => { createBtn.style.background = "#1a2010"; });
+                fromCurPanel.appendChild(createBtn);
+                let selectedGroups = new Set();
+                let checkboxes = [];
+                const rebuildItemList = () => {
+                    while (itemsSection.firstChild)
+                        itemsSection.removeChild(itemsSection.firstChild);
+                    selectedGroups = new Set();
+                    checkboxes = [];
+                    const wornRestraints = getSourceItems();
+                    if (wornRestraints.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
+                        hint.textContent = "No restraints found on this character.";
+                        itemsSection.appendChild(hint);
+                        return;
+                    }
+                    const allRow = document.createElement("div");
+                    allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #3a4428;margin-bottom:3px;";
+                    const allChk = document.createElement("input");
+                    allChk.type = "checkbox";
+                    allChk.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+                    const allLbl = document.createElement("span");
+                    allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;font-weight:bold;";
+                    allLbl.textContent = "All (" + wornRestraints.length + " items)";
+                    allRow.appendChild(allChk);
+                    allRow.appendChild(allLbl);
+                    itemsSection.appendChild(allRow);
+                    const itemsWrap = document.createElement("div");
+                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:120px;overflow-y:auto;border:1px solid #3a4428;border-radius:5px;padding:4px;background:rgba(16,22,8,0.5);";
+                    for (const itm of wornRestraints) {
+                        const group = itm.Asset.Group.Name;
+                        const lbl2 = document.createElement("label");
+                        lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                        lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,56,20,0.4)"; });
+                        lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.dataset.group = group;
+                        cb.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+                        checkboxes.push(cb);
+                        cb.addEventListener("change", () => {
+                            if (cb.checked)
+                                selectedGroups.add(group);
+                            else
+                                selectedGroups.delete(group);
+                            const n = checkboxes.filter(c => c.checked).length;
+                            allChk.indeterminate = n > 0 && n < checkboxes.length;
+                            allChk.checked = n === checkboxes.length;
+                        });
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nameEl.textContent = itm.Asset.Name;
+                        const grpEl = document.createElement("span");
+                        grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;white-space:nowrap;flex-shrink:0;";
+                        grpEl.textContent = group.replace("Item", "");
+                        lbl2.appendChild(cb);
+                        lbl2.appendChild(nameEl);
+                        lbl2.appendChild(grpEl);
+                        itemsWrap.appendChild(lbl2);
+                    }
+                    itemsSection.appendChild(itemsWrap);
+                    allChk.addEventListener("change", () => {
+                        checkboxes.forEach(c => {
+                            c.checked = allChk.checked;
+                            const g = c.dataset.group;
+                            if (g) {
+                                if (allChk.checked)
+                                    selectedGroups.add(g);
+                                else
+                                    selectedGroups.delete(g);
+                            }
+                        });
+                        allChk.indeterminate = false;
+                    });
+                };
+                sourceSel.addEventListener("change", rebuildItemList);
+                rebuildItemList();
                 createBtn.addEventListener("click", () => {
                     if (selectedGroups.size === 0) {
                         fromCurStatus.textContent = "Select at least one item.";
                         window.setTimeout(() => { fromCurStatus.textContent = ""; }, 2000);
                         return;
                     }
-                    const items = Player.Appearance
-                        .filter((itm) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name) && selectedGroups.has(itm.Asset.Group.Name))
+                    const wornRestraints = getSourceItems();
+                    const items = wornRestraints
+                        .filter((itm) => selectedGroups.has(itm.Asset.Group.Name))
                         .map((itm) => ({
                         Group: itm.Asset.Group.Name,
                         Name: itm.Asset.Name,
@@ -28825,8 +28983,6 @@
                     rebuildSets();
                     body.scrollTop = body.scrollHeight;
                 });
-                fromCurPanel.appendChild(fromCurStatus);
-                fromCurPanel.appendChild(createBtn);
             };
             fromCurBtn.addEventListener("click", () => {
                 fromCurOpen = !fromCurOpen;
@@ -29818,7 +29974,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.3";
+    const MOD_VERSION = "6.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29829,6 +29985,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.4",
+            changes: [
+                "Feature: Dom menu '↳ From Current' picker now has a Source selector — choose yourself or any character currently in the room; captures their worn restraints as a dom set.",
+                "Feature: Main Saved Restraints panel '+ New Restraint Set from Current' now shows a per-item checkbox picker (with All toggle) before saving, so you can include only specific worn items instead of all of them.",
+            ],
+        },
         {
             version: "6.7.3",
             changes: [
