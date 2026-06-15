@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.12";
+const MOD_VERSION = "6.9.13";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.13",
+        changes: [
+            "Fix: EBC button (tab) no longer disappears when a beep notification opens the FriendList screen. Root cause: BC's async CommonSetScreen() can set display:none on unknown DOM elements after EBC's updateVisibility() runs. The CRABS poller heartbeat guard (which restores display:block within 200ms) was stopped in roaming mode, leaving the rootEl permanently hidden until the next screen navigation. Fix: keep the CRABS poller running in roaming mode so the heartbeat fires continuously, and remove the this.positioned guard so it protects visibility even before anchoring to the chat log.",
+        ],
+    },
     {
         version: "6.9.12",
         changes: [

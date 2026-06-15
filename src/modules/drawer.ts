@@ -5339,7 +5339,9 @@ export class EBCDrawer {
 
         // Heartbeat guard: BC's screen-transition code can set display:none on unknown
         // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-        if (this.positioned && this.rootEl.style.display !== "block") {
+        // This intentionally runs regardless of this.positioned so it also protects EBC
+        // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+        if (this.rootEl.style.display !== "block") {
             this.rootEl.style.display = "block";
         }
 
@@ -5427,7 +5429,10 @@ export class EBCDrawer {
                 window.removeEventListener("resize", this.windowResizeHandler);
                 this.windowResizeHandler = null;
             }
-            this.stopCrabsPoller();
+            // Keep the CRABS poller running in roaming mode so the heartbeat guard
+            // above fires every 200 ms and can restore rootEl.style.display if BC's
+            // screen-transition code hides it (e.g. via FriendListShow → CommonSetScreen).
+            this.startCrabsPoller();
             this.stopTimerPoller();
 
             // Keep beep windows hidden outside a room

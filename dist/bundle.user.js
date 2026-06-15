@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.12
+// @version      6.9.13
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12744,7 +12744,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             // Heartbeat guard: BC's screen-transition code can set display:none on unknown
             // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-            if (this.positioned && this.rootEl.style.display !== "block") {
+            // This intentionally runs regardless of this.positioned so it also protects EBC
+            // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+            if (this.rootEl.style.display !== "block") {
                 this.rootEl.style.display = "block";
             }
             if (!this.positioned) {
@@ -12834,7 +12836,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.removeEventListener("resize", this.windowResizeHandler);
                     this.windowResizeHandler = null;
                 }
-                this.stopCrabsPoller();
+                // Keep the CRABS poller running in roaming mode so the heartbeat guard
+                // above fires every 200 ms and can restore rootEl.style.display if BC's
+                // screen-transition code hides it (e.g. via FriendListShow → CommonSetScreen).
+                this.startCrabsPoller();
                 this.stopTimerPoller();
                 // Keep beep windows hidden outside a room
                 for (const { el } of this.beepWins.values())
@@ -30115,7 +30120,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.12";
+    const MOD_VERSION = "6.9.13";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30126,6 +30131,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.13",
+            changes: [
+                "Fix: EBC button (tab) no longer disappears when a beep notification opens the FriendList screen. Root cause: BC's async CommonSetScreen() can set display:none on unknown DOM elements after EBC's updateVisibility() runs. The CRABS poller heartbeat guard (which restores display:block within 200ms) was stopped in roaming mode, leaving the rootEl permanently hidden until the next screen navigation. Fix: keep the CRABS poller running in roaming mode so the heartbeat fires continuously, and remove the this.positioned guard so it protects visibility even before anchoring to the chat log.",
+            ],
+        },
         {
             version: "6.9.12",
             changes: [
