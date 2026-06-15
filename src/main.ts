@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.23";
+const MOD_VERSION = "6.9.24";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.24",
+        changes: [
+            "TOYS / PiShock: CORS fix — firePiShock() now tries GM_xmlhttpRequest first (bypasses CORS entirely for Tampermonkey users; @grant GM_xmlhttpRequest + @connect do.pishock.com added to userscript header). Falls back to fetch with credentials:'omit'. Both paths log to DevTools console for debugging.",
+            "TOYS / PiShock: Per-shocker test buttons — replaced single '📡 Test' (beep only) with three buttons: '🔔 Beep', '〜 Vib', '⚡ Shock'. Each fires independently with bypass=true. Shock test requires a confirm dialog.",
+            "TOYS / PiShock: UI readability improvements — all labels and inputs bumped from 10px to 11-12px. Section headers and limit value labels now bold. Inputs have more padding. Warning banner and credential notes improved.",
+            "TOYS / PiShock: Allow-toggle row now prefixed with 'ALLOW:' label; test button row prefixed with 'TEST:' label for clearer visual grouping.",
+            "BEEP: Chat message font-size bumped from 10px to 13px so emoji and text in the beep window are legible.",
+        ],
+    },
     {
         version: "6.9.23",
         changes: [

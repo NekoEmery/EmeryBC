@@ -25,7 +25,8 @@ const userscriptBanner = `\
 // @match        https://www.bondageprojects.com/*
 // @run-at       document-start
 // @inject-into  page
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      do.pishock.com
 // ==/UserScript==
 console.log("[EmeryBC] userscript injected, waiting for BC...");`;
 
