@@ -11246,7 +11246,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"];
+    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
@@ -11852,6 +11852,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             toysTabBtn.id = "ebc-tab-toys";
             toysTabBtn.textContent = "TOYS";
             toysTabBtn.title = "Toys & Integrations (PiShock)";
+            toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -30135,7 +30136,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -30180,7 +30181,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -30193,11 +30194,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
             if (kittyTabEl)
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
+            // Show the Toys tab only for Emery (#130267) while it's in development
+            const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
+            if (toysTabEl)
+                toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
