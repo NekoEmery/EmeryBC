@@ -600,7 +600,7 @@ export function setTargetPoses(targetId: number, poses: string[], poseName?: str
         const name = charDisplayName(char);
         const label = poseName ?? (poses.length ? poses.join("+") : "stand");
         const desc = poses.length
-            ? `guides ${name} into the ${label} position.`
+            ? `guides ${name} ${label}.`
             : `lets ${name} return to a comfortable position.`;
         sendRoomAction(desc);
     } catch { /* ignore */ }

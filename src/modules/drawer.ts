@@ -21709,13 +21709,13 @@ export class EBCDrawer {
         // ── 🧎 Poses ──────────────────────────────────────────────────────────
         const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
 
-        const POSE_DEFS: ReadonlyArray<[string, string, string[]]> = [
-            ["🚶", "Stand",     []],
-            ["🧎", "Kneel",     ["Kneel"]],
-            ["🐈", "All Fours", ["AllFours"]],
-            ["🙌", "Hands Up",  ["OverTheHead"]],
-            ["🫸", "Spread",    ["KneelingSpread"]],
-            ["🤸", "Kneel+Up",  ["Kneel","OverTheHead"]],
+        const POSE_DEFS: ReadonlyArray<[string, string, string[], string]> = [
+            ["🚶", "Stand",     [],                       ""],
+            ["🧎", "Kneel",     ["Kneel"],                "into a kneeling position"],
+            ["🐈", "All Fours", ["AllFours"],             "onto all fours"],
+            ["🙌", "Hands Up",  ["OverTheHead"],          "into a hands-up pose"],
+            ["🫸", "Spread",    ["KneelingSpread"],       "into a kneeling spread"],
+            ["🤸", "Kneel+Up",  ["Kneel","OverTheHead"],  "into a kneeling position with arms raised"],
         ];
 
         const poseGrid = document.createElement("div");
@@ -21723,7 +21723,7 @@ export class EBCDrawer {
         const poseStatus = document.createElement("div");
         poseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
 
-        for (const [emoji, label, poses] of POSE_DEFS) {
+        for (const [emoji, label, poses, actionDesc] of POSE_DEFS) {
             const btn = document.createElement("button");
             btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
             btn.textContent = `${emoji} ${label}`;
@@ -21733,7 +21733,7 @@ export class EBCDrawer {
             btn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) { poseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { poseStatus.textContent = ""; }, 2500); return; }
-                setTargetPoses(id, poses, label);
+                setTargetPoses(id, poses, actionDesc || undefined);
                 poseStatus.textContent = `✓ ${label} applied.`;
                 window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
             });
