@@ -20954,27 +20954,31 @@ export class EBCDrawer {
 
                 lovConnBtn.addEventListener("click", () => {
                     lovConnBtn.disabled = true; lovDot.textContent = "🔄"; lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                    // Gen1 toys use fff0/fff2; Gen2+ (Domi 2, Lush 3, etc.) use Nordic UART Service
-                    const LVS_SVC_OLD   = "0000fff0-0000-1000-8000-00805f9b34fb";
-                    const LVS_WRITE_OLD = "0000fff2-0000-1000-8000-00805f9b34fb";
-                    const LVS_SVC_NUS   = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-                    const LVS_WRITE_NUS = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-                    btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: [LVS_SVC_OLD, LVS_SVC_NUS] })
+                    // List all known Lovense service UUIDs — getPrimaryServices() returns whichever actually exist on the device
+                    const LVS_SERVICES = [
+                        "0000fff0-0000-1000-8000-00805f9b34fb",  // Gen1
+                        "6e400001-b5a3-f393-e0a9-e50e24dcca9e",  // Gen2 Nordic UART
+                        "50300001-0023-4bd4-bbd5-a6920e4c5653",  // Alternate Lovense
+                    ];
+                    btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
                             this._lovBtDevice = device;
                             device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
                             lovStatusTxt.textContent = "Connecting…";
-                            const server = await device.gatt!.connect() as { getPrimaryService: (s: string) => Promise<unknown> };
-                            type Svc = { getCharacteristic: (c: string) => Promise<unknown> };
-                            let char: unknown;
-                            try {
-                                const svc = await server.getPrimaryService(LVS_SVC_OLD) as Svc;
-                                char = await svc.getCharacteristic(LVS_WRITE_OLD);
-                            } catch {
-                                const svc = await server.getPrimaryService(LVS_SVC_NUS) as Svc;
-                                char = await svc.getCharacteristic(LVS_WRITE_NUS);
+                            type WriteChar = { uuid: string; properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
+                            type Svc = { uuid: string; getCharacteristics: () => Promise<WriteChar[]> };
+                            const server = await device.gatt!.connect() as { getPrimaryServices: () => Promise<Svc[]> };
+                            const services = await server.getPrimaryServices();
+                            console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
+                            let char: WriteChar | null = null;
+                            for (const svc of services) {
+                                const chars = await svc.getCharacteristics();
+                                console.log(`[EBC Lovense] ${svc.uuid}:`, chars.map(c => `${c.uuid}(w:${c.properties["write"]},wr:${c.properties["writeWithoutResponse"]})`));
+                                char = chars.find(c => c.properties["write"] || c.properties["writeWithoutResponse"]) ?? null;
+                                if (char) break;
                             }
+                            if (!char) throw new Error("No writable characteristic found");
                             this._lovBtChar = char;
                             lovUpdateStatus();
                             lovConnBtn.disabled = false;
@@ -21227,7 +21231,8 @@ export class EBCDrawer {
     private async fireLovense(intensity?: number, duration?: number): Promise<string> {
         const s = getSettings();
         if (s.lovenseEnabled !== true) return "";
-        const writeChar = this._lovBtChar as { writeValue: (d: BufferSource) => Promise<void> } | null;
+        type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
+        const writeChar = this._lovBtChar as WriteChar | null;
         const dev = this._lovBtDevice as { gatt?: { connected?: boolean } } | null;
         if (!writeChar || dev?.gatt?.connected !== true) return "⚠ Lovense: not connected via Bluetooth";
         const defI = typeof s.lovenseIntensity === "number" ? (s.lovenseIntensity as number) : 10;
@@ -21235,9 +21240,15 @@ export class EBCDrawer {
         const finalI = Math.max(1, Math.min(intensity ?? defI, 20));
         const finalD = Math.max(1, Math.min(duration  ?? defD, 30));
         const enc = new TextEncoder();
+        const doWrite = (cmd: string): Promise<void> => {
+            const d = enc.encode(cmd);
+            return (writeChar.writeValueWithoutResponse && writeChar.properties["writeWithoutResponse"])
+                ? writeChar.writeValueWithoutResponse(d)
+                : writeChar.writeValue(d);
+        };
         try {
-            await writeChar.writeValue(enc.encode(`Vibrate:${finalI};`));
-            setTimeout(() => { writeChar.writeValue(enc.encode("Vibrate:0;")).catch(() => {}); }, finalD * 1000);
+            await doWrite(`Vibrate:${finalI};`);
+            setTimeout(() => { doWrite("Vibrate:0;").catch(() => {}); }, finalD * 1000);
             return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
         } catch (err) {
             console.warn("[EBC Lovense] BLE write failed:", err);

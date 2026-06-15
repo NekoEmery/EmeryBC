@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.34";
+const MOD_VERSION = "6.9.35";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.35",
+        changes: [
+            "Lovense BLE: Replace static service UUID guessing with dynamic service discovery — connects to any Lovense toy by enumerating all primary services and finding the first writable characteristic. Supports writeValueWithoutResponse for characteristics that require it. Logs discovered services/characteristics to console for debugging.",
+        ],
+    },
     {
         version: "6.9.34",
         changes: [
