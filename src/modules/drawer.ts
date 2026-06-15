@@ -22133,12 +22133,12 @@ export class EBCDrawer {
             clearPosition(id);
             const sendFn = (window as unknown as Record<string, unknown>).ServerSend as ((type: string, data: unknown) => void) | undefined;
             if (sendFn) {
-                const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
-                const char = room?.find(c => c.MemberNumber === id);
-                const name = (char?.Name as string | undefined) ?? `#${id}`;
+                const name = resolveName(id);
                 // Release BC's leash grip (clears ChatRoomLeashPlayer on target's client)
                 sendFn("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: id });
-                sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
+                // Type "Emote" renders free-form text directly (BC prepends the sender's name).
+                // Type "Action" requires a localization key and would show "MISSING TEXT IN Interface.csv".
+                sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Emote" });
             }
             posStatus.textContent = "✓ Released.";
             window.setTimeout(() => { posStatus.textContent = ""; }, 2000);

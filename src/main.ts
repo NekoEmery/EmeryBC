@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.14";
+const MOD_VERSION = "6.9.15";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.15",
+        changes: [
+            "Fix: 'Release from Arms' button now works correctly. Was sending Type:'Action' with free-form text, but BC treats Action Content as a localization key and showed 'MISSING TEXT IN Interface.csv: gently sets Lucas down.' — switched to Type:'Emote' which renders free-form text directly (BC prepends the sender's name). Also fixed target name showing account name instead of nickname.",
+        ],
+    },
     {
         version: "6.9.14",
         changes: [
