@@ -11232,7 +11232,7 @@
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-        notes: "USERS", toys: "TOYS", lovense: "LOVENSE", thanks: "CREDITS", dev: "DEV",
+        notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
         bg: "#1b0d17", // main panel + most element backgrounds
@@ -11836,12 +11836,6 @@
             toysTabBtn.textContent = "TOYS";
             toysTabBtn.title = "Toys & Integrations (PiShock)";
             toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
-            const lovenseTabBtn = document.createElement("button");
-            lovenseTabBtn.className = "ebc-tab-btn";
-            lovenseTabBtn.id = "ebc-tab-lovense";
-            lovenseTabBtn.textContent = "LOVENSE";
-            lovenseTabBtn.title = "Lovense toy integrations";
-            lovenseTabBtn.style.display = "none"; // Emery-only — revealed in open()
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -11889,7 +11883,6 @@
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(toysTabBtn);
-            tabBar.appendChild(lovenseTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
             tabBar.appendChild(domTabBtn);
@@ -12534,7 +12527,6 @@
             posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             toysTabBtn.addEventListener("click", () => this.switchTab("toys"));
-            lovenseTabBtn.addEventListener("click", () => this.switchTab("lovense"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
@@ -13272,8 +13264,6 @@
                 this.renderNotes();
             else if (this.currentTab === "toys")
                 this.renderToys();
-            else if (this.currentTab === "lovense")
-                this.renderLovense();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
             else if (this.currentTab === "dev")
@@ -28278,270 +28268,314 @@
             const FONT = "font-family:'Trebuchet MS',serif;";
             const card = mk("div");
             card.className = "ebc-card";
-            // ── Header row: title + enable toggle ─────────────────────────────────
-            const psEnabled = s.pishockEnabled === true;
-            const hdrRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
-            const hdrLbl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;`);
-            hdrLbl.textContent = "⚡ PISHOCK";
-            const eBtn = mkBtn(psEnabled ? "ON" : "OFF", `${FONT}font-size:11px;padding:3px 14px;border-radius:4px;cursor:pointer;border:1px solid ${psEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${psEnabled ? "var(--ebc-card)" : "transparent"};color:${psEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
-            eBtn.addEventListener("click", () => { s.pishockEnabled = !psEnabled; syncSettings(); this.renderToys(); });
-            hdrRow.appendChild(hdrLbl);
-            hdrRow.appendChild(eBtn);
-            card.appendChild(hdrRow);
-            // Warning banner
-            const warn = mk("div", `${FONT}font-size:10px;color:#e0a830;background:#1c1200;border:1px solid #6a4010;border-radius:4px;padding:7px 9px;margin-bottom:8px;line-height:1.5;`);
-            warn.innerHTML = "<b>⚠ USE AT YOUR OWN RISK</b><br>PiShock can deliver real electrical shocks to a physical device. By enabling this feature you take <b>full personal responsibility</b>. Start with Beep, then Vibrate, and only enable Shock when ready.";
-            card.appendChild(warn);
-            if (!psEnabled) {
-                body.appendChild(card);
-                return;
-            }
-            // ── Global credentials ────────────────────────────────────────────────
-            card.appendChild(sep());
-            card.appendChild(sectionHdr("CREDENTIALS - stored locally on your machine"));
-            const credNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
-            credNote.textContent = "Stored locally in your browser's localStorage only. EmeryBC never saves your credentials - not to BC servers, not to any external service.";
-            card.appendChild(credNote);
-            // Username field
-            {
-                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
-                lbl.textContent = "Username";
-                const inp = document.createElement("input");
-                inp.type = "text";
-                inp.value = (_b = localStorage.getItem("EBC_ps_user")) !== null && _b !== void 0 ? _b : "";
-                inp.placeholder = "Your PiShock account username";
-                inp.autocomplete = "off";
-                inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
-                inp.addEventListener("input", () => { try {
-                    localStorage.setItem("EBC_ps_user", inp.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } });
-                row.appendChild(lbl);
-                row.appendChild(inp);
-                card.appendChild(row);
-            }
-            // API Key field with show/hide toggle
-            {
-                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
-                lbl.textContent = "API Key";
-                const inp = document.createElement("input");
-                inp.type = "password";
-                inp.value = (_c = localStorage.getItem("EBC_ps_key")) !== null && _c !== void 0 ? _c : "";
-                inp.placeholder = "API key from PiShock account settings";
-                inp.autocomplete = "off";
-                inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
-                inp.addEventListener("input", () => { try {
-                    localStorage.setItem("EBC_ps_key", inp.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } });
-                const eyeBtn = mkBtn("👁", `${FONT}font-size:12px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;line-height:1;`);
-                eyeBtn.title = "Show / hide API key";
-                eyeBtn.addEventListener("click", () => {
-                    inp.type = inp.type === "password" ? "text" : "password";
-                    eyeBtn.style.color = inp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+            // Build a collapsible section with ON/OFF toggle in the header
+            const mkSection = (icon, title, enabledKey, collapseKey) => {
+                const enabled = s[enabledKey] === true;
+                const collapsed = localStorage.getItem(collapseKey) === "1";
+                const wrap = mk("div");
+                const hRow = mk("div", "display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;");
+                const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
+                chevron.textContent = collapsed ? "▶" : "▼";
+                const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
+                titleEl.textContent = `${icon} ${title}`;
+                const eBtn = mkBtn(enabled ? "ON" : "OFF", `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
+                eBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    s[enabledKey] = !enabled;
+                    syncSettings();
+                    this.renderToys();
                 });
-                row.appendChild(lbl);
-                row.appendChild(inp);
-                row.appendChild(eyeBtn);
-                card.appendChild(row);
-            }
-            // ── Global limits ─────────────────────────────────────────────────────
-            card.appendChild(sep());
-            card.appendChild(sectionHdr("LIMITS"));
-            const mkSlider = (label, key, min, max, def, unit) => {
-                const cur = typeof s[key] === "number" ? s[key] : def;
-                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
-                const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:84px;flex-shrink:0;`);
-                lbl.textContent = label;
-                const sl = document.createElement("input");
-                sl.type = "range";
-                sl.min = String(min);
-                sl.max = String(max);
-                sl.value = String(Math.min(Math.max(cur, min), max));
-                sl.style.cssText = "flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;";
-                const val = mk("span", `${FONT}font-size:10px;color:var(--ebc-accent);min-width:38px;text-align:right;flex-shrink:0;`);
-                val.textContent = sl.value + unit;
-                sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
-                row.appendChild(lbl);
-                row.appendChild(sl);
-                row.appendChild(val);
-                card.appendChild(row);
-            };
-            mkSlider("Max Intensity", "pishockMaxIntensity", 1, 100, 30, "%");
-            mkSlider("Max Duration", "pishockMaxDuration", 1, 15, 2, "s");
-            mkSlider("Cooldown", "pishockCooldownSec", 3, 120, 10, "s");
-            // ── Shockers ──────────────────────────────────────────────────────────
-            card.appendChild(sep());
-            {
-                const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
-                hRow.appendChild(sectionHdr("SHOCKERS"));
-                const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
-                hRow.appendChild(addBtn);
-                card.appendChild(hRow);
-                const shockers = EBCDrawer.getPiShockShockers();
-                const listEl = mk("div");
-                const renderShockers = () => {
-                    while (listEl.firstChild)
-                        listEl.removeChild(listEl.firstChild);
-                    shockers.forEach((sh, idx) => {
-                        const shCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
-                        // Name + code + remove
-                        const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
-                        const nameInp = document.createElement("input");
-                        nameInp.type = "text";
-                        nameInp.value = sh.name;
-                        nameInp.placeholder = "Name";
-                        nameInp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
-                        nameInp.addEventListener("input", () => { shockers[idx].name = nameInp.value; EBCDrawer.savePiShockShockers(shockers); });
-                        const codeInp = document.createElement("input");
-                        codeInp.type = "text";
-                        codeInp.value = sh.code;
-                        codeInp.placeholder = "Share code (e.g. 6AB05223773)";
-                        codeInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
-                        codeInp.addEventListener("input", () => {
-                            const extracted = EBCDrawer.extractPiShockCode(codeInp.value);
-                            if (extracted !== codeInp.value)
-                                codeInp.value = extracted;
-                            shockers[idx].code = extracted;
-                            EBCDrawer.savePiShockShockers(shockers);
-                        });
-                        const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
-                        removeBtn.title = "Remove shocker";
-                        removeBtn.addEventListener("click", () => { shockers.splice(idx, 1); EBCDrawer.savePiShockShockers(shockers); renderShockers(); });
-                        r1.appendChild(nameInp);
-                        r1.appendChild(codeInp);
-                        r1.appendChild(removeBtn);
-                        shCard.appendChild(r1);
-                        // Allow toggles + test button
-                        const r2 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;");
-                        for (const [key, label, isShk] of [
-                            ["allowBeep", "🔔 Beep", false],
-                            ["allowVibrate", "〜 Vib", false],
-                            ["allowShock", "⚡ Shock", true],
-                        ]) {
-                            const on = sh[key] === true;
-                            const aC = isShk ? "#e04050" : "var(--ebc-accent)";
-                            const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)";
-                            const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
-                            const tBtn = mkBtn(label, `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid ${on ? aDim : "var(--ebc-border)"};background:${on ? aBg : "transparent"};color:${on ? aC : "var(--ebc-text-muted)"};`);
-                            tBtn.addEventListener("click", () => {
-                                if (isShk && !on) {
-                                    if (!window.confirm("Enable Shock?\n\nThis allows real electrical shocks to be sent to this device.\nOnly proceed if you own it and fully consent."))
-                                        return;
-                                }
-                                shockers[idx][key] = !on;
-                                EBCDrawer.savePiShockShockers(shockers);
-                                renderShockers();
-                            });
-                            r2.appendChild(tBtn);
-                        }
-                        const statusSpan = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex:1;text-align:right;`);
-                        const pingBtn = mkBtn("📡 Test", `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);flex-shrink:0;`);
-                        pingBtn.title = "Send a test beep (bypasses toggles)";
-                        pingBtn.addEventListener("click", async () => {
-                            pingBtn.disabled = true;
-                            statusSpan.textContent = "…";
-                            statusSpan.style.color = "var(--ebc-text-muted)";
-                            const res = await this.firePiShock(idx, 2, 1, 1, true);
-                            statusSpan.textContent = res;
-                            statusSpan.style.color = res.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
-                            window.setTimeout(() => { statusSpan.textContent = ""; if (pingBtn.isConnected)
-                                pingBtn.disabled = false; }, 4000);
-                        });
-                        r2.appendChild(statusSpan);
-                        r2.appendChild(pingBtn);
-                        shCard.appendChild(r2);
-                        listEl.appendChild(shCard);
-                    });
-                    if (!shockers.length) {
-                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
-                        empty.textContent = "No shockers added. Click + Add.";
-                        listEl.appendChild(empty);
+                hRow.appendChild(chevron);
+                hRow.appendChild(titleEl);
+                hRow.appendChild(eBtn);
+                const content = mk("div", `display:${collapsed ? "none" : "block"};`);
+                hRow.addEventListener("click", () => {
+                    const nowOpen = content.style.display === "none";
+                    content.style.display = nowOpen ? "block" : "none";
+                    chevron.textContent = nowOpen ? "▼" : "▶";
+                    try {
+                        localStorage.setItem(collapseKey, nowOpen ? "0" : "1");
                     }
-                };
-                addBtn.addEventListener("click", () => {
-                    shockers.push({ name: `Shocker ${shockers.length + 1}`, code: "", allowBeep: true, allowVibrate: true, allowShock: false });
-                    EBCDrawer.savePiShockShockers(shockers);
-                    renderShockers();
+                    catch ( /* ignore */_a) { /* ignore */ }
                 });
-                renderShockers();
-                card.appendChild(listEl);
+                wrap.appendChild(hRow);
+                wrap.appendChild(content);
+                return { wrap, content };
+            };
+            // ── PiShock ───────────────────────────────────────────────────────────
+            const psEnabled = s.pishockEnabled === true;
+            const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK", "pishockEnabled", "EBC_ui_ps_open");
+            card.appendChild(psWrap);
+            if (!psEnabled) {
+                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                offNote.textContent = "Enable PiShock above to configure settings.";
+                psContent.appendChild(offNote);
             }
-            // ── Chat triggers ─────────────────────────────────────────────────────
-            card.appendChild(sep());
-            {
-                const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;");
-                hRow.appendChild(sectionHdr("CHAT TRIGGERS"));
-                const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
-                hRow.appendChild(addBtn);
-                card.appendChild(hRow);
-                const trigNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
-                trigNote.textContent = "When anyone in the room says a phrase, fire the chosen action on the selected shocker. Respects limits and cooldown.";
-                card.appendChild(trigNote);
-                const shockers = EBCDrawer.getPiShockShockers();
-                const triggers = EBCDrawer.getPiShockTriggers();
-                const listEl = mk("div");
-                const renderTriggers = () => {
-                    while (listEl.firstChild)
-                        listEl.removeChild(listEl.firstChild);
-                    triggers.forEach((tr, idx) => {
-                        const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
-                        const r1 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;");
-                        const phraseInp = document.createElement("input");
-                        phraseInp.type = "text";
-                        phraseInp.value = tr.phrase;
-                        phraseInp.placeholder = "Trigger phrase";
-                        phraseInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:80px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
-                        phraseInp.addEventListener("input", () => { triggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.savePiShockTriggers(triggers); });
-                        const shSel = document.createElement("select");
-                        shSel.style.cssText = `${FONT}font-size:10px;flex:1;min-width:60px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 4px;box-sizing:border-box;`;
-                        shockers.forEach((sh, si) => {
-                            var _a;
-                            const opt = document.createElement("option");
-                            opt.value = String(si);
-                            opt.textContent = sh.name || `Shocker ${si + 1}`;
-                            opt.selected = si === ((_a = tr.shockerIdx) !== null && _a !== void 0 ? _a : 0);
-                            shSel.appendChild(opt);
+            else {
+                // Warning banner
+                const warn = mk("div", `${FONT}font-size:10px;color:#e0a830;background:#1c1200;border:1px solid #6a4010;border-radius:4px;padding:7px 9px;margin:4px 0 8px;line-height:1.5;`);
+                warn.innerHTML = "<b>⚠ USE AT YOUR OWN RISK</b><br>PiShock can deliver real electrical shocks to a physical device. By enabling this feature you take <b>full personal responsibility</b>. Start with Beep, then Vibrate, and only enable Shock when ready.";
+                psContent.appendChild(warn);
+                // Credentials
+                psContent.appendChild(sep());
+                psContent.appendChild(sectionHdr("CREDENTIALS - stored locally on your machine"));
+                const credNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
+                credNote.textContent = "Stored locally in your browser's localStorage only. EmeryBC never saves your credentials - not to BC servers, not to any external service.";
+                psContent.appendChild(credNote);
+                // Username
+                {
+                    const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
+                    lbl.textContent = "Username";
+                    const inp = document.createElement("input");
+                    inp.type = "text";
+                    inp.value = (_b = localStorage.getItem("EBC_ps_user")) !== null && _b !== void 0 ? _b : "";
+                    inp.placeholder = "Your PiShock account username";
+                    inp.autocomplete = "off";
+                    inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                    inp.addEventListener("input", () => { try {
+                        localStorage.setItem("EBC_ps_user", inp.value);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } });
+                    row.appendChild(lbl);
+                    row.appendChild(inp);
+                    psContent.appendChild(row);
+                }
+                // API Key with show/hide
+                {
+                    const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
+                    lbl.textContent = "API Key";
+                    const inp = document.createElement("input");
+                    inp.type = "password";
+                    inp.value = (_c = localStorage.getItem("EBC_ps_key")) !== null && _c !== void 0 ? _c : "";
+                    inp.placeholder = "API key from PiShock account settings";
+                    inp.autocomplete = "off";
+                    inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                    inp.addEventListener("input", () => { try {
+                        localStorage.setItem("EBC_ps_key", inp.value);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } });
+                    const eyeBtn = mkBtn("👁", `${FONT}font-size:12px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;line-height:1;`);
+                    eyeBtn.title = "Show / hide API key";
+                    eyeBtn.addEventListener("click", () => {
+                        inp.type = inp.type === "password" ? "text" : "password";
+                        eyeBtn.style.color = inp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+                    });
+                    row.appendChild(lbl);
+                    row.appendChild(inp);
+                    row.appendChild(eyeBtn);
+                    psContent.appendChild(row);
+                }
+                // Limits
+                psContent.appendChild(sep());
+                psContent.appendChild(sectionHdr("LIMITS"));
+                const mkSlider = (label, key, min, max, def, unit) => {
+                    const cur = typeof s[key] === "number" ? s[key] : def;
+                    const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:84px;flex-shrink:0;`);
+                    lbl.textContent = label;
+                    const sl = document.createElement("input");
+                    sl.type = "range";
+                    sl.min = String(min);
+                    sl.max = String(max);
+                    sl.value = String(Math.min(Math.max(cur, min), max));
+                    sl.style.cssText = "flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;";
+                    const val = mk("span", `${FONT}font-size:10px;color:var(--ebc-accent);min-width:38px;text-align:right;flex-shrink:0;`);
+                    val.textContent = sl.value + unit;
+                    sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
+                    row.appendChild(lbl);
+                    row.appendChild(sl);
+                    row.appendChild(val);
+                    psContent.appendChild(row);
+                };
+                mkSlider("Max Intensity", "pishockMaxIntensity", 1, 100, 30, "%");
+                mkSlider("Max Duration", "pishockMaxDuration", 1, 15, 2, "s");
+                mkSlider("Cooldown", "pishockCooldownSec", 3, 120, 10, "s");
+                // Shockers
+                psContent.appendChild(sep());
+                {
+                    const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
+                    hRow.appendChild(sectionHdr("SHOCKERS"));
+                    const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                    hRow.appendChild(addBtn);
+                    psContent.appendChild(hRow);
+                    const shockers = EBCDrawer.getPiShockShockers();
+                    const listEl = mk("div");
+                    const renderShockers = () => {
+                        while (listEl.firstChild)
+                            listEl.removeChild(listEl.firstChild);
+                        shockers.forEach((sh, idx) => {
+                            const shCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
+                            const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
+                            const nameInp = document.createElement("input");
+                            nameInp.type = "text";
+                            nameInp.value = sh.name;
+                            nameInp.placeholder = "Name";
+                            nameInp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                            nameInp.addEventListener("input", () => { shockers[idx].name = nameInp.value; EBCDrawer.savePiShockShockers(shockers); });
+                            const codeInp = document.createElement("input");
+                            codeInp.type = "text";
+                            codeInp.value = sh.code;
+                            codeInp.placeholder = "Share code (e.g. 6AB05223773)";
+                            codeInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                            codeInp.addEventListener("input", () => {
+                                const extracted = EBCDrawer.extractPiShockCode(codeInp.value);
+                                if (extracted !== codeInp.value)
+                                    codeInp.value = extracted;
+                                shockers[idx].code = extracted;
+                                EBCDrawer.savePiShockShockers(shockers);
+                            });
+                            const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                            removeBtn.title = "Remove shocker";
+                            removeBtn.addEventListener("click", () => { shockers.splice(idx, 1); EBCDrawer.savePiShockShockers(shockers); renderShockers(); });
+                            r1.appendChild(nameInp);
+                            r1.appendChild(codeInp);
+                            r1.appendChild(removeBtn);
+                            shCard.appendChild(r1);
+                            const r2 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;");
+                            for (const [key, label, isShk] of [
+                                ["allowBeep", "🔔 Beep", false],
+                                ["allowVibrate", "〜 Vib", false],
+                                ["allowShock", "⚡ Shock", true],
+                            ]) {
+                                const on = sh[key] === true;
+                                const aC = isShk ? "#e04050" : "var(--ebc-accent)";
+                                const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)";
+                                const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
+                                const tBtn = mkBtn(label, `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid ${on ? aDim : "var(--ebc-border)"};background:${on ? aBg : "transparent"};color:${on ? aC : "var(--ebc-text-muted)"};`);
+                                tBtn.addEventListener("click", () => {
+                                    if (isShk && !on) {
+                                        if (!window.confirm("Enable Shock?\n\nThis allows real electrical shocks to be sent to this device.\nOnly proceed if you own it and fully consent."))
+                                            return;
+                                    }
+                                    shockers[idx][key] = !on;
+                                    EBCDrawer.savePiShockShockers(shockers);
+                                    renderShockers();
+                                });
+                                r2.appendChild(tBtn);
+                            }
+                            const statusSpan = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex:1;text-align:right;`);
+                            const pingBtn = mkBtn("📡 Test", `${FONT}font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);flex-shrink:0;`);
+                            pingBtn.title = "Send a test beep (bypasses toggles)";
+                            pingBtn.addEventListener("click", async () => {
+                                pingBtn.disabled = true;
+                                statusSpan.textContent = "…";
+                                statusSpan.style.color = "var(--ebc-text-muted)";
+                                const res = await this.firePiShock(idx, 2, 1, 1, true);
+                                statusSpan.textContent = res;
+                                statusSpan.style.color = res.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
+                                window.setTimeout(() => { statusSpan.textContent = ""; if (pingBtn.isConnected)
+                                    pingBtn.disabled = false; }, 4000);
+                            });
+                            r2.appendChild(statusSpan);
+                            r2.appendChild(pingBtn);
+                            shCard.appendChild(r2);
+                            listEl.appendChild(shCard);
                         });
                         if (!shockers.length) {
-                            const o = document.createElement("option");
-                            o.textContent = "(no shockers)";
-                            shSel.appendChild(o);
+                            const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
+                            empty.textContent = "No shockers added. Click + Add.";
+                            listEl.appendChild(empty);
                         }
-                        shSel.addEventListener("change", () => { triggers[idx].shockerIdx = parseInt(shSel.value, 10) || 0; EBCDrawer.savePiShockTriggers(triggers); });
-                        const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
-                        removeBtn.addEventListener("click", () => { triggers.splice(idx, 1); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
-                        r1.appendChild(phraseInp);
-                        r1.appendChild(shSel);
-                        r1.appendChild(removeBtn);
-                        tCard.appendChild(r1);
-                        const opRow = mk("div", "display:flex;align-items:center;gap:4px;flex-wrap:wrap;");
-                        for (const [val, lbl, isShk] of [
-                            ["strongest", "⚡ Auto", false], ["beep", "🔔 Beep", false],
-                            ["vibrate", "〜 Vib", false], ["shock", "⚡ Shock", true],
-                        ]) {
-                            const sel = tr.op === val;
-                            const aC = isShk ? "#e04050" : "var(--ebc-accent)";
-                            const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)";
-                            const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
-                            const opBtn = mkBtn(lbl, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${sel ? aDim : "var(--ebc-border)"};background:${sel ? aBg : "transparent"};color:${sel ? aC : "var(--ebc-text-muted)"};`);
-                            opBtn.addEventListener("click", () => { triggers[idx].op = val; EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
-                            opRow.appendChild(opBtn);
-                        }
-                        tCard.appendChild(opRow);
-                        listEl.appendChild(tCard);
+                    };
+                    addBtn.addEventListener("click", () => {
+                        shockers.push({ name: `Shocker ${shockers.length + 1}`, code: "", allowBeep: true, allowVibrate: true, allowShock: false });
+                        EBCDrawer.savePiShockShockers(shockers);
+                        renderShockers();
                     });
-                    if (!triggers.length) {
-                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
-                        empty.textContent = "No triggers. Click + Add.";
-                        listEl.appendChild(empty);
-                    }
-                };
-                addBtn.addEventListener("click", () => { triggers.push({ phrase: "", shockerIdx: 0, op: "strongest" }); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
-                renderTriggers();
-                card.appendChild(listEl);
+                    renderShockers();
+                    psContent.appendChild(listEl);
+                }
+                // Chat triggers
+                psContent.appendChild(sep());
+                {
+                    const hRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;");
+                    hRow.appendChild(sectionHdr("CHAT TRIGGERS"));
+                    const addBtn = mkBtn("+ Add", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                    hRow.appendChild(addBtn);
+                    psContent.appendChild(hRow);
+                    const trigNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
+                    trigNote.textContent = "When anyone in the room says a phrase, fire the chosen action on the selected shocker. Respects limits and cooldown.";
+                    psContent.appendChild(trigNote);
+                    const shockers = EBCDrawer.getPiShockShockers();
+                    const triggers = EBCDrawer.getPiShockTriggers();
+                    const listEl = mk("div");
+                    const renderTriggers = () => {
+                        while (listEl.firstChild)
+                            listEl.removeChild(listEl.firstChild);
+                        triggers.forEach((tr, idx) => {
+                            const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:7px 8px;margin-bottom:6px;");
+                            const r1 = mk("div", "display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;");
+                            const phraseInp = document.createElement("input");
+                            phraseInp.type = "text";
+                            phraseInp.value = tr.phrase;
+                            phraseInp.placeholder = "Trigger phrase";
+                            phraseInp.style.cssText = `${FONT}font-size:10px;flex:2;min-width:80px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 5px;box-sizing:border-box;`;
+                            phraseInp.addEventListener("input", () => { triggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.savePiShockTriggers(triggers); });
+                            const shSel = document.createElement("select");
+                            shSel.style.cssText = `${FONT}font-size:10px;flex:1;min-width:60px;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:2px 4px;box-sizing:border-box;`;
+                            shockers.forEach((sh, si) => {
+                                var _a;
+                                const opt = document.createElement("option");
+                                opt.value = String(si);
+                                opt.textContent = sh.name || `Shocker ${si + 1}`;
+                                opt.selected = si === ((_a = tr.shockerIdx) !== null && _a !== void 0 ? _a : 0);
+                                shSel.appendChild(opt);
+                            });
+                            if (!shockers.length) {
+                                const o = document.createElement("option");
+                                o.textContent = "(no shockers)";
+                                shSel.appendChild(o);
+                            }
+                            shSel.addEventListener("change", () => { triggers[idx].shockerIdx = parseInt(shSel.value, 10) || 0; EBCDrawer.savePiShockTriggers(triggers); });
+                            const removeBtn = mkBtn("×", `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                            removeBtn.addEventListener("click", () => { triggers.splice(idx, 1); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+                            r1.appendChild(phraseInp);
+                            r1.appendChild(shSel);
+                            r1.appendChild(removeBtn);
+                            tCard.appendChild(r1);
+                            const opRow = mk("div", "display:flex;align-items:center;gap:4px;flex-wrap:wrap;");
+                            for (const [val, lbl, isShk] of [
+                                ["strongest", "⚡ Auto", false], ["beep", "🔔 Beep", false],
+                                ["vibrate", "〜 Vib", false], ["shock", "⚡ Shock", true],
+                            ]) {
+                                const sel = tr.op === val;
+                                const aC = isShk ? "#e04050" : "var(--ebc-accent)";
+                                const aDim = isShk ? "#7a2030" : "var(--ebc-accent-dim)";
+                                const aBg = isShk ? "#1a0008" : "var(--ebc-card)";
+                                const opBtn = mkBtn(lbl, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${sel ? aDim : "var(--ebc-border)"};background:${sel ? aBg : "transparent"};color:${sel ? aC : "var(--ebc-text-muted)"};`);
+                                opBtn.addEventListener("click", () => { triggers[idx].op = val; EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+                                opRow.appendChild(opBtn);
+                            }
+                            tCard.appendChild(opRow);
+                            listEl.appendChild(tCard);
+                        });
+                        if (!triggers.length) {
+                            const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
+                            empty.textContent = "No triggers. Click + Add.";
+                            listEl.appendChild(empty);
+                        }
+                    };
+                    addBtn.addEventListener("click", () => { triggers.push({ phrase: "", shockerIdx: 0, op: "strongest" }); EBCDrawer.savePiShockTriggers(triggers); renderTriggers(); });
+                    renderTriggers();
+                    psContent.appendChild(listEl);
+                }
+            }
+            // ── Lovense ───────────────────────────────────────────────────────────
+            card.appendChild(sep());
+            const lovEnabled = s.lovenseEnabled === true;
+            const { wrap: lovWrap, content: lovContent } = mkSection("💜", "LOVENSE", "lovenseEnabled", "EBC_ui_lovense_open");
+            card.appendChild(lovWrap);
+            if (!lovEnabled) {
+                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                offNote.textContent = "Enable Lovense above to configure settings.";
+                lovContent.appendChild(offNote);
+            }
+            else {
+                const placeholder = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.7;padding:8px 0;`);
+                placeholder.innerHTML = "Connect your Lovense toys and map them to in-game actions.<br><b style=\"color:var(--ebc-text);\">Full integration coming soon.</b>";
+                lovContent.appendChild(placeholder);
             }
             body.appendChild(card);
         }
@@ -28641,42 +28675,6 @@
             catch ( /* ignore */_b) { /* ignore */ }
         }
         // ─────────────────────────────────────────────────────────────────────────────
-        renderLovense() {
-            var _a;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
-            if (!body)
-                return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
-            const FONT = "font-family:'Trebuchet MS',serif;";
-            const mk = (tag, css) => {
-                const el = document.createElement(tag);
-                el.style.cssText = css;
-                return el;
-            };
-            const card = mk("div", "padding:10px 8px 8px;");
-            // Header
-            const hdr = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
-            const title = mk("span", `${FONT}font-size:13px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
-            title.textContent = "💜 LOVENSE";
-            hdr.appendChild(title);
-            card.appendChild(hdr);
-            const sep = () => {
-                const d = document.createElement("hr");
-                d.style.cssText = "border:none;border-top:1px solid var(--ebc-border);margin:8px 0;";
-                return d;
-            };
-            card.appendChild(sep());
-            const placeholder = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);line-height:1.6;text-align:center;padding:20px 8px;`);
-            placeholder.innerHTML = [
-                "<b style=\"color:var(--ebc-text);\">Coming soon</b>",
-                "Connect your Lovense toys and map them to",
-                "in-game actions — spanks, restraints, poses,",
-                "chat triggers, and more.",
-            ].join("<br>");
-            card.appendChild(placeholder);
-            body.appendChild(card);
-        }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
             var _a;
@@ -30358,7 +30356,7 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d, _e, _f, _g;
+            var _a, _b, _c, _d, _e, _f;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -30403,7 +30401,7 @@
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_h) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -30420,15 +30418,11 @@
             const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
             if (toysTabEl)
                 toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
-            // Show the Lovense tab only for Emery (#130267) while it's in development
-            const lovenseTabEl = (_g = this.rootEl) === null || _g === void 0 ? void 0 : _g.querySelector("#ebc-tab-lovense");
-            if (lovenseTabEl)
-                lovenseTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_j) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -30638,7 +30632,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.21";
+    const MOD_VERSION = "6.9.22";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30649,6 +30643,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.22",
+            changes: [
+                "TOYS tab: PiShock and Lovense are now collapsible sections within the same tab (▼/▶ header). Lovense removed as a standalone tab.",
+                "TOYS tab: Lovense section added with ON/OFF toggle — shows 'coming soon' placeholder when enabled, off-note when disabled. Collapse state persists in localStorage.",
+                "TOYS tab: PiShock section also collapsible — shows 'enable above' note when disabled, full settings when enabled and expanded.",
+            ],
+        },
         {
             version: "6.9.21",
             changes: [
