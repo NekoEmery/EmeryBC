@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.8
+// @version      6.9.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6722,7 +6722,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }
     // ── Activity control ──────────────────────────────────────────────────────────
-    /** Activity label -> room action description. */
+    /** Activity label -> room action description (used as fallback when ActivityRun is unavailable). */
     const ACTIVITY_DESCS = {
         "Spank": n => `gives ${n} a firm spank.`,
         "Pat": n => `pats ${n} on the head.`,
@@ -6733,28 +6733,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "Bap": n => `baps ${n} on the head.`,
         "Lick": n => `licks ${n}.`,
     };
+    /** EBC activity label → BC asset activity name (where they differ). */
+    const BC_ACTIVITY_NAME = {
+        "Pat": "Pet", // BC uses "Pet" for patting/headpats
+    };
     /**
-     * Perform a quick action on an in-room character.
-     * Uses Type:"Action" so the description always appears correctly in the room chat.
-     * Type:"Activity" keys like "PlayerSpank" are not in BC R129's ActivityDictionary.csv
-     * and produce "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" errors for all room members.
+     * Perform a quick action on an in-room character using BC's ActivityRun pipeline.
+     * Produces correct sounds, arousal updates, and BCX/LSCG reactions — identical to
+     * clicking the activity in BC's character dialog. Falls back to a room action emote
+     * if ActivityRun is unavailable.
      */
-    function performActivityOnTarget(targetId, activityName, _zone) {
+    function performActivityOnTarget(targetId, activityName, zone) {
+        var _a, _b;
         try {
             const target = findRoomChar(targetId);
             if (!target)
                 return false;
+            const win = window;
+            const ActivityRun = win.ActivityRun;
+            const AssetGetActivity = win.AssetGetActivity;
+            if (ActivityRun && AssetGetActivity && zone) {
+                const family = (_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                const bcName = (_b = BC_ACTIVITY_NAME[activityName]) !== null && _b !== void 0 ? _b : activityName;
+                const act = AssetGetActivity(family, bcName);
+                if (act) {
+                    ActivityRun(Player, target, { Name: zone }, { Activity: act, Item: null });
+                    return true;
+                }
+            }
+            // Fallback: room action text (no sounds)
             const name = charDisplayName(target);
             const descFn = ACTIVITY_DESCS[activityName];
-            const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-            sendRoomAction(desc);
+            sendRoomAction(descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`);
             return true;
         }
-        catch (_a) {
+        catch (_c) {
             return false;
         }
     }
     const _posSlots = new Map();
+    function clearPosition(memberNumber) {
+        _posSlots.delete(memberNumber);
+    }
     function clearAllPositions() {
         _posSlots.clear();
     }
@@ -29317,7 +29337,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    const ok = performActivityOnTarget(id, actName);
+                    const ok = performActivityOnTarget(id, actName, zone);
                     actStatus.textContent = ok ? `✓ ${label} → done.` : `⚠ ${label} failed (not in room?).`;
                     window.setTimeout(() => { actStatus.textContent = ""; }, 2500);
                 });
@@ -29767,6 +29787,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             posPanel.appendChild(posGrid);
             posPanel.appendChild(posStatus);
+            const releaseBtn = document.createElement("button");
+            releaseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 6px;margin-top:4px;width:100%;border-radius:6px;border:1px solid #7a4050;background:#3a1020;color:#e08090;cursor:pointer;transition:background 0.12s,border-color 0.12s;";
+            releaseBtn.textContent = "🔓 Release from Arms";
+            releaseBtn.addEventListener("mouseenter", () => { releaseBtn.style.background = "#6a1830"; releaseBtn.style.borderColor = "#e08090"; });
+            releaseBtn.addEventListener("mouseleave", () => { releaseBtn.style.background = "#3a1020"; releaseBtn.style.borderColor = "#7a4050"; });
+            releaseBtn.addEventListener("click", () => {
+                var _a;
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    posStatus.textContent = "Pick a Focus Target first.";
+                    window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                    return;
+                }
+                clearPosition(id);
+                const sendFn = window.ServerSend;
+                if (sendFn) {
+                    const room = window.ChatRoomCharacter;
+                    const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === id);
+                    const name = (_a = char === null || char === void 0 ? void 0 : char.Name) !== null && _a !== void 0 ? _a : `#${id}`;
+                    sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
+                }
+                posStatus.textContent = "✓ Released.";
+                window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+            });
+            posPanel.appendChild(releaseBtn);
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -30048,7 +30093,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.8";
+    const MOD_VERSION = "6.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30059,6 +30104,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.9",
+            changes: [
+                "Fix: DOM action buttons (Spank, Pat, Kiss, etc.) now use BC's ActivityRun pipeline — correct sounds, arousal updates, and BCX/LSCG reactions fire as if the button was clicked in BC's own dialog. Pat maps to BC's 'Pet' activity. Falls back to room action emote if ActivityRun is unavailable.",
+                "Fix: ECHO position buttons (Pull to Side, Get in Arms, Hold in Arms) no longer show 'MISSING ACTIVITY DESCRIPTION FOR KEYWORD' in chat. A ChatRoomMessage hook intercepts at priority 0, lets ECHO process the position effect via next(), then immediately replaces any BC-rendered MISSING element with a proper action description.",
+                "New: 'Release from Arms' button in DOM POSITION panel — sends a room action and clears local position tracking.",
+            ],
+        },
         {
             version: "6.9.8",
             changes: [
@@ -37211,6 +37264,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        // Hook ChatRoomMessage: intercept ECHO addon activity messages and replace BC's
+        // "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" rendering with proper descriptions.
+        // ECHO (echo-activity-ext) uses Chinese keywords as Type:"Activity" content that BC's
+        // activity dictionary doesn't know about. We fire at priority 0 (before ECHO's own hook),
+        // call next(args) so ECHO still processes the position/arms effect, then immediately
+        // replace any "MISSING ACTIVITY DESCRIPTION" element BC added with our own action text.
+        const ECHO_ACTIVITY_DESCS = {
+            "拉到身边": (s, t) => `${s} pulls ${t} to their side.`,
+            "钻进怀里": (s, t) => `${t} cuddles into ${s}'s arms.`,
+            "抱入怀中": (s, t) => `${s} holds ${t} tightly in their arms.`,
+        };
+        tryHookFunction(modAPI, "ChatRoomMessage", 0, (args, next) => {
+            var _a, _b, _c, _d, _e, _f, _g, _h;
+            try {
+                const [data] = args;
+                if (data.Type === "Activity" && typeof data.Content === "string" &&
+                    data.Content in ECHO_ACTIVITY_DESCS) {
+                    const log = document.getElementById("TextAreaChatLog");
+                    const prevCount = (_a = log === null || log === void 0 ? void 0 : log.childElementCount) !== null && _a !== void 0 ? _a : 0;
+                    const result = next(args); // let ECHO process movement, let BC try to render
+                    if (log && log.childElementCount > prevCount) {
+                        // Scan newly added elements for BC's "MISSING" text and replace
+                        const dict = Array.isArray(data.Dictionary)
+                            ? data.Dictionary
+                            : [];
+                        const srcNum = (_b = dict.find(e => "SourceCharacter" in e)) === null || _b === void 0 ? void 0 : _b.SourceCharacter;
+                        const tgtNum = (_c = dict.find(e => "TargetCharacter" in e)) === null || _c === void 0 ? void 0 : _c.TargetCharacter;
+                        const room = window.ChatRoomCharacter;
+                        const srcName = (_e = (_d = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === srcNum)) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : `#${srcNum !== null && srcNum !== void 0 ? srcNum : "?"}`;
+                        const tgtName = (_g = (_f = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === tgtNum)) === null || _f === void 0 ? void 0 : _f.Name) !== null && _g !== void 0 ? _g : `#${tgtNum !== null && tgtNum !== void 0 ? tgtNum : "?"}`;
+                        const desc = `(${ECHO_ACTIVITY_DESCS[data.Content](srcName, tgtName)})`;
+                        for (let i = prevCount; i < log.childElementCount; i++) {
+                            const el = log.children[i];
+                            if ((_h = el.textContent) === null || _h === void 0 ? void 0 : _h.includes("MISSING ACTIVITY DESCRIPTION")) {
+                                el.textContent = desc;
+                            }
+                        }
+                    }
+                    return result;
+                }
+            }
+            catch ( /* ignore */_j) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
