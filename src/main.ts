@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.15";
+const MOD_VERSION = "6.9.16";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.16",
+        changes: [
+            "New: TOYS tab with PiShock integration. Configure your PiShock username, API key, and share code (stored only in local browser storage, never synced to BC servers). Set per-operation limits (max intensity 1-100%, max duration 1-15s, cooldown 3-120s). Toggle Beep, Vibrate, and Shock independently (Shock requires an explicit confirmation dialog). Test buttons in the tab fire operations immediately. Optional chat-command trigger: set a phrase and anyone in the room saying it fires your enabled operations. Tab is toggleable in drawer settings like all other tabs.",
+        ],
+    },
     {
         version: "6.9.15",
         changes: [
@@ -7159,6 +7165,18 @@ function init(): void {
                     }
                 }
                 return result;
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // PiShock chat-command trigger — watch for the user-configured phrase in room chat
+    tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            if (data.Type === "Chat" && typeof data.Content === "string" &&
+                typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
+                drawer?.checkPiShockChatCommand(data.Content as string);
             }
         } catch { /* ignore */ }
         return next(args);

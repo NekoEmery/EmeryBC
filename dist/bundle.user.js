@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.15
+// @version      6.9.16
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11246,10 +11246,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
+    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-        notes: "USERS", thanks: "CREDITS", dev: "DEV",
+        notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
         bg: "#1b0d17", // main panel + most element backgrounds
@@ -11541,6 +11541,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.tagTooltipEl = null;
             this.tagTooltipMoveListener = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
+            this.pishockLastOpTime = 0; // ms timestamp of last PiShock operation
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -11846,6 +11847,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             notesBadgeEl.id = "ebc-notes-tab-badge";
             notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
             notesTabBtn.appendChild(notesBadgeEl);
+            const toysTabBtn = document.createElement("button");
+            toysTabBtn.className = "ebc-tab-btn";
+            toysTabBtn.id = "ebc-tab-toys";
+            toysTabBtn.textContent = "TOYS";
+            toysTabBtn.title = "Toys & Integrations (PiShock)";
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -11882,6 +11888,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.tabButtons = btnsTabBtn;
             this._i18nRefs.tabAnims = posesTabBtn;
             this._i18nRefs.tabNotes = notesTabBtn;
+            this._i18nRefs.tabToys = toysTabBtn;
             this._i18nRefs.tabThanks = thanksTabBtn;
             this._i18nRefs.tabDev = devTabBtn2;
             this._i18nRefs.tabDom = domTabBtn;
@@ -11891,6 +11898,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
+            tabBar.appendChild(toysTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
             tabBar.appendChild(domTabBtn);
@@ -12534,6 +12542,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
+            toysTabBtn.addEventListener("click", () => this.switchTab("toys"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
@@ -13243,6 +13252,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ["ebc-tab-poses", "anims"],
                 ["ebc-tab-buttons", "buttons"],
                 ["ebc-tab-notes", "notes"],
+                ["ebc-tab-toys", "toys"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
                 ["ebc-tab-dom", "dom"],
@@ -13268,6 +13278,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderButtons();
             else if (this.currentTab === "notes")
                 this.renderNotes();
+            else if (this.currentTab === "toys")
+                this.renderToys();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
             else if (this.currentTab === "dev")
@@ -28167,6 +28179,282 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(newTrigToggle);
             body.appendChild(newTrigForm);
         }
+        // ── Toys tab ─────────────────────────────────────────────────────────────────
+        renderToys() {
+            var _a, _b;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            const s = getSettings();
+            const mk = (tag, css) => {
+                const el = document.createElement(tag);
+                if (css)
+                    el.style.cssText = css;
+                return el;
+            };
+            const mkBtn = (text, css) => {
+                const b = document.createElement("button");
+                b.textContent = text;
+                b.style.cssText = css;
+                return b;
+            };
+            const sectionHdr = (label) => {
+                const d = mk("div", "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:var(--ebc-text-muted);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:4px;");
+                d.textContent = label;
+                return d;
+            };
+            const sep = () => mk("div", "border-top:1px solid var(--ebc-border);margin:8px 0 6px;");
+            // ── PiShock card ─────────────────────────────────────────────────────
+            const card = mk("div");
+            card.className = "ebc-card";
+            // Header
+            const hdr = mk("div", "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:6px;");
+            hdr.textContent = "⚡ PISHOCK";
+            card.appendChild(hdr);
+            // Warning banner
+            const warn = mk("div", "font-family:'Trebuchet MS',serif;font-size:10px;color:#e0a830;background:#1c1200;border:1px solid #6a4010;border-radius:4px;padding:7px 9px;margin-bottom:8px;line-height:1.5;");
+            warn.innerHTML = "<b>⚠ USE AT YOUR OWN RISK</b><br>PiShock can deliver real electrical shocks to a physical device. By enabling and using this feature you take <b>full personal responsibility</b> for its use. EBC is not liable. Always start with low intensity, test with Beep/Vibrate first, and only enable Shock when you are ready.";
+            card.appendChild(warn);
+            // Enable toggle row
+            const psEnabled = s.pishockEnabled === true;
+            const enableRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
+            const eLbl = mk("span", "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:var(--ebc-text);");
+            eLbl.textContent = "Enable PiShock";
+            const eBtn = mkBtn(psEnabled ? "ON" : "OFF", `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 14px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${psEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${psEnabled ? "var(--ebc-card)" : "transparent"};color:${psEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+            eBtn.addEventListener("click", () => { s.pishockEnabled = !psEnabled; syncSettings(); this.renderToys(); });
+            enableRow.appendChild(eLbl);
+            enableRow.appendChild(eBtn);
+            card.appendChild(enableRow);
+            if (!psEnabled) {
+                body.appendChild(card);
+                return;
+            }
+            // ── Credentials ──────────────────────────────────────────────────────
+            card.appendChild(sep());
+            card.appendChild(sectionHdr("CREDENTIALS — stored locally in browser only"));
+            const credNote = mk("div", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;");
+            credNote.textContent = "Your username, API key, and share code are never synced to BC servers — they live only in your browser's localStorage.";
+            card.appendChild(credNote);
+            for (const [lsKey, label, typ] of [
+                ["EBC_ps_user", "Username", "text"],
+                ["EBC_ps_key", "API Key", "password"],
+                ["EBC_ps_code", "Share Code", "text"],
+            ]) {
+                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                const lbl = mk("span", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);min-width:74px;flex-shrink:0;");
+                lbl.textContent = label;
+                const inp = document.createElement("input");
+                inp.type = typ;
+                inp.value = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
+                inp.placeholder = label;
+                inp.autocomplete = "off";
+                inp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;";
+                inp.addEventListener("change", () => {
+                    try {
+                        localStorage.setItem(lsKey, inp.value.trim());
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                row.appendChild(lbl);
+                row.appendChild(inp);
+                card.appendChild(row);
+            }
+            // ── Limits ───────────────────────────────────────────────────────────
+            card.appendChild(sep());
+            card.appendChild(sectionHdr("LIMITS"));
+            const mkSlider = (label, key, min, max, def, unit) => {
+                const cur = typeof s[key] === "number" ? s[key] : def;
+                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                const lbl = mk("span", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);min-width:84px;flex-shrink:0;");
+                lbl.textContent = label;
+                const sl = document.createElement("input");
+                sl.type = "range";
+                sl.min = String(min);
+                sl.max = String(max);
+                sl.value = String(Math.min(Math.max(cur, min), max));
+                sl.style.cssText = "flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;";
+                const val = mk("span", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-accent);min-width:38px;text-align:right;flex-shrink:0;");
+                val.textContent = sl.value + unit;
+                sl.addEventListener("input", () => {
+                    s[key] = parseInt(sl.value, 10);
+                    val.textContent = sl.value + unit;
+                    syncSettings();
+                });
+                row.appendChild(lbl);
+                row.appendChild(sl);
+                row.appendChild(val);
+                card.appendChild(row);
+            };
+            mkSlider("Max Intensity", "pishockMaxIntensity", 1, 100, 30, "%");
+            mkSlider("Max Duration", "pishockMaxDuration", 1, 15, 2, "s");
+            mkSlider("Cooldown", "pishockCooldownSec", 3, 120, 10, "s");
+            // ── Allowed operations ────────────────────────────────────────────────
+            card.appendChild(sep());
+            card.appendChild(sectionHdr("ALLOW"));
+            const allowRow = mk("div", "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px;");
+            for (const [key, label, def, isShock] of [
+                ["pishockAllowBeep", "🔔 Beep", true, false],
+                ["pishockAllowVibrate", "〜 Vibrate", true, false],
+                ["pishockAllowShock", "⚡ Shock", false, true],
+            ]) {
+                const on = s[key] !== undefined ? s[key] === true : def;
+                const accentColor = isShock ? "#e04050" : "var(--ebc-accent)";
+                const accentDim = isShock ? "#7a2030" : "var(--ebc-accent-dim)";
+                const cardBg = isShock ? "#1a0008" : "var(--ebc-card)";
+                const btn = mkBtn(label, `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 11px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${on ? accentDim : "var(--ebc-border)"};background:${on ? cardBg : "transparent"};color:${on ? accentColor : "var(--ebc-text-muted)"};`);
+                btn.addEventListener("click", () => {
+                    if (isShock && !on) {
+                        const ok = window.confirm("Enable Shock?\n\nThis will allow real electrical shocks to be sent to your device.\n\nOnly proceed if you own the device and fully consent to receiving shocks.");
+                        if (!ok)
+                            return;
+                    }
+                    s[key] = !on;
+                    syncSettings();
+                    this.renderToys();
+                });
+                allowRow.appendChild(btn);
+            }
+            card.appendChild(allowRow);
+            // ── Chat commands ─────────────────────────────────────────────────────
+            card.appendChild(sep());
+            card.appendChild(sectionHdr("CHAT COMMANDS"));
+            const cmdEnabled = s.pishockCmdEnabled === true;
+            const cmdToggleRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;");
+            const cmdToggleLbl = mk("span", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text);");
+            cmdToggleLbl.textContent = "Trigger from room chat";
+            const cmdToggleBtn = mkBtn(cmdEnabled ? "ON" : "OFF", `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${cmdEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${cmdEnabled ? "var(--ebc-card)" : "transparent"};color:${cmdEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+            cmdToggleBtn.addEventListener("click", () => { s.pishockCmdEnabled = !cmdEnabled; syncSettings(); this.renderToys(); });
+            cmdToggleRow.appendChild(cmdToggleLbl);
+            cmdToggleRow.appendChild(cmdToggleBtn);
+            card.appendChild(cmdToggleRow);
+            if (cmdEnabled) {
+                const phraseRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                const phraseLbl = mk("span", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);min-width:50px;flex-shrink:0;");
+                phraseLbl.textContent = "Phrase";
+                const phraseInp = document.createElement("input");
+                phraseInp.type = "text";
+                phraseInp.value = typeof s.pishockCmdPhrase === "string" ? s.pishockCmdPhrase : "";
+                phraseInp.placeholder = 'e.g. "shock emery"';
+                phraseInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;";
+                phraseInp.addEventListener("change", () => {
+                    s.pishockCmdPhrase = phraseInp.value.trim().toLowerCase();
+                    syncSettings();
+                });
+                phraseRow.appendChild(phraseLbl);
+                phraseRow.appendChild(phraseInp);
+                card.appendChild(phraseRow);
+                const cmdNote = mk("div", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);line-height:1.4;margin-bottom:2px;");
+                cmdNote.textContent = "Anyone in the room who says this phrase triggers the allowed operations. Uses max intensity & duration set above. Cooldown applies.";
+                card.appendChild(cmdNote);
+            }
+            // ── Test ─────────────────────────────────────────────────────────────
+            card.appendChild(sep());
+            card.appendChild(sectionHdr("TEST"));
+            const statusEl = mk("div", "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-muted);min-height:15px;margin-top:5px;text-align:center;");
+            const testRow = mk("div", "display:flex;gap:6px;flex-wrap:wrap;");
+            for (const [op, label, allowKey] of [
+                [2, "🔔 Beep", "pishockAllowBeep"],
+                [1, "〜 Vibrate", "pishockAllowVibrate"],
+                [0, "⚡ Shock", "pishockAllowShock"],
+            ]) {
+                const isShock = op === 0;
+                const allowed = s[allowKey] === true;
+                const btn = mkBtn(label, `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${isShock ? "#7a2030" : "var(--ebc-border)"};background:${isShock ? "#1a0008" : "var(--ebc-bg)"};color:${isShock ? "#e04050" : "var(--ebc-text)"};opacity:${allowed ? "1" : "0.4"};`);
+                btn.disabled = !allowed;
+                btn.addEventListener("click", async () => {
+                    btn.disabled = true;
+                    statusEl.textContent = "Sending…";
+                    statusEl.style.color = "var(--ebc-text-muted)";
+                    const result = await this.firePiShock(op);
+                    statusEl.textContent = result;
+                    statusEl.style.color = result.startsWith("✓") ? "var(--ebc-accent)" : "#e04050";
+                    window.setTimeout(() => {
+                        statusEl.textContent = "";
+                        if (!btn.isConnected)
+                            return;
+                        btn.disabled = false;
+                    }, 3000);
+                });
+                testRow.appendChild(btn);
+            }
+            card.appendChild(testRow);
+            card.appendChild(statusEl);
+            body.appendChild(card);
+        }
+        async firePiShock(op, intensity, duration) {
+            var _a, _b, _c;
+            try {
+                const s = getSettings();
+                if (s.pishockEnabled !== true)
+                    return "⚠ PiShock not enabled.";
+                const allowKey = op === 0 ? "pishockAllowShock" : op === 1 ? "pishockAllowVibrate" : "pishockAllowBeep";
+                if (s[allowKey] !== true)
+                    return "⚠ That operation type is disabled.";
+                const maxI = typeof s.pishockMaxIntensity === "number" ? s.pishockMaxIntensity : 30;
+                const maxD = typeof s.pishockMaxDuration === "number" ? s.pishockMaxDuration : 2;
+                const coolSec = typeof s.pishockCooldownSec === "number" ? s.pishockCooldownSec : 10;
+                const now = Date.now();
+                const elapsed = (now - this.pishockLastOpTime) / 1000;
+                if (this.pishockLastOpTime > 0 && elapsed < coolSec) {
+                    return `⏳ Cooldown: ${Math.ceil(coolSec - elapsed)}s remaining`;
+                }
+                const username = ((_a = localStorage.getItem("EBC_ps_user")) !== null && _a !== void 0 ? _a : "").trim();
+                const apiKey = ((_b = localStorage.getItem("EBC_ps_key")) !== null && _b !== void 0 ? _b : "").trim();
+                const code = ((_c = localStorage.getItem("EBC_ps_code")) !== null && _c !== void 0 ? _c : "").trim();
+                if (!username || !apiKey || !code)
+                    return "⚠ Fill in credentials first.";
+                const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : maxI, maxI));
+                const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : maxD, maxD));
+                // Set cooldown before the await so rapid clicks are blocked even if request is slow
+                this.pishockLastOpTime = now;
+                const resp = await fetch("https://do.pishock.com/api/apioperate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        Username: username,
+                        Apikey: apiKey,
+                        Code: code,
+                        Name: "EBC",
+                        Op: op,
+                        Duration: finalD,
+                        Intensity: finalI,
+                    }),
+                });
+                const text = (await resp.text()).trim();
+                const opName = ["Shock", "Vibrate", "Beep"][op];
+                if (resp.ok || text.toLowerCase().includes("success") || text.toLowerCase().includes("operation")) {
+                    return `✓ ${opName} sent (${finalI}% / ${finalD}s)`;
+                }
+                // PiShock returns plain-text error messages — surface them directly
+                return `⚠ ${text || `HTTP ${resp.status}`}`;
+            }
+            catch (err) {
+                return `⚠ ${err instanceof Error ? err.message : String(err)}`;
+            }
+        }
+        /** Called from the ChatRoomMessage hook in main.ts when a player says something in the room. */
+        checkPiShockChatCommand(content) {
+            try {
+                const s = getSettings();
+                if (s.pishockEnabled !== true)
+                    return;
+                if (s.pishockCmdEnabled !== true)
+                    return;
+                const phrase = typeof s.pishockCmdPhrase === "string" ? s.pishockCmdPhrase.trim() : "";
+                if (!phrase || !content.toLowerCase().includes(phrase.toLowerCase()))
+                    return;
+                // Pick the "strongest" allowed operation the user has enabled
+                const op = s.pishockAllowShock === true ? 0
+                    : s.pishockAllowVibrate === true ? 1
+                        : s.pishockAllowBeep === true ? 2
+                            : 2;
+                this.firePiShock(op).catch(() => { });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -30119,7 +30407,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.15";
+    const MOD_VERSION = "6.9.16";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30130,6 +30418,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.16",
+            changes: [
+                "New: TOYS tab with PiShock integration. Configure your PiShock username, API key, and share code (stored only in local browser storage, never synced to BC servers). Set per-operation limits (max intensity 1-100%, max duration 1-15s, cooldown 3-120s). Toggle Beep, Vibrate, and Shock independently (Shock requires an explicit confirmation dialog). Test buttons in the tab fire operations immediately. Optional chat-command trigger: set a phrase and anyone in the room saying it fires your enabled operations. Tab is toggleable in drawer settings like all other tabs.",
+            ],
+        },
         {
             version: "6.9.15",
             changes: [
@@ -37374,6 +37668,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_e) { /* ignore */ }
+            return next(args);
+        });
+        // PiShock chat-command trigger — watch for the user-configured phrase in room chat
+        tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
+            try {
+                const [data] = args;
+                if (data.Type === "Chat" && typeof data.Content === "string" &&
+                    typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockChatCommand(data.Content);
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
