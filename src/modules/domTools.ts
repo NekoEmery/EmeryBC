@@ -789,29 +789,29 @@ export function getPositionSlots(): ReadonlyMap<number, PositionMode> {
 }
 
 export function applyPositions(): void {
-    if (_posSlots.size === 0) return;
-    const arr = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
-        Array<{ MemberNumber?: number; IsPlayer?: () => boolean }> | undefined;
-    if (!Array.isArray(arr)) return;
+    try {
+        if (_posSlots.size === 0) return;
+        const arr = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number }> | undefined;
+        if (!Array.isArray(arr)) return;
 
-    const playerIdx = arr.findIndex(c => c.IsPlayer?.());
-    if (playerIdx < 0) return;
+        // Use MemberNumber comparison — IsPlayer may be a boolean property, not a function,
+        // in some BC versions; calling it with ?.() would throw "true is not a function".
+        const pNum = Player.MemberNumber;
+        const playerIdx = arr.findIndex(c => c.MemberNumber === pNum);
+        if (playerIdx < 0) return;
 
-    let insertAt = playerIdx + 1;
-    for (const memberNum of _posSlots.keys()) {
-        const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
-        if (currentIdx < 0) continue; // not in room
-
-        if (currentIdx === insertAt) {
-            insertAt++;
-            continue; // already in correct slot
+        let insertAt = playerIdx + 1;
+        for (const memberNum of _posSlots.keys()) {
+            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+            if (currentIdx < 0) continue;
+            if (currentIdx === insertAt) { insertAt++; continue; }
+            const [charToMove] = arr.splice(currentIdx, 1);
+            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+            arr.splice(adjusted, 0, charToMove);
+            insertAt = adjusted + 1;
         }
-
-        const [charToMove] = arr.splice(currentIdx, 1);
-        const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
-        arr.splice(adjusted, 0, charToMove);
-        insertAt = adjusted + 1;
-    }
+    } catch { /* ignore */ }
 }
 
 // Handle a chat command (e.g. /gag → apply the matching set).

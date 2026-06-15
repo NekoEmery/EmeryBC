@@ -22013,7 +22013,7 @@ export class EBCDrawer {
         cursePanel.appendChild(curseStatus);
 
         // ── 📍 Position ────────────────────────────────────────────────────────
-        const { panel: posPanel } = makeDomAccordion("📍", "POSITION", actionsCard);
+        const { panel: posPanel, hdr: posHdr, isOpen: isPosOpen } = makeDomAccordion("📍", "POSITION", actionsCard);
 
         const posHint = document.createElement("div");
         posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
@@ -22094,6 +22094,11 @@ export class EBCDrawer {
         posPanel.appendChild(posActiveList);
         posPanel.appendChild(releaseAllPosBtn);
         posPanel.appendChild(posStatus);
+
+        // Refresh active list when accordion is opened and on initial render
+        // (the DOM tab may re-render while _posSlots has entries from before)
+        posHdr.addEventListener("click", () => { if (isPosOpen()) rebuildPosActive(); });
+        rebuildPosActive();
 
         // Order: Restraint Sets → Target → Actions → Release Tools
         body.appendChild(setsCard);

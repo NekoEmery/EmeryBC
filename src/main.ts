@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.0";
+const MOD_VERSION = "6.9.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.1",
+        changes: [
+            "Fix: Position (Pull to Side / Get in Arms / Hold in Arms) now works — applyPositions() was calling c.IsPlayer?.() which throws 'true is not a function' when IsPlayer is a boolean property in BC; switched to MemberNumber comparison.",
+            "Fix: Active position list now shows entries after clicking a position button and after tab re-renders — rebuildPosActive() is now called on initial render and when the POSITION accordion is opened.",
+        ],
+    },
     {
         version: "6.9.0",
         changes: [
