@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.16
+// @version      6.9.17
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30412,7 +30412,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.16";
+    const MOD_VERSION = "6.9.17";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30423,6 +30423,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.17",
+            changes: [
+                "Fix: ChatRoomKeyDown crash ('Cannot read properties of undefined (reading length)') that occurred after interacting with the TOYS tab. BC's InputKeyDown crashes when ev.key is undefined, which happens when any hook in the chain passes a synthetic or plain object instead of a real KeyboardEvent. EBC's hook now guards against this and returns false early, preventing the crash.",
+            ],
+        },
         {
             version: "6.9.16",
             changes: [
@@ -38046,9 +38052,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         document.addEventListener("keydown", onChatKeydownCapture, true);
         // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
-            var _a;
             try {
-                if ((_a = args[0]) === null || _a === void 0 ? void 0 : _a.shiftKey)
+                const ev = args[0];
+                // BC's InputKeyDown crashes at ev.key.length when ev.key is undefined.
+                // This can happen when a hook in the chain passes a synthetic/plain object
+                // instead of a real KeyboardEvent.  Guard here to prevent the crash.
+                if (!ev || typeof ev.key !== "string")
+                    return false;
+                if (ev.shiftKey)
                     return next(args);
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                     const input = getChatInput();
@@ -38066,7 +38077,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
