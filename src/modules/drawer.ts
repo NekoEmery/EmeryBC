@@ -21919,10 +21919,10 @@ export class EBCDrawer {
         });
 
         qtSel.addEventListener("change", () => {
-            if (isCurseOpen()) rebuildCurseItems();
+            if (isCurseOpen()) { rebuildCurseItems(); rebuildActiveCurses(); }
         });
         // Also rebuild when the accordion is opened (target may already be selected)
-        curseHdr.addEventListener("click", () => { if (isCurseOpen()) rebuildCurseItems(); });
+        curseHdr.addEventListener("click", () => { if (isCurseOpen()) { rebuildCurseItems(); rebuildActiveCurses(); } });
 
         cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
 
@@ -21945,28 +21945,101 @@ export class EBCDrawer {
         liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
         liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
 
+        // Curse record helpers — persisted to settings so they survive page refreshes
+        const getCurseRecord = (memberId: number): string[] => {
+            const dc = (getSettings().domCurses ?? {}) as Record<string, string[]>;
+            return [...(dc[String(memberId)] ?? [])];
+        };
+        const setCurseRecord = (memberId: number, groups: string[]): void => {
+            const s = getSettings();
+            if (!s.domCurses) s.domCurses = {};
+            const dc = s.domCurses as Record<string, string[]>;
+            if (groups.length === 0) delete dc[String(memberId)]; else dc[String(memberId)] = groups;
+            syncSettings();
+        };
+
         applyCurseBtn.addEventListener("click", () => {
             const id = parseInt(qtSel.value, 10);
             if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
             if (curseSelGroups.size === 0) { curseStatus.textContent = "Select at least one item."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
-            const groups = [...curseSelGroups].join(",");
-            sendBeep(id, `[EBC-CURSE:apply:${groups}]`);
-            curseStatus.textContent = `✓ Curse sent for ${curseSelGroups.size} item(s).`;
-            window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+            const newGroups = [...curseSelGroups];
+            const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
+            setCurseRecord(id, merged);
+            sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+            curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
+            window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
 
         liftCurseBtn.addEventListener("click", () => {
             const id = parseInt(qtSel.value, 10);
             if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
+            setCurseRecord(id, []);
             sendBeep(id, "[EBC-CURSE:clear]");
             curseStatus.textContent = "✓ All curses lifted.";
-            window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
+            window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
 
         curseBtnRow.appendChild(applyCurseBtn);
         curseBtnRow.appendChild(liftCurseBtn);
         cursePanel.appendChild(curseBtnRow);
         cursePanel.appendChild(curseStatus);
+
+        // ── Active curses list ──────────────────────────────────────────────
+        const activeCursesEl = document.createElement("div");
+        activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #3a1928;padding-top:6px;";
+
+        const activeCursesHdr = document.createElement("div");
+        activeCursesHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:4px;";
+        activeCursesHdr.textContent = "Active Curses";
+        activeCursesEl.appendChild(activeCursesHdr);
+
+        const activeCursesList = document.createElement("div");
+        activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;";
+        activeCursesEl.appendChild(activeCursesList);
+
+        const rebuildActiveCurses = (): void => {
+            while (activeCursesList.firstChild) activeCursesList.removeChild(activeCursesList.firstChild);
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { activeCursesEl.style.display = "none"; return; }
+            const groups = getCurseRecord(id);
+            if (groups.length === 0) { activeCursesEl.style.display = "none"; return; }
+            activeCursesEl.style.display = "flex";
+            // Try to resolve item names from current room appearance
+            const nameMap = new Map<string, string>();
+            try {
+                for (const it of getRoomMemberItems(id))
+                    nameMap.set(it.group, it.craftName ? `${it.craftName} (${it.name})` : it.name);
+            } catch { /* ignore */ }
+            for (const group of groups) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
+                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm.textContent = nameMap.get(group) ?? group.replace("Item", "");
+                nm.title = group;
+                const liftOneBtn = document.createElement("button");
+                liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                liftOneBtn.textContent = "✕";
+                liftOneBtn.title = "Lift this curse";
+                liftOneBtn.addEventListener("click", () => {
+                    const remaining = getCurseRecord(id).filter(g => g !== group);
+                    setCurseRecord(id, remaining);
+                    if (remaining.length > 0) sendBeep(id, `[EBC-CURSE:apply:${remaining.join(",")}]`);
+                    else sendBeep(id, "[EBC-CURSE:clear]");
+                    const label = nameMap.get(group) ?? group.replace("Item", "");
+                    curseStatus.textContent = `✓ Lifted ${label}.`;
+                    window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
+                    rebuildActiveCurses();
+                });
+                row.appendChild(nm);
+                row.appendChild(liftOneBtn);
+                activeCursesList.appendChild(row);
+            }
+        };
+
+        cursePanel.appendChild(activeCursesEl);
 
         // ── 📍 Position ────────────────────────────────────────────────────────
         const { panel: posPanel, hdr: posHdr, isOpen: isPosOpen } = makeDomAccordion("📍", "POSITION", actionsCard);

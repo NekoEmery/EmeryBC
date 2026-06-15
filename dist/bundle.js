@@ -6571,7 +6571,7 @@
             const name = charDisplayName(char);
             const label = poseName !== null && poseName !== void 0 ? poseName : (poses.length ? poses.join("+") : "stand");
             const desc = poses.length
-                ? `guides ${name} into the ${label} position.`
+                ? `guides ${name} ${label}.`
                 : `lets ${name} return to a comfortable position.`;
             sendRoomAction(desc);
         }
@@ -6762,28 +6762,34 @@
         return _posSlots;
     }
     function applyPositions() {
-        if (_posSlots.size === 0)
-            return;
-        const arr = window.ChatRoomCharacter;
-        if (!Array.isArray(arr))
-            return;
-        const playerIdx = arr.findIndex(c => { var _a; return (_a = c.IsPlayer) === null || _a === void 0 ? void 0 : _a.call(c); });
-        if (playerIdx < 0)
-            return;
-        let insertAt = playerIdx + 1;
-        for (const memberNum of _posSlots.keys()) {
-            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
-            if (currentIdx < 0)
-                continue; // not in room
-            if (currentIdx === insertAt) {
-                insertAt++;
-                continue; // already in correct slot
+        try {
+            if (_posSlots.size === 0)
+                return;
+            const arr = window.ChatRoomCharacter;
+            if (!Array.isArray(arr))
+                return;
+            // Use MemberNumber comparison — IsPlayer may be a boolean property, not a function,
+            // in some BC versions; calling it with ?.() would throw "true is not a function".
+            const pNum = Player.MemberNumber;
+            const playerIdx = arr.findIndex(c => c.MemberNumber === pNum);
+            if (playerIdx < 0)
+                return;
+            let insertAt = playerIdx + 1;
+            for (const memberNum of _posSlots.keys()) {
+                const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+                if (currentIdx < 0)
+                    continue;
+                if (currentIdx === insertAt) {
+                    insertAt++;
+                    continue;
+                }
+                const [charToMove] = arr.splice(currentIdx, 1);
+                const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+                arr.splice(adjusted, 0, charToMove);
+                insertAt = adjusted + 1;
             }
-            const [charToMove] = arr.splice(currentIdx, 1);
-            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
-            arr.splice(adjusted, 0, charToMove);
-            insertAt = adjusted + 1;
         }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Handle a chat command (e.g. /gag → apply the matching set).
     function handleDomCommand(input) {
@@ -22529,55 +22535,6 @@
                 opacityRow.appendChild(opacitySlider);
                 opacityRow.appendChild(opacityVal);
                 cnt.appendChild(opacityRow);
-                // ── Auto-fade when not hovered ────────────────────────────────────
-                const fadeRow = document.createElement("div");
-                fadeRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-                const fadeLbl = document.createElement("span");
-                fadeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
-                fadeLbl.textContent = "Fade when not hovered";
-                fadeLbl.title = "Panel fades to semi-transparent when your mouse leaves it";
-                let fadeOn = Boolean(getSettings().drawerAutoFade);
-                const fadeBtn = document.createElement("button");
-                const refreshFadeBtn = () => {
-                    fadeBtn.textContent = fadeOn ? "ON" : "OFF";
-                    fadeBtn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif",
-                        "font-size:11px", "font-weight:bold",
-                        "padding:4px 10px", "border-radius:4px",
-                        "cursor:pointer", "flex-shrink:0",
-                        "border:1px solid " + (fadeOn ? "#cf6f98" : "#3a1928"),
-                        "background:" + (fadeOn ? "#4a1f30" : "#100508"),
-                        "color:" + (fadeOn ? "#f7e6ee" : "#7a5070"),
-                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                    ].join(";");
-                };
-                refreshFadeBtn();
-                fadeBtn.addEventListener("click", () => {
-                    fadeOn = !fadeOn;
-                    getSettings().drawerAutoFade = fadeOn;
-                    syncSettings();
-                    refreshFadeBtn();
-                    const el = this.panelEl;
-                    if (!el)
-                        return;
-                    const old = el.__ebcFade;
-                    if (old) {
-                        el.removeEventListener("mouseenter", old.enter);
-                        el.removeEventListener("mouseleave", old.leave);
-                    }
-                    delete el.__ebcFade;
-                    el.style.opacity = "";
-                    if (fadeOn) {
-                        const fe = () => { el.style.opacity = ""; };
-                        const fl = () => { el.style.opacity = "0.15"; };
-                        el.addEventListener("mouseenter", fe);
-                        el.addEventListener("mouseleave", fl);
-                        el.__ebcFade = { enter: fe, leave: fl };
-                    }
-                });
-                fadeRow.appendChild(fadeLbl);
-                fadeRow.appendChild(fadeBtn);
-                cnt.appendChild(fadeRow);
                 // ── Panel zoom slider ─────────────────────────────────────────────
                 const zoomRow = document.createElement("div");
                 zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -29349,18 +29306,18 @@
             // ── 🧎 Poses ──────────────────────────────────────────────────────────
             const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
             const POSE_DEFS = [
-                ["🚶", "Stand", []],
-                ["🧎", "Kneel", ["Kneel"]],
-                ["🐈", "All Fours", ["AllFours"]],
-                ["🙌", "Hands Up", ["OverTheHead"]],
-                ["🫸", "Spread", ["KneelingSpread"]],
-                ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"]],
+                ["🚶", "Stand", [], ""],
+                ["🧎", "Kneel", ["Kneel"], "into a kneeling position"],
+                ["🐈", "All Fours", ["AllFours"], "onto all fours"],
+                ["🙌", "Hands Up", ["OverTheHead"], "into a hands-up pose"],
+                ["🫸", "Spread", ["KneelingSpread"], "into a kneeling spread"],
+                ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"], "into a kneeling position with arms raised"],
             ];
             const poseGrid = document.createElement("div");
             poseGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
             const poseStatus = document.createElement("div");
             poseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:2px;";
-            for (const [emoji, label, poses] of POSE_DEFS) {
+            for (const [emoji, label, poses, actionDesc] of POSE_DEFS) {
                 const btn = document.createElement("button");
                 btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
                 btn.textContent = `${emoji} ${label}`;
@@ -29374,7 +29331,7 @@
                         window.setTimeout(() => { poseStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setTargetPoses(id, poses, label);
+                    setTargetPoses(id, poses, actionDesc || undefined);
                     poseStatus.textContent = `✓ ${label} applied.`;
                     window.setTimeout(() => { poseStatus.textContent = ""; }, 2000);
                 });
@@ -29383,7 +29340,7 @@
             posePanel.appendChild(poseGrid);
             posePanel.appendChild(poseStatus);
             // ── 🎮 Toy Control ────────────────────────────────────────────────────
-            const { panel: toyPanel } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
+            const { panel: toyPanel, hdr: toyHdr, isOpen: isToyOpen } = makeDomAccordion("🎮", "TOY CONTROL", actionsCard);
             const TOY_MODES = [
                 ["⏹", "Off", "#2a1020", "Off"],
                 ["🔅", "Low", "#1a2030", "Low"],
@@ -29452,6 +29409,11 @@
                     mkChip(t.name, t.group);
             };
             qtSel.addEventListener("change", () => { selectedToyGroup = null; refreshToyChips(); refreshToyInfo(); });
+            toyHdr.addEventListener("click", () => { if (isToyOpen()) {
+                selectedToyGroup = null;
+                refreshToyChips();
+                refreshToyInfo();
+            } });
             for (const [emoji, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
@@ -29477,6 +29439,8 @@
             toyPanel.appendChild(toyGrid);
             toyPanel.appendChild(toyStatus);
             toyPanel.appendChild(toyInfoEl);
+            refreshToyChips();
+            refreshToyInfo();
             // ── ⛓ Curse ──────────────────────────────────────────────────────────
             const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
             const curseHint = document.createElement("div");
@@ -29569,12 +29533,16 @@
                 curseSelAllChk.indeterminate = false;
             });
             qtSel.addEventListener("change", () => {
-                if (isCurseOpen())
+                if (isCurseOpen()) {
                     rebuildCurseItems();
+                    rebuildActiveCurses();
+                }
             });
             // Also rebuild when the accordion is opened (target may already be selected)
-            curseHdr.addEventListener("click", () => { if (isCurseOpen())
-                rebuildCurseItems(); });
+            curseHdr.addEventListener("click", () => { if (isCurseOpen()) {
+                rebuildCurseItems();
+                rebuildActiveCurses();
+            } });
             cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
             const curseStatus = document.createElement("div");
             curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
@@ -29592,6 +29560,23 @@
             liftCurseBtn.title = "Lift all curses from the target";
             liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
             liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
+            // Curse record helpers — persisted to settings so they survive page refreshes
+            const getCurseRecord = (memberId) => {
+                var _a, _b;
+                const dc = ((_a = getSettings().domCurses) !== null && _a !== void 0 ? _a : {});
+                return [...((_b = dc[String(memberId)]) !== null && _b !== void 0 ? _b : [])];
+            };
+            const setCurseRecord = (memberId, groups) => {
+                const s = getSettings();
+                if (!s.domCurses)
+                    s.domCurses = {};
+                const dc = s.domCurses;
+                if (groups.length === 0)
+                    delete dc[String(memberId)];
+                else
+                    dc[String(memberId)] = groups;
+                syncSettings();
+            };
             applyCurseBtn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
@@ -29604,10 +29589,12 @@
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
                     return;
                 }
-                const groups = [...curseSelGroups].join(",");
-                sendBeep(id, `[EBC-CURSE:apply:${groups}]`);
-                curseStatus.textContent = `✓ Curse sent for ${curseSelGroups.size} item(s).`;
-                window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                const newGroups = [...curseSelGroups];
+                const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
+                setCurseRecord(id, merged);
+                sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+                curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
+                window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
             });
             liftCurseBtn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
@@ -29616,16 +29603,81 @@
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
                     return;
                 }
+                setCurseRecord(id, []);
                 sendBeep(id, "[EBC-CURSE:clear]");
                 curseStatus.textContent = "✓ All curses lifted.";
-                window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
+                window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
             });
             curseBtnRow.appendChild(applyCurseBtn);
             curseBtnRow.appendChild(liftCurseBtn);
             cursePanel.appendChild(curseBtnRow);
             cursePanel.appendChild(curseStatus);
+            // ── Active curses list ──────────────────────────────────────────────
+            const activeCursesEl = document.createElement("div");
+            activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #3a1928;padding-top:6px;";
+            const activeCursesHdr = document.createElement("div");
+            activeCursesHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:4px;";
+            activeCursesHdr.textContent = "Active Curses";
+            activeCursesEl.appendChild(activeCursesHdr);
+            const activeCursesList = document.createElement("div");
+            activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;";
+            activeCursesEl.appendChild(activeCursesList);
+            const rebuildActiveCurses = () => {
+                var _a;
+                while (activeCursesList.firstChild)
+                    activeCursesList.removeChild(activeCursesList.firstChild);
+                const id = parseInt(qtSel.value, 10);
+                if (!id) {
+                    activeCursesEl.style.display = "none";
+                    return;
+                }
+                const groups = getCurseRecord(id);
+                if (groups.length === 0) {
+                    activeCursesEl.style.display = "none";
+                    return;
+                }
+                activeCursesEl.style.display = "flex";
+                // Try to resolve item names from current room appearance
+                const nameMap = new Map();
+                try {
+                    for (const it of getRoomMemberItems(id))
+                        nameMap.set(it.group, it.craftName ? `${it.craftName} (${it.name})` : it.name);
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+                for (const group of groups) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
+                    row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                    row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
+                    nm.title = group;
+                    const liftOneBtn = document.createElement("button");
+                    liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    liftOneBtn.textContent = "✕";
+                    liftOneBtn.title = "Lift this curse";
+                    liftOneBtn.addEventListener("click", () => {
+                        var _a;
+                        const remaining = getCurseRecord(id).filter(g => g !== group);
+                        setCurseRecord(id, remaining);
+                        if (remaining.length > 0)
+                            sendBeep(id, `[EBC-CURSE:apply:${remaining.join(",")}]`);
+                        else
+                            sendBeep(id, "[EBC-CURSE:clear]");
+                        const label = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
+                        curseStatus.textContent = `✓ Lifted ${label}.`;
+                        window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
+                        rebuildActiveCurses();
+                    });
+                    row.appendChild(nm);
+                    row.appendChild(liftOneBtn);
+                    activeCursesList.appendChild(row);
+                }
+            };
+            cursePanel.appendChild(activeCursesEl);
             // ── 📍 Position ────────────────────────────────────────────────────────
-            const { panel: posPanel } = makeDomAccordion("📍", "POSITION", actionsCard);
+            const { panel: posPanel, hdr: posHdr, isOpen: isPosOpen } = makeDomAccordion("📍", "POSITION", actionsCard);
             const posHint = document.createElement("div");
             posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
             posHint.textContent = "Moves target next to you locally. Others see the original order.";
@@ -29704,6 +29756,11 @@
             posPanel.appendChild(posActiveList);
             posPanel.appendChild(releaseAllPosBtn);
             posPanel.appendChild(posStatus);
+            // Refresh active list when accordion is opened and on initial render
+            // (the DOM tab may re-render while _posSlots has entries from before)
+            posHdr.addEventListener("click", () => { if (isPosOpen())
+                rebuildPosActive(); });
+            rebuildPosActive();
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -29717,23 +29774,6 @@
             if (!this.panelEl)
                 return;
             this.isOpen = true;
-            // Fade-when-not-hovered via JS events so inline style doesn't fight the CSS
-            // slide-in/out transitions that also rely on opacity via class toggles.
-            const _fp = this.panelEl;
-            const _fo = _fp.__ebcFade;
-            if (_fo) {
-                _fp.removeEventListener("mouseenter", _fo.enter);
-                _fp.removeEventListener("mouseleave", _fo.leave);
-            }
-            delete _fp.__ebcFade;
-            _fp.style.opacity = "";
-            if (Boolean(getSettings().drawerAutoFade)) {
-                const _fe = () => { _fp.style.opacity = ""; };
-                const _fl = () => { _fp.style.opacity = "0.15"; };
-                _fp.addEventListener("mouseenter", _fe);
-                _fp.addEventListener("mouseleave", _fl);
-                _fp.__ebcFade = { enter: _fe, leave: _fl };
-            }
             // Panel is opening — restore full tab hit area
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -29802,15 +29842,6 @@
             this.closeGuide(); // remove floating guide side panel if open
             this.stopDevLogPoller();
             this.isOpen = false;
-            // Remove fade listeners and reset opacity so CSS slide-out plays at full opacity
-            const _cp = this.panelEl;
-            const _cf = _cp.__ebcFade;
-            if (_cf) {
-                _cp.removeEventListener("mouseenter", _cf.enter);
-                _cp.removeEventListener("mouseleave", _cf.leave);
-                delete _cp.__ebcFade;
-                _cp.style.opacity = "";
-            }
             // Panel is closing — clip tab so it no longer blocks the BC canvas
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
@@ -30011,7 +30042,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.0";
+    const MOD_VERSION = "6.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30022,6 +30053,37 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.5",
+            changes: [
+                "Curse panel now shows an 'Active Curses' list: groups currently cursed on the focus target are displayed with ✕ lift buttons so individual curses can be removed from the same room. Curse records are saved to settings and persist across page refreshes.",
+            ],
+        },
+        {
+            version: "6.9.4",
+            changes: [
+                "Fix: Toy control now detects toys immediately on accordion open and on tab render — chips and status were only refreshing on target change, never on accordion open.",
+            ],
+        },
+        {
+            version: "6.9.3",
+            changes: [
+                "Fix: Pose action messages now read naturally — 'guides Angel into a kneeling position with arms raised.' instead of 'guides Angel into the Kneel+Up position.'",
+            ],
+        },
+        {
+            version: "6.9.2",
+            changes: [
+                "Remove: 'Fade when not hovered' feature and toggle removed entirely.",
+            ],
+        },
+        {
+            version: "6.9.1",
+            changes: [
+                "Fix: Position (Pull to Side / Get in Arms / Hold in Arms) now works — applyPositions() was calling c.IsPlayer?.() which throws 'true is not a function' when IsPlayer is a boolean property in BC; switched to MemberNumber comparison.",
+                "Fix: Active position list now shows entries after clicking a position button and after tab re-renders — rebuildPosActive() is now called on initial render and when the POSITION accordion is opened.",
+            ],
+        },
         {
             version: "6.9.0",
             changes: [
