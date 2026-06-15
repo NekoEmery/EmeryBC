@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.30
+// @version      6.9.31
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28875,14 +28875,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const maxD = typeof s.pishockMaxDuration === "number" ? s.pishockMaxDuration : 2;
                 const finalI = bypass ? (intensity !== null && intensity !== void 0 ? intensity : 1) : Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : maxI, maxI));
                 const finalD = bypass ? (duration !== null && duration !== void 0 ? duration : 1) : Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : maxD, maxD));
+                // PiShock API requires Op/Duration/Intensity as strings, not numbers
                 const payload = JSON.stringify({
                     Username: username,
                     Apikey: apiKey,
                     Code: code,
                     Name: "EBC",
-                    Op: op,
-                    Duration: finalD,
-                    Intensity: finalI,
+                    Op: String(op),
+                    Duration: String(finalD),
+                    Intensity: String(finalI),
                 });
                 const opName = op === 0 ? "Shock" : op === 1 ? "Vibrate" : "Beep";
                 const parseResult = (text, status) => {
@@ -31020,7 +31021,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.30";
+    const MOD_VERSION = "6.9.31";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31031,6 +31032,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.31",
+            changes: [
+                "PiShock: Send Op/Duration/Intensity as strings in the API payload — the PiShock docs show these as quoted strings and sending integers was causing 404 rejections.",
+            ],
+        },
         {
             version: "6.9.30",
             changes: [
