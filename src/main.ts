@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.16";
+const MOD_VERSION = "6.9.17";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.17",
+        changes: [
+            "Fix: ChatRoomKeyDown crash ('Cannot read properties of undefined (reading length)') that occurred after interacting with the TOYS tab. BC's InputKeyDown crashes when ev.key is undefined, which happens when any hook in the chain passes a synthetic or plain object instead of a real KeyboardEvent. EBC's hook now guards against this and returns false early, preventing the crash.",
+        ],
+    },
     {
         version: "6.9.16",
         changes: [
@@ -7486,7 +7492,12 @@ function init(): void {
     // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
-            if ((args[0] as KeyboardEvent | undefined)?.shiftKey) return next(args);
+            const ev = args[0] as KeyboardEvent | undefined;
+            // BC's InputKeyDown crashes at ev.key.length when ev.key is undefined.
+            // This can happen when a hook in the chain passes a synthetic/plain object
+            // instead of a real KeyboardEvent.  Guard here to prevent the crash.
+            if (!ev || typeof ev.key !== "string") return false;
+            if (ev.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();
                 if (input?.value.trim() && (
