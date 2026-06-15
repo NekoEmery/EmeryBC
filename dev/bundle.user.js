@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.9
+// @version      6.9.10
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -29765,6 +29765,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
                             return;
                         }
+                        // "Pull to Side" requires BC's leash to be actively held — ECHO checks
+                        // ChatRoomLeashPlayer on the target's client. Sending HoldLeash first
+                        // sets that, allowing ECHO to trigger with ANY leash-effect item
+                        // (ChainLeash, ChokeChain, CollarLeash, etc.), not just a "full leash".
+                        if (echoName === "拉到身边") {
+                            sendFn("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: id });
+                        }
                         sendFn("ChatRoomChat", {
                             Content: echoName,
                             Type: "Activity",
@@ -29806,6 +29813,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const room = window.ChatRoomCharacter;
                     const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === id);
                     const name = (_a = char === null || char === void 0 ? void 0 : char.Name) !== null && _a !== void 0 ? _a : `#${id}`;
+                    // Release BC's leash grip (clears ChatRoomLeashPlayer on target's client)
+                    sendFn("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: id });
                     sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
                 }
                 posStatus.textContent = "✓ Released.";
@@ -30093,7 +30102,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.9";
+    const MOD_VERSION = "6.9.10";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30104,6 +30113,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.10",
+            changes: [
+                "Fix: DOM Position 'Pull to Side' now sends HoldLeash before the ECHO activity so ECHO can trigger with any leash-effect item (ChokeChain, ChainLeash, CollarLeash, etc.) — not just a 'full leash'. Release button now sends StopHoldLeash to properly unhook the BC leash state.",
+            ],
+        },
         {
             version: "6.9.9",
             changes: [
