@@ -21690,7 +21690,7 @@ export class EBCDrawer {
             ["🦷", "Bite",    "Bite",    "ItemNeck"],
             ["✋", "Slap",    "Slap",    "ItemHead"],
             ["🖐", "Caress",  "Caress",  "ItemArms"],
-            ["💆", "Massage", "Massage", "ItemLegs"],
+            ["👊", "Bap",     "Bap",     "ItemHead"],
             ["🫦", "Lick",    "Lick",    "ItemHead"],
         ];
 
@@ -21996,7 +21996,8 @@ export class EBCDrawer {
             this.panelEl.classList.remove("ebc-closed");
         } else {
             // Anchored: normal slide-in
-            this.panelEl.className = "ebc-open";
+            this.panelEl.classList.remove("ebc-closed");
+            this.panelEl.classList.add("ebc-open");
         }
         if (!this.positioned) this.syncToChat();
         // badge toggle now lives in the DEV tab and refreshes on render
@@ -22030,7 +22031,8 @@ export class EBCDrawer {
             this.panelEl.classList.remove("ebc-open");
             this.panelEl.classList.add("ebc-closed", "ebc-free-mode");
         } else {
-            this.panelEl.className = "ebc-closed";
+            this.panelEl.classList.remove("ebc-open");
+            this.panelEl.classList.add("ebc-closed");
         }
     }
 

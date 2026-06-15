@@ -666,7 +666,7 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Bite":    n => `bites ${n}'s neck.`,
     "Slap":    n => `slaps ${n}.`,
     "Caress":  n => `caresses ${n} gently.`,
-    "Massage": n => `massages ${n}.`,
+    "Bap":     n => `baps ${n} on the head.`,
     "Lick":    n => `licks ${n}.`,
 };
 
@@ -676,6 +676,7 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
  */
 const BC_ACTIVITY_NAME: Record<string, string> = {
     "Pat": "Caress",  // no native "Pat" in BC — use Caress animation on the head
+    "Bap": "Slap",    // no native "Bap" in BC — use Slap animation on the head
 };
 
 /**

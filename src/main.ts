@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.8";
+const MOD_VERSION = "6.7.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.9",
+        changes: [
+            "Fix: Friend names now persist across restarts — cacheName/cacheAccountName were accumulating names in memory but never flushing to ExtensionSettings; added sync() call to both functions.",
+            "Fix: 'Fade when not hovered' now actually works — open() and close() were doing className= assignment which wiped the ebc-fade-hover class; switched to classList.add/remove to preserve it.",
+            "Dom menu: Renamed 'Massage' action to 'Bap' — targets head zone with slap animation and description 'baps X on the head'.",
+        ],
+    },
     {
         version: "6.7.8",
         changes: [

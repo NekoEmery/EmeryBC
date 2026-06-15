@@ -73,7 +73,7 @@ export function cacheName(memberNumber: number, name: string): void {
     const d = store.friendNames as Record<string, string>;
     d[String(memberNumber)] = name;
     _evictNameCache(d);
-    // Sync is deferred — name cache is saved alongside the next real operation
+    sync();
 }
 
 // -- Account name cache --------------------------------------------------------
@@ -92,6 +92,7 @@ export function cacheAccountName(memberNumber: number, accountName: string): voi
     const d = store.friendAccountNames as Record<string, string>;
     d[String(memberNumber)] = accountName;
     _evictNameCache(d);
+    sync();
 }
 
 /** Returns the cached BC account name for this member, or null if unknown. */
