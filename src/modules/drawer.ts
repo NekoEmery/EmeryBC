@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -121,8 +121,6 @@ import {
     unlockAllTargetItems,
     getRoomMembers,
     getRoomMemberItems,
-    rescueRoomMember,
-    clearLocksOnMember,
     removeItemsFromMember,
 
     setTargetPoses,
@@ -15465,11 +15463,7 @@ export class EBCDrawer {
                 getSettings().drawerAutoFade = fadeOn;
                 syncSettings();
                 refreshFadeBtn();
-                // Restore full opacity if turning feature off
-                if (!fadeOn) {
-                    const p = this.rootEl?.querySelector<HTMLElement>("#emerybc-panel");
-                    if (p) p.style.opacity = "1";
-                }
+                this.panelEl?.classList.toggle("ebc-fade-hover", fadeOn);
             });
             fadeRow.appendChild(fadeLbl);
             fadeRow.appendChild(fadeBtn);
@@ -20870,251 +20864,6 @@ export class EBCDrawer {
             return { row, input };
         };
 
-        // ── ⛑ Room Rescue (collapsible, appended at the very end) ──────────────
-        const divRescue = document.createElement("div");
-        divRescue.className = "ebc-divider";
-        divRescue.style.margin = "10px 0 0";
-        // (appended at the bottom of renderDomTools)
-
-        // Clickable header row
-        const rescueHdr = document.createElement("div");
-        rescueHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
-        rescueHdr.addEventListener("mouseenter", () => { rescueHdr.style.background = "rgba(42,20,33,0.5)"; });
-        rescueHdr.addEventListener("mouseleave", () => { rescueHdr.style.background = ""; });
-
-        const rescueHdrIcon = document.createElement("span");
-        rescueHdrIcon.textContent = "⛑";
-        rescueHdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
-
-        const rescueHdrLbl = document.createElement("span");
-        rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
-        rescueHdrLbl.textContent = "ROOM RESCUE";
-
-        const rescueArrow = document.createElement("span");
-        rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;flex-shrink:0;";
-        rescueArrow.textContent = "▼";
-
-        rescueHdr.appendChild(rescueHdrIcon);
-        rescueHdr.appendChild(rescueHdrLbl);
-        rescueHdr.appendChild(rescueArrow);
-        // (appended at the bottom of renderDomTools)
-
-        // Collapsible content panel
-        const rescuePanel = document.createElement("div");
-        rescuePanel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 8px 8px;";
-
-        let rescuePanelOpen = false;
-        rescueHdr.addEventListener("click", () => {
-            rescuePanelOpen = !rescuePanelOpen;
-            rescuePanel.style.display = rescuePanelOpen ? "flex" : "none";
-            rescueArrow.textContent = rescuePanelOpen ? "▲" : "▼";
-            if (rescuePanelOpen) { populateRescueSel(); rebuildRescueItems(); }
-        });
-
-        // Hint
-        const rescueHint = document.createElement("div");
-        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;";
-        rescueHint.textContent = "Strips all locks and restraints from any room member - bypasses all lock rules.";
-        rescuePanel.appendChild(rescueHint);
-
-        // Person picker row
-        const rescueRow = document.createElement("div");
-        rescueRow.style.cssText = "display:flex;gap:5px;align-items:center;";
-
-        const rescueSel = document.createElement("select");
-        rescueSel.className = "ebc-form-input";
-        rescueSel.style.cssText = "flex:1;font-size:11px;";
-        const rescuePh = document.createElement("option");
-        rescuePh.value = ""; rescuePh.textContent = "— choose person —";
-        rescuePh.disabled = true; rescuePh.selected = true;
-        rescueSel.appendChild(rescuePh);
-
-        const populateRescueSel = (): void => {
-            while (rescueSel.firstChild) rescueSel.removeChild(rescueSel.firstChild);
-            rescueSel.appendChild(rescuePh);
-            const members = getRoomMembers();
-            for (const m of members) {
-                const opt = document.createElement("option");
-                opt.value = String(m.id);
-                opt.textContent = `${m.name} (#${m.id})`;
-                rescueSel.appendChild(opt);
-            }
-            rescuePh.textContent = members.length === 0 ? "— no one else in room —" : "— choose person —";
-        };
-
-        const rescueRefreshBtn = document.createElement("button");
-        rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-        rescueRefreshBtn.textContent = "↻";
-        rescueRefreshBtn.title = "Refresh room member list";
-        rescueRefreshBtn.addEventListener("click", () => { populateRescueSel(); rebuildRescueItems(); });
-
-        rescueRow.appendChild(rescueSel);
-        rescueRow.appendChild(rescueRefreshBtn);
-        rescuePanel.appendChild(rescueRow);
-
-        // ── Rescue: item list with checkboxes ─────────────────────────────────
-        const rescueSelected = new Set<string>();
-
-        // Select-all row (hidden until items loaded)
-        const selAllRow = document.createElement("div");
-        selAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 6px 4px;border-bottom:1px solid #3a1928;margin-bottom:2px;";
-        const selAllChk = document.createElement("input");
-        selAllChk.type = "checkbox";
-        selAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-        const selAllLbl = document.createElement("span");
-        selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
-        selAllLbl.textContent = "Select / deselect all";
-        selAllRow.appendChild(selAllChk);
-        selAllRow.appendChild(selAllLbl);
-
-        // Scrollable item list
-        const rescueItemsEl = document.createElement("div");
-        rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:150px;overflow-y:auto;";
-
-        // 🔓 Unlock Selected button
-        const unlockSelBtn = document.createElement("button");
-        unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
-        unlockSelBtn.textContent = "🔓 Unlock Selected";
-        unlockSelBtn.title = "Clear locks on selected items only (does not remove them)";
-        unlockSelBtn.disabled = true;
-
-        // 🗑 Remove Selected button
-        const removeSelBtn = document.createElement("button");
-        removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
-        removeSelBtn.textContent = "🗑 Remove Selected";
-        removeSelBtn.title = "Remove selected items from this person (clears locks first)";
-        removeSelBtn.disabled = true;
-
-        // Action row
-        const actBtnRow = document.createElement("div");
-        actBtnRow.style.cssText = "display:flex;gap:5px;";
-        actBtnRow.appendChild(unlockSelBtn);
-        actBtnRow.appendChild(removeSelBtn);
-
-        // Remove All button
-        const rescueBtn = document.createElement("button");
-        rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;";
-        rescueBtn.textContent = "⛑ Remove All";
-        rescueBtn.title = "Strip all locks + remove all restraints from selected person";
-
-        // Status line
-        const rescueStatus = document.createElement("div");
-        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
-
-        // ── Helpers ────────────────────────────────────────────────────────────
-        const updateActionBtns = (): void => {
-            const has = rescueSelected.size > 0;
-            unlockSelBtn.disabled = !has;
-            removeSelBtn.disabled = !has;
-            unlockSelBtn.style.opacity = has ? "1" : "0.45";
-            removeSelBtn.style.opacity = has ? "1" : "0.45";
-        };
-
-        const rebuildRescueItems = (): void => {
-            while (rescueItemsEl.firstChild) rescueItemsEl.removeChild(rescueItemsEl.firstChild);
-            rescueSelected.clear();
-            selAllRow.style.display = "none";
-            rescueItemsEl.style.display = "none";
-            selAllChk.checked = false;
-            selAllChk.indeterminate = false;
-            const id = parseInt(rescueSel.value, 10);
-            if (!id) { updateActionBtns(); return; }
-            const items = getRoomMemberItems(id);
-            if (items.length === 0) { updateActionBtns(); return; }
-            rescueItemsEl.style.display = "flex";
-            selAllRow.style.display = "flex";
-            for (const it of items) {
-                const row2 = document.createElement("div");
-                row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
-                const chk = document.createElement("input");
-                chk.type = "checkbox";
-                chk.dataset.group = it.group;
-                chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
-                chk.addEventListener("change", () => {
-                    if (chk.checked) rescueSelected.add(it.group);
-                    else rescueSelected.delete(it.group);
-                    const allChks = Array.from(rescueItemsEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
-                    const n = allChks.filter(c => c.checked).length;
-                    selAllChk.indeterminate = n > 0 && n < allChks.length;
-                    selAllChk.checked = n === allChks.length;
-                    updateActionBtns();
-                });
-                const lockIco = document.createElement("span");
-                lockIco.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
-                lockIco.textContent = it.locked ? "🔒" : "";
-                const nm = document.createElement("span");
-                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                nm.textContent = it.name;
-                const grp = document.createElement("span");
-                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
-                grp.textContent = it.group.replace("Item", "");
-                row2.appendChild(chk); row2.appendChild(lockIco); row2.appendChild(nm); row2.appendChild(grp);
-                rescueItemsEl.appendChild(row2);
-            }
-            updateActionBtns();
-        };
-
-        // Select-all toggle
-        selAllChk.addEventListener("change", () => {
-            const allChks = Array.from(rescueItemsEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
-            allChks.forEach(c => {
-                c.checked = selAllChk.checked;
-                if (selAllChk.checked) rescueSelected.add(c.dataset.group!);
-                else rescueSelected.delete(c.dataset.group!);
-            });
-            selAllChk.indeterminate = false;
-            updateActionBtns();
-        });
-
-        rescueSel.addEventListener("change", () => rebuildRescueItems());
-
-        // Unlock Selected
-        unlockSelBtn.addEventListener("mouseenter", () => { if (!unlockSelBtn.disabled) unlockSelBtn.style.background = "#5a2e1a"; });
-        unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#3a1e0e"; });
-        unlockSelBtn.addEventListener("click", () => {
-            const id = parseInt(rescueSel.value, 10);
-            if (!id || rescueSelected.size === 0) return;
-            const count = clearLocksOnMember(id, Array.from(rescueSelected));
-            rescueStatus.textContent = count > 0 ? `🔓 Cleared ${count} lock(s).` : "No locks found on selected items.";
-            window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
-        });
-
-        // Remove Selected
-        removeSelBtn.addEventListener("mouseenter", () => { if (!removeSelBtn.disabled) removeSelBtn.style.background = "#5a1a28"; });
-        removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a0e18"; });
-        removeSelBtn.addEventListener("click", () => {
-            const id = parseInt(rescueSel.value, 10);
-            if (!id || rescueSelected.size === 0) return;
-            const count = removeItemsFromMember(id, Array.from(rescueSelected));
-            rescueStatus.textContent = count > 0 ? t("qa.removedN", { n: count }) : t("qa.nothingRemoved");
-            window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
-        });
-
-        // Remove All
-        rescueBtn.addEventListener("mouseenter", () => { rescueBtn.style.background = "#8b1e38"; });
-        rescueBtn.addEventListener("mouseleave", () => { rescueBtn.style.background = "#6b1428"; });
-        rescueBtn.addEventListener("click", () => {
-            const id = parseInt(rescueSel.value, 10);
-            if (!id) { rescueStatus.textContent = "Pick someone first."; return; }
-            rescueBtn.disabled = true;
-            const result = rescueRoomMember(id);
-            if (!result.found) {
-                rescueStatus.textContent = t("dom.notInRoom");
-            } else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
-                rescueStatus.textContent = "Nothing to remove - they're already free.";
-            } else {
-                rescueStatus.textContent = `✓ Done - cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
-            }
-            window.setTimeout(() => { rescueBtn.disabled = false; rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
-        });
-
-        // Append to panel in order
-        rescuePanel.appendChild(selAllRow);
-        rescuePanel.appendChild(rescueItemsEl);
-        rescuePanel.appendChild(actBtnRow);
-        rescuePanel.appendChild(rescueBtn);
-        rescuePanel.appendChild(rescueStatus);
-
         // ── Release Tools card ────────────────────────────────────────────────
         const releaseCard = document.createElement("div");
         releaseCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
@@ -22192,16 +21941,11 @@ export class EBCDrawer {
         cursePanel.appendChild(curseBtnRow);
         cursePanel.appendChild(curseStatus);
 
-        // Order: Restraint Sets → Target → Actions → Release Tools → Room Rescue
+        // Order: Restraint Sets → Target → Actions → Release Tools
         body.appendChild(setsCard);
         body.appendChild(targetCard);
         body.appendChild(actionsCard);
         body.appendChild(releaseCard);
-
-        // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
-        body.appendChild(divRescue);
-        body.appendChild(rescueHdr);
-        body.appendChild(rescuePanel);
     }
 
     // -- Open / Close / Toggle -------------------------------------------------
@@ -22212,18 +21956,14 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = true;
 
-        // Auto-fade on blur — wire up once, check setting at call-time
-        if (!this.panelEl.dataset.fadeListenersAdded) {
-            this.panelEl.dataset.fadeListenersAdded = "1";
-            this.panelEl.style.transition = (this.panelEl.style.transition || "") + ",opacity 0.4s ease";
-            this.panelEl.addEventListener("mouseleave", () => {
-                if (Boolean(getSettings().drawerAutoFade)) (this.panelEl as HTMLElement).style.opacity = "0.2";
-            });
-            this.panelEl.addEventListener("mouseenter", () => {
-                (this.panelEl as HTMLElement).style.opacity = "1";
-            });
+        // Inject fade-on-hover style once; toggle class based on current setting
+        if (!document.getElementById("ebc-fade-hover-style")) {
+            const st = document.createElement("style");
+            st.id = "ebc-fade-hover-style";
+            st.textContent = ".ebc-fade-hover{transition:opacity 0.4s ease !important;}.ebc-fade-hover:not(:hover){opacity:0.2 !important;}";
+            document.head.appendChild(st);
         }
-        this.panelEl.style.opacity = "1";
+        this.panelEl.classList.toggle("ebc-fade-hover", Boolean(getSettings().drawerAutoFade));
 
         // Panel is opening — restore full tab hit area
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");

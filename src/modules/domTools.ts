@@ -346,18 +346,12 @@ export function removeTargetItems(targetId: number, groups: string[]): { inRoom:
     const char = room.find(c => c.MemberNumber === targetId);
     if (!char) return { inRoom: false, count: 0 };
 
-    const InventoryRemoveFn = (window as unknown as Record<string, unknown>).InventoryRemove as
-        ((c: Character, group: string, push: boolean) => void) | undefined;
-
     let count = 0;
     for (const group of groups) {
         try {
-            if (InventoryRemoveFn) {
-                InventoryRemoveFn(char, group, false);
-            } else {
-                const idx = char.Appearance.findIndex((a: Item) => a.Asset.Group.Name === group);
-                if (idx >= 0) char.Appearance.splice(idx, 1);
-            }
+            const idx = char.Appearance.findIndex((a: Item) => a.Asset.Group.Name === group);
+            if (idx < 0) continue;
+            char.Appearance.splice(idx, 1);
             count++;
         } catch { /* ignore */ }
     }
@@ -392,9 +386,17 @@ export function unlockAllTargetItems(targetIds?: Set<number>): Array<{ name: str
         let count = 0;
         for (const item of char.Appearance) {
             const prop = item.Property as Record<string, unknown> | undefined;
-            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+            if (!prop) continue;
+            const isLocked = (typeof prop.LockedBy === "string" && prop.LockedBy !== "") ||
+                prop.CombinationNumber !== undefined ||
+                prop.LockMemberNumber !== undefined ||
+                prop.MemberNumberListKeys !== undefined;
+            if (isLocked) {
                 prop.LockedBy = "";
-                if ("Password" in prop) delete prop.Password;
+                delete prop.Password;
+                delete prop.LockMemberNumber;
+                delete prop.CombinationNumber;
+                delete prop.MemberNumberListKeys;
                 count++;
             }
         }

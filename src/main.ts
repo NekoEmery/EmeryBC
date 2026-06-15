@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.6";
+const MOD_VERSION = "6.7.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.7",
+        changes: [
+            "Fix: 'Fade when not hovered' now works correctly — replaced broken JS event-listener approach with a CSS :not(:hover) class toggle.",
+            "Dom menu: Room Rescue section removed — use Release Tools with the target selector instead.",
+            "Dom menu: Release Tools now bypasses all lock types — items are removed directly from the character's appearance array, skipping BC's lock permission checks.",
+            "Dom menu: Unlock All Locks now clears combination locks and member-number list locks in addition to padlocks and password locks.",
+        ],
+    },
     {
         version: "6.7.6",
         changes: [
