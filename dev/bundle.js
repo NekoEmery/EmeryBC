@@ -30050,7 +30050,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.5";
+    const MOD_VERSION = "6.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30061,6 +30061,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.6",
+            changes: [
+                "Fix: Friends showing as offline even when online — the AccountQueryResult dedup check was firing before the query type filter, so any non-OnlineFriends result BC sent in a burst (e.g. on login) would eat the OnlineFriends response for 50ms. Type check now runs first.",
+                "Fix: Added initial OnlineFriends query 3s after load so the friends list populates immediately rather than waiting for the first 30s heartbeat poll.",
+                "Fix: Reduced heartbeat interval from 60s to 30s for faster friend status updates.",
+            ],
+        },
         {
             version: "6.7.5",
             changes: [
@@ -37269,13 +37277,17 @@
         let _lastQueryResultTs = 0;
         const handleAccountQueryResult = (raw) => {
             try {
-                const now = Date.now();
-                if (now - _lastQueryResultTs < 50)
-                    return; // dedup if both hook + socket fire (50 ms is enough — they fire ~1 ms apart)
-                _lastQueryResultTs = now;
                 const data = raw;
+                // IMPORTANT: type-check BEFORE the dedup timestamp check.
+                // If we stamp _lastQueryResultTs for every AccountQueryResult (including
+                // non-OnlineFriends queries that BC fires on login), a rapid burst drops
+                // the OnlineFriends response because the dedup eats it.
                 if (data.Query !== "OnlineFriends")
                     return;
+                const now = Date.now();
+                if (now - _lastQueryResultTs < 50)
+                    return; // dedup only OnlineFriends (hook + socket fire ~1 ms apart)
+                _lastQueryResultTs = now;
                 const results = data.Result;
                 if (!Array.isArray(results))
                     return;
@@ -37322,14 +37334,21 @@
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
         catch ( /* ignore */_h) { /* ignore */ }
-        // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
-        // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
+        // Initial query — fire 3 s after load so the connection is settled, then every
+        // 30 s to stay current. (Previously was 60 s with no initial query, so the list
+        // could stay stale for a full minute if BC's own query burst got deduplicated.)
+        window.setTimeout(() => {
+            try {
+                ServerSend("AccountQuery", { Query: "OnlineFriends" });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 3000);
         setInterval(() => {
             try {
                 ServerSend("AccountQuery", { Query: "OnlineFriends" });
             }
             catch ( /* ignore */_a) { /* ignore */ }
-        }, 60 * 1000);
+        }, 30 * 1000);
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
