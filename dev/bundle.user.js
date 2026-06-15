@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.7
+// @version      6.9.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30048,7 +30048,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.7";
+    const MOD_VERSION = "6.9.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30059,6 +30059,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.8",
+            changes: [
+                "Fix: cursed item removal by other players now correctly blocked via ChatRoomSyncItem hook (fires before the item leaves Player.Appearance). Previous CharacterRefresh re-equip approach came too late. Blocked sync is immediately corrected back to the server so all clients see the item restored.",
+            ],
+        },
         {
             version: "6.9.7",
             changes: [
@@ -37000,38 +37006,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
-                    // Curse re-equip: if an external actor removed a cursed item, put it back
-                    if (!reEquipping) {
-                        try {
-                            const cursed = getCursedGroups();
-                            if (cursed.size > 0) {
-                                const itemMap = getCurseItemMap();
-                                const invGet = window.InventoryGet;
-                                const invAdd = window.InventoryAdd;
-                                const itemUpdate = window.ChatRoomCharacterItemUpdate;
-                                for (const group of cursed) {
-                                    const storedName = itemMap[group];
-                                    if (!storedName)
-                                        continue;
-                                    const current = invGet ? invGet(Player, group) : null;
-                                    if (!current) {
-                                        reEquipping = true;
-                                        try {
-                                            if (invAdd)
-                                                invAdd(Player, storedName, group, false);
-                                            if (itemUpdate)
-                                                itemUpdate(Player, group);
-                                            appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removed by someone, restored.`, UI.accent);
-                                        }
-                                        finally {
-                                            reEquipping = false;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch ( /* ignore */_c) { /* ignore */ }
-                    }
                 }
                 else if ((C === null || C === void 0 ? void 0 : C.MemberNumber) != null && C.MemberNumber !== Player.MemberNumber) {
                     // Record this person in the persistent "people met" list.
@@ -37050,11 +37024,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             if (C.Name)
                                 cacheAccountName(C.MemberNumber, C.Name);
                         }
-                        catch ( /* ignore */_d) { /* ignore */ }
+                        catch ( /* ignore */_c) { /* ignore */ }
                     }
                 }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.
@@ -37192,8 +37166,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 saveCurseItemMap(itemMap);
             }
         };
-        let reEquipping = false;
-        // Hook InventoryRemove: block removal of cursed item groups on Lucy's client.
+        // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
         tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
             try {
                 const [char, group] = args;
@@ -37202,6 +37175,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (cursed.has(group)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                         return; // block self-removal of cursed item
+                    }
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        // Hook ChatRoomSyncItem: block EXTERNAL removal of cursed items (another player removing via BC UI).
+        // This fires BEFORE InventoryRemove, so returning early keeps the item in Player.Appearance.
+        // We then immediately send a correction sync so the server and other clients restore the item.
+        tryHookFunction(modAPI, "ChatRoomSyncItem", 1, (args, next) => {
+            try {
+                const [data] = args;
+                const item = data.Item;
+                if (!item)
+                    return next(args);
+                const targetNum = typeof item.Target === "number" ? item.Target : 0;
+                const group = typeof item.Group === "string" ? item.Group : "";
+                const nameVal = item.Name; // undefined = removal
+                if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
+                    const cursed = getCursedGroups();
+                    if (cursed.has(group)) {
+                        appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+                        // Send correction: our item is still here, push it back to the server
+                        const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
+                        window.setTimeout(() => {
+                            try {
+                                if (itemUpdateFn)
+                                    itemUpdateFn(Player, group);
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        }, 0);
+                        return; // block the removal sync
                     }
                 }
             }
