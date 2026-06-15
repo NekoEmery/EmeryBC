@@ -5134,15 +5134,27 @@
             }
         }
         catch ( /* ignore */_d) { /* ignore */ }
-        // Prefer cached display name, then cached account name, then #number fallback.
-        // Account name is used as fallback so friends show their real name even if the
-        // display-name cache (friendNames) hasn't been populated yet for this member.
+        // Prefer cached display name, then cached account name.
         const displayName = getCachedNames()[String(memberNumber)];
         if (displayName)
             return displayName;
         const accountName = getCachedAccountNames()[String(memberNumber)];
         if (accountName)
             return accountName;
+        // Last resort: BC's own FriendNames map, populated at login from the server's
+        // LZ-compressed friend name store. Covers offline friends EBC hasn't seen yet.
+        try {
+            const bcNames = Player.FriendNames;
+            if (bcNames instanceof Map) {
+                const bcName = bcNames.get(memberNumber);
+                if (bcName) {
+                    cacheName(memberNumber, bcName);
+                    cacheAccountName(memberNumber, bcName);
+                    return bcName;
+                }
+            }
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
         return `#${memberNumber}`;
     }
     // -- Friend list ---------------------------------------------------------------
@@ -30632,7 +30644,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.22";
+    const MOD_VERSION = "6.9.23";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30644,7 +30656,13 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "6.9.22",
+            version: "6.9.23",
+            changes: [
+                "Fix: Friend names now resolve correctly for offline friends and friends not yet seen in a room. Root cause: resolveName() never checked BC's own Player.FriendNames map, which is populated at login from the server's LZ-compressed friend name store and covers ALL friends (online and offline). resolveName() now checks Player.FriendNames as a final fallback before #number, and caches the name on find. handleAccountQueryResult also proactively seeds the EBC cache from Player.FriendNames so offline friends are populated the first time AccountQueryResult fires (3 s after load).",
+            ],
+        },
+        {
+            version: "6.9.23",
             changes: [
                 "TOYS tab: PiShock and Lovense are now collapsible sections within the same tab (▼/▶ header). Lovense removed as a standalone tab.",
                 "TOYS tab: Lovense section added with ON/OFF toggle — shows 'coming soon' placeholder when enabled, off-note when disabled. Collapse state persists in localStorage.",
@@ -38217,20 +38235,37 @@
                     }
                 }
                 updateOnlineFriends(results);
+                // Proactively seed EBC name cache from BC's own FriendNames map.
+                // Player.FriendNames is populated at login from the server's LZ-compressed
+                // store and includes ALL friends (online and offline). Seeding here ensures
+                // offline friends show real names without needing to share a room first.
                 try {
-                    syncFriendsSince();
+                    const bcNames = Player.FriendNames;
+                    if (bcNames instanceof Map && bcNames.size > 0) {
+                        const cached = getCachedNames();
+                        for (const [num, name] of bcNames) {
+                            if (num && name && !cached[String(num)]) {
+                                cacheName(num, name);
+                                cacheAccountName(num, name);
+                            }
+                        }
+                    }
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 try {
-                    drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
+                    syncFriendsSince();
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
                 try {
-                    drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                    drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
                 }
                 catch ( /* ignore */_c) { /* ignore */ }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
         };
         // Primary: hook the BC global (reliable in R128 where it is a patchable function)
         tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
