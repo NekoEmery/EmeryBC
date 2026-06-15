@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.7";
+const MOD_VERSION = "6.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.8",
+        changes: [
+            "Fix: Toy control now actually works on others — was using ChatRoomCharacterUpdate which BC ignores for non-player characters; switched to ChatRoomCharacterItemUpdate which sends a per-item update packet that the server correctly broadcasts to the whole room.",
+        ],
+    },
     {
         version: "6.7.7",
         changes: [

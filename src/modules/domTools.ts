@@ -621,19 +621,15 @@ export function setTargetToyMode(targetId: number, mode: string): void {
         if (!char) return;
         let changed = false;
 
-        // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
-        // derived-state updates (Effect, Intensity …) AND the server push in one call.
-        // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
-        // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
-        const extSetFn = (window as unknown as Record<string, unknown>).ExtendedItemSetValue as
-            ((c: Character, i: Item, v: Record<string, unknown>, push: boolean) => void) | undefined;
-        // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+        // Use InventoryGet for the canonical live reference, then mutate in-place.
         const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
             ((c: Character, group: string) => Item | null | undefined) | undefined;
-        const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
-            ((c: Character) => void) | undefined;
-
-        let usedExtSet = false;
+        // ChatRoomCharacterItemUpdate is the correct call for pushing item changes on OTHER
+        // characters — it sends a per-item update packet that the server broadcasts to the room.
+        // ChatRoomCharacterUpdate only propagates full appearance for the player's own character,
+        // so it does nothing when called with another player's Character object.
+        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+            ((c: Character, group: string) => void) | undefined;
 
         for (const item of char.Appearance) {
             const asset = item.Asset as unknown as Record<string, unknown>;
@@ -641,26 +637,16 @@ export function setTargetToyMode(targetId: number, mode: string): void {
             // Detect vibrating items: exact archetype match OR existing Mode property
             if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
             try {
-                if (extSetFn) {
-                    // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
-                    extSetFn(char, item, { Mode: mode }, true);
-                    changed = true;
-                    usedExtSet = true;
-                } else {
-                    // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
-                    const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
-                    if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
-                    (liveItem.Property as Record<string, unknown>).Mode = mode;
-                    changed = true;
-                }
+                const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
+                if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+                (liveItem.Property as Record<string, unknown>).Mode = mode;
+                // Push per-item so the server + all room clients see the change on the target
+                if (itemUpdateFn) callBC(() => itemUpdateFn(char, liveItem.Asset.Group.Name));
+                changed = true;
             } catch { /* ignore */ }
         }
 
         if (changed) {
-            if (!usedExtSet) {
-                // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
-                callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
-            }
             const name = charDisplayName(char);
             const desc = mode === "Off"
                 ? `turns ${name}'s toy off.`
