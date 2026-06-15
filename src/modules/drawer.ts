@@ -3676,7 +3676,7 @@ function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(
 const EBC_COLORS_KEY  = "EBC_colors";
 const EBC_PRESET_KEY  = "EBC_activePreset";
 const EBC_HIDDEN_KEY  = "EBC_hiddenTabs";
-const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"] as const;
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
     notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
@@ -4389,6 +4389,7 @@ export class EBCDrawer {
         toysTabBtn.id = "ebc-tab-toys";
         toysTabBtn.textContent = "TOYS";
         toysTabBtn.title = "Toys & Integrations (PiShock)";
+        toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
 
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
@@ -22509,6 +22510,9 @@ export class EBCDrawer {
         // Show the Kitty tab only for Lucy (#230466)
         const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
         if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
+        // Show the Toys tab only for Emery (#130267) while it's in development
+        const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
+        if (toysTabEl) toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();
