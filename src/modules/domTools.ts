@@ -795,12 +795,19 @@ export function setPosition(memberNumber: number, mode: PositionMode): void {
     sendRoomAction(desc);
 }
 
+export function setPositionSilent(memberNumber: number, mode: PositionMode): void {
+    _posSlots.set(memberNumber, mode);
+    applyPositions();
+}
+
 export function clearPosition(memberNumber: number): void {
     _posSlots.delete(memberNumber);
+    applyPositions();
 }
 
 export function clearAllPositions(): void {
     _posSlots.clear();
+    applyPositions();
 }
 
 export function getPositionSlots(): ReadonlyMap<number, PositionMode> {

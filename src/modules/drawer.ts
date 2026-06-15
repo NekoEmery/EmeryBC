@@ -131,6 +131,7 @@ import {
     performActivityOnTarget,
     type PositionMode,
     setPosition,
+    setPositionSilent,
     clearPosition,
     clearAllPositions,
     getPositionSlots,
@@ -22400,11 +22401,11 @@ export class EBCDrawer {
         posHint.textContent = "Dispatches ECHO addon activities. Requires ECHO to be installed on both sides.";
         posPanel.appendChild(posHint);
 
-        // [echoName, label, emoji, focusGroup]
-        const POS_DEFS: ReadonlyArray<[string, string, string, string]> = [
-            ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints"],
-            ["🤗", "Get in Arms",  "钻进怀里", "ItemTorso"],
-            ["💪", "Hold in Arms", "抱入怀中", "ItemTorso"],
+        // [emoji, label, echoName, focusGroup, posMode]
+        const POS_DEFS: ReadonlyArray<[string, string, string, string, PositionMode]> = [
+            ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints", "side"],
+            ["🤗", "Get in Arms",  "钻进怀里", "ItemTorso",          "arms"],
+            ["💪", "Hold in Arms", "抱入怀中", "ItemTorso",          "hold"],
         ];
 
         const posGrid = document.createElement("div");
@@ -22413,7 +22414,7 @@ export class EBCDrawer {
         const posStatus = document.createElement("div");
         posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
 
-        for (const [emoji, label, echoName, focusGroup] of POS_DEFS) {
+        for (const [emoji, label, echoName, focusGroup, posMode] of POS_DEFS) {
             const btn = document.createElement("button");
             btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
             btn.textContent = `${emoji} ${label}`;
@@ -22422,13 +22423,14 @@ export class EBCDrawer {
             btn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) { posStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
+                // Apply position locally immediately — moves target next to player on DOM's screen.
+                // setPositionSilent skips the room action (ECHO activity below handles the message).
+                setPositionSilent(id, posMode);
                 try {
                     const sendFn = (window as unknown as Record<string, unknown>).ServerSend as ((type: string, data: unknown) => void) | undefined;
                     if (!sendFn) { posStatus.textContent = "⚠ BC not loaded."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
-                    // "Pull to Side" requires BC's leash to be actively held — ECHO checks
-                    // ChatRoomLeashPlayer on the target's client. Sending HoldLeash first
-                    // sets that, allowing ECHO to trigger with ANY leash-effect item
-                    // (ChainLeash, ChokeChain, CollarLeash, etc.), not just a "full leash".
+                    // Pull to Side: send HoldLeash first so ECHO can trigger with any leash-effect
+                    // item (ChainLeash, ChokeChain, CollarLeash, etc.) on the target's client.
                     if (echoName === "拉到身边") {
                         sendFn("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: id });
                     }
