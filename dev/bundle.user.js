@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.14
+// @version      6.9.15
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -29818,7 +29818,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             releaseBtn.addEventListener("mouseenter", () => { releaseBtn.style.background = "#6a1830"; releaseBtn.style.borderColor = "#e08090"; });
             releaseBtn.addEventListener("mouseleave", () => { releaseBtn.style.background = "#3a1020"; releaseBtn.style.borderColor = "#7a4050"; });
             releaseBtn.addEventListener("click", () => {
-                var _a;
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
                     posStatus.textContent = "Pick a Focus Target first.";
@@ -29828,12 +29827,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 clearPosition(id);
                 const sendFn = window.ServerSend;
                 if (sendFn) {
-                    const room = window.ChatRoomCharacter;
-                    const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === id);
-                    const name = (_a = char === null || char === void 0 ? void 0 : char.Name) !== null && _a !== void 0 ? _a : `#${id}`;
+                    const name = resolveName(id);
                     // Release BC's leash grip (clears ChatRoomLeashPlayer on target's client)
                     sendFn("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: id });
-                    sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Action" });
+                    // Type "Emote" renders free-form text directly (BC prepends the sender's name).
+                    // Type "Action" requires a localization key and would show "MISSING TEXT IN Interface.csv".
+                    sendFn("ChatRoomChat", { Content: `gently sets ${name} down.`, Type: "Emote" });
                 }
                 posStatus.textContent = "✓ Released.";
                 window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
@@ -30120,7 +30119,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.14";
+    const MOD_VERSION = "6.9.15";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30131,6 +30130,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.15",
+            changes: [
+                "Fix: 'Release from Arms' button now works correctly. Was sending Type:'Action' with free-form text, but BC treats Action Content as a localization key and showed 'MISSING TEXT IN Interface.csv: gently sets Lucas down.' — switched to Type:'Emote' which renders free-form text directly (BC prepends the sender's name). Also fixed target name showing account name instead of nickname.",
+            ],
+        },
         {
             version: "6.9.14",
             changes: [
