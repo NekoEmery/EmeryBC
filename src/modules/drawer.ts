@@ -2490,7 +2490,7 @@ const CSS = `
 .ebc-beep-win-footer {
     display: flex;
     gap: 4px;
-    padding: 6px 7px;
+    padding: 6px 30px 6px 7px;
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
     min-width: 0;

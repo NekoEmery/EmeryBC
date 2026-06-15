@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.7.0
+// @version      6.7.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -9948,7 +9948,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-beep-win-footer {
     display: flex;
     gap: 4px;
-    padding: 6px 7px;
+    padding: 6px 30px 6px 7px;
     border-top: 1px solid #3a1928;
     flex-shrink: 0;
     min-width: 0;
@@ -29530,7 +29530,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.0";
+    const MOD_VERSION = "6.7.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29541,6 +29541,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.1",
+            changes: [
+                "Fix: Added right padding to beep window footer so the Send button no longer overlaps the resize grip in the bottom-right corner.",
+            ],
+        },
         {
             version: "6.7.0",
             changes: [
