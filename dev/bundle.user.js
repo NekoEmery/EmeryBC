@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.33
+// @version      6.9.34
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28906,6 +28906,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const proxyUrl = ((_d = localStorage.getItem("EBC_ps_proxy")) !== null && _d !== void 0 ? _d : "").trim();
                 if (proxyUrl) {
                     console.log(`[EBC PiShock] Using CORS proxy: ${proxyUrl}`);
+                    console.log(`[EBC PiShock] Payload → user="${username}" code="${code}" op=${op} i=${finalI} d=${finalD}`);
                     try {
                         const resp = await fetch(proxyUrl, {
                             method: "POST",
@@ -31025,7 +31026,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.33";
+    const MOD_VERSION = "6.9.34";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31036,6 +31037,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.34",
+            changes: [
+                "PiShock: Add debug console log showing username, share code, op, intensity, and duration before each proxy call — makes it easy to verify credentials are loaded correctly.",
+            ],
+        },
         {
             version: "6.9.33",
             changes: [
