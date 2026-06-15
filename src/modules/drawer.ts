@@ -3932,6 +3932,11 @@ interface PiShockTrigger {
     shockerIdx: number;
     op: "strongest" | "beep" | "vibrate" | "shock";
 }
+interface LovenseTrigger {
+    phrase: string;
+    intensity?: number;
+    duration?: number;
+}
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -20579,6 +20584,16 @@ export class EBCDrawer {
         try { localStorage.setItem("EBC_ps_triggers", JSON.stringify(triggers)); } catch { /* ignore */ }
     }
 
+    private static getLovenseTriggers(): LovenseTrigger[] {
+        try {
+            const raw = localStorage.getItem("EBC_lvs_triggers");
+            return raw ? JSON.parse(raw) as LovenseTrigger[] : [];
+        } catch { return []; }
+    }
+    private static saveLovenseTriggers(triggers: LovenseTrigger[]): void {
+        try { localStorage.setItem("EBC_lvs_triggers", JSON.stringify(triggers)); } catch { /* ignore */ }
+    }
+
     private static extractPiShockCode(raw: string): string {
         // Auto-strip full PiShock share URLs → just the code
         const m = raw.match(/[?&#]sharecode=([^&#\s]+)/i) ?? raw.match(/sharecode[=/]([^/#&\s]+)/i);
@@ -20689,10 +20704,12 @@ export class EBCDrawer {
             });
             apiKeyRow.appendChild(eyeBtn);
 
-            // CORS Proxy URL (required when loaded via FUSAM/page context)
-            mkField("Proxy URL", "text", "EBC_ps_proxy", "https://your-worker.workers.dev  (leave empty if not needed)");
+            // CORS proxy — pre-filled with the shared EBC Worker; user can override with their own
+            const DEFAULT_PS_PROXY = "https://pishock.bdsmbondageneko.workers.dev/";
+            if (!localStorage.getItem("EBC_ps_proxy")) localStorage.setItem("EBC_ps_proxy", DEFAULT_PS_PROXY);
+            mkField("Proxy URL", "text", "EBC_ps_proxy", DEFAULT_PS_PROXY);
             const proxyNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:-2px 0 6px;line-height:1.5;`);
-            proxyNote.innerHTML = `PiShock blocks requests from non-pishock.com origins. If you're using FUSAM, set up a free <b style="color:var(--ebc-text)">Cloudflare Worker</b> proxy and paste its URL here. <a href="https://github.com/NekoEmery/EmeryBC/wiki/PiShock-Proxy" target="_blank" style="color:var(--ebc-accent);text-decoration:none;">Setup guide ↗</a>`;
+            proxyNote.innerHTML = `Pre-configured shared EBC relay (Cloudflare Worker — blind passthrough, no logging). Replace with your own Worker URL if you prefer to self-host.`;
             psContent.appendChild(proxyNote);
 
             // Limits
@@ -20897,12 +20914,160 @@ export class EBCDrawer {
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-            offNote.textContent = "Enable Lovense above to configure settings.";
+            offNote.textContent = "Enable Lovense above to configure.";
             lovContent.appendChild(offNote);
         } else {
-            const placeholder = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.7;padding:8px 0;`);
-            placeholder.innerHTML = "Connect your Lovense toys and map them to in-game actions.<br><b style=\"color:var(--ebc-text);\">Full integration coming soon.</b>";
-            lovContent.appendChild(placeholder);
+            const lovWarn = mk("div", `${FONT}font-size:11px;color:#9a6fd0;background:#0e0820;border:1px solid #4a2080;border-radius:4px;padding:8px 10px;margin:4px 0 8px;line-height:1.6;`);
+            lovWarn.innerHTML = "<b>Requires Lovense Connect app</b> running on this PC. Sends vibrate commands via the local HTTP API — no data leaves your machine.";
+            lovContent.appendChild(lovWarn);
+
+            // ── Connection ────────────────────────────────────────────────────
+            lovContent.appendChild(sectionHdr("CONNECTION"));
+            const lovStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+            const lovDot = mk("span", "font-size:13px;"); lovDot.textContent = "🔴";
+            const lovStatusTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`); lovStatusTxt.textContent = "Not connected";
+            const lovScanBtn = mkBtn("🔍 Scan", `${FONT}font-size:11px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
+            lovStatusRow.appendChild(lovDot); lovStatusRow.appendChild(lovStatusTxt); lovStatusRow.appendChild(lovScanBtn);
+            lovContent.appendChild(lovStatusRow);
+
+            const lovPortRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+            const lovPortLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:90px;flex-shrink:0;font-weight:bold;`); lovPortLbl.textContent = "Port";
+            const lovPortInp = document.createElement("input"); lovPortInp.type = "number"; lovPortInp.min = "1"; lovPortInp.max = "65535";
+            lovPortInp.value = localStorage.getItem("EBC_lvs_port") ?? "20010";
+            lovPortInp.style.cssText = `${FONT}font-size:11px;padding:4px 6px;border-radius:3px;border:1px solid var(--ebc-border);background:var(--ebc-input-bg);color:var(--ebc-text);width:80px;`;
+            lovPortInp.addEventListener("change", () => localStorage.setItem("EBC_lvs_port", (lovPortInp as HTMLInputElement).value.trim() || "20010"));
+            lovPortRow.appendChild(lovPortLbl); lovPortRow.appendChild(lovPortInp);
+            lovContent.appendChild(lovPortRow);
+
+            const lovProbePort = async (p: number): Promise<{ ok: boolean; label: string }> => {
+                try {
+                    const r = await fetch(`http://127.0.0.1:${p}/GetToys`, { signal: AbortSignal.timeout(1500) });
+                    if (!r.ok && r.status >= 500) return { ok: false, label: "" };
+                    const data = await r.json() as Record<string, unknown>;
+                    const toys = data.data as Record<string, { name?: string; nickname?: string; status?: number }> | undefined;
+                    const connected = toys ? Object.values(toys).filter(t => t.status === 1) : [];
+                    const label = connected.length ? connected.map(t => t.nickname || t.name || "Toy").join(", ") : "(no toys, check app)";
+                    return { ok: true, label };
+                } catch { return { ok: false, label: "" }; }
+            };
+            const lovDoScan = async (): Promise<void> => {
+                lovScanBtn.disabled = true; lovDot.textContent = "🔄"; lovStatusTxt.textContent = "Scanning…";
+                for (const p of [20010, 20011, 20012, 20013, 30010]) {
+                    const res = await lovProbePort(p);
+                    if (res.ok) {
+                        localStorage.setItem("EBC_lvs_port", String(p));
+                        (lovPortInp as HTMLInputElement).value = String(p);
+                        lovDot.textContent = "🟢"; lovStatusTxt.textContent = `Port ${p} — ${res.label}`;
+                        lovScanBtn.disabled = false; return;
+                    }
+                }
+                lovDot.textContent = "🔴"; lovStatusTxt.textContent = "Not found — is Lovense Connect open?";
+                lovScanBtn.disabled = false;
+            };
+            lovScanBtn.addEventListener("click", () => { lovDoScan().catch(() => {}); });
+            // Auto-probe on open (silent)
+            (() => {
+                const p = parseInt(localStorage.getItem("EBC_lvs_port") ?? "20010", 10) || 20010;
+                lovProbePort(p).then(res => {
+                    if (res.ok) { lovDot.textContent = "🟢"; lovStatusTxt.textContent = `Port ${p} — ${res.label}`; }
+                }).catch(() => {});
+            })();
+
+            // ── Vibrate defaults ──────────────────────────────────────────────
+            lovContent.appendChild(sep());
+            lovContent.appendChild(sectionHdr("VIBRATE DEFAULTS"));
+            const mkLovSlider = (label: string, key: string, min: number, max: number, def: number, unit: string): void => {
+                const cur = typeof s[key] === "number" ? (s[key] as number) : def;
+                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
+                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:90px;flex-shrink:0;font-weight:bold;`); lbl.textContent = label;
+                const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max);
+                sl.value = String(Math.min(Math.max(cur, min), max));
+                sl.style.cssText = "flex:1;min-width:0;accent-color:#9a6fd0;cursor:pointer;";
+                const val = mk("span", `${FONT}font-size:12px;color:#9a6fd0;min-width:40px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                val.textContent = sl.value + unit;
+                sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
+                row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
+                lovContent.appendChild(row);
+            };
+            mkLovSlider("Intensity", "lovenseIntensity", 1, 20, 10, "/20");
+            mkLovSlider("Duration",  "lovenseDuration",  1, 30,  5, "s");
+
+            // Test button
+            const lovTestRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+            const lovTestLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:40px;font-weight:bold;`); lovTestLbl.textContent = "TEST:";
+            const lovTestBtn = mkBtn("〜 Vibrate", `${FONT}font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
+            const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+            lovTestBtn.addEventListener("click", () => {
+                lovTestRes.textContent = "…";
+                this.fireLovense().then(r => { lovTestRes.textContent = r || "✓"; }).catch(e => { lovTestRes.textContent = `⚠ ${e}`; });
+            });
+            lovTestRow.appendChild(lovTestLbl); lovTestRow.appendChild(lovTestBtn); lovTestRow.appendChild(lovTestRes);
+            lovContent.appendChild(lovTestRow);
+
+            // ── Triggers ──────────────────────────────────────────────────────
+            lovContent.appendChild(sep());
+            lovContent.appendChild(sectionHdr("TRIGGERS"));
+
+            // Mirror PiShock shocks toggle
+            const mirrorRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+            const mirrorCb = document.createElement("input"); mirrorCb.type = "checkbox"; mirrorCb.checked = s.lovenseMirrorShocks !== false;
+            mirrorCb.style.cssText = "cursor:pointer;accent-color:#9a6fd0;width:14px;height:14px;flex-shrink:0;";
+            const mirrorLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);cursor:pointer;`); mirrorLbl.textContent = "Vibrate when a PiShock shock trigger fires";
+            mirrorLbl.addEventListener("click", () => { (mirrorCb as HTMLInputElement).checked = !(mirrorCb as HTMLInputElement).checked; s["lovenseMirrorShocks"] = (mirrorCb as HTMLInputElement).checked; syncSettings(); });
+            mirrorCb.addEventListener("change", () => { s["lovenseMirrorShocks"] = (mirrorCb as HTMLInputElement).checked; syncSettings(); });
+            mirrorRow.appendChild(mirrorCb); mirrorRow.appendChild(mirrorLbl);
+            lovContent.appendChild(mirrorRow);
+
+            // Own trigger phrases
+            lovContent.appendChild(sectionHdr("OWN PHRASES"));
+            const lovAddHRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;");
+            const lovAddNote = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); lovAddNote.textContent = "Vibrate when phrase is said in chat";
+            const lovAddBtn = mkBtn("+ Add", `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent-dim);background:transparent;color:var(--ebc-accent);`);
+            lovAddHRow.appendChild(lovAddNote); lovAddHRow.appendChild(lovAddBtn);
+            lovContent.appendChild(lovAddHRow);
+
+            const lovTriggers = EBCDrawer.getLovenseTriggers();
+            const lovListEl = mk("div");
+            const renderLovTriggers = (): void => {
+                while (lovListEl.firstChild) lovListEl.removeChild(lovListEl.firstChild);
+                lovTriggers.forEach((tr, idx) => {
+                    const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
+                    const r1 = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
+                    const phraseInp = document.createElement("input"); phraseInp.type = "text"; phraseInp.value = tr.phrase; phraseInp.placeholder = "Trigger phrase";
+                    phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                    phraseInp.addEventListener("input", () => { lovTriggers[idx].phrase = (phraseInp as HTMLInputElement).value.trim().toLowerCase(); EBCDrawer.saveLovenseTriggers(lovTriggers); });
+                    const removeBtn = mkBtn("×", `${FONT}font-size:14px;line-height:1;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    removeBtn.addEventListener("click", () => { lovTriggers.splice(idx, 1); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
+                    r1.appendChild(phraseInp); r1.appendChild(removeBtn);
+                    tCard.appendChild(r1);
+                    // Per-trigger intensity/duration override (blank = use defaults)
+                    const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+                    const mkOvr = (label: string, curVal: number | undefined, min: number, max: number, onChange: (v: number | undefined) => void): void => {
+                        const oLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); oLbl.textContent = `${label}:`;
+                        const oInp = document.createElement("input"); oInp.type = "number"; oInp.min = String(min); oInp.max = String(max);
+                        oInp.value = curVal !== undefined ? String(curVal) : ""; oInp.placeholder = "default";
+                        oInp.style.cssText = `${FONT}font-size:11px;padding:3px 5px;border-radius:3px;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text);width:70px;`;
+                        oInp.addEventListener("change", () => {
+                            const n = (oInp as HTMLInputElement).value.trim() ? parseInt((oInp as HTMLInputElement).value, 10) : undefined;
+                            onChange(n !== undefined && !isNaN(n) ? Math.min(Math.max(n, min), max) : undefined);
+                            EBCDrawer.saveLovenseTriggers(lovTriggers);
+                        });
+                        r2.appendChild(oLbl); r2.appendChild(oInp);
+                    };
+                    mkOvr("Intensity", tr.intensity, 1, 20, v => { lovTriggers[idx].intensity = v; });
+                    mkOvr("Duration",  tr.duration,  1, 30, v => { lovTriggers[idx].duration  = v; });
+                    tCard.appendChild(r2);
+                    lovListEl.appendChild(tCard);
+                });
+                if (!lovTriggers.length) {
+                    const empty = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);text-align:center;padding:10px 0;`);
+                    empty.textContent = "No triggers. Click + Add.";
+                    lovListEl.appendChild(empty);
+                }
+            };
+            lovAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
+            renderLovTriggers();
+            lovContent.appendChild(lovListEl);
         }
 
         body.appendChild(card);
@@ -20964,7 +21129,7 @@ export class EBCDrawer {
                 try {
                     const resp = await fetch(proxyUrl, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", "X-EBC-Key": "ebc-proxy-neko26" },
                         credentials: "omit",
                         body: payload,
                     });
@@ -21036,6 +21201,30 @@ export class EBCDrawer {
         }
     }
 
+    private async fireLovense(intensity?: number, duration?: number): Promise<string> {
+        try {
+            const s = getSettings();
+            if (s.lovenseEnabled !== true) return "";
+            const port = (localStorage.getItem("EBC_lvs_port") ?? "20010").trim() || "20010";
+            const defI = typeof s.lovenseIntensity === "number" ? (s.lovenseIntensity as number) : 10;
+            const defD = typeof s.lovenseDuration  === "number" ? (s.lovenseDuration  as number) : 5;
+            const finalI = Math.max(1, Math.min(intensity ?? defI, 20));
+            const finalD = Math.max(1, Math.min(duration  ?? defD, 30));
+            const resp = await fetch(`http://127.0.0.1:${port}/command`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ command: "Function", action: `Vibrate:${finalI}`, timeSec: finalD, loopRunningSec: 0, loopPauseSec: 0, stopPrevious: 1, toy: "", apiVer: 1 }),
+            });
+            const data = JSON.parse(await resp.text()) as Record<string, unknown>;
+            if (data.code === 200) return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
+            return `⚠ Lovense: ${String(data.type ?? "error")}`;
+        } catch (err) {
+            console.warn("[EBC Lovense] fireLovense failed:", err);
+            const port = (localStorage.getItem("EBC_lvs_port") ?? "20010").trim() || "20010";
+            return `⚠ Lovense Connect not found on :${port} — is the app open?`;
+        }
+    }
+
     /** Called from the ChatRoomMessage hook in main.ts when a player says something in the room. */
     public checkPiShockChatCommand(content: string): void {
         try {
@@ -21060,6 +21249,26 @@ export class EBCDrawer {
                     op = shocker.allowShock ? 0 : shocker.allowVibrate ? 1 : 2;
                 }
                 this.firePiShock(idx, op).catch(() => { /* silently ignore */ });
+                // Mirror shock triggers to Lovense if enabled
+                if (op === 0) {
+                    const ls = getSettings();
+                    if (ls.lovenseEnabled === true && ls.lovenseMirrorShocks !== false) {
+                        this.fireLovense().catch(() => { /* silently ignore */ });
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+    }
+
+    public checkLovenseTriggers(content: string): void {
+        try {
+            const s = getSettings();
+            if (s.lovenseEnabled !== true) return;
+            const lower = content.toLowerCase();
+            const triggers = EBCDrawer.getLovenseTriggers();
+            for (const tr of triggers) {
+                if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase())) continue;
+                this.fireLovense(tr.intensity, tr.duration).catch(() => { /* silently ignore */ });
             }
         } catch { /* ignore */ }
     }
