@@ -5079,7 +5079,7 @@
         const d = store.friendNames;
         d[String(memberNumber)] = name;
         _evictNameCache(d);
-        // Sync is deferred — name cache is saved alongside the next real operation
+        sync();
     }
     // -- Account name cache --------------------------------------------------------
     // Stores the raw BC account name (.Name) separately from the display name
@@ -5096,6 +5096,7 @@
         const d = store.friendAccountNames;
         d[String(memberNumber)] = accountName;
         _evictNameCache(d);
+        sync();
     }
     /** Returns the cached BC account name for this member, or null if unknown. */
     function getAccountName(memberNumber) {
@@ -6604,7 +6605,7 @@
         "Bite": n => `bites ${n}'s neck.`,
         "Slap": n => `slaps ${n}.`,
         "Caress": n => `caresses ${n} gently.`,
-        "Massage": n => `massages ${n}.`,
+        "Bap": n => `baps ${n} on the head.`,
         "Lick": n => `licks ${n}.`,
     };
     /**
@@ -6613,6 +6614,7 @@
      */
     const BC_ACTIVITY_NAME = {
         "Pat": "Caress", // no native "Pat" in BC — use Caress animation on the head
+        "Bap": "Slap", // no native "Bap" in BC — use Slap animation on the head
     };
     /**
      * Perform a quick action on an in-room character.
@@ -29160,7 +29162,7 @@
                 ["🦷", "Bite", "Bite", "ItemNeck"],
                 ["✋", "Slap", "Slap", "ItemHead"],
                 ["🖐", "Caress", "Caress", "ItemArms"],
-                ["💆", "Massage", "Massage", "ItemLegs"],
+                ["👊", "Bap", "Bap", "ItemHead"],
                 ["🫦", "Lick", "Lick", "ItemHead"],
             ];
             const actGrid = document.createElement("div");
@@ -29477,7 +29479,8 @@
             }
             else {
                 // Anchored: normal slide-in
-                this.panelEl.className = "ebc-open";
+                this.panelEl.classList.remove("ebc-closed");
+                this.panelEl.classList.add("ebc-open");
             }
             if (!this.positioned)
                 this.syncToChat();
@@ -29522,7 +29525,8 @@
                 this.panelEl.classList.add("ebc-closed", "ebc-free-mode");
             }
             else {
-                this.panelEl.className = "ebc-closed";
+                this.panelEl.classList.remove("ebc-open");
+                this.panelEl.classList.add("ebc-closed");
             }
         }
         // -- Lifecycle -------------------------------------------------------------
@@ -29711,7 +29715,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.8";
+    const MOD_VERSION = "6.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29722,6 +29726,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.9",
+            changes: [
+                "Fix: Friend names now persist across restarts — cacheName/cacheAccountName were accumulating names in memory but never flushing to ExtensionSettings; added sync() call to both functions.",
+                "Fix: 'Fade when not hovered' now actually works — open() and close() were doing className= assignment which wiped the ebc-fade-hover class; switched to classList.add/remove to preserve it.",
+                "Dom menu: Renamed 'Massage' action to 'Bap' — targets head zone with slap animation and description 'baps X on the head'.",
+            ],
+        },
         {
             version: "6.7.8",
             changes: [
