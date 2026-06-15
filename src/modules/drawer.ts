@@ -3679,7 +3679,7 @@ const EBC_HIDDEN_KEY  = "EBC_hiddenTabs";
 const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-    notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
+    notes: "USERS", toys: "TOYS", lovense: "LOVENSE", thanks: "CREDITS", dev: "DEV",
 };
 
 // The 9 user-facing colour slots. All derived colours are computed from these.
@@ -3884,7 +3884,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "lovense" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
 // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
@@ -4404,6 +4404,13 @@ export class EBCDrawer {
         toysTabBtn.title = "Toys & Integrations (PiShock)";
         toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
 
+        const lovenseTabBtn = document.createElement("button");
+        lovenseTabBtn.className = "ebc-tab-btn";
+        lovenseTabBtn.id = "ebc-tab-lovense";
+        lovenseTabBtn.textContent = "LOVENSE";
+        lovenseTabBtn.title = "Lovense toy integrations";
+        lovenseTabBtn.style.display = "none"; // Emery-only — revealed in open()
+
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
@@ -4457,6 +4464,7 @@ export class EBCDrawer {
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(toysTabBtn);
+        tabBar.appendChild(lovenseTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
@@ -5161,6 +5169,7 @@ export class EBCDrawer {
         posesTabBtn.addEventListener("click",    () => this.switchTab("anims"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         toysTabBtn.addEventListener("click",     () => this.switchTab("toys"));
+        lovenseTabBtn.addEventListener("click",  () => this.switchTab("lovense"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         btnsTabBtn.addEventListener("click",      () => this.switchTab("buttons"));
@@ -5982,6 +5991,7 @@ export class EBCDrawer {
         else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "toys")     this.renderToys();
+        else if (this.currentTab === "lovense")  this.renderLovense();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
@@ -20632,23 +20642,42 @@ export class EBCDrawer {
 
         // ── Global credentials ────────────────────────────────────────────────
         card.appendChild(sep());
-        card.appendChild(sectionHdr("CREDENTIALS — stored in browser only"));
+        card.appendChild(sectionHdr("CREDENTIALS - stored locally on your machine"));
         const credNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;line-height:1.4;`);
-        credNote.textContent = "Credentials are stored in your browser only — never synced to BC servers.";
+        credNote.textContent = "Stored locally in your browser's localStorage only. EmeryBC never saves your credentials - not to BC servers, not to any external service.";
         card.appendChild(credNote);
-        for (const [lsKey, label, typ, hint] of [
-            ["EBC_ps_user", "Username", "text",     "Your PiShock account username"],
-            ["EBC_ps_key",  "API Key",  "password", "API key from PiShock account settings"],
-        ] as [string, string, string, string][]) {
+
+        // Username field
+        {
             const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
             const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
-            lbl.textContent = label;
+            lbl.textContent = "Username";
             const inp = document.createElement("input");
-            inp.type = typ; inp.value = localStorage.getItem(lsKey) ?? "";
-            inp.placeholder = hint; inp.autocomplete = "off";
+            inp.type = "text"; inp.value = localStorage.getItem("EBC_ps_user") ?? "";
+            inp.placeholder = "Your PiShock account username"; inp.autocomplete = "off";
             inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
-            inp.addEventListener("input", () => { try { localStorage.setItem(lsKey, inp.value); } catch { /* ignore */ } });
+            inp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_user", inp.value); } catch { /* ignore */ } });
             row.appendChild(lbl); row.appendChild(inp);
+            card.appendChild(row);
+        }
+
+        // API Key field with show/hide toggle
+        {
+            const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
+            lbl.textContent = "API Key";
+            const inp = document.createElement("input");
+            inp.type = "password"; inp.value = localStorage.getItem("EBC_ps_key") ?? "";
+            inp.placeholder = "API key from PiShock account settings"; inp.autocomplete = "off";
+            inp.style.cssText = `${FONT}font-size:10px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+            inp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_key", inp.value); } catch { /* ignore */ } });
+            const eyeBtn = mkBtn("👁", `${FONT}font-size:12px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;line-height:1;`);
+            eyeBtn.title = "Show / hide API key";
+            eyeBtn.addEventListener("click", () => {
+                inp.type = inp.type === "password" ? "text" : "password";
+                eyeBtn.style.color = inp.type === "text" ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+            });
+            row.appendChild(lbl); row.appendChild(inp); row.appendChild(eyeBtn);
             card.appendChild(row);
         }
 
@@ -20911,6 +20940,46 @@ export class EBCDrawer {
                 this.firePiShock(idx, op).catch(() => { /* silently ignore */ });
             }
         } catch { /* ignore */ }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    private renderLovense(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        const FONT = "font-family:'Trebuchet MS',serif;";
+        const mk = (tag: string, css: string): HTMLElement => {
+            const el = document.createElement(tag); el.style.cssText = css; return el;
+        };
+        const card = mk("div", "padding:10px 8px 8px;");
+
+        // Header
+        const hdr = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;");
+        const title = mk("span", `${FONT}font-size:13px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
+        title.textContent = "💜 LOVENSE";
+        hdr.appendChild(title);
+        card.appendChild(hdr);
+
+        const sep = (): HTMLElement => {
+            const d = document.createElement("hr");
+            d.style.cssText = "border:none;border-top:1px solid var(--ebc-border);margin:8px 0;";
+            return d;
+        };
+
+        card.appendChild(sep());
+
+        const placeholder = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);line-height:1.6;text-align:center;padding:20px 8px;`);
+        placeholder.innerHTML = [
+            "<b style=\"color:var(--ebc-text);\">Coming soon</b>",
+            "Connect your Lovense toys and map them to",
+            "in-game actions — spanks, restraints, poses,",
+            "chat triggers, and more.",
+        ].join("<br>");
+        card.appendChild(placeholder);
+
+        body.appendChild(card);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -22629,6 +22698,9 @@ export class EBCDrawer {
         // Show the Toys tab only for Emery (#130267) while it's in development
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
         if (toysTabEl) toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
+        // Show the Lovense tab only for Emery (#130267) while it's in development
+        const lovenseTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-lovense");
+        if (lovenseTabEl) lovenseTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();
