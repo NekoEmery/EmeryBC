@@ -28653,27 +28653,32 @@
                         lovConnBtn.disabled = true;
                         lovDot.textContent = "🔄";
                         lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                        // Gen1 toys use fff0/fff2; Gen2+ (Domi 2, Lush 3, etc.) use Nordic UART Service
-                        const LVS_SVC_OLD = "0000fff0-0000-1000-8000-00805f9b34fb";
-                        const LVS_WRITE_OLD = "0000fff2-0000-1000-8000-00805f9b34fb";
-                        const LVS_SVC_NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-                        const LVS_WRITE_NUS = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: [LVS_SVC_OLD, LVS_SVC_NUS] })
+                        // List all known Lovense service UUIDs — getPrimaryServices() returns whichever actually exist on the device
+                        const LVS_SERVICES = [
+                            "0000fff0-0000-1000-8000-00805f9b34fb", // Gen1
+                            "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Gen2 Nordic UART
+                            "50300001-0023-4bd4-bbd5-a6920e4c5653", // Alternate Lovense
+                        ];
+                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                             .then(async (rawDevice) => {
+                            var _a;
                             const device = rawDevice;
                             this._lovBtDevice = device;
                             device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
                             lovStatusTxt.textContent = "Connecting…";
                             const server = await device.gatt.connect();
-                            let char;
-                            try {
-                                const svc = await server.getPrimaryService(LVS_SVC_OLD);
-                                char = await svc.getCharacteristic(LVS_WRITE_OLD);
+                            const services = await server.getPrimaryServices();
+                            console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
+                            let char = null;
+                            for (const svc of services) {
+                                const chars = await svc.getCharacteristics();
+                                console.log(`[EBC Lovense] ${svc.uuid}:`, chars.map(c => `${c.uuid}(w:${c.properties["write"]},wr:${c.properties["writeWithoutResponse"]})`));
+                                char = (_a = chars.find(c => c.properties["write"] || c.properties["writeWithoutResponse"])) !== null && _a !== void 0 ? _a : null;
+                                if (char)
+                                    break;
                             }
-                            catch (_a) {
-                                const svc = await server.getPrimaryService(LVS_SVC_NUS);
-                                char = await svc.getCharacteristic(LVS_WRITE_NUS);
-                            }
+                            if (!char)
+                                throw new Error("No writable characteristic found");
                             this._lovBtChar = char;
                             lovUpdateStatus();
                             lovConnBtn.disabled = false;
@@ -28965,9 +28970,15 @@
             const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
             const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 30));
             const enc = new TextEncoder();
+            const doWrite = (cmd) => {
+                const d = enc.encode(cmd);
+                return (writeChar.writeValueWithoutResponse && writeChar.properties["writeWithoutResponse"])
+                    ? writeChar.writeValueWithoutResponse(d)
+                    : writeChar.writeValue(d);
+            };
             try {
-                await writeChar.writeValue(enc.encode(`Vibrate:${finalI};`));
-                setTimeout(() => { writeChar.writeValue(enc.encode("Vibrate:0;")).catch(() => { }); }, finalD * 1000);
+                await doWrite(`Vibrate:${finalI};`);
+                setTimeout(() => { doWrite("Vibrate:0;").catch(() => { }); }, finalD * 1000);
                 return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
             }
             catch (err) {
@@ -30990,7 +31001,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.34";
+    const MOD_VERSION = "6.9.35";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31001,6 +31012,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.35",
+            changes: [
+                "Lovense BLE: Replace static service UUID guessing with dynamic service discovery — connects to any Lovense toy by enumerating all primary services and finding the first writable characteristic. Supports writeValueWithoutResponse for characteristics that require it. Logs discovered services/characteristics to console for debugging.",
+            ],
+        },
         {
             version: "6.9.34",
             changes: [
