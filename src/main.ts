@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.39";
+const MOD_VERSION = "6.9.40";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.40",
+        changes: [
+            "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
+            "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
+            "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
+            "LOVENSE: Duration slider extended to 60s (was 30s).",
+            "LOVENSE: Chat phrase trigger UI polished with 'blank = default' hints on I/D inputs.",
+        ],
+    },
     {
         version: "6.9.39",
         changes: [
@@ -7340,13 +7350,23 @@ function init(): void {
         return next(args);
     });
 
-    // PiShock chat-command trigger — watch for the user-configured phrase in room chat
+    // Lovense triggers: chat phrases + body touch activities + BC toy sync
     tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
         try {
             const [data] = args as [Record<string, unknown>];
             if (data.Type === "Chat" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                 drawer?.checkLovenseTriggers(data.Content as string);
+            }
+            if (data.Type === "Activity" && typeof data.Content === "string") {
+                const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
+                const targetEntry = dict?.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
+                const targetNum = targetEntry?.["MemberNumber"] ?? targetEntry?.["TargetCharacter"];
+                if (targetNum === Player.MemberNumber) {
+                    const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup");
+                    const assetGroup = groupEntry?.["AssetGroupName"] as string | undefined;
+                    drawer?.checkLovenseActivityTrigger(data.Content as string, assetGroup);
+                }
             }
         } catch { /* ignore */ }
         return next(args);

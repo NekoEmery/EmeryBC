@@ -3927,6 +3927,28 @@ interface LovenseTrigger {
     duration?: number;
 }
 
+interface LovenseTouchState {
+    enabled: boolean;
+    intensity?: number;
+    duration?: number;
+}
+
+const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [
+    { key: "headpat",  label: "🤚 Headpat",  activity: "Pet",     group: "ItemHead",  dflt: true  },
+    { key: "caress",   label: "🤲 Caress",   activity: "Caress",  group: undefined,   dflt: true  },
+    { key: "kiss",     label: "💋 Kiss",     activity: "Kiss",    group: "ItemMouth", dflt: true  },
+    { key: "lick",     label: "👅 Lick",     activity: "Lick",    group: undefined,   dflt: false },
+    { key: "bite",     label: "😬 Bite",     activity: "Bite",    group: undefined,   dflt: false },
+    { key: "spank",    label: "👋 Spank",    activity: "Spank",   group: "ItemButt",  dflt: false },
+    { key: "slap",     label: "✋ Slap",     activity: "Slap",    group: undefined,   dflt: false },
+    { key: "tickle",   label: "🪶 Tickle",   activity: "Tickle",  group: undefined,   dflt: false },
+    { key: "pinch",    label: "🤏 Pinch",    activity: "Pinch",   group: undefined,   dflt: false },
+    { key: "squeeze",  label: "🫸 Squeeze",  activity: "Squeeze", group: undefined,   dflt: false },
+    { key: "rub",      label: "🖐 Rub",      activity: "Rub",     group: undefined,   dflt: false },
+    { key: "choke",    label: "🤜 Choke",    activity: "Choke",   group: "ItemNeck",  dflt: false },
+    { key: "grab",     label: "✊ Grab",     activity: "Grab",    group: undefined,   dflt: false },
+];
+
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
     /** Gold paw data URI — set from main.ts after EBC_PAW_DATA is defined. */
@@ -20540,6 +20562,16 @@ export class EBCDrawer {
         try { localStorage.setItem("EBC_lvs_triggers", JSON.stringify(triggers)); } catch { /* ignore */ }
     }
 
+    private static getTouchTriggers(): Record<string, LovenseTouchState> {
+        try {
+            const raw = localStorage.getItem("EBC_lvs_touch");
+            return raw ? JSON.parse(raw) as Record<string, LovenseTouchState> : {};
+        } catch { return {}; }
+    }
+    private static saveTouchTriggers(data: Record<string, LovenseTouchState>): void {
+        try { localStorage.setItem("EBC_lvs_touch", JSON.stringify(data)); } catch { /* ignore */ }
+    }
+
     private renderToys(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -20605,68 +20637,93 @@ export class EBCDrawer {
             offNote.textContent = "Enable Lovense above to configure.";
             lovContent.appendChild(offNote);
         } else {
-            // ── Connection ────────────────────────────────────────────────────
-            lovContent.appendChild(sectionHdr("CONNECTION"));
+            const LA = "#9a6fd0";
+            const LM = "#6a4a80";
+
+            const lvsHdr = (txt: string): HTMLElement => {
+                const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:${LM};margin:0 0 6px;text-transform:uppercase;`);
+                d.textContent = txt; return d;
+            };
+            const lvsNumInp = (placeholder: string, value: string): HTMLInputElement => {
+                const inp = document.createElement("input");
+                inp.type = "number"; inp.min = "1";
+                inp.style.cssText = `${FONT}width:48px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:4px;text-align:center;box-sizing:border-box;`;
+                inp.placeholder = placeholder; inp.value = value; return inp;
+            };
+
+            // ── CONNECTION ──────────────────────────────────────────────────────
+            lovContent.appendChild(lvsHdr("CONNECTION"));
 
             const nav = navigator as unknown as Record<string, unknown>;
             const btApi = nav["bluetooth"] as { requestDevice: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
 
             if (!btApi) {
-                const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:4px;padding:8px 10px;margin:4px 0 8px;line-height:1.6;`);
-                noBlue.innerHTML = "<b>Web Bluetooth not supported</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys via Bluetooth.";
+                const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:6px;padding:8px 10px;margin:4px 0 10px;line-height:1.6;`);
+                noBlue.innerHTML = "<b>Web Bluetooth not available</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys.";
                 lovContent.appendChild(noBlue);
             } else {
-                const lovStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                const lovDot = mk("span", "font-size:13px;");
-                const lovStatusTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
-                const lovConnBtn = mkBtn("🔵 Connect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid #4a2080;background:transparent;color:#9a6fd0;`);
-                const lovDiscBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);display:none;`);
-                lovStatusRow.appendChild(lovDot); lovStatusRow.appendChild(lovStatusTxt); lovStatusRow.appendChild(lovConnBtn); lovStatusRow.appendChild(lovDiscBtn);
-                lovContent.appendChild(lovStatusRow);
+                const connCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
 
-                const lovNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
-                lovNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to another device.";
-                lovContent.appendChild(lovNote);
+                const connRow = mk("div", "display:flex;align-items:center;gap:8px;");
+                const lovDot = mk("span", "font-size:14px;flex-shrink:0;");
+                const lovDevName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);flex:1;font-weight:bold;`);
+                const lovConnBtn = document.createElement("button");
+                lovConnBtn.textContent = "🔗 Connect Toy";
+                lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid ${LA};background:#1e0f2a;color:${LA};transition:background 0.1s;`;
+                lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "#2e1540"; });
+                lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "#1e0f2a"; });
+                const lovDiscBtn = document.createElement("button");
+                lovDiscBtn.textContent = "Disconnect";
+                lovDiscBtn.style.cssText = `${FONT}font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;transition:background 0.1s;display:none;`;
+                lovDiscBtn.addEventListener("mouseenter", () => { lovDiscBtn.style.background = "#3a0f18"; });
+                lovDiscBtn.addEventListener("mouseleave", () => { lovDiscBtn.style.background = "#280810"; });
+
+                connRow.appendChild(lovDot); connRow.appendChild(lovDevName); connRow.appendChild(lovConnBtn); connRow.appendChild(lovDiscBtn);
+                connCard.appendChild(connRow);
+
+                const connNote = mk("div", `${FONT}font-size:10px;color:${LM};margin-top:7px;line-height:1.5;`);
+                connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                connCard.appendChild(connNote);
+                lovContent.appendChild(connCard);
 
                 const lovUpdateStatus = (): void => {
                     const dev = this._lovBtDevice as { gatt?: { connected?: boolean }; name?: string } | null;
                     const connected = dev?.gatt?.connected === true;
-                    lovDot.textContent = connected ? "🟢" : "🔴";
-                    lovStatusTxt.textContent = connected ? `Connected: ${dev?.name ?? "Lovense toy"}` : "Not connected";
+                    lovDot.textContent = connected ? "🟢" : "⚫";
+                    lovDevName.textContent = connected ? (dev?.name ?? "Lovense toy") : "Not connected";
+                    lovDevName.style.color = connected ? "#c8e0c8" : "var(--ebc-text-muted)";
                     lovConnBtn.style.display = connected ? "none" : "";
                     lovDiscBtn.style.display = connected ? "" : "none";
                 };
                 lovUpdateStatus();
 
                 lovConnBtn.addEventListener("click", () => {
-                    lovConnBtn.disabled = true; lovDot.textContent = "🔄"; lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                    // All known Lovense service UUIDs — browser only returns ones that exist on the device
+                    lovConnBtn.disabled = true; lovDot.textContent = "🔄"; lovDevName.textContent = "Opening Bluetooth picker…"; lovDevName.style.color = "var(--ebc-text-muted)";
                     const LVS_SERVICES = [
-                        "0000fff0-0000-1000-8000-00805f9b34fb",  // Gen1
-                        "6e400001-b5a3-f393-e0a9-e50e24dcca9e",  // Gen2 Nordic UART
-                        "50300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v1
-                        "57300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v2
-                        "5a300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v3
-                        "55300001-0023-4bd4-bbd5-a6920e4c5653",  // Lovense proprietary v4
+                        "0000fff0-0000-1000-8000-00805f9b34fb",
+                        "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+                        "50300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "57300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "5a300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "55300001-0023-4bd4-bbd5-a6920e4c5653",
                     ];
                     btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
                             this._lovBtDevice = device;
                             device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
-                            lovStatusTxt.textContent = "Connecting…";
+                            lovDevName.textContent = "Connecting…";
                             type WriteChar = { uuid: string; properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
                             type Svc = { uuid: string; getCharacteristics: () => Promise<WriteChar[]> };
                             const server = await device.gatt!.connect() as { getPrimaryServices: () => Promise<Svc[]> };
-                            // Retry getPrimaryServices — GATT discovery sometimes needs a moment after connect
                             let services: Svc[] = [];
                             for (let attempt = 0; attempt < 3; attempt++) {
                                 await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
                                 try { services = await server.getPrimaryServices(); } catch { /* try again */ }
                                 if (services.length > 0) break;
                             }
-                            console.log("[EBC Lovense] Services found:", services.map(s => s.uuid));
-                            if (!services.length) throw new Error("No services found — make sure Lovense Connect / the Lovense app is fully closed and the toy is not connected to anything else, then reconnect.");
+                            console.log("[EBC Lovense] Services found:", services.map(sv => sv.uuid));
+                            if (!services.length) throw new Error("No services found — make sure Lovense Connect app is fully closed and the toy is not connected to anything else.");
                             let char: WriteChar | null = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -20676,14 +20733,13 @@ export class EBCDrawer {
                             }
                             if (!char) throw new Error("No writable characteristic found");
                             this._lovBtChar = char;
-                            lovUpdateStatus();
-                            lovConnBtn.disabled = false;
+                            lovUpdateStatus(); lovConnBtn.disabled = false;
                         })
                         .catch((err: unknown) => {
                             const msg = err instanceof Error ? err.message : String(err);
                             lovDot.textContent = "🔴";
-                            lovStatusTxt.textContent = (err instanceof Error && err.name === "NotFoundError" && !this._lovBtDevice)
-                                ? "Cancelled" : `Error: ${msg}`;
+                            lovDevName.textContent = (err instanceof Error && err.name === "NotFoundError" && !this._lovBtDevice) ? "Cancelled" : `Error: ${msg}`;
+                            lovDevName.style.color = "#e07070";
                             lovConnBtn.disabled = false;
                         });
                 });
@@ -20694,91 +20750,192 @@ export class EBCDrawer {
                 });
             }
 
-            // ── Vibrate defaults ──────────────────────────────────────────────
+            // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
             lovContent.appendChild(sep());
-            lovContent.appendChild(sectionHdr("VIBRATE DEFAULTS"));
-            const mkLovSlider = (label: string, key: string, min: number, max: number, def: number, unit: string): void => {
-                const cur = typeof s[key] === "number" ? (s[key] as number) : def;
-                const row = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
-                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:90px;flex-shrink:0;font-weight:bold;`); lbl.textContent = label;
-                const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max);
-                sl.value = String(Math.min(Math.max(cur, min), max));
-                sl.style.cssText = "flex:1;min-width:0;accent-color:#9a6fd0;cursor:pointer;";
-                const val = mk("span", `${FONT}font-size:12px;color:#9a6fd0;min-width:40px;text-align:right;flex-shrink:0;font-weight:bold;`);
-                val.textContent = sl.value + unit;
-                sl.addEventListener("input", () => { s[key] = parseInt(sl.value, 10); val.textContent = sl.value + unit; syncSettings(); });
+            lovContent.appendChild(lvsHdr("VIBRATE DEFAULTS"));
+            const mkLovSlider = (label: string, key: string, min: number, max: number, def: number, fmtFn: (v: number) => string): void => {
+                const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key] as number, min), max) : def;
+                const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;flex-shrink:0;`); lbl.textContent = label;
+                const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(cur);
+                sl.style.cssText = `flex:1;min-width:0;accent-color:${LA};cursor:pointer;`;
+                const val = mk("span", `${FONT}font-size:12px;color:${LA};min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                val.textContent = fmtFn(cur);
+                sl.addEventListener("input", () => { const v = parseInt(sl.value, 10); s[key] = v; val.textContent = fmtFn(v); syncSettings(); });
                 row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
                 lovContent.appendChild(row);
             };
-            mkLovSlider("Intensity", "lovenseIntensity", 1, 20, 10, "/20");
-            mkLovSlider("Duration",  "lovenseDuration",  1, 30,  5, "s");
+            mkLovSlider("Intensity", "lovenseIntensity", 1, 20, 10, v => `${v}/20`);
+            mkLovSlider("Duration",  "lovenseDuration",  1, 60,  5, v => `${v}s`);
 
-            // Test button
-            const lovTestRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
-            const lovTestLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);min-width:40px;font-weight:bold;`); lovTestLbl.textContent = "TEST:";
-            const lovTestBtn = mkBtn("〜 Vibrate", `${FONT}font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text);`);
+            const lovTestRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+            const lovTestBtn = document.createElement("button");
+            lovTestBtn.textContent = "〜 Test Vibrate";
+            lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid ${LA};background:#1e0f2a;color:${LA};transition:background 0.1s;`;
+            lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "#2e1540"; });
+            lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "#1e0f2a"; });
             const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
             lovTestBtn.addEventListener("click", () => {
-                lovTestRes.textContent = "…";
-                this.fireLovense().then(r => { lovTestRes.textContent = r || "✓"; }).catch(e => { lovTestRes.textContent = `⚠ ${e}`; });
+                lovTestBtn.disabled = true; lovTestRes.textContent = "…";
+                this.fireLovense().then(r => {
+                    lovTestRes.textContent = r || "✓";
+                    lovTestRes.style.color = r.startsWith("⚠") ? "#e07070" : "#79a885";
+                    window.setTimeout(() => { lovTestRes.textContent = ""; lovTestRes.style.color = ""; lovTestBtn.disabled = false; }, 3500);
+                }).catch(e => { lovTestRes.textContent = `⚠ ${e}`; lovTestRes.style.color = "#e07070"; lovTestBtn.disabled = false; });
             });
-            lovTestRow.appendChild(lovTestLbl); lovTestRow.appendChild(lovTestBtn); lovTestRow.appendChild(lovTestRes);
+            lovTestRow.appendChild(lovTestBtn); lovTestRow.appendChild(lovTestRes);
             lovContent.appendChild(lovTestRow);
 
-            // ── Triggers ──────────────────────────────────────────────────────
+            // ── CHAT PHRASES ────────────────────────────────────────────────────
             lovContent.appendChild(sep());
-            lovContent.appendChild(sectionHdr("TRIGGERS"));
+            lovContent.appendChild(lvsHdr("CHAT PHRASES — fire when phrase is said in chat"));
 
-            // Own trigger phrases
-            lovContent.appendChild(sectionHdr("OWN PHRASES"));
-            const lovAddHRow = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;");
-            const lovAddNote = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); lovAddNote.textContent = "Vibrate when phrase is said in chat";
-            const lovAddBtn = mkBtn("+ Add", `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent-dim);background:transparent;color:var(--ebc-accent);`);
-            lovAddHRow.appendChild(lovAddNote); lovAddHRow.appendChild(lovAddBtn);
-            lovContent.appendChild(lovAddHRow);
+            const phraseAddBtn = document.createElement("button");
+            phraseAddBtn.textContent = "+ Add phrase";
+            phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid ${LA};background:transparent;color:${LA};margin-bottom:7px;`;
+            lovContent.appendChild(phraseAddBtn);
 
             const lovTriggers = EBCDrawer.getLovenseTriggers();
             const lovListEl = mk("div");
             const renderLovTriggers = (): void => {
                 while (lovListEl.firstChild) lovListEl.removeChild(lovListEl.firstChild);
                 lovTriggers.forEach((tr, idx) => {
-                    const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
+                    const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px 10px;margin-bottom:7px;");
                     const r1 = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
                     const phraseInp = document.createElement("input"); phraseInp.type = "text"; phraseInp.value = tr.phrase; phraseInp.placeholder = "Trigger phrase";
-                    phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:3px;padding:3px 6px;box-sizing:border-box;`;
+                    phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:4px;padding:4px 7px;box-sizing:border-box;`;
                     phraseInp.addEventListener("input", () => { lovTriggers[idx].phrase = (phraseInp as HTMLInputElement).value.trim().toLowerCase(); EBCDrawer.saveLovenseTriggers(lovTriggers); });
-                    const removeBtn = mkBtn("×", `${FONT}font-size:14px;line-height:1;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    const removeBtn = document.createElement("button"); removeBtn.textContent = "×";
+                    removeBtn.style.cssText = `${FONT}font-size:14px;line-height:1;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`;
                     removeBtn.addEventListener("click", () => { lovTriggers.splice(idx, 1); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
                     r1.appendChild(phraseInp); r1.appendChild(removeBtn);
                     tCard.appendChild(r1);
-                    // Per-trigger intensity/duration override (blank = use defaults)
                     const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
-                    const mkOvr = (label: string, curVal: number | undefined, min: number, max: number, onChange: (v: number | undefined) => void): void => {
-                        const oLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); oLbl.textContent = `${label}:`;
-                        const oInp = document.createElement("input"); oInp.type = "number"; oInp.min = String(min); oInp.max = String(max);
-                        oInp.value = curVal !== undefined ? String(curVal) : ""; oInp.placeholder = "default";
-                        oInp.style.cssText = `${FONT}font-size:11px;padding:3px 5px;border-radius:3px;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text);width:70px;`;
-                        oInp.addEventListener("change", () => {
-                            const n = (oInp as HTMLInputElement).value.trim() ? parseInt((oInp as HTMLInputElement).value, 10) : undefined;
-                            onChange(n !== undefined && !isNaN(n) ? Math.min(Math.max(n, min), max) : undefined);
-                            EBCDrawer.saveLovenseTriggers(lovTriggers);
-                        });
-                        r2.appendChild(oLbl); r2.appendChild(oInp);
+                    const mkOLbl = (txt: string): HTMLElement => { const l = mk("span", `${FONT}font-size:10px;color:${LM};`); l.textContent = txt; return l; };
+                    r2.appendChild(mkOLbl("I:")); const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : ""); r2.appendChild(iInp);
+                    r2.appendChild(mkOLbl("D:")); const dInp = lvsNumInp("def", tr.duration  !== undefined ? String(tr.duration)  : ""); r2.appendChild(dInp);
+                    r2.appendChild(mkOLbl("s  (blank = default)"));
+                    const savePhrTr = (): void => {
+                        const iv = iInp.value.trim(); const dv = dInp.value.trim();
+                        lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
+                        lovTriggers[idx].duration  = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
+                        EBCDrawer.saveLovenseTriggers(lovTriggers);
                     };
-                    mkOvr("Intensity", tr.intensity, 1, 20, v => { lovTriggers[idx].intensity = v; });
-                    mkOvr("Duration",  tr.duration,  1, 30, v => { lovTriggers[idx].duration  = v; });
+                    iInp.addEventListener("change", savePhrTr); dInp.addEventListener("change", savePhrTr);
                     tCard.appendChild(r2);
                     lovListEl.appendChild(tCard);
                 });
                 if (!lovTriggers.length) {
-                    const empty = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);text-align:center;padding:10px 0;`);
-                    empty.textContent = "No triggers. Click + Add.";
+                    const empty = mk("div", `${FONT}font-size:11px;color:${LM};text-align:center;padding:8px 0;`);
+                    empty.textContent = "No phrases — click + Add phrase.";
                     lovListEl.appendChild(empty);
                 }
             };
-            lovAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
+            phraseAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
             renderLovTriggers();
             lovContent.appendChild(lovListEl);
+
+            // ── BODY TOUCH ──────────────────────────────────────────────────────
+            lovContent.appendChild(sep());
+            lovContent.appendChild(lvsHdr("BODY TOUCH — fire when someone does an action on you"));
+
+            const touchData = EBCDrawer.getTouchTriggers();
+            const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
+            for (const def of TOUCH_DEFS) {
+                const stored = touchData[def.key];
+                const enNow = stored ? stored.enabled : def.dflt;
+                const cellWrap = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 9px;");
+
+                const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
+                const chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = enNow;
+                chk.style.cssText = `accent-color:${LA};cursor:pointer;flex-shrink:0;margin:0;`;
+                const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
+                tlbl.textContent = def.label;
+                tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
+                r1.appendChild(chk); r1.appendChild(tlbl);
+                cellWrap.appendChild(r1);
+
+                const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
+                const iLbl2 = mk("span", `${FONT}font-size:10px;color:${LM};`); iLbl2.textContent = "I:";
+                const iInp2 = lvsNumInp("—", stored?.intensity !== undefined ? String(stored.intensity) : "");
+                iInp2.style.width = "42px";
+                const dLbl2 = mk("span", `${FONT}font-size:10px;color:${LM};`); dLbl2.textContent = "D:";
+                const dInp2 = lvsNumInp("—", stored?.duration !== undefined ? String(stored.duration) : "");
+                dInp2.style.width = "42px";
+                const sUnit = mk("span", `${FONT}font-size:10px;color:${LM};`); sUnit.textContent = "s";
+                r2.appendChild(iLbl2); r2.appendChild(iInp2); r2.appendChild(dLbl2); r2.appendChild(dInp2); r2.appendChild(sUnit);
+                cellWrap.appendChild(r2);
+
+                const saveTouchCell = (): void => {
+                    const iv = iInp2.value.trim(); const dv = dInp2.value.trim();
+                    touchData[def.key] = {
+                        enabled: chk.checked,
+                        intensity: iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined,
+                        duration:  dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined,
+                    };
+                    EBCDrawer.saveTouchTriggers(touchData);
+                };
+                chk.addEventListener("change", () => {
+                    const en = chk.checked;
+                    tlbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                    tlbl.style.fontWeight = en ? "bold" : "normal";
+                    r2.style.opacity = en ? "" : "0.4";
+                    saveTouchCell();
+                });
+                iInp2.addEventListener("change", saveTouchCell); dInp2.addEventListener("change", saveTouchCell);
+                touchGrid.appendChild(cellWrap);
+            }
+            lovContent.appendChild(touchGrid);
+            const touchHint = mk("div", `${FONT}font-size:10px;color:${LM};margin:0 0 4px;`);
+            touchHint.textContent = "I = intensity (1–20)  D = duration in seconds  blank = use defaults";
+            lovContent.appendChild(touchHint);
+
+            // ── BC TOY SYNC ─────────────────────────────────────────────────────
+            lovContent.appendChild(sep());
+            lovContent.appendChild(lvsHdr("BC TOY SYNC — fire when a BC toy activates on you"));
+
+            const syncEnabled = s["lovenseBcSyncEnabled"] === true;
+            const syncCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
+
+            const syncToggleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+            const syncChk = document.createElement("input"); syncChk.type = "checkbox"; syncChk.checked = syncEnabled;
+            syncChk.style.cssText = `accent-color:${LA};cursor:pointer;margin:0;`;
+            const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
+            syncLbl.textContent = "Mirror BC toy activations to Lovense";
+            syncLbl.addEventListener("click", () => { syncChk.checked = !syncChk.checked; syncChk.dispatchEvent(new Event("change")); });
+            syncToggleRow.appendChild(syncChk); syncToggleRow.appendChild(syncLbl);
+            syncCard.appendChild(syncToggleRow);
+
+            const syncSliders = mk("div", `${syncEnabled ? "" : "opacity:0.4;pointer-events:none;"}`);
+            const mkSyncSlider = (label: string, key: string, min: number, max: number, def: number, fmtFn: (v: number) => string): void => {
+                const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key] as number, min), max) : def;
+                const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`); lbl.textContent = label;
+                const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(cur);
+                sl.style.cssText = `flex:1;min-width:0;accent-color:${LA};cursor:pointer;`;
+                const val = mk("span", `${FONT}font-size:12px;color:${LA};min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                val.textContent = fmtFn(cur);
+                sl.addEventListener("input", () => { const v = parseInt(sl.value, 10); s[key] = v; val.textContent = fmtFn(v); syncSettings(); });
+                row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
+                syncSliders.appendChild(row);
+            };
+            mkSyncSlider("Intensity", "lovenseBcSyncIntensity", 1, 20, 10, v => `${v}/20`);
+            mkSyncSlider("Duration",  "lovenseBcSyncDuration",  1, 60,  5, v => `${v}s`);
+
+            const syncNote = mk("div", `${FONT}font-size:10px;color:${LM};margin-top:4px;line-height:1.5;`);
+            syncNote.textContent = "Fires on ItemVulva, ItemVulvaPiercings, ItemButt, ItemNipples. Skipped if a body-touch trigger matched.";
+            syncSliders.appendChild(syncNote);
+            syncCard.appendChild(syncSliders);
+
+            syncChk.addEventListener("change", () => {
+                const en = syncChk.checked;
+                syncLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                syncLbl.style.fontWeight = en ? "bold" : "normal";
+                syncSliders.style.opacity = en ? "" : "0.4";
+                syncSliders.style.pointerEvents = en ? "" : "none";
+                s["lovenseBcSyncEnabled"] = en; syncSettings();
+            });
+            lovContent.appendChild(syncCard);
         }
 
         body.appendChild(card);
@@ -20794,7 +20951,7 @@ export class EBCDrawer {
         const defI = typeof s.lovenseIntensity === "number" ? (s.lovenseIntensity as number) : 10;
         const defD = typeof s.lovenseDuration  === "number" ? (s.lovenseDuration  as number) : 5;
         const finalI = Math.max(1, Math.min(intensity ?? defI, 20));
-        const finalD = Math.max(1, Math.min(duration  ?? defD, 30));
+        const finalD = Math.max(1, Math.min(duration  ?? defD, 60));
         const enc = new TextEncoder();
         const doWrite = (cmd: string): Promise<void> => {
             const d = enc.encode(cmd);
@@ -20821,6 +20978,31 @@ export class EBCDrawer {
             for (const tr of triggers) {
                 if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase())) continue;
                 this.fireLovense(tr.intensity, tr.duration).catch(() => { /* silently ignore */ });
+            }
+        } catch { /* ignore */ }
+    }
+
+    public checkLovenseActivityTrigger(activityName: string, assetGroup?: string): void {
+        try {
+            const s = getSettings();
+            if (s.lovenseEnabled !== true) return;
+            // Body touch triggers (checked first; BC sync skipped if one matches)
+            const touchData = EBCDrawer.getTouchTriggers();
+            for (const def of TOUCH_DEFS) {
+                if (activityName !== def.activity) continue;
+                if (def.group && assetGroup !== def.group) continue;
+                const stored = touchData[def.key];
+                const enabled = stored ? stored.enabled : def.dflt;
+                if (!enabled) continue;
+                this.fireLovense(stored?.intensity, stored?.duration).catch(() => {});
+                return;
+            }
+            // BC toy sync
+            const TOY_ZONES = ["ItemVulva", "ItemVulvaPiercings", "ItemButt", "ItemNipples"];
+            if (s["lovenseBcSyncEnabled"] === true && assetGroup && TOY_ZONES.includes(assetGroup)) {
+                const syncI = typeof s["lovenseBcSyncIntensity"] === "number" ? (s["lovenseBcSyncIntensity"] as number) : 10;
+                const syncD = typeof s["lovenseBcSyncDuration"]  === "number" ? (s["lovenseBcSyncDuration"]  as number) : 5;
+                this.fireLovense(syncI, syncD).catch(() => {});
             }
         } catch { /* ignore */ }
     }
