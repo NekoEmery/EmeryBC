@@ -14,6 +14,7 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
+import { appendLocalLogLine } from "./modules/notify";
 import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
@@ -23,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.5";
+const MOD_VERSION = "6.9.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.6",
+        changes: [
+            "Curse notifications: DOM sees an EBC chat log line when they apply or lift curses; target sees a notification when they receive a curse beep. appendLocalLogLine extracted to shared notify.ts module.",
+            "Position panel (Pull to Side / Get in Arms / Hold in Arms) now dispatches ECHO activity extension events instead of the broken local-array hack — requires ECHO to be installed on both sides.",
+        ],
+    },
     {
         version: "6.9.5",
         changes: [
@@ -5213,30 +5221,6 @@ function playBeepSound(): void {
     } catch { /* ignore — AudioContext may not be available */ }
 }
 
-function appendLocalLogLine(text: string, color = UI.accent): void {
-    const doAppend = (): boolean => {
-        const log = document.getElementById("TextAreaChatLog");
-        if (!log) return false;
-        const msg = document.createElement("div");
-        msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${color};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-        msg.textContent = text;
-        log.appendChild(msg);
-        log.scrollTop = log.scrollHeight;
-        return true;
-    };
-    // Try immediately; if the chat log isn't mounted yet retry once after a short delay
-    if (!doAppend()) {
-        window.setTimeout(() => doAppend(), 300);
-    }
-}
 
 // Appends a clickable command row to the chat log. Clicking fills the chat input
 // with the command text so the user only has to press Enter to run it.
@@ -7043,6 +7027,14 @@ function init(): void {
                 const friendList2 = (Player.FriendList as number[] | undefined) ?? [];
                 if (senderNum && friendList2.includes(senderNum)) {
                     handleCurseCommand(beep.Message);
+                    const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
+                    const inner = beep.Message.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+                    if (inner.startsWith("apply:")) {
+                        const groups = inner.slice("apply:".length).split(",").filter(Boolean).map(g => g.replace("Item", ""));
+                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you: ${groups.join(", ")}`, UI.accent);
+                    } else if (inner === "clear") {
+                        appendLocalLogLine(`[EBC] ✓ ${senderName} lifted all your curses.`, UI.textMuted);
+                    }
                     return; // suppress notification
                 }
             }

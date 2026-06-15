@@ -169,6 +169,8 @@ import {
     type WhisperEntry,
 } from "./whisperLog";
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
+import { appendLocalLogLine } from "./notify";
+import { UI } from "./ui";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -21966,6 +21968,9 @@ export class EBCDrawer {
             const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
             setCurseRecord(id, merged);
             sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+            const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
+            const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
+            appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
             curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
             window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
@@ -21973,8 +21978,10 @@ export class EBCDrawer {
         liftCurseBtn.addEventListener("click", () => {
             const id = parseInt(qtSel.value, 10);
             if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
+            const targetName3 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             setCurseRecord(id, []);
             sendBeep(id, "[EBC-CURSE:clear]");
+            appendLocalLogLine(`[EBC] ✓ Lifted all curses on ${targetName3}.`, UI.textMuted);
             curseStatus.textContent = "✓ All curses lifted.";
             window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
@@ -22029,6 +22036,8 @@ export class EBCDrawer {
                     if (remaining.length > 0) sendBeep(id, `[EBC-CURSE:apply:${remaining.join(",")}]`);
                     else sendBeep(id, "[EBC-CURSE:clear]");
                     const label = nameMap.get(group) ?? group.replace("Item", "");
+                    const targetName4 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
+                    appendLocalLogLine(`[EBC] ✓ Lifted ${label} curse on ${targetName4}.`, UI.textMuted);
                     curseStatus.textContent = `✓ Lifted ${label}.`;
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
                     rebuildActiveCurses();
@@ -22046,13 +22055,14 @@ export class EBCDrawer {
 
         const posHint = document.createElement("div");
         posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
-        posHint.textContent = "Moves target next to you locally. Others see the original order.";
+        posHint.textContent = "Dispatches ECHO addon activities. Requires ECHO to be installed on both sides.";
         posPanel.appendChild(posHint);
 
-        const POS_DEFS: ReadonlyArray<[string, string, PositionMode]> = [
-            ["🔗", "Pull to Side", "side"],
-            ["🤗", "Get in Arms",  "arms"],
-            ["💪", "Hold in Arms", "hold"],
+        // [echoName, label, emoji, focusGroup]
+        const POS_DEFS: ReadonlyArray<[string, string, string, string]> = [
+            ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints"],
+            ["🤗", "Get in Arms",  "钻进怀里", "ItemTorso"],
+            ["💪", "Hold in Arms", "抱入怀中", "ItemTorso"],
         ];
 
         const posGrid = document.createElement("div");
@@ -22061,38 +22071,7 @@ export class EBCDrawer {
         const posStatus = document.createElement("div");
         posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
 
-        const posActiveList = document.createElement("div");
-        posActiveList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:4px;";
-
-        const rebuildPosActive = (): void => {
-            while (posActiveList.firstChild) posActiveList.removeChild(posActiveList.firstChild);
-            const slots = getPositionSlots();
-            if (slots.size === 0) return;
-            const memberMap = new Map(getRoomMembers().map(m => [m.id, m.name]));
-            for (const [memberNum, mode] of slots) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:4px;background:#1e0d18;border:1px solid #3a1928;border-radius:5px;padding:3px 7px;";
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                const modeLabel = mode === "side" ? "at side" : mode === "arms" ? "in arms" : "held";
-                nameEl.textContent = `${memberMap.get(memberNum) ?? "#" + memberNum} — ${modeLabel}`;
-                const relBtn = document.createElement("button");
-                relBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
-                relBtn.textContent = "✕";
-                relBtn.title = "Release";
-                relBtn.addEventListener("click", () => {
-                    clearPosition(memberNum);
-                    rebuildPosActive();
-                    posStatus.textContent = "✓ Released.";
-                    window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
-                });
-                row.appendChild(nameEl);
-                row.appendChild(relBtn);
-                posActiveList.appendChild(row);
-            }
-        };
-
-        for (const [emoji, label, mode] of POS_DEFS) {
+        for (const [emoji, label, echoName, focusGroup] of POS_DEFS) {
             const btn = document.createElement("button");
             btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
             btn.textContent = `${emoji} ${label}`;
@@ -22101,33 +22080,31 @@ export class EBCDrawer {
             btn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) { posStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
-                setPosition(id, mode);
-                rebuildPosActive();
-                posStatus.textContent = `✓ ${label} → applied.`;
-                window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                try {
+                    const sendFn = (window as unknown as Record<string, unknown>).ServerSend as ((type: string, data: unknown) => void) | undefined;
+                    if (!sendFn) { posStatus.textContent = "⚠ BC not loaded."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
+                    sendFn("ChatRoomChat", {
+                        Content: echoName,
+                        Type: "Activity",
+                        Dictionary: [
+                            { ActivityName: echoName },
+                            { SourceCharacter: Player.MemberNumber },
+                            { TargetCharacter: id },
+                            { Tag: "FocusAssetGroup", AssetGroupName: focusGroup },
+                        ],
+                    });
+                    posStatus.textContent = `✓ ${label} → sent.`;
+                    window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                } catch {
+                    posStatus.textContent = "⚠ Failed to dispatch.";
+                    window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                }
             });
             posGrid.appendChild(btn);
         }
 
-        const releaseAllPosBtn = document.createElement("button");
-        releaseAllPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;width:100%;margin-top:4px;";
-        releaseAllPosBtn.textContent = "↺ Release All";
-        releaseAllPosBtn.addEventListener("click", () => {
-            clearAllPositions();
-            rebuildPosActive();
-            posStatus.textContent = "✓ All released.";
-            window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
-        });
-
         posPanel.appendChild(posGrid);
-        posPanel.appendChild(posActiveList);
-        posPanel.appendChild(releaseAllPosBtn);
         posPanel.appendChild(posStatus);
-
-        // Refresh active list when accordion is opened and on initial render
-        // (the DOM tab may re-render while _posSlots has entries from before)
-        posHdr.addEventListener("click", () => { if (isPosOpen()) rebuildPosActive(); });
-        rebuildPosActive();
 
         // Order: Restraint Sets → Target → Actions → Release Tools
         body.appendChild(setsCard);

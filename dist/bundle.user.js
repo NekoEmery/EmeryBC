@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.5
+// @version      6.9.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6755,28 +6755,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     const _posSlots = new Map();
-    function setPosition(memberNumber, mode) {
-        _posSlots.set(memberNumber, mode);
-        applyPositions();
-        const char = findRoomChar(memberNumber);
-        if (!char)
-            return;
-        const name = charDisplayName(char);
-        const desc = mode === "side"
-            ? `pulls ${name} to their side.`
-            : mode === "arms"
-                ? `scoops ${name} up in their arms.`
-                : `holds ${name} tightly in their arms.`;
-        sendRoomAction(desc);
-    }
-    function clearPosition(memberNumber) {
-        _posSlots.delete(memberNumber);
-    }
     function clearAllPositions() {
         _posSlots.clear();
-    }
-    function getPositionSlots() {
-        return _posSlots;
     }
     function applyPositions() {
         try {
@@ -7674,6 +7654,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         return str;
+    }
+
+    function appendLocalLogLine(text, color = UI.accent) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const msg = document.createElement("div");
+            msg.style.cssText = `
+            background: ${UI.cardMuted};
+            color: ${color};
+            border-left: 3px solid ${UI.accent};
+            padding: 4px 8px;
+            margin: 2px 0;
+            font-style: italic;
+            font-size: 12px;
+        `;
+            msg.textContent = text;
+            log.appendChild(msg);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend()) {
+            window.setTimeout(() => doAppend(), 300);
+        }
     }
 
     /**
@@ -29595,6 +29600,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 syncSettings();
             };
             applyCurseBtn.addEventListener("click", () => {
+                var _a, _b;
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
                     curseStatus.textContent = "Pick a Focus Target first.";
@@ -29610,18 +29616,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
                 setCurseRecord(id, merged);
                 sendBeep(id, `[EBC-CURSE:apply:${newGroups.join(",")}]`);
+                const targetName2 = (_b = (_a = getRoomMembers().find(m => m.id === id)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : `#${id}`;
+                const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
+                appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
                 curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
                 window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
             });
             liftCurseBtn.addEventListener("click", () => {
+                var _a, _b;
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
                     curseStatus.textContent = "Pick a Focus Target first.";
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
                     return;
                 }
+                const targetName3 = (_b = (_a = getRoomMembers().find(m => m.id === id)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : `#${id}`;
                 setCurseRecord(id, []);
                 sendBeep(id, "[EBC-CURSE:clear]");
+                appendLocalLogLine(`[EBC] ✓ Lifted all curses on ${targetName3}.`, UI.textMuted);
                 curseStatus.textContent = "✓ All curses lifted.";
                 window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
             });
@@ -29675,7 +29687,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     liftOneBtn.textContent = "✕";
                     liftOneBtn.title = "Lift this curse";
                     liftOneBtn.addEventListener("click", () => {
-                        var _a;
+                        var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
                         setCurseRecord(id, remaining);
                         if (remaining.length > 0)
@@ -29683,6 +29695,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         else
                             sendBeep(id, "[EBC-CURSE:clear]");
                         const label = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
+                        const targetName4 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
+                        appendLocalLogLine(`[EBC] ✓ Lifted ${label} curse on ${targetName4}.`, UI.textMuted);
                         curseStatus.textContent = `✓ Lifted ${label}.`;
                         window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
                         rebuildActiveCurses();
@@ -29694,53 +29708,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             cursePanel.appendChild(activeCursesEl);
             // ── 📍 Position ────────────────────────────────────────────────────────
-            const { panel: posPanel, hdr: posHdr, isOpen: isPosOpen } = makeDomAccordion("📍", "POSITION", actionsCard);
+            const { panel: posPanel} = makeDomAccordion("📍", "POSITION", actionsCard);
             const posHint = document.createElement("div");
             posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:6px;";
-            posHint.textContent = "Moves target next to you locally. Others see the original order.";
+            posHint.textContent = "Dispatches ECHO addon activities. Requires ECHO to be installed on both sides.";
             posPanel.appendChild(posHint);
+            // [echoName, label, emoji, focusGroup]
             const POS_DEFS = [
-                ["🔗", "Pull to Side", "side"],
-                ["🤗", "Get in Arms", "arms"],
-                ["💪", "Hold in Arms", "hold"],
+                ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints"],
+                ["🤗", "Get in Arms", "钻进怀里", "ItemTorso"],
+                ["💪", "Hold in Arms", "抱入怀中", "ItemTorso"],
             ];
             const posGrid = document.createElement("div");
             posGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
             const posStatus = document.createElement("div");
             posStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;margin-top:4px;";
-            const posActiveList = document.createElement("div");
-            posActiveList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:4px;";
-            const rebuildPosActive = () => {
-                var _a;
-                while (posActiveList.firstChild)
-                    posActiveList.removeChild(posActiveList.firstChild);
-                const slots = getPositionSlots();
-                if (slots.size === 0)
-                    return;
-                const memberMap = new Map(getRoomMembers().map(m => [m.id, m.name]));
-                for (const [memberNum, mode] of slots) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:4px;background:#1e0d18;border:1px solid #3a1928;border-radius:5px;padding:3px 7px;";
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    const modeLabel = mode === "side" ? "at side" : mode === "arms" ? "in arms" : "held";
-                    nameEl.textContent = `${(_a = memberMap.get(memberNum)) !== null && _a !== void 0 ? _a : "#" + memberNum} — ${modeLabel}`;
-                    const relBtn = document.createElement("button");
-                    relBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
-                    relBtn.textContent = "✕";
-                    relBtn.title = "Release";
-                    relBtn.addEventListener("click", () => {
-                        clearPosition(memberNum);
-                        rebuildPosActive();
-                        posStatus.textContent = "✓ Released.";
-                        window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
-                    });
-                    row.appendChild(nameEl);
-                    row.appendChild(relBtn);
-                    posActiveList.appendChild(row);
-                }
-            };
-            for (const [emoji, label, mode] of POS_DEFS) {
+            for (const [emoji, label, echoName, focusGroup] of POS_DEFS) {
                 const btn = document.createElement("button");
                 btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
                 btn.textContent = `${emoji} ${label}`;
@@ -29753,31 +29736,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
                         return;
                     }
-                    setPosition(id, mode);
-                    rebuildPosActive();
-                    posStatus.textContent = `✓ ${label} → applied.`;
-                    window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                    try {
+                        const sendFn = window.ServerSend;
+                        if (!sendFn) {
+                            posStatus.textContent = "⚠ BC not loaded.";
+                            window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                            return;
+                        }
+                        sendFn("ChatRoomChat", {
+                            Content: echoName,
+                            Type: "Activity",
+                            Dictionary: [
+                                { ActivityName: echoName },
+                                { SourceCharacter: Player.MemberNumber },
+                                { TargetCharacter: id },
+                                { Tag: "FocusAssetGroup", AssetGroupName: focusGroup },
+                            ],
+                        });
+                        posStatus.textContent = `✓ ${label} → sent.`;
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
+                    }
+                    catch (_a) {
+                        posStatus.textContent = "⚠ Failed to dispatch.";
+                        window.setTimeout(() => { posStatus.textContent = ""; }, 2500);
+                    }
                 });
                 posGrid.appendChild(btn);
             }
-            const releaseAllPosBtn = document.createElement("button");
-            releaseAllPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;width:100%;margin-top:4px;";
-            releaseAllPosBtn.textContent = "↺ Release All";
-            releaseAllPosBtn.addEventListener("click", () => {
-                clearAllPositions();
-                rebuildPosActive();
-                posStatus.textContent = "✓ All released.";
-                window.setTimeout(() => { posStatus.textContent = ""; }, 1500);
-            });
             posPanel.appendChild(posGrid);
-            posPanel.appendChild(posActiveList);
-            posPanel.appendChild(releaseAllPosBtn);
             posPanel.appendChild(posStatus);
-            // Refresh active list when accordion is opened and on initial render
-            // (the DOM tab may re-render while _posSlots has entries from before)
-            posHdr.addEventListener("click", () => { if (isPosOpen())
-                rebuildPosActive(); });
-            rebuildPosActive();
             // Order: Restraint Sets → Target → Actions → Release Tools
             body.appendChild(setsCard);
             body.appendChild(targetCard);
@@ -30059,7 +30046,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.5";
+    const MOD_VERSION = "6.9.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30070,6 +30057,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.6",
+            changes: [
+                "Curse notifications: DOM sees an EBC chat log line when they apply or lift curses; target sees a notification when they receive a curse beep. appendLocalLogLine extracted to shared notify.ts module.",
+                "Position panel (Pull to Side / Get in Arms / Hold in Arms) now dispatches ECHO activity extension events instead of the broken local-array hack — requires ECHO to be installed on both sides.",
+            ],
+        },
         {
             version: "6.9.5",
             changes: [
@@ -35244,31 +35238,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore — AudioContext may not be available */_a) { /* ignore — AudioContext may not be available */ }
     }
-    function appendLocalLogLine(text, color = UI.accent) {
-        const doAppend = () => {
-            const log = document.getElementById("TextAreaChatLog");
-            if (!log)
-                return false;
-            const msg = document.createElement("div");
-            msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${color};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-            msg.textContent = text;
-            log.appendChild(msg);
-            log.scrollTop = log.scrollHeight;
-            return true;
-        };
-        // Try immediately; if the chat log isn't mounted yet retry once after a short delay
-        if (!doAppend()) {
-            window.setTimeout(() => doAppend(), 300);
-        }
-    }
     // Appends a clickable command row to the chat log. Clicking fills the chat input
     // with the command text so the user only has to press Enter to run it.
     function appendClickableCmd(cmd, desc) {
@@ -37187,6 +37156,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const friendList2 = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
                     if (senderNum && friendList2.includes(senderNum)) {
                         handleCurseCommand(beep.Message);
+                        const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
+                        const inner = beep.Message.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+                        if (inner.startsWith("apply:")) {
+                            const groups = inner.slice("apply:".length).split(",").filter(Boolean).map(g => g.replace("Item", ""));
+                            appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you: ${groups.join(", ")}`, UI.accent);
+                        }
+                        else if (inner === "clear") {
+                            appendLocalLogLine(`[EBC] ✓ ${senderName} lifted all your curses.`, UI.textMuted);
+                        }
                         return; // suppress notification
                     }
                 }
