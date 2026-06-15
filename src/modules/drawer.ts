@@ -20980,40 +20980,31 @@ export class EBCDrawer {
                 return parseResult(text, status);
             }
 
-            // Fallback A: text/plain avoids the CORS OPTIONS preflight (only application/json triggers it).
-            // PiShock's server returns Access-Control-Allow-Origin on simple requests, so this should work.
-            console.log("[EBC PiShock] GM_xmlhttpRequest not available — trying fetch with text/plain (no preflight)");
+            // Fallback: no-cors fetch.
+            // PiShock locks Access-Control-Allow-Origin to pishock.com, so any cors-mode fetch from
+            // bondage-europe.com is blocked by the browser regardless of headers or preflight.
+            // mode:'no-cors' bypasses all CORS checks — the request IS delivered to PiShock's server.
+            // The trade-off: response is opaque (status + body unreadable), so we can't confirm success.
+            // Works if PiShock's server parses JSON with Content-Type: text/plain (most do).
+            console.log("[EBC PiShock] GM unavailable (FUSAM/page context) — sending no-cors fire-and-forget");
             try {
-                const respA = await fetch("https://do.pishock.com/api/apioperate", {
+                await fetch("https://do.pishock.com/api/apioperate", {
                     method: "POST",
                     headers: { "Content-Type": "text/plain" },
                     credentials: "omit",
+                    mode: "no-cors",
                     body: payload,
                 });
-                const textA = (await respA.text()).trim();
-                console.log(`[EBC PiShock] text/plain response: HTTP ${respA.status} — ${textA.slice(0, 200)}`);
-                return parseResult(textA, respA.status);
-            } catch (eA) {
-                console.warn("[EBC PiShock] text/plain fetch failed:", eA);
+                console.log("[EBC PiShock] no-cors sent — response opaque, check shocker physically");
+                if (bypass) return "⚠ Sent blind (FUSAM mode) — did the shocker respond?";
+                return `${opName} sent — verify on shocker (no server confirmation in FUSAM/page mode)`;
+            } catch (eFetch) {
+                console.error("[EBC PiShock] no-cors fetch failed:", eFetch);
+                return "⚠ Network error even with no-cors — check F12 Console.";
             }
-
-            // Fallback B: application/json with credentials:omit — triggers preflight, works if PiShock handles OPTIONS.
-            console.log("[EBC PiShock] Retrying with application/json (will preflight)...");
-            const respB = await fetch("https://do.pishock.com/api/apioperate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "omit",
-                body: payload,
-            });
-            const textB = (await respB.text()).trim();
-            console.log(`[EBC PiShock] application/json response: HTTP ${respB.status} — ${textB.slice(0, 200)}`);
-            return parseResult(textB, respB.status);
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            console.error("[EBC PiShock] Final error:", err);
-            if (msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("CORS") || msg.includes("network")) {
-                return "⚠ Network error — open F12 Console and filter '[EBC PiShock]' to see what failed.";
-            }
+            console.error("[EBC PiShock] Unexpected error:", err);
             return `⚠ ${msg}`;
         }
     }
