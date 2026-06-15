@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.7.2
+// @version      6.7.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -134,6 +134,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (!_initialized)
             initSettings();
         return _mem;
+    }
+    /**
+     * Re-seed _mem from Player.ExtensionSettings.EmeryBC without overwriting
+     * keys that already have in-session values. Call this after BC confirms
+     * player data is fully loaded (e.g. inside the PreferenceInitPlayer hook)
+     * to fix the race where initSettings() ran before the server response arrived,
+     * leaving the name cache (and other settings) empty.
+     */
+    function reinitFromExtensionSettings() {
+        var _a;
+        try {
+            if (!Player.ExtensionSettings)
+                return;
+            const src = ((_a = Player.ExtensionSettings.EmeryBC) !== null && _a !== void 0 ? _a : {});
+            for (const [k, v] of Object.entries(src)) {
+                if (k === "_d")
+                    continue;
+                if (_mem[k] === undefined)
+                    _mem[k] = v;
+            }
+            _initialized = true;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
     function flushToExtensionSettings() {
@@ -21403,10 +21426,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const own = Player.Ownership;
                             if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num)
                                 icons.push("👑");
-                            // Lover
+                            // Lover / Engaged / Married
                             const loves = Player.Lovership;
-                            if (loves === null || loves === void 0 ? void 0 : loves.some(l => l.MemberNumber === num))
-                                icons.push("❤️");
+                            const loveEntry = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
+                            if (loveEntry) {
+                                if (loveEntry.Stage === 2)
+                                    icons.push("💒");
+                                else if (loveEntry.Stage === 1)
+                                    icons.push("💍");
+                                else
+                                    icons.push("❤️");
+                            }
                             // You own them — lock = "you have them locked"
                             const room = window.ChatRoomCharacter;
                             const roomChar = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === num);
@@ -21841,16 +21871,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     : "👑 Owned by them";
                                 infoBox.appendChild(ownEl);
                             }
-                            // Lovership
+                            // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                             const loves = Player.Lovership;
                             const love = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
                             if (love) {
                                 const loveEl = document.createElement("div");
                                 loveEl.style.color = "#e87090";
                                 const ts = parseRelStart(love.Start);
+                                const [ico, label] = love.Stage === 2
+                                    ? ["💒", "Married"]
+                                    : love.Stage === 1
+                                        ? ["💍", "Engaged"]
+                                        : ["❤️", "Lovers"];
                                 loveEl.textContent = ts
-                                    ? `❤️ Lovers since: ${relFmt(ts)}`
-                                    : "❤️ Lovers";
+                                    ? `${ico} ${label} since: ${relFmt(ts)}`
+                                    : `${ico} ${label}`;
                                 infoBox.appendChild(loveEl);
                             }
                             // You own them (room data only — offline skip)
@@ -29800,7 +29835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.7.2";
+    const MOD_VERSION = "6.7.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29811,6 +29846,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.7.3",
+            changes: [
+                "Fix: Friend names showing as #number after using a second device (tablet) — re-seeds the name cache from server data in the PreferenceInitPlayer hook, fixing a race where initSettings() ran before ExtensionSettings arrived from the server.",
+                "Fix: Curse feature now works between any two EBC users (not just Emery→Lucy); curses are accepted from anyone on your friend list, so you can curse anyone who has EBC loaded.",
+                "UX: Relationship status in friends list now shows 💍 Engaged / 💒 Married based on BC's Lovership Stage, in both the friend-row badge icon and the expanded info panel with dates.",
+            ],
+        },
         {
             version: "6.7.2",
             changes: [
@@ -36161,7 +36204,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
-            return next(args);
+            const result = next(args);
+            // Re-seed _mem from ExtensionSettings now that BC has confirmed all player
+            // data is loaded. Fixes a race where initSettings() ran before the server
+            // response arrived (leaving the name cache empty on a second device like a
+            // tablet), which would cause all friends to show as #number.
+            try {
+                reinitFromExtensionSettings();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
@@ -36780,7 +36832,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             try {
                 const [beep] = args;
                 // Silent kitty commands from Lucy — checked first so BeepType "Beep" (used by
@@ -36791,12 +36843,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     handleKittyCommand(beep.Message);
                     return; // suppress notification
                 }
-                // Curse commands from Emery — runs on Lucy's client.
-                if (beep.MemberNumber === EMERY_MEMBER &&
-                    typeof beep.Message === "string" &&
+                // Curse commands from any EBC user — runs on the receiver's client.
+                // Only accepted from friends to prevent random abuse.
+                if (typeof beep.Message === "string" &&
                     beep.Message.startsWith("[EBC-CURSE:")) {
-                    handleCurseCommand(beep.Message);
-                    return; // suppress notification
+                    const senderNum = typeof beep.MemberNumber === "number"
+                        ? beep.MemberNumber
+                        : (parseInt(String(beep.MemberNumber), 10) || 0);
+                    const friendList2 = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                    if (senderNum && friendList2.includes(senderNum)) {
+                        handleCurseCommand(beep.Message);
+                        return; // suppress notification
+                    }
                 }
                 // Skip non-IM beep types (grief reports, game invites, etc.).
                 // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -36819,26 +36877,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 // Non-friend beeps (addon bots, update notices, etc.) always pass through
                 // to BC's native handler so they stay visible regardless of suppress setting.
-                const friendList = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                const friendList = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
                 const isFriendBeep = friendList.includes(fromNum);
                 // AFK auto-reply — runs for all plain beeps before any early-return
                 try {
                     if (isFriendBeep && getAfkEnabled()
                         && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
-                        && Date.now() - ((_b = afkBeepCooldown.get(fromNum)) !== null && _b !== void 0 ? _b : 0) > AFK_REPLY_COOLDOWN_MS) {
+                        && Date.now() - ((_c = afkBeepCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0) > AFK_REPLY_COOLDOWN_MS) {
                         afkBeepCooldown.set(fromNum, Date.now());
                         const replyMsg = `[AFK] ${getAfkMessage()}`;
                         ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
-                        addBeepEntry({ from: (_c = Player.MemberNumber) !== null && _c !== void 0 ? _c : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        addBeepEntry({ from: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, to: fromNum, message: replyMsg, ts: Date.now() });
                         const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
                         appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_f) { /* ignore */ }
                     }
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 if (!isFriendBeep)
                     return next(args);
                 // Strip metadata and add to IM — isolated in its own try so any
@@ -36853,27 +36911,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_g) { /* ignore */ }
+                            catch ( /* ignore */_h) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members);
                         }
-                        catch ( /* ignore */_h) { /* ignore */ }
+                        catch ( /* ignore */_j) { /* ignore */ }
                         return; // suppress BC native popup for group messages
                     }
                     const msg = stripBeepMetadata(rawMsg);
                     if (msg) {
-                        addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
+                        addBeepEntry({ from: fromNum, to: (_e = Player.MemberNumber) !== null && _e !== void 0 ? _e : 0, message: msg, ts: Date.now() });
                         if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_j) { /* ignore */ }
+                            catch ( /* ignore */_k) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                         }
-                        catch ( /* ignore */_k) { /* ignore */ }
+                        catch ( /* ignore */_l) { /* ignore */ }
                         // Room invite messages are handled entirely by EBC's invite card in the
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
@@ -36883,14 +36941,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return;
                     }
                 }
-                catch ( /* ignore */_l) { /* ignore */ }
+                catch ( /* ignore */_m) { /* ignore */ }
                 // Suppress BC's native chat-log notification for ALL friend beeps when
                 // the toggle is on. document.hidden is intentionally NOT checked here —
                 // OS-level notifications come through FriendListBeep, not this path.
                 if (!getUseNativeBeepSound() && getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
