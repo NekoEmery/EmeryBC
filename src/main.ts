@@ -19,11 +19,11 @@ import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
-import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
+import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.1";
+const MOD_VERSION = "6.7.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.7.2",
+        changes: [
+            "Feature: '↳ From Current' button in dom Restraint Sets — opens a picker showing your currently worn restraints with individual checkboxes and an All toggle; clicking 'Create Set' saves the selection as a new set.",
+            "Feature: '⛓ CURSE' accordion in dom Actions — select items on the Focus Target and send a curse via beep; Lucy's EBC blocks her from self-removing cursed items until Emery sends 'Lift All' to clear them.",
+        ],
+    },
     {
         version: "6.7.1",
         changes: [
@@ -6859,6 +6866,46 @@ function init(): void {
         return next(args);
     });
 
+    // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
+    const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
+    const getCursedGroups = (): Set<string> => {
+        try {
+            const raw = localStorage.getItem(getCurseKey());
+            if (!raw) return new Set();
+            const parsed = JSON.parse(raw) as unknown;
+            if (Array.isArray(parsed)) return new Set(parsed.filter((v): v is string => typeof v === "string"));
+        } catch { /* ignore */ }
+        return new Set();
+    };
+    const saveCursedGroups = (groups: Set<string>): void => {
+        try { localStorage.setItem(getCurseKey(), JSON.stringify([...groups])); } catch { /* ignore */ }
+    };
+    const handleCurseCommand = (msg: string): void => {
+        const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+        const current = getCursedGroups();
+        if (inner.startsWith("apply:")) {
+            for (const g of inner.slice("apply:".length).split(",").filter(Boolean)) current.add(g);
+            saveCursedGroups(current);
+        } else if (inner === "clear") {
+            saveCursedGroups(new Set());
+        } else if (inner.startsWith("clear:")) {
+            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) current.delete(g);
+            saveCursedGroups(current);
+        }
+    };
+
+    // Hook InventoryRemove: block removal of cursed item groups on Lucy's client.
+    tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
+        try {
+            const [char, group] = args as [Character, string, boolean?];
+            if (char === Player && typeof group === "string") {
+                const cursed = getCursedGroups();
+                if (cursed.has(group)) return; // block self-removal of cursed item
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
@@ -6869,6 +6916,13 @@ function init(): void {
                 typeof beep.Message === "string" &&
                 beep.Message.startsWith("[EBC-KITTY:")) {
                 handleKittyCommand(beep.Message);
+                return; // suppress notification
+            }
+            // Curse commands from Emery — runs on Lucy's client.
+            if (beep.MemberNumber === EMERY_MEMBER &&
+                typeof beep.Message === "string" &&
+                beep.Message.startsWith("[EBC-CURSE:")) {
+                handleCurseCommand(beep.Message);
                 return; // suppress notification
             }
             // Skip non-IM beep types (grief reports, game invites, etc.).

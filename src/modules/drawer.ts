@@ -21147,10 +21147,135 @@ export class EBCDrawer {
         newSetBtn.textContent = t("dom.newSet");
         newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
+
+        const fromCurBtn = document.createElement("button");
+        fromCurBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid #5a7040;background:#1a2010;color:#9ab870;cursor:pointer;transition:background 0.14s;flex-shrink:0;";
+        fromCurBtn.textContent = "↳ From Current";
+        fromCurBtn.title = "Create a set from your currently worn restraints";
+        fromCurBtn.addEventListener("mouseenter", () => { fromCurBtn.style.background = "#2a3818"; });
+        fromCurBtn.addEventListener("mouseleave", () => { if (!fromCurOpen) fromCurBtn.style.background = "#1a2010"; });
         setsHeader.appendChild(setsLbl);
         setsHeader.appendChild(dsSel);
+        setsHeader.appendChild(fromCurBtn);
         setsHeader.appendChild(newSetBtn);
         setsCard.appendChild(setsHeader);
+
+        // ── From Current picker panel ──────────────────────────────────────────
+        const fromCurPanel = document.createElement("div");
+        fromCurPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(20,26,10,0.8);border:1px solid #4a5a30;border-radius:6px;padding:7px;margin-bottom:7px;";
+        setsCard.appendChild(fromCurPanel);
+
+        let fromCurOpen = false;
+
+        const rebuildFromCurPanel = (): void => {
+            while (fromCurPanel.firstChild) fromCurPanel.removeChild(fromCurPanel.firstChild);
+            const wornRestraints = Player.Appearance.filter((itm: Item) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name));
+            if (wornRestraints.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:3px 2px;";
+                hint.textContent = "You're not wearing any restraints right now.";
+                fromCurPanel.appendChild(hint);
+                return;
+            }
+            const selectedGroups = new Set<string>();
+            const checkboxes: HTMLInputElement[] = [];
+
+            // All toggle row
+            const allRow = document.createElement("div");
+            allRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:1px solid #3a4428;margin-bottom:3px;";
+            const allChk = document.createElement("input");
+            allChk.type = "checkbox";
+            allChk.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+            const allLbl = document.createElement("span");
+            allLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;font-weight:bold;";
+            allLbl.textContent = "All  (" + wornRestraints.length + " items)";
+            allRow.appendChild(allChk); allRow.appendChild(allLbl);
+            fromCurPanel.appendChild(allRow);
+
+            // Item list
+            const itemsWrap = document.createElement("div");
+            itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:120px;overflow-y:auto;border:1px solid #3a4428;border-radius:5px;padding:4px;background:rgba(16,22,8,0.5);";
+            for (const itm of wornRestraints) {
+                const group = itm.Asset.Group.Name;
+                const lbl2 = document.createElement("label");
+                lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,56,20,0.4)"; });
+                lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.dataset.group = group;
+                cb.style.cssText = "cursor:pointer;accent-color:#9ab870;flex-shrink:0;";
+                checkboxes.push(cb);
+                cb.addEventListener("change", () => {
+                    if (cb.checked) selectedGroups.add(group);
+                    else selectedGroups.delete(group);
+                    const n = checkboxes.filter(c => c.checked).length;
+                    allChk.indeterminate = n > 0 && n < checkboxes.length;
+                    allChk.checked = n === checkboxes.length;
+                });
+                const nameEl = document.createElement("span");
+                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nameEl.textContent = itm.Asset.Name;
+                const grpEl = document.createElement("span");
+                grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a9870;white-space:nowrap;flex-shrink:0;";
+                grpEl.textContent = group.replace("Item", "");
+                lbl2.appendChild(cb); lbl2.appendChild(nameEl); lbl2.appendChild(grpEl);
+                itemsWrap.appendChild(lbl2);
+            }
+            fromCurPanel.appendChild(itemsWrap);
+            allChk.addEventListener("change", () => {
+                checkboxes.forEach(c => {
+                    c.checked = allChk.checked;
+                    const g = c.dataset.group;
+                    if (g) { if (allChk.checked) selectedGroups.add(g); else selectedGroups.delete(g); }
+                });
+                allChk.indeterminate = false;
+            });
+
+            const fromCurStatus = document.createElement("div");
+            fromCurStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#ff6b6b;min-height:13px;";
+            const createBtn = document.createElement("button");
+            createBtn.style.cssText = "width:100%;background:#1a2010;border:1px solid #5a7040;border-radius:5px;color:#9ab870;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 0;transition:background 0.14s;";
+            createBtn.textContent = "✓ Create Set from Selected";
+            createBtn.addEventListener("mouseenter", () => { createBtn.style.background = "#2a3818"; });
+            createBtn.addEventListener("mouseleave", () => { createBtn.style.background = "#1a2010"; });
+            createBtn.addEventListener("click", () => {
+                if (selectedGroups.size === 0) {
+                    fromCurStatus.textContent = "Select at least one item.";
+                    window.setTimeout(() => { fromCurStatus.textContent = ""; }, 2000);
+                    return;
+                }
+                const items: SerializedItem[] = Player.Appearance
+                    .filter((itm: Item) => RESTRAINT_GROUPS.has(itm.Asset.Group.Name) && selectedGroups.has(itm.Asset.Group.Name))
+                    .map((itm: Item) => ({
+                        Group: itm.Asset.Group.Name,
+                        Name: itm.Asset.Name,
+                        Color: itm.Color,
+                        Difficulty: itm.Difficulty,
+                        Property: itm.Property as Record<string, unknown> | undefined,
+                        Craft: itm.Craft,
+                    }));
+                const s = createDomSet("From Current", "", "");
+                updateDomSet(s.id, s.name, s.command, s.announceTemplate, items);
+                activeEditorId = s.id;
+                fromCurOpen = false;
+                fromCurPanel.style.display = "none";
+                fromCurBtn.style.background = "#1a2010";
+                fromCurBtn.style.borderColor = "#5a7040";
+                rebuildSets();
+                body.scrollTop = body.scrollHeight;
+            });
+            fromCurPanel.appendChild(fromCurStatus);
+            fromCurPanel.appendChild(createBtn);
+        };
+
+        fromCurBtn.addEventListener("click", () => {
+            fromCurOpen = !fromCurOpen;
+            fromCurPanel.style.display = fromCurOpen ? "flex" : "none";
+            fromCurBtn.style.background = fromCurOpen ? "#2a3818" : "#1a2010";
+            fromCurBtn.style.borderColor = fromCurOpen ? "#7a9050" : "#5a7040";
+            if (fromCurOpen) rebuildFromCurPanel();
+        });
 
         const setsContainer = document.createElement("div");
         setsCard.appendChild(setsContainer);
@@ -21725,6 +21850,138 @@ export class EBCDrawer {
         toyPanel.appendChild(toyGrid);
         toyPanel.appendChild(toyStatus);
         toyPanel.appendChild(toyInfoEl);
+
+        // ── ⛓ Curse ──────────────────────────────────────────────────────────
+        const { panel: cursePanel } = makeDomAccordion("⛓", "CURSE", actionsCard);
+
+        const curseHint = document.createElement("div");
+        curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+        curseHint.textContent = "Target can't remove cursed items while EBC is loaded. Only you can lift the curse.";
+        cursePanel.appendChild(curseHint);
+
+        const curseItemsEl = document.createElement("div");
+        curseItemsEl.style.cssText = "display:flex;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;margin-bottom:4px;";
+        const curseItemsHint = document.createElement("div");
+        curseItemsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 2px;";
+        curseItemsHint.textContent = "Pick a Focus Target to see their items.";
+        curseItemsEl.appendChild(curseItemsHint);
+        cursePanel.appendChild(curseItemsEl);
+
+        const curseSelGroups = new Set<string>();
+        const curseCbs: HTMLInputElement[] = [];
+
+        const curseSelAllRow = document.createElement("div");
+        curseSelAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 0 4px;border-bottom:1px solid #3a1928;margin-bottom:3px;";
+        const curseSelAllChk = document.createElement("input");
+        curseSelAllChk.type = "checkbox";
+        curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+        const curseSelAllLbl = document.createElement("span");
+        curseSelAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
+        curseSelAllLbl.textContent = "Select all";
+        curseSelAllRow.appendChild(curseSelAllChk); curseSelAllRow.appendChild(curseSelAllLbl);
+
+        const rebuildCurseItems = (): void => {
+            while (curseItemsEl.firstChild) curseItemsEl.removeChild(curseItemsEl.firstChild);
+            curseSelGroups.clear();
+            curseCbs.length = 0;
+            curseSelAllRow.style.display = "none";
+            const id = parseInt(qtSel.value, 10);
+            if (!id) {
+                curseItemsEl.appendChild(curseItemsHint);
+                return;
+            }
+            const items = getRoomMemberItems(id);
+            if (items.length === 0) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                empty.textContent = "No items found (not in room?).";
+                curseItemsEl.appendChild(empty);
+                return;
+            }
+            curseSelAllRow.style.display = "flex";
+            for (const it of items) {
+                const row2 = document.createElement("div");
+                row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+                const chk = document.createElement("input");
+                chk.type = "checkbox";
+                chk.dataset.group = it.group;
+                chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
+                curseCbs.push(chk);
+                chk.addEventListener("change", () => {
+                    if (chk.checked) curseSelGroups.add(it.group);
+                    else curseSelGroups.delete(it.group);
+                    const n = curseCbs.filter(c => c.checked).length;
+                    curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
+                    curseSelAllChk.checked = n === curseCbs.length;
+                });
+                const nm2 = document.createElement("span");
+                nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm2.textContent = it.name;
+                const grp2 = document.createElement("span");
+                grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
+                grp2.textContent = it.group.replace("Item", "");
+                row2.appendChild(chk); row2.appendChild(nm2); row2.appendChild(grp2);
+                curseItemsEl.appendChild(row2);
+            }
+        };
+
+        curseSelAllChk.addEventListener("change", () => {
+            curseCbs.forEach(c => {
+                c.checked = curseSelAllChk.checked;
+                const g = c.dataset.group;
+                if (g) { if (curseSelAllChk.checked) curseSelGroups.add(g); else curseSelGroups.delete(g); }
+            });
+            curseSelAllChk.indeterminate = false;
+        });
+
+        qtSel.addEventListener("change", () => {
+            if (cursePanel.style.display !== "none") rebuildCurseItems();
+        });
+
+        cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
+
+        const curseStatus = document.createElement("div");
+        curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+
+        const curseBtnRow = document.createElement("div");
+        curseBtnRow.style.cssText = "display:flex;gap:5px;";
+        const applyCurseBtn = document.createElement("button");
+        applyCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #91405f;background:#3a0e28;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+        applyCurseBtn.textContent = "⛓ Curse Selected";
+        applyCurseBtn.title = "Send curse to target — they cannot remove these items while EBC is active";
+        applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#5a1238"; });
+        applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#3a0e28"; });
+
+        const liftCurseBtn = document.createElement("button");
+        liftCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#1a1208;color:#c0a060;cursor:pointer;transition:background 0.14s;";
+        liftCurseBtn.textContent = "🔓 Lift All";
+        liftCurseBtn.title = "Lift all curses from the target";
+        liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
+        liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
+
+        applyCurseBtn.addEventListener("click", () => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
+            if (curseSelGroups.size === 0) { curseStatus.textContent = "Select at least one item."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
+            const groups = [...curseSelGroups].join(",");
+            sendBeep(id, `[EBC-CURSE:apply:${groups}]`);
+            curseStatus.textContent = `✓ Curse sent for ${curseSelGroups.size} item(s).`;
+            window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+        });
+
+        liftCurseBtn.addEventListener("click", () => {
+            const id = parseInt(qtSel.value, 10);
+            if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
+            sendBeep(id, "[EBC-CURSE:clear]");
+            curseStatus.textContent = "✓ All curses lifted.";
+            window.setTimeout(() => { curseStatus.textContent = ""; }, 2500);
+        });
+
+        curseBtnRow.appendChild(applyCurseBtn);
+        curseBtnRow.appendChild(liftCurseBtn);
+        cursePanel.appendChild(curseBtnRow);
+        cursePanel.appendChild(curseStatus);
+
         body.appendChild(actionsCard);
 
         // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
