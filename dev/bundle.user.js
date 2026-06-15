@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.32
+// @version      6.9.33
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28689,23 +28689,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         lovConnBtn.disabled = true;
                         lovDot.textContent = "🔄";
                         lovStatusTxt.textContent = "Opening Bluetooth picker…";
-                        const LVS_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
-                        const LVS_WRITE = "0000fff2-0000-1000-8000-00805f9b34fb";
-                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: [LVS_SERVICE] })
+                        // Gen1 toys use fff0/fff2; Gen2+ (Domi 2, Lush 3, etc.) use Nordic UART Service
+                        const LVS_SVC_OLD = "0000fff0-0000-1000-8000-00805f9b34fb";
+                        const LVS_WRITE_OLD = "0000fff2-0000-1000-8000-00805f9b34fb";
+                        const LVS_SVC_NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+                        const LVS_WRITE_NUS = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: [LVS_SVC_OLD, LVS_SVC_NUS] })
                             .then(async (rawDevice) => {
                             const device = rawDevice;
                             this._lovBtDevice = device;
                             device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
+                            lovStatusTxt.textContent = "Connecting…";
                             const server = await device.gatt.connect();
-                            const service = await server.getPrimaryService(LVS_SERVICE);
-                            this._lovBtChar = await service.getCharacteristic(LVS_WRITE);
+                            let char;
+                            try {
+                                const svc = await server.getPrimaryService(LVS_SVC_OLD);
+                                char = await svc.getCharacteristic(LVS_WRITE_OLD);
+                            }
+                            catch (_a) {
+                                const svc = await server.getPrimaryService(LVS_SVC_NUS);
+                                char = await svc.getCharacteristic(LVS_WRITE_NUS);
+                            }
+                            this._lovBtChar = char;
                             lovUpdateStatus();
                             lovConnBtn.disabled = false;
                         })
                             .catch((err) => {
                             const msg = err instanceof Error ? err.message : String(err);
                             lovDot.textContent = "🔴";
-                            lovStatusTxt.textContent = (err instanceof Error && err.name === "NotFoundError") ? "Cancelled / no toy found" : `Error: ${msg}`;
+                            lovStatusTxt.textContent = (err instanceof Error && err.name === "NotFoundError" && !this._lovBtDevice)
+                                ? "Cancelled" : `Error: ${msg}`;
                             lovConnBtn.disabled = false;
                         });
                     });
@@ -31012,7 +31025,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.32";
+    const MOD_VERSION = "6.9.33";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31023,6 +31036,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.33",
+            changes: [
+                "Lovense BLE: Fix connection for Gen2+ toys (Domi 2, Lush 3, etc.) that use Nordic UART Service (6e400001) instead of the Gen1 fff0 service. Now tries fff0 first, falls back to NUS automatically. Both services declared in optionalServices so Chrome grants access to either.",
+            ],
+        },
         {
             version: "6.9.32",
             changes: [
