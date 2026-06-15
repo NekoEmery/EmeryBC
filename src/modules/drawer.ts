@@ -21103,14 +21103,15 @@ export class EBCDrawer {
             const finalI = bypass ? (intensity ?? 1) : Math.max(1, Math.min(intensity ?? maxI, maxI));
             const finalD = bypass ? (duration  ?? 1) : Math.max(1, Math.min(duration  ?? maxD, maxD));
 
+            // PiShock API requires Op/Duration/Intensity as strings, not numbers
             const payload = JSON.stringify({
                 Username:  username,
                 Apikey:    apiKey,
                 Code:      code,
                 Name:      "EBC",
-                Op:        op,
-                Duration:  finalD,
-                Intensity: finalI,
+                Op:        String(op),
+                Duration:  String(finalD),
+                Intensity: String(finalI),
             });
             const opName = op === 0 ? "Shock" : op === 1 ? "Vibrate" : "Beep";
             const parseResult = (text: string, status?: number): string => {
