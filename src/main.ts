@@ -5,7 +5,7 @@ import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
-import { handleDomCommand } from "./modules/domTools";
+import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
@@ -23,7 +23,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.7.9";
+const MOD_VERSION = "6.8.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.8.0",
+        changes: [
+            "Dom menu: Added POSITION accordion — 'Pull to Side', 'Get in Arms', 'Hold in Arms' buttons reorder ChatRoomCharacter[] locally so the target appears next to you. Positions re-apply after every room sync and clear automatically on room leave.",
+        ],
+    },
     {
         version: "6.7.9",
         changes: [
@@ -6813,6 +6819,7 @@ function init(): void {
                 for (const copy of copies) try { storeRawBundle(copy); } catch { /* ignore */ }
             }, 0);
         }
+        try { applyPositions(); } catch { /* ignore */ }
         return result;
     });
     tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
@@ -6846,7 +6853,9 @@ function init(): void {
         // This keeps the ts current for long-running sessions where ChatRoomSync
         // (which also calls syncPresenceMarker) was fired hours ago.
         try { syncPresenceMarker(); } catch { /* ignore */ }
-        return next(args);
+        const joinResult = next(args);
+        try { applyPositions(); } catch { /* ignore */ }
+        return joinResult;
     });
 
     // Anti-restraint + grace period: detect new restraints on the player after any refresh
@@ -6900,6 +6909,7 @@ function init(): void {
         try { timerOnRoomLeave(); } catch { /* ignore */ }
         try { onRoomLeave();     } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
+        try { clearAllPositions(); } catch { /* ignore */ }
         return result;
     });
 

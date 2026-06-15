@@ -719,6 +719,64 @@ export function performActivityOnTarget(targetId: number, activityName: string, 
     } catch { return false; }
 }
 
+// ── Character Positioning ─────────────────────────────────────────────────────
+
+export type PositionMode = "side" | "arms" | "hold";
+
+const _posSlots = new Map<number, PositionMode>();
+
+export function setPosition(memberNumber: number, mode: PositionMode): void {
+    _posSlots.set(memberNumber, mode);
+    applyPositions();
+    const char = findRoomChar(memberNumber);
+    if (!char) return;
+    const name = charDisplayName(char);
+    const desc = mode === "side"
+        ? `pulls ${name} to their side.`
+        : mode === "arms"
+        ? `scoops ${name} up in their arms.`
+        : `holds ${name} tightly in their arms.`;
+    sendRoomAction(desc);
+}
+
+export function clearPosition(memberNumber: number): void {
+    _posSlots.delete(memberNumber);
+}
+
+export function clearAllPositions(): void {
+    _posSlots.clear();
+}
+
+export function getPositionSlots(): ReadonlyMap<number, PositionMode> {
+    return _posSlots;
+}
+
+export function applyPositions(): void {
+    if (_posSlots.size === 0) return;
+    const arr = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+        Array<{ MemberNumber?: number; IsPlayer?: () => boolean }> | undefined;
+    if (!Array.isArray(arr)) return;
+
+    const playerIdx = arr.findIndex(c => c.IsPlayer?.());
+    if (playerIdx < 0) return;
+
+    let insertAt = playerIdx + 1;
+    for (const memberNum of _posSlots.keys()) {
+        const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+        if (currentIdx < 0) continue; // not in room
+
+        if (currentIdx === insertAt) {
+            insertAt++;
+            continue; // already in correct slot
+        }
+
+        const [charToMove] = arr.splice(currentIdx, 1);
+        const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+        arr.splice(adjusted, 0, charToMove);
+        insertAt = adjusted + 1;
+    }
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;
