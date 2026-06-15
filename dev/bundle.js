@@ -30335,10 +30335,10 @@
                 refreshToyChips();
                 refreshToyInfo();
             } });
-            for (const [emoji, label, bg, bcMode] of TOY_MODES) {
+            for (const [, label, bg, bcMode] of TOY_MODES) {
                 const btn = document.createElement("button");
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:${bg};color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;`;
-                btn.textContent = `${emoji} ${label}`;
+                btn.textContent = label;
                 btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; });
                 btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#5a3a50"; });
                 btn.addEventListener("click", () => {
@@ -30984,7 +30984,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.29";
+    const MOD_VERSION = "6.9.30";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30995,6 +30995,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.30",
+            changes: [
+                "DOM: Removed emojis from toy control mode buttons (Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge).",
+            ],
+        },
         {
             version: "6.9.29",
             changes: [
