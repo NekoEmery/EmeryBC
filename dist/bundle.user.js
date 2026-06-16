@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.67
+// @version      6.9.68
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31671,7 +31671,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.67";
+    const MOD_VERSION = "6.9.68";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31682,6 +31682,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.68",
+            changes: [
+                "Fix: drawer tab no longer disappears after clicking a BC side beep notification and returning to chatroom.",
+            ],
+        },
         {
             version: "6.9.67",
             changes: [
@@ -39093,12 +39099,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Keep drawer visibility in sync whenever the BC screen changes.
         // Do NOT reset room timers here — transient screens (wardrobe, preferences, etc.)
         // temporarily leave ChatRoom but the player hasn't actually left the room.
+        //
+        // BC's CommonSetScreen is async (R127+): CurrentScreen is set synchronously, but
+        // ElementToggleGeneratedElements and Load() run after the first internal await.
+        // We call updateVisibility() twice:
+        //   1. Immediately (sync part) — so the tab transitions out of roaming mode right away.
+        //   2. After the Promise resolves (async part) — so syncToChat() runs AFTER BC has
+        //      made #chat-room-div visible and called ChatRoomResize().  Without this second
+        //      call, the FriendList→ChatRoom path left the tab invisible because syncToChat()
+        //      failed (TextAreaChatLog still had 0×0 dimensions at the first call).
         tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
             const result = next(args);
             try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
             catch ( /* ignore */_a) { /* ignore */ }
+            if (result instanceof Promise) {
+                result.then(() => { try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
+                }
+                catch ( /* ignore */_a) { /* ignore */ } }).catch(() => { });
+            }
             return result;
         });
         // Only reset room timers when the player actually leaves the chatroom.

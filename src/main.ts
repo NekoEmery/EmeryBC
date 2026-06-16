@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.67";
+const MOD_VERSION = "6.9.68";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.68",
+        changes: [
+            "Fix: drawer tab no longer disappears after clicking a BC side beep notification and returning to chatroom.",
+        ],
+    },
     {
         version: "6.9.67",
         changes: [
@@ -7368,9 +7374,21 @@ function init(): void {
     // Keep drawer visibility in sync whenever the BC screen changes.
     // Do NOT reset room timers here — transient screens (wardrobe, preferences, etc.)
     // temporarily leave ChatRoom but the player hasn't actually left the room.
+    //
+    // BC's CommonSetScreen is async (R127+): CurrentScreen is set synchronously, but
+    // ElementToggleGeneratedElements and Load() run after the first internal await.
+    // We call updateVisibility() twice:
+    //   1. Immediately (sync part) — so the tab transitions out of roaming mode right away.
+    //   2. After the Promise resolves (async part) — so syncToChat() runs AFTER BC has
+    //      made #chat-room-div visible and called ChatRoomResize().  Without this second
+    //      call, the FriendList→ChatRoom path left the tab invisible because syncToChat()
+    //      failed (TextAreaChatLog still had 0×0 dimensions at the first call).
     tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
         const result = next(args);
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
+        if (result instanceof Promise) {
+            result.then(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }).catch(() => {});
+        }
         return result;
     });
 
