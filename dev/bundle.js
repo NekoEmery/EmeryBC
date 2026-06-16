@@ -28577,13 +28577,46 @@
                 lovTestRow.appendChild(lovTestBtn);
                 lovTestRow.appendChild(lovTestRes);
                 lovContent.appendChild(lovTestRow);
-                // ── CHAT PHRASES ────────────────────────────────────────────────────
+                // ── Shared collapsible helpers ─────────────────────────────────────────
+                const lsGet = (k, d) => { var _a; try {
+                    return (_a = localStorage.getItem(k)) !== null && _a !== void 0 ? _a : d;
+                }
+                catch (_b) {
+                    return d;
+                } };
+                const lsSet = (k, v) => { try {
+                    localStorage.setItem(k, v);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } };
+                const mkLovSub = (title, lsKey) => {
+                    const open = lsGet(lsKey, "1") === "1";
+                    const wrap = mk("div", "margin-bottom:6px;");
+                    const hdr = mk("div", `display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 10px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;user-select:none;margin-bottom:4px;`);
+                    const chev = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                    chev.textContent = open ? "▼" : "▶";
+                    const ttxt = mk("span", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-text-bright);letter-spacing:0.5px;flex:1;`);
+                    ttxt.textContent = title;
+                    hdr.appendChild(chev);
+                    hdr.appendChild(ttxt);
+                    const body = mk("div");
+                    body.style.display = open ? "" : "none";
+                    hdr.addEventListener("click", () => {
+                        const nowOpen = body.style.display === "none";
+                        body.style.display = nowOpen ? "" : "none";
+                        chev.textContent = nowOpen ? "▼" : "▶";
+                        lsSet(lsKey, nowOpen ? "1" : "0");
+                    });
+                    wrap.appendChild(hdr);
+                    wrap.appendChild(body);
+                    return { wrap, body };
+                };
+                // ── CHAT PHRASES ─────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("CHAT PHRASES — fire when phrase is said in chat"));
+                const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
                 const phraseAddBtn = document.createElement("button");
                 phraseAddBtn.textContent = "+ Add phrase";
                 phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);margin-bottom:7px;`;
-                lovContent.appendChild(phraseAddBtn);
+                phraseBody.appendChild(phraseAddBtn);
                 const lovTriggers = EBCDrawer.getLovenseTriggers();
                 const lovListEl = mk("div");
                 const renderLovTriggers = () => {
@@ -28607,13 +28640,13 @@
                         tCard.appendChild(r1);
                         const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
                         const mkOLbl = (txt) => { const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); l.textContent = txt; return l; };
-                        r2.appendChild(mkOLbl("I:"));
+                        r2.appendChild(mkOLbl("Intensity:"));
                         const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : "");
                         r2.appendChild(iInp);
-                        r2.appendChild(mkOLbl("D:"));
+                        r2.appendChild(mkOLbl("Duration:"));
                         const dInp = lvsNumInp("def", tr.duration !== undefined ? String(tr.duration) : "");
                         r2.appendChild(dInp);
-                        r2.appendChild(mkOLbl("s  (blank = default)"));
+                        r2.appendChild(mkOLbl("s"));
                         const savePhrTr = () => {
                             const iv = iInp.value.trim();
                             const dv = dInp.value.trim();
@@ -28634,10 +28667,11 @@
                 };
                 phraseAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
                 renderLovTriggers();
-                lovContent.appendChild(lovListEl);
-                // ── BODY TOUCH ──────────────────────────────────────────────────────
+                phraseBody.appendChild(lovListEl);
+                lovContent.appendChild(phraseSec);
+                // ── BODY TOUCH ───────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("BODY TOUCH — fire when someone does an action on you"));
+                const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
                 const touchData = EBCDrawer.getTouchTriggers();
                 const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
                 for (const def of TOUCH_DEFS) {
@@ -28656,11 +28690,11 @@
                     cellWrap.appendChild(r1);
                     const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
                     const iLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                    iLbl2.textContent = "I:";
+                    iLbl2.textContent = "Int:";
                     const iInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.intensity) !== undefined ? String(stored.intensity) : "");
-                    iInp2.style.width = "42px";
+                    iInp2.style.width = "38px";
                     const dLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                    dLbl2.textContent = "D:";
+                    dLbl2.textContent = "Dur:";
                     const dInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.duration) !== undefined ? String(stored.duration) : "");
                     dInp2.style.width = "42px";
                     const sUnit = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
@@ -28698,13 +28732,14 @@
                     dInp2.addEventListener("change", saveTouchCell);
                     touchGrid.appendChild(cellWrap);
                 }
-                lovContent.appendChild(touchGrid);
-                const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:0 0 4px;`);
-                touchHint.textContent = "I = intensity (1–20)  D = duration in seconds  blank = use defaults";
-                lovContent.appendChild(touchHint);
-                // ── BC TOY SYNC ─────────────────────────────────────────────────────
+                touchBody.appendChild(touchGrid);
+                const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:2px 0 4px;`);
+                touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional — leave blank for defaults.";
+                touchBody.appendChild(touchHint);
+                lovContent.appendChild(touchSec);
+                // ── BC TOY SYNC ──────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("BC TOY SYNC — live mirror of BC toy intensity"));
+                const { wrap: syncSec, body: syncSecBody } = mkLovSub("BC TOY SYNC", "EBC_sec_sync");
                 const syncEnabled = s["lovenseBcSyncEnabled"] === true;
                 const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
                 const syncToggleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
@@ -28779,22 +28814,13 @@
                 });
                 if (syncEnabled)
                     this.startBCLiveSync();
-                lovContent.appendChild(syncCard);
+                syncSecBody.appendChild(syncCard);
+                lovContent.appendChild(syncSec);
                 // ── IRL TOYS (collapsible) ─────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                const irlLsGet = (key, def) => { var _a; try {
-                    return (_a = localStorage.getItem(key)) !== null && _a !== void 0 ? _a : def;
-                }
-                catch (_b) {
-                    return def;
-                } };
-                const irlLsSet = (key, val) => { try {
-                    localStorage.setItem(key, val);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } };
                 const makeCollSection = (titleText, lsKey) => {
                     const wrap = mk("div", "margin-bottom:10px;");
-                    const isOpen = irlLsGet(lsKey, "1") === "1";
+                    const isOpen = lsGet(lsKey, "1") === "1";
                     const hdr = mk("div", "background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                     const chev = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
                     chev.textContent = isOpen ? "▼" : "▶";
@@ -28808,7 +28834,7 @@
                         const open = body.style.display === "none";
                         body.style.display = open ? "" : "none";
                         chev.textContent = open ? "▼" : "▶";
-                        irlLsSet(lsKey, open ? "1" : "0");
+                        lsSet(lsKey, open ? "1" : "0");
                     });
                     wrap.appendChild(hdr);
                     wrap.appendChild(body);
@@ -28831,7 +28857,7 @@
                 // collapsible whitelist sub-section
                 const wlWrap = mk("div", "margin-bottom:8px;");
                 wlWrap.style.display = irlAllowReqs ? "" : "none";
-                const wlIsOpen = irlLsGet("EBC_irl_wl_open", "1") === "1";
+                const wlIsOpen = lsGet("EBC_irl_wl_open", "1") === "1";
                 const wlHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;margin-bottom:4px;");
                 const wlChev = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
                 wlChev.textContent = wlIsOpen ? "▼" : "▶";
@@ -28845,7 +28871,7 @@
                     const open = wlBody.style.display === "none";
                     wlBody.style.display = open ? "" : "none";
                     wlChev.textContent = open ? "▼" : "▶";
-                    irlLsSet("EBC_irl_wl_open", open ? "1" : "0");
+                    lsSet("EBC_irl_wl_open", open ? "1" : "0");
                 });
                 wlWrap.appendChild(wlHdr);
                 wlWrap.appendChild(wlBody);
@@ -31745,7 +31771,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.57";
+    const MOD_VERSION = "6.9.58";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31756,6 +31782,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.58",
+            changes: [
+                "CHAT PHRASES, BODY TOUCH, BC TOY SYNC are now collapsible subsections (▶/▼, state saved in localStorage).",
+                "BODY TOUCH: renamed 'I:' / 'D:' labels to 'Int:' / 'Dur:' for clarity; updated hint text.",
+                "CHAT PHRASES: renamed 'I:' / 'D:' to 'Intensity:' / 'Duration:'; removed confusing '(blank = default)' suffix.",
+            ],
+        },
         {
             version: "6.9.57",
             changes: [
