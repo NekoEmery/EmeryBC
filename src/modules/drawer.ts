@@ -20621,6 +20621,7 @@ export class EBCDrawer {
         };
         const sep = (): HTMLElement => mk("div", "border-top:1px solid var(--ebc-border);margin:8px 0 6px;");
         const FONT = "font-family:'Trebuchet MS',serif;";
+        const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
 
         const card = mk("div");
         card.className = "ebc-card ebc-toys-card";
@@ -21186,7 +21187,6 @@ export class EBCDrawer {
             const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
             d.textContent = txt; return d;
         };
-        const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
 
         // ── MY PRIVACY ──────────────────────────────────────────────────────
         gtContent.appendChild(gtHdr("MY PRIVACY"));

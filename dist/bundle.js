@@ -28352,6 +28352,7 @@
             };
             const sep = () => mk("div", "border-top:1px solid var(--ebc-border);margin:8px 0 6px;");
             const FONT = "font-family:'Trebuchet MS',serif;";
+            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
             const card = mk("div");
             card.className = "ebc-card ebc-toys-card";
             // Build a collapsible section with ON/OFF toggle in the header
@@ -29031,7 +29032,6 @@
                 d.textContent = txt;
                 return d;
             };
-            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
             // ── MY PRIVACY ──────────────────────────────────────────────────────
             gtContent.appendChild(gtHdr("MY PRIVACY"));
             const privCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
@@ -31659,7 +31659,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.49";
+    const MOD_VERSION = "6.9.50";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31670,6 +31670,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.50",
+            changes: [
+                "Fix: GTSel TDZ crash when opening Toys tab (used before declaration).",
+            ],
+        },
         {
             version: "6.9.49",
             changes: [
