@@ -11607,6 +11607,8 @@
             this.tagTooltipMoveListener = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             this._lovConnections = new Map();
+            this._bcLiveSyncPoller = null;
+            this._bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
             this._toyCtrlSessions = new Map();
             this._toyPendingOut = new Map();
             this._toyGrantedTo = new Map();
@@ -28383,7 +28385,7 @@
                     const inp = document.createElement("input");
                     inp.type = "number";
                     inp.min = "1";
-                    inp.style.cssText = `${FONT}width:48px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:4px;text-align:center;box-sizing:border-box;`;
+                    inp.style.cssText = `${FONT}width:48px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;box-sizing:border-box;`;
                     inp.placeholder = placeholder;
                     inp.value = value;
                     return inp;
@@ -28573,7 +28575,7 @@
                         phraseInp.type = "text";
                         phraseInp.value = tr.phrase;
                         phraseInp.placeholder = "Trigger phrase";
-                        phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:4px;padding:4px 7px;box-sizing:border-box;`;
+                        phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text-bright);border:1px solid var(--ebc-border);border-radius:4px;padding:4px 7px;box-sizing:border-box;`;
                         phraseInp.addEventListener("input", () => { lovTriggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.saveLovenseTriggers(lovTriggers); });
                         const removeBtn = document.createElement("button");
                         removeBtn.textContent = "×";
@@ -28626,7 +28628,7 @@
                     chk.type = "checkbox";
                     chk.checked = enNow;
                     chk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;flex-shrink:0;margin:0;`;
-                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
+                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
                     tlbl.textContent = def.label;
                     tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
                     r1.appendChild(chk);
@@ -28661,7 +28663,7 @@
                     };
                     chk.addEventListener("change", () => {
                         const en = chk.checked;
-                        tlbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                        tlbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                         tlbl.style.fontWeight = en ? "bold" : "normal";
                         r2.style.opacity = en ? "" : "0.4";
                         saveTouchCell();
@@ -28676,55 +28678,81 @@
                 lovContent.appendChild(touchHint);
                 // ── BC TOY SYNC ─────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("BC TOY SYNC — fire when a BC toy activates on you"));
+                lovContent.appendChild(lvsHdr("BC TOY SYNC — live mirror of BC toy intensity"));
                 const syncEnabled = s["lovenseBcSyncEnabled"] === true;
-                const syncCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
+                const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
                 const syncToggleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
                 const syncChk = document.createElement("input");
                 syncChk.type = "checkbox";
                 syncChk.checked = syncEnabled;
-                syncChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
-                const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
-                syncLbl.textContent = "Mirror BC toy activations to Lovense";
+                syncChk.style.cssText = "accent-color:var(--ebc-accent);cursor:pointer;margin:0;";
+                const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
+                syncLbl.textContent = "Live sync BC toy → Lovense";
                 syncLbl.addEventListener("click", () => { syncChk.checked = !syncChk.checked; syncChk.dispatchEvent(new Event("change")); });
                 syncToggleRow.appendChild(syncChk);
                 syncToggleRow.appendChild(syncLbl);
                 syncCard.appendChild(syncToggleRow);
-                const syncSliders = mk("div", `${syncEnabled ? "" : "opacity:0.4;pointer-events:none;"}`);
-                const mkSyncSlider = (label, key, min, max, def, fmtFn) => {
-                    const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key], min), max) : def;
-                    const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
-                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:64px;flex-shrink:0;`);
-                    lbl.textContent = label;
-                    const sl = document.createElement("input");
-                    sl.type = "range";
-                    sl.min = String(min);
-                    sl.max = String(max);
-                    sl.value = String(cur);
-                    sl.style.cssText = `flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;`;
-                    const val = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
-                    val.textContent = fmtFn(cur);
-                    sl.addEventListener("input", () => { const v = parseInt(sl.value, 10); s[key] = v; val.textContent = fmtFn(v); syncSettings(); });
-                    row.appendChild(lbl);
-                    row.appendChild(sl);
-                    row.appendChild(val);
-                    syncSliders.appendChild(row);
+                const syncBody = mk("div", syncEnabled ? "" : "opacity:0.4;pointer-events:none;");
+                // Live status indicator
+                const syncStatusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                const syncDot = mk("span", "font-size:12px;flex-shrink:0;");
+                const syncStatusLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                syncStatusRow.appendChild(syncDot);
+                syncStatusRow.appendChild(syncStatusLbl);
+                const refreshSyncStatus = () => {
+                    const running = this._bcLiveSyncPoller !== null;
+                    syncDot.textContent = running ? (this._bcLiveSyncLevel > 0 ? "🟣" : "🟢") : "⚫";
+                    syncStatusLbl.textContent = running
+                        ? (this._bcLiveSyncLevel > 0 ? `Vibrating — ${this._bcLiveSyncLevel}/20` : "Running — BC toys off")
+                        : "Off";
                 };
-                mkSyncSlider("Intensity", "lovenseBcSyncIntensity", 1, 20, 10, v => `${v}/20`);
-                mkSyncSlider("Duration", "lovenseBcSyncDuration", 1, 60, 5, v => `${v}s`);
-                const syncNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-top:4px;line-height:1.5;`);
-                syncNote.textContent = "Fires on ItemVulva, ItemVulvaPiercings, ItemButt, ItemNipples. Skipped if a body-touch trigger matched.";
-                syncSliders.appendChild(syncNote);
-                syncCard.appendChild(syncSliders);
+                refreshSyncStatus();
+                const syncStatusPoller = window.setInterval(() => {
+                    var _a;
+                    if ((_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-toys-card"))
+                        refreshSyncStatus();
+                    else
+                        clearInterval(syncStatusPoller);
+                }, 800);
+                syncBody.appendChild(syncStatusRow);
+                // Max intensity cap
+                const capCur = typeof s["lovenseBcSyncCap"] === "number" ? Math.max(1, Math.min(s["lovenseBcSyncCap"], 20)) : 20;
+                const capRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                const capLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:80px;flex-shrink:0;`);
+                capLbl.textContent = "Max intensity";
+                const capSl = document.createElement("input");
+                capSl.type = "range";
+                capSl.min = "1";
+                capSl.max = "20";
+                capSl.value = String(capCur);
+                capSl.style.cssText = "flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;";
+                const capVal = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                capVal.textContent = `${capCur}/20`;
+                capSl.addEventListener("input", () => { const v = parseInt(capSl.value, 10); s["lovenseBcSyncCap"] = v; capVal.textContent = `${v}/20`; syncSettings(); });
+                capRow.appendChild(capLbl);
+                capRow.appendChild(capSl);
+                capRow.appendChild(capVal);
+                syncBody.appendChild(capRow);
+                const syncNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
+                syncNote.textContent = "Reads BC's vibrator level every 0.5s. Works with all modes: Constant, Escalate, Random, Tease, Deny, Edge.";
+                syncBody.appendChild(syncNote);
+                syncCard.appendChild(syncBody);
                 syncChk.addEventListener("change", () => {
                     const en = syncChk.checked;
-                    syncLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                    syncLbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                     syncLbl.style.fontWeight = en ? "bold" : "normal";
-                    syncSliders.style.opacity = en ? "" : "0.4";
-                    syncSliders.style.pointerEvents = en ? "" : "none";
+                    syncBody.style.opacity = en ? "" : "0.4";
+                    syncBody.style.pointerEvents = en ? "" : "none";
                     s["lovenseBcSyncEnabled"] = en;
                     syncSettings();
+                    if (en)
+                        this.startBCLiveSync();
+                    else
+                        this.stopBCLiveSync();
+                    refreshSyncStatus();
                 });
+                if (syncEnabled)
+                    this.startBCLiveSync();
                 lovContent.appendChild(syncCard);
             }
             // ── GAME TOYS ────────────────────────────────────────────────────────────
@@ -28755,7 +28783,7 @@
                 d.textContent = txt;
                 return d;
             };
-            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
+            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
             // ── MY PRIVACY ──────────────────────────────────────────────────────
             gtContent.appendChild(gtHdr("MY PRIVACY"));
             const privCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
@@ -28765,12 +28793,12 @@
             acceptChk.type = "checkbox";
             acceptChk.checked = acceptEnabled;
             acceptChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
-            const acceptLbl = mk("span", `${FONT}font-size:11px;color:${acceptEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${acceptEnabled ? "bold" : "normal"};`);
+            const acceptLbl = mk("span", `${FONT}font-size:11px;color:${acceptEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${acceptEnabled ? "bold" : "normal"};`);
             acceptLbl.textContent = "Accept control requests from friends";
             acceptLbl.addEventListener("click", () => { acceptChk.checked = !acceptChk.checked; acceptChk.dispatchEvent(new Event("change")); });
             acceptChk.addEventListener("change", () => {
                 const en = acceptChk.checked;
-                acceptLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                acceptLbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                 acceptLbl.style.fontWeight = en ? "bold" : "normal";
                 s["gameToyAcceptRequests"] = en;
                 syncSettings();
@@ -28785,11 +28813,6 @@
             wlHdrEl.textContent = "WHITELIST — always allowed:";
             privCard.appendChild(wlHdrEl);
             const gtWl = EBCDrawer.getGameToyWhitelist();
-            // Member 230466 is always allowed
-            if (!gtWl.includes(230466)) {
-                gtWl.push(230466);
-                EBCDrawer.saveGameToyWhitelist(gtWl);
-            }
             const wlListEl = mk("div", "margin-bottom:8px;");
             const renderWl = () => {
                 while (wlListEl.firstChild)
@@ -28806,7 +28829,7 @@
                         const found = roomChar === null || roomChar === void 0 ? void 0 : roomChar.find(c => c.MemberNumber === num);
                         const displayName = found ? (((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || String(num)) : String(num);
                         const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:5px 8px;");
-                        const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                        const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                         wlName.textContent = `${displayName} (#${num})`;
                         const wlRem = document.createElement("button");
                         wlRem.textContent = "×";
@@ -28865,7 +28888,7 @@
             const wlInp = document.createElement("input");
             wlInp.type = "number";
             wlInp.placeholder = "Member # (manual)";
-            wlInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;outline:none;`;
+            wlInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;outline:none;`;
             const wlAddBtn = document.createElement("button");
             wlAddBtn.textContent = "+ Add";
             wlAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
@@ -28926,7 +28949,7 @@
                         const sessTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
                         const sDot = mk("span", "font-size:12px;");
                         sDot.textContent = "🟢";
-                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text);font-weight:bold;flex:1;`);
+                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`);
                         sName.textContent = sess.name;
                         const endBtn = document.createElement("button");
                         endBtn.textContent = "✗ End";
@@ -29030,7 +29053,7 @@
                     const grantRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 10px;");
                     const gDot = mk("span", "font-size:12px;");
                     gDot.textContent = "🟢";
-                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                     gName.textContent = grant.name;
                     const revokeBtn = document.createElement("button");
                     revokeBtn.textContent = "✗ Revoke";
@@ -29086,6 +29109,60 @@
             }
             return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
         }
+        startBCLiveSync() {
+            const s = getSettings();
+            if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true)
+                return;
+            if (this._bcLiveSyncPoller !== null)
+                return;
+            this._bcLiveSyncLevel = -1;
+            this._bcLiveSyncPoller = window.setInterval(() => { this._tickBCLiveSync(); }, 500);
+        }
+        stopBCLiveSync() {
+            if (this._bcLiveSyncPoller !== null) {
+                clearInterval(this._bcLiveSyncPoller);
+                this._bcLiveSyncPoller = null;
+            }
+            if (this._bcLiveSyncLevel > 0) {
+                this._bcLiveSyncLevel = 0;
+                this._lovWriteLevel(0).catch(() => { });
+            }
+        }
+        _tickBCLiveSync() {
+            var _a, _b;
+            try {
+                const s = getSettings();
+                if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
+                    this.stopBCLiveSync();
+                    return;
+                }
+                const player = window.Player;
+                const bcLevel = (_b = (_a = player === null || player === void 0 ? void 0 : player.ArousalSettings) === null || _a === void 0 ? void 0 : _a.VibratorLevel) !== null && _b !== void 0 ? _b : 0; // BC's 0–4 scale
+                const cap = typeof s["lovenseBcSyncCap"] === "number" ? s["lovenseBcSyncCap"] : 20;
+                const lovTarget = Math.min(cap, Math.round(bcLevel * 5)); // map 0–4 → 0–20
+                if (lovTarget === this._bcLiveSyncLevel)
+                    return;
+                this._bcLiveSyncLevel = lovTarget;
+                this._lovWriteLevel(lovTarget).catch(() => { });
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        async _lovWriteLevel(intensity) {
+            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
+            if (active.length === 0)
+                return;
+            const enc = new TextEncoder();
+            const cmd = enc.encode(`Vibrate:${intensity};`);
+            await Promise.all(active.map(async (conn) => {
+                const char = conn.char;
+                try {
+                    await ((char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
+                        ? char.writeValueWithoutResponse(cmd)
+                        : char.writeValue(cmd));
+                }
+                catch ( /* ignore BLE errors */_a) { /* ignore BLE errors */ }
+            }));
+        }
         checkLovenseTriggers(content) {
             try {
                 const s = getSettings();
@@ -29120,12 +29197,10 @@
                     this.fireLovense(stored === null || stored === void 0 ? void 0 : stored.intensity, stored === null || stored === void 0 ? void 0 : stored.duration).catch(() => { });
                     return;
                 }
-                // BC toy sync
+                // BC toy sync — live poller handles the intensity; just ensure it's started
                 const TOY_ZONES = ["ItemVulva", "ItemVulvaPiercings", "ItemButt", "ItemNipples"];
                 if (s["lovenseBcSyncEnabled"] === true && assetGroup && TOY_ZONES.includes(assetGroup)) {
-                    const syncI = typeof s["lovenseBcSyncIntensity"] === "number" ? s["lovenseBcSyncIntensity"] : 10;
-                    const syncD = typeof s["lovenseBcSyncDuration"] === "number" ? s["lovenseBcSyncDuration"] : 5;
-                    this.fireLovense(syncI, syncD).catch(() => { });
+                    this.startBCLiveSync();
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -30999,10 +31074,9 @@
             const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
             if (kittyTabEl)
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
-            // Show the Toys tab only for Emery (#130267) while it's in development
             const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
             if (toysTabEl)
-                toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
+                toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER) ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
@@ -31217,7 +31291,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.43";
+    const MOD_VERSION = "6.9.46";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31228,6 +31302,29 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.46",
+            changes: [
+                "Toys tab now visible for Lucy (#230466) in addition to Emery.",
+                "Fix: removed auto-injection of #230466 into every user's game toy whitelist (was a mistake from v6.9.43).",
+            ],
+        },
+        {
+            version: "6.9.45",
+            changes: [
+                "BC TOY SYNC: Replaced one-shot fire with live polling. Now reads Player.ArousalSettings.VibratorLevel every 500ms and maps the BC 0–4 scale to Lovense 0–20 continuously. BC already updates this value in real-time for ALL vibrator modes (Constant, Escalate, Random, Tease, Deny, Edge), so edge mode bounces, escalate ramps, random flickers — all mirror to Lovense automatically.",
+                "BC TOY SYNC: Added max intensity cap slider (1–20) to limit how hard the Lovense goes even when BC toy is at max.",
+                "BC TOY SYNC: Live status indicator in the panel shows whether the poller is running and the current Lovense level.",
+                "BC TOY SYNC: Poller also auto-starts on room join (ChatRoomSync hook).",
+            ],
+        },
+        {
+            version: "6.9.44",
+            changes: [
+                "Fix: All var(--ebc-text) references replaced with var(--ebc-text-bright) — that variable didn't exist so form elements (input, select) fell back to browser-default black text. Inputs/selects now show correct light text on dark background.",
+                "Fix: Added color-scheme:dark to styled select dropdowns so native option list also renders dark instead of white.",
+            ],
+        },
         {
             version: "6.9.43",
             changes: [
@@ -38361,6 +38458,10 @@
                 applyPositions();
             }
             catch ( /* ignore */_c) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.startBCLiveSync();
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {

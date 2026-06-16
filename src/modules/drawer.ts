@@ -21039,8 +21039,6 @@ export class EBCDrawer {
         privCard.appendChild(wlHdrEl);
 
         const gtWl = EBCDrawer.getGameToyWhitelist();
-        // Member 230466 is always allowed
-        if (!gtWl.includes(230466)) { gtWl.push(230466); EBCDrawer.saveGameToyWhitelist(gtWl); }
 
         const wlListEl = mk("div", "margin-bottom:8px;");
         const renderWl = (): void => {
@@ -23211,9 +23209,8 @@ export class EBCDrawer {
         // Show the Kitty tab only for Lucy (#230466)
         const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
         if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
-        // Show the Toys tab only for Emery (#130267) while it's in development
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
-        if (toysTabEl) toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
+        if (toysTabEl) toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER) ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();

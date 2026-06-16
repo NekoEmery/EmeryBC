@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.45";
+const MOD_VERSION = "6.9.46";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.46",
+        changes: [
+            "Toys tab now visible for Lucy (#230466) in addition to Emery.",
+            "Fix: removed auto-injection of #230466 into every user's game toy whitelist (was a mistake from v6.9.43).",
+        ],
+    },
     {
         version: "6.9.45",
         changes: [
