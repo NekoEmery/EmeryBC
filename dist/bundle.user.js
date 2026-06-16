@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.46
+// @version      6.9.47
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28998,51 +28998,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         sessTop.appendChild(sName);
                         sessTop.appendChild(endBtn);
                         sessCard.appendChild(sessTop);
-                        let vibI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
-                        let vibD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
-                        const iRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
-                        const iLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
-                        iLblS.textContent = "Intensity";
-                        const iSlS = document.createElement("input");
-                        iSlS.type = "range";
-                        iSlS.min = "1";
-                        iSlS.max = "20";
-                        iSlS.value = String(vibI);
-                        iSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const iValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
-                        iValS.textContent = `${vibI}/20`;
-                        iSlS.addEventListener("input", () => { vibI = parseInt(iSlS.value, 10); iValS.textContent = `${vibI}/20`; });
-                        iRowS.appendChild(iLblS);
-                        iRowS.appendChild(iSlS);
-                        iRowS.appendChild(iValS);
-                        sessCard.appendChild(iRowS);
-                        const dRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                        const dLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
-                        dLblS.textContent = "Duration";
-                        const dSlS = document.createElement("input");
-                        dSlS.type = "range";
-                        dSlS.min = "1";
-                        dSlS.max = "60";
-                        dSlS.value = String(vibD);
-                        dSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const dValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
-                        dValS.textContent = `${vibD}s`;
-                        dSlS.addEventListener("input", () => { vibD = parseInt(dSlS.value, 10); dValS.textContent = `${vibD}s`; });
-                        dRowS.appendChild(dLblS);
-                        dRowS.appendChild(dSlS);
-                        dRowS.appendChild(dValS);
-                        sessCard.appendChild(dRowS);
-                        const vibBtnS = document.createElement("button");
-                        vibBtnS.textContent = "〜 Vibrate";
-                        vibBtnS.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
-                        vibBtnS.addEventListener("mouseenter", () => { vibBtnS.style.background = "var(--ebc-bg)"; });
-                        vibBtnS.addEventListener("mouseleave", () => { vibBtnS.style.background = "transparent"; });
-                        vibBtnS.addEventListener("click", () => {
-                            this.sendGameToyMsg(memberNum, "VIB", vibI, vibD);
-                            vibBtnS.disabled = true;
-                            window.setTimeout(() => { vibBtnS.disabled = false; }, (vibD + 0.5) * 1000);
-                        });
-                        sessCard.appendChild(vibBtnS);
+                        const TOY_MODE_ROWS = [
+                            [{ label: "Off", mode: "Off" }, { label: "Low", mode: "Low" }, { label: "Medium", mode: "Medium" }, { label: "High", mode: "High" }, { label: "Max", mode: "Maximum" }],
+                            [{ label: "Tease", mode: "Tease" }, { label: "Random", mode: "Random" }, { label: "Escalate", mode: "Escalate" }, { label: "Deny", mode: "Deny" }, { label: "Edge", mode: "Edge" }],
+                        ];
+                        for (const mRow of TOY_MODE_ROWS) {
+                            const rowEl = mk("div", "display:flex;gap:5px;margin-bottom:5px;");
+                            for (const m of mRow) {
+                                const mBtn = document.createElement("button");
+                                mBtn.textContent = m.label;
+                                mBtn.style.cssText = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:5px 2px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text-bright);transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                                mBtn.addEventListener("mouseenter", () => { mBtn.style.background = "var(--ebc-bg-mid)"; mBtn.style.borderColor = "var(--ebc-accent)"; mBtn.style.color = "var(--ebc-accent)"; });
+                                mBtn.addEventListener("mouseleave", () => { mBtn.style.background = "var(--ebc-bg)"; mBtn.style.borderColor = "var(--ebc-border)"; mBtn.style.color = "var(--ebc-text-bright)"; });
+                                mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
+                                rowEl.appendChild(mBtn);
+                            }
+                            sessCard.appendChild(rowEl);
+                        }
                         statusArea.appendChild(sessCard);
                     }
                     for (const [pendNum, pend] of this._toyPendingOut) {
@@ -29246,16 +29218,49 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             this.renderToys();
         }
-        sendGameToyMsg(targetNum, type, intensity, duration) {
+        sendGameToyMsg(targetNum, type) {
             try {
-                let content = `[EBC-TOY:${type}]`;
-                if (type === "VIB" && intensity !== undefined && duration !== undefined) {
-                    content = `[EBC-TOY:VIB:${intensity}:${duration}]`;
-                }
                 const serverSend = window.ServerSend;
-                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
+                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: `[EBC-TOY:${type}]`, Target: targetNum });
             }
             catch ( /* ignore */_a) { /* ignore */ }
+        }
+        _applyBCVibratorMode(modeName) {
+            var _a, _b, _c, _d;
+            try {
+                const win = window;
+                const player = win.Player;
+                if (!(player === null || player === void 0 ? void 0 : player.Appearance))
+                    return;
+                const lookup = (_a = win.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
+                const wantsVibrating = modeName !== "Off";
+                const intensityMap = { Off: -1, Low: 0, Medium: 1, High: 2, Maximum: 3 };
+                const finalIntensity = (_b = intensityMap[modeName]) !== null && _b !== void 0 ? _b : 0;
+                const changed = [];
+                for (const item of player.Appearance) {
+                    const key = item.Asset.Group.Name + item.Asset.Name;
+                    if (!(key in lookup))
+                        continue;
+                    if (!item.Property)
+                        item.Property = {};
+                    item.Property["Mode"] = modeName;
+                    item.Property["Intensity"] = finalIntensity;
+                    const eff = Array.isArray(item.Property["Effect"]) ? [...item.Property["Effect"]] : [];
+                    if (wantsVibrating && !eff.includes("Vibrating"))
+                        eff.push("Vibrating");
+                    if (!wantsVibrating)
+                        item.Property["Effect"] = eff.filter((e) => e !== "Vibrating");
+                    else
+                        item.Property["Effect"] = eff;
+                    changed.push(item.Asset.Group.Name);
+                }
+                if (changed.length === 0)
+                    return;
+                (_c = win.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(win, player, false, false);
+                for (const group of changed)
+                    (_d = win.ChatRoomCharacterItemUpdate) === null || _d === void 0 ? void 0 : _d.call(win, player, group);
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
         }
         handleGameToyMsg(senderNumber, senderName, type, intensity, duration) {
             var _a, _b;
@@ -29291,13 +29296,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this.refreshToysIfActive();
                     }
                 }
-                else if (type === "VIB") {
+                else if (["Off", "Low", "Medium", "High", "Maximum", "Random", "Escalate", "Tease", "Deny", "Edge"].includes(type)) {
                     if (!this._toyGrantedTo.has(senderNumber))
                         return;
-                    const i = intensity !== null && intensity !== void 0 ? intensity : 10;
-                    const d = duration !== null && duration !== void 0 ? duration : 5;
-                    this._showToyToast(`${senderName} is vibrating your toy~ (${i}/20, ${d}s)`);
-                    this.fireLovense(i, d).catch(() => { });
+                    const modeLabel = type === "Maximum" ? "Max" : type;
+                    this._showToyToast(`${senderName}: ${modeLabel}${type !== "Off" ? " ~" : ""}`);
+                    this._applyBCVibratorMode(type);
                 }
                 else if (type === "REV") {
                     if (this._toyGrantedTo.has(senderNumber)) {
@@ -31326,7 +31330,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.46";
+    const MOD_VERSION = "6.9.47";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31337,6 +31341,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.47",
+            changes: [
+                "GAME TOYS overhaul: now controls BC in-game vibrators (not Lovense directly). Sender UI replaced with Off/Low/Medium/High/Max + Tease/Random/Escalate/Deny/Edge buttons matching BC's TOY CONTROL layout. Receiver applies the mode to worn vibrator items via ChatRoomCharacterItemUpdate. Lovense follows automatically via BC TOY SYNC.",
+            ],
+        },
         {
             version: "6.9.46",
             changes: [
@@ -37174,7 +37184,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     function parseEBCToyMsg(content) {
-        const m = content.match(/^\[EBC-TOY:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+        const m = content.match(/^\[EBC-TOY:([A-Za-z]+)(?::(\d+):(\d+))?\]$/);
         if (!m)
             return null;
         const type = m[1];

@@ -21165,37 +21165,23 @@ export class EBCDrawer {
                     sessTop.appendChild(sDot); sessTop.appendChild(sName); sessTop.appendChild(endBtn);
                     sessCard.appendChild(sessTop);
 
-                    let vibI = typeof s["lovenseIntensity"] === "number" ? (s["lovenseIntensity"] as number) : 10;
-                    let vibD = typeof s["lovenseDuration"]  === "number" ? (s["lovenseDuration"]  as number) : 5;
-
-                    const iRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
-                    const iLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`); iLblS.textContent = "Intensity";
-                    const iSlS = document.createElement("input"); iSlS.type = "range"; iSlS.min = "1"; iSlS.max = "20"; iSlS.value = String(vibI);
-                    iSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                    const iValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`); iValS.textContent = `${vibI}/20`;
-                    iSlS.addEventListener("input", () => { vibI = parseInt(iSlS.value, 10); iValS.textContent = `${vibI}/20`; });
-                    iRowS.appendChild(iLblS); iRowS.appendChild(iSlS); iRowS.appendChild(iValS);
-                    sessCard.appendChild(iRowS);
-
-                    const dRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                    const dLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`); dLblS.textContent = "Duration";
-                    const dSlS = document.createElement("input"); dSlS.type = "range"; dSlS.min = "1"; dSlS.max = "60"; dSlS.value = String(vibD);
-                    dSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                    const dValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`); dValS.textContent = `${vibD}s`;
-                    dSlS.addEventListener("input", () => { vibD = parseInt(dSlS.value, 10); dValS.textContent = `${vibD}s`; });
-                    dRowS.appendChild(dLblS); dRowS.appendChild(dSlS); dRowS.appendChild(dValS);
-                    sessCard.appendChild(dRowS);
-
-                    const vibBtnS = document.createElement("button"); vibBtnS.textContent = "〜 Vibrate";
-                    vibBtnS.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
-                    vibBtnS.addEventListener("mouseenter", () => { vibBtnS.style.background = "var(--ebc-bg)"; });
-                    vibBtnS.addEventListener("mouseleave", () => { vibBtnS.style.background = "transparent"; });
-                    vibBtnS.addEventListener("click", () => {
-                        this.sendGameToyMsg(memberNum, "VIB", vibI, vibD);
-                        vibBtnS.disabled = true;
-                        window.setTimeout(() => { vibBtnS.disabled = false; }, (vibD + 0.5) * 1000);
-                    });
-                    sessCard.appendChild(vibBtnS);
+                    const TOY_MODE_ROWS = [
+                        [{ label: "Off", mode: "Off" }, { label: "Low", mode: "Low" }, { label: "Medium", mode: "Medium" }, { label: "High", mode: "High" }, { label: "Max", mode: "Maximum" }],
+                        [{ label: "Tease", mode: "Tease" }, { label: "Random", mode: "Random" }, { label: "Escalate", mode: "Escalate" }, { label: "Deny", mode: "Deny" }, { label: "Edge", mode: "Edge" }],
+                    ];
+                    for (const mRow of TOY_MODE_ROWS) {
+                        const rowEl = mk("div", "display:flex;gap:5px;margin-bottom:5px;");
+                        for (const m of mRow) {
+                            const mBtn = document.createElement("button");
+                            mBtn.textContent = m.label;
+                            mBtn.style.cssText = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:5px 2px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text-bright);transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                            mBtn.addEventListener("mouseenter", () => { mBtn.style.background = "var(--ebc-bg-mid)"; mBtn.style.borderColor = "var(--ebc-accent)"; mBtn.style.color = "var(--ebc-accent)"; });
+                            mBtn.addEventListener("mouseleave", () => { mBtn.style.background = "var(--ebc-bg)"; mBtn.style.borderColor = "var(--ebc-border)"; mBtn.style.color = "var(--ebc-text-bright)"; });
+                            mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
+                            rowEl.appendChild(mBtn);
+                        }
+                        sessCard.appendChild(rowEl);
+                    }
                     statusArea.appendChild(sessCard);
                 }
 
@@ -21387,14 +21373,45 @@ export class EBCDrawer {
         this.renderToys();
     }
 
-    private sendGameToyMsg(targetNum: number, type: string, intensity?: number, duration?: number): void {
+    private sendGameToyMsg(targetNum: number, type: string): void {
         try {
-            let content = `[EBC-TOY:${type}]`;
-            if (type === "VIB" && intensity !== undefined && duration !== undefined) {
-                content = `[EBC-TOY:VIB:${intensity}:${duration}]`;
-            }
             const serverSend = (window as unknown as { ServerSend?: (msg: string, data: unknown) => void }).ServerSend;
-            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
+            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: `[EBC-TOY:${type}]`, Target: targetNum });
+        } catch { /* ignore */ }
+    }
+
+    private _applyBCVibratorMode(modeName: string): void {
+        try {
+            type BCItem = { Asset: { Group: { Name: string }; Name: string }; Property?: Record<string, unknown> };
+            type Win = {
+                Player?: { Appearance?: BCItem[] };
+                VibratorModeDataLookup?: Record<string, unknown>;
+                CharacterRefresh?: (c: unknown, push: boolean, load: boolean) => void;
+                ChatRoomCharacterItemUpdate?: (c: unknown, group: string) => void;
+            };
+            const win = window as unknown as Win;
+            const player = win.Player;
+            if (!player?.Appearance) return;
+            const lookup = win.VibratorModeDataLookup ?? {};
+            const wantsVibrating = modeName !== "Off";
+            const intensityMap: Record<string, number> = { Off: -1, Low: 0, Medium: 1, High: 2, Maximum: 3 };
+            const finalIntensity = intensityMap[modeName] ?? 0;
+            const changed: string[] = [];
+            for (const item of player.Appearance) {
+                const key = item.Asset.Group.Name + item.Asset.Name;
+                if (!(key in lookup)) continue;
+                if (!item.Property) item.Property = {};
+                item.Property["Mode"] = modeName;
+                item.Property["Intensity"] = finalIntensity;
+                const eff = Array.isArray(item.Property["Effect"]) ? [...(item.Property["Effect"] as string[])] : [];
+                if (wantsVibrating && !eff.includes("Vibrating")) eff.push("Vibrating");
+                if (!wantsVibrating) item.Property["Effect"] = eff.filter((e: string) => e !== "Vibrating");
+                else item.Property["Effect"] = eff;
+                changed.push(item.Asset.Group.Name);
+            }
+            if (changed.length === 0) return;
+            win.CharacterRefresh?.(player, false, false);
+            for (const group of changed) win.ChatRoomCharacterItemUpdate?.(player, group);
         } catch { /* ignore */ }
     }
 
@@ -21426,12 +21443,11 @@ export class EBCDrawer {
                     this._showToyToast(`${pend.name} declined toy control.`);
                     this.refreshToysIfActive();
                 }
-            } else if (type === "VIB") {
+            } else if (["Off","Low","Medium","High","Maximum","Random","Escalate","Tease","Deny","Edge"].includes(type)) {
                 if (!this._toyGrantedTo.has(senderNumber)) return;
-                const i = intensity ?? 10;
-                const d = duration ?? 5;
-                this._showToyToast(`${senderName} is vibrating your toy~ (${i}/20, ${d}s)`);
-                this.fireLovense(i, d).catch(() => {});
+                const modeLabel = type === "Maximum" ? "Max" : type;
+                this._showToyToast(`${senderName}: ${modeLabel}${type !== "Off" ? " ~" : ""}`);
+                this._applyBCVibratorMode(type);
             } else if (type === "REV") {
                 if (this._toyGrantedTo.has(senderNumber)) {
                     this._toyGrantedTo.delete(senderNumber);

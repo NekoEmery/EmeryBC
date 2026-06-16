@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.46";
+const MOD_VERSION = "6.9.47";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.47",
+        changes: [
+            "GAME TOYS overhaul: now controls BC in-game vibrators (not Lovense directly). Sender UI replaced with Off/Low/Medium/High/Max + Tease/Random/Escalate/Deny/Edge buttons matching BC's TOY CONTROL layout. Receiver applies the mode to worn vibrator items via ChatRoomCharacterItemUpdate. Lovense follows automatically via BC TOY SYNC.",
+        ],
+    },
     {
         version: "6.9.46",
         changes: [
@@ -5877,7 +5883,7 @@ function patchKittyExpressions(): void {
 }
 
 function parseEBCToyMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
-    const m = content.match(/^\[EBC-TOY:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+    const m = content.match(/^\[EBC-TOY:([A-Za-z]+)(?::(\d+):(\d+))?\]$/);
     if (!m) return null;
     const type = m[1];
     const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
