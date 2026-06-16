@@ -11551,6 +11551,7 @@
             this._lovHttpUrl = null;
             this._lovHttpConnected = false;
             this._lovHttpToyCount = 0;
+            this._lovHttpLastRaw = "";
             this._toyCtrlSessions = new Map();
             this._toyPendingOut = new Map();
             this._toyGrantedTo = new Map();
@@ -28744,6 +28745,13 @@
                     httpBtnRow.appendChild(httpTestBtn);
                     httpBtnRow.appendChild(httpStatus);
                     httpBody.appendChild(httpBtnRow);
+                    const httpRawEl = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-sub);word-break:break-all;white-space:pre-wrap;margin-bottom:4px;`);
+                    httpRawEl.style.display = "none";
+                    httpBody.appendChild(httpRawEl);
+                    const showRaw = (text) => {
+                        httpRawEl.textContent = text;
+                        httpRawEl.style.display = text ? "block" : "none";
+                    };
                     httpTestBtn.addEventListener("click", () => {
                         const rawUrl = urlInp.value.trim().replace(/\/$/, "");
                         if (!rawUrl)
@@ -28756,10 +28764,12 @@
                         httpStatus.style.color = "var(--ebc-text-sub)";
                         this._lovHttpPing().then(ok => {
                             httpTestBtn.disabled = false;
+                            showRaw("");
                             if (ok) {
                                 if (this._lovHttpToyCount === 0) {
-                                    httpStatus.textContent = "⚠ Connected but 0 toys — enable Allow Control in Lovense Connect";
+                                    httpStatus.textContent = "⚠ Connected but 0 toys — raw response:";
                                     httpStatus.style.color = "#e0b060";
+                                    showRaw(this._lovHttpLastRaw || "(empty response)");
                                 }
                                 else {
                                     httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
@@ -28769,6 +28779,7 @@
                             else {
                                 httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
                                 httpStatus.style.color = "#e07070";
+                                showRaw(this._lovHttpLastRaw || "");
                             }
                         });
                     });
@@ -29836,14 +29847,20 @@
                     this._lovHttpConnected = false;
                     return false;
                 }
-                const json = await resp.json();
+                const rawText = await resp.text();
+                this._lovHttpLastRaw = rawText.slice(0, 400);
+                let json = null;
+                try {
+                    json = JSON.parse(rawText);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
                 // Lovense Connect v1 API returns data as a JSON-encoded string, not an object.
                 let toyData = null;
                 if (typeof (json === null || json === void 0 ? void 0 : json.data) === "string") {
                     try {
                         toyData = JSON.parse(json.data);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
                 else if ((json === null || json === void 0 ? void 0 : json.data) && typeof json.data === "object") {
                     toyData = json.data;
@@ -29852,7 +29869,7 @@
                 this._lovHttpConnected = true;
                 return true;
             }
-            catch (_b) {
+            catch (_c) {
                 this._lovHttpConnected = false;
                 return false;
             }
@@ -32162,7 +32179,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 14; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 15; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
