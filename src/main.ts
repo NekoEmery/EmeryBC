@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.62";
+const MOD_VERSION = "6.9.63";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.63",
+        changes: [
+            "Guide '?' button moved from header to footer (bigger, pink, always visible). Removed from header.",
+            "GAME TOYS header now shows a green 'X controlling you' badge when someone has active toy access.",
+            "IRL TOYS 'LET OTHERS CONTROL YOUR TOY' header lights up with accent border and green badge when someone has active access.",
+        ],
+    },
     {
         version: "6.9.62",
         changes: [
