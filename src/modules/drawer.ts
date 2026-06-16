@@ -4044,6 +4044,7 @@ export class EBCDrawer {
     private _lovHttpUrl: string | null = null;
     private _lovHttpConnected = false;
     private _lovHttpToyCount  = 0;
+    private _lovHttpLastRaw   = "";
     private _toyCtrlSessions  = new Map<number, { name: string }>();
     private _toyPendingOut    = new Map<number, { name: string }>();
     private _toyGrantedTo     = new Map<number, { name: string }>();
@@ -21060,6 +21061,14 @@ export class EBCDrawer {
                 httpBtnRow.appendChild(httpTestBtn); httpBtnRow.appendChild(httpStatus);
                 httpBody.appendChild(httpBtnRow);
 
+                const httpRawEl = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-sub);word-break:break-all;white-space:pre-wrap;margin-bottom:4px;`);
+                httpRawEl.style.display = "none";
+                httpBody.appendChild(httpRawEl);
+                const showRaw = (text: string): void => {
+                    httpRawEl.textContent = text;
+                    httpRawEl.style.display = text ? "block" : "none";
+                };
+
                 httpTestBtn.addEventListener("click", () => {
                     const rawUrl = urlInp.value.trim().replace(/\/$/, "");
                     if (!rawUrl) return;
@@ -21071,10 +21080,12 @@ export class EBCDrawer {
                     httpStatus.style.color = "var(--ebc-text-sub)";
                     this._lovHttpPing().then(ok => {
                         httpTestBtn.disabled = false;
+                        showRaw("");
                         if (ok) {
                             if (this._lovHttpToyCount === 0) {
-                                httpStatus.textContent = "⚠ Connected but 0 toys — enable Allow Control in Lovense Connect";
+                                httpStatus.textContent = "⚠ Connected but 0 toys — raw response:";
                                 httpStatus.style.color = "#e0b060";
+                                showRaw(this._lovHttpLastRaw || "(empty response)");
                             } else {
                                 httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
                                 httpStatus.style.color = "#80c080";
@@ -21082,6 +21093,7 @@ export class EBCDrawer {
                         } else {
                             httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
                             httpStatus.style.color = "#e07070";
+                            showRaw(this._lovHttpLastRaw || "");
                         }
                     });
                 });
@@ -21993,13 +22005,16 @@ export class EBCDrawer {
                 signal: AbortSignal.timeout(4000),
             });
             if (!resp.ok) { this._lovHttpConnected = false; return false; }
-            const json = await resp.json() as { data?: Record<string, unknown> | string } | null;
+            const rawText = await resp.text();
+            this._lovHttpLastRaw = rawText.slice(0, 400);
+            let json: { data?: Record<string, unknown> | string } | null = null;
+            try { json = JSON.parse(rawText) as typeof json; } catch { /* ignore */ }
             // Lovense Connect v1 API returns data as a JSON-encoded string, not an object.
             let toyData: Record<string, unknown> | null = null;
             if (typeof json?.data === "string") {
                 try { toyData = JSON.parse(json.data) as Record<string, unknown>; } catch { /* ignore */ }
             } else if (json?.data && typeof json.data === "object") {
-                toyData = json.data;
+                toyData = json.data as Record<string, unknown>;
             }
             this._lovHttpToyCount = toyData ? Object.keys(toyData).length : 0;
             this._lovHttpConnected = true;
