@@ -5682,17 +5682,63 @@
     // (string `ID` field, raw Appearance array) that CharacterLoadOnline expects.
     //
     // Large / privacy-sensitive fields are stripped before storage.
+    // localStorage cap: 100 entries (oldest evicted), tracked by EBC_bundle_idx.
     const BUNDLE_STRIP_FIELDS = [
         "Inventory", "BlockItems", "LimitedItems", "FavoriteItems",
         "ActivePose", "ArousalSettings", "OnlineSharedSettings",
         "WhiteList", "BlackList", "Crafting",
     ];
+    const BUNDLE_LS_MAX = 100;
+    const BUNDLE_IDX_KEY = "EBC_bundle_idx";
     // Tier 1: fast in-memory cache for the current session.
     const sessionCharacterBundles = new Map();
+    function readBundleIndex() {
+        try {
+            const raw = localStorage.getItem(BUNDLE_IDX_KEY);
+            if (!raw)
+                return [];
+            return JSON.parse(raw);
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function writeBundleIndex(idx) {
+        try {
+            localStorage.setItem(BUNDLE_IDX_KEY, JSON.stringify(idx));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function writeBundleToLS(num, bundle) {
+        try {
+            localStorage.setItem(`EBC_bundle_${num}`, JSON.stringify(bundle));
+            const idx = readBundleIndex().filter(n => n !== num);
+            idx.push(num);
+            if (idx.length > BUNDLE_LS_MAX) {
+                const evicted = idx.splice(0, idx.length - BUNDLE_LS_MAX);
+                for (const old of evicted) {
+                    try {
+                        localStorage.removeItem(`EBC_bundle_${old}`);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }
+            writeBundleIndex(idx);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    function readBundleFromLS(num) {
+        try {
+            const raw = localStorage.getItem(`EBC_bundle_${num}`);
+            return raw ? JSON.parse(raw) : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
     /**
      * Store the raw server bundle for an online character.
-     * Session cache only — IndexedDB was removed (caused persistent
-     * "[object Event]" unhandled rejections in Chrome that couldn't be suppressed).
+     * Writes to both the in-memory session cache and localStorage.
      */
     function storeRawBundle(data) {
         try {
@@ -5704,15 +5750,18 @@
             for (const f of BUNDLE_STRIP_FIELDS)
                 delete bundle[f];
             sessionCharacterBundles.set(num, bundle);
+            writeBundleToLS(num, bundle);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
     /**
-     * Retrieve a stored bundle — session cache only.
+     * Retrieve a stored bundle — session cache first, then localStorage fallback.
      */
     async function getCharacterBundle(memberNumber) {
-        var _a;
-        return (_a = sessionCharacterBundles.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
+        const session = sessionCharacterBundles.get(memberNumber);
+        if (session !== undefined)
+            return session;
+        return readBundleFromLS(memberNumber);
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
@@ -11557,8 +11606,11 @@
             this.tagTooltipEl = null;
             this.tagTooltipMoveListener = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
-            this._lovBtDevice = null; // BluetoothDevice
-            this._lovBtChar = null; // BluetoothRemoteGATTCharacteristic (write)
+            this._lovConnections = new Map();
+            this._toyCtrlSessions = new Map();
+            this._toyPendingOut = new Map();
+            this._toyGrantedTo = new Map();
+            this._toyIncoming = null;
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -28241,8 +28293,23 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        static getGameToyWhitelist() {
+            try {
+                const raw = localStorage.getItem("EBC_gameToy_wl");
+                return raw ? JSON.parse(raw) : [];
+            }
+            catch (_a) {
+                return [];
+            }
+        }
+        static saveGameToyWhitelist(list) {
+            try {
+                localStorage.setItem("EBC_gameToy_wl", JSON.stringify(list));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         renderToys() {
-            var _a;
+            var _a, _b, _c, _d;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -28264,7 +28331,7 @@
             const sep = () => mk("div", "border-top:1px solid var(--ebc-border);margin:8px 0 6px;");
             const FONT = "font-family:'Trebuchet MS',serif;";
             const card = mk("div");
-            card.className = "ebc-card";
+            card.className = "ebc-card ebc-toys-card";
             // Build a collapsible section with ON/OFF toggle in the header
             const mkSection = (icon, title, enabledKey, collapseKey) => {
                 const enabled = s[enabledKey] === true;
@@ -28300,18 +28367,15 @@
                 return { wrap, content };
             };
             const lovEnabled = s.lovenseEnabled === true;
-            const { wrap: lovWrap, content: lovContent } = mkSection("💜", "LOVENSE", "lovenseEnabled", "EBC_ui_lovense_open");
-            card.appendChild(lovWrap);
+            const { wrap: lovWrap, content: lovContent } = mkSection("🧸", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
                 offNote.textContent = "Enable Lovense above to configure.";
                 lovContent.appendChild(offNote);
             }
             else {
-                const LA = "#9a6fd0";
-                const LM = "#6a4a80";
                 const lvsHdr = (txt) => {
-                    const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:${LM};margin:0 0 6px;text-transform:uppercase;`);
+                    const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
                     d.textContent = txt;
                     return d;
                 };
@@ -28334,60 +28398,77 @@
                     lovContent.appendChild(noBlue);
                 }
                 else {
-                    const connCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
-                    const connRow = mk("div", "display:flex;align-items:center;gap:8px;");
-                    const lovDot = mk("span", "font-size:14px;flex-shrink:0;");
-                    const lovDevName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);flex:1;font-weight:bold;`);
-                    const lovConnBtn = document.createElement("button");
-                    lovConnBtn.textContent = "🔗 Connect Toy";
-                    lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid ${LA};background:#1e0f2a;color:${LA};transition:background 0.1s;`;
-                    lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "#2e1540"; });
-                    lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "#1e0f2a"; });
-                    const lovDiscBtn = document.createElement("button");
-                    lovDiscBtn.textContent = "Disconnect";
-                    lovDiscBtn.style.cssText = `${FONT}font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;transition:background 0.1s;display:none;`;
-                    lovDiscBtn.addEventListener("mouseenter", () => { lovDiscBtn.style.background = "#3a0f18"; });
-                    lovDiscBtn.addEventListener("mouseleave", () => { lovDiscBtn.style.background = "#280810"; });
-                    connRow.appendChild(lovDot);
-                    connRow.appendChild(lovDevName);
-                    connRow.appendChild(lovConnBtn);
-                    connRow.appendChild(lovDiscBtn);
-                    connCard.appendChild(connRow);
-                    const connNote = mk("div", `${FONT}font-size:10px;color:${LM};margin-top:7px;line-height:1.5;`);
-                    connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
-                    connCard.appendChild(connNote);
-                    lovContent.appendChild(connCard);
-                    const lovUpdateStatus = () => {
-                        var _a, _b;
-                        const dev = this._lovBtDevice;
-                        const connected = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
-                        lovDot.textContent = connected ? "🟢" : "⚫";
-                        lovDevName.textContent = connected ? ((_b = dev === null || dev === void 0 ? void 0 : dev.name) !== null && _b !== void 0 ? _b : "Lovense toy") : "Not connected";
-                        lovDevName.style.color = connected ? "#c8e0c8" : "var(--ebc-text-muted)";
-                        lovConnBtn.style.display = connected ? "none" : "";
-                        lovDiscBtn.style.display = connected ? "" : "none";
+                    const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    const toyListEl = mk("div", "margin-bottom:8px;");
+                    const LVS_SERVICES = [
+                        "0000fff0-0000-1000-8000-00805f9b34fb",
+                        "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+                        "50300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "57300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "5a300001-0023-4bd4-bbd5-a6920e4c5653",
+                        "55300001-0023-4bd4-bbd5-a6920e4c5653",
+                    ];
+                    const renderToyList = () => {
+                        var _a;
+                        while (toyListEl.firstChild)
+                            toyListEl.removeChild(toyListEl.firstChild);
+                        if (this._lovConnections.size === 0) {
+                            const noToys = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
+                            noToys.textContent = "No toys connected.";
+                            toyListEl.appendChild(noToys);
+                        }
+                        else {
+                            for (const [key, conn] of this._lovConnections) {
+                                const dev = conn.device;
+                                const isConn = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
+                                const tRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;");
+                                const dot = mk("span", "font-size:14px;flex-shrink:0;");
+                                dot.textContent = isConn ? "🟢" : "⚫";
+                                const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;`);
+                                tName.style.color = isConn ? "#c8e0c8" : "var(--ebc-text-muted)";
+                                tName.textContent = conn.name;
+                                const discBtn = document.createElement("button");
+                                discBtn.textContent = "✗";
+                                discBtn.style.cssText = `${FONT}font-size:12px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;flex-shrink:0;`;
+                                discBtn.addEventListener("click", () => {
+                                    var _a;
+                                    const d = conn.device;
+                                    (_a = d === null || d === void 0 ? void 0 : d.gatt) === null || _a === void 0 ? void 0 : _a.disconnect();
+                                    this._lovConnections.delete(key);
+                                    renderToyList();
+                                });
+                                tRow.appendChild(dot);
+                                tRow.appendChild(tName);
+                                tRow.appendChild(discBtn);
+                                toyListEl.appendChild(tRow);
+                            }
+                        }
                     };
-                    lovUpdateStatus();
+                    renderToyList();
+                    connCard.appendChild(toyListEl);
+                    const connBtnRow = mk("div", "display:flex;justify-content:center;margin-bottom:8px;");
+                    const lovConnBtn = document.createElement("button");
+                    lovConnBtn.textContent = "＋ Connect Toy";
+                    lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:6px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                    lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
+                    lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
                     lovConnBtn.addEventListener("click", () => {
                         lovConnBtn.disabled = true;
-                        lovDot.textContent = "🔄";
-                        lovDevName.textContent = "Opening Bluetooth picker…";
-                        lovDevName.style.color = "var(--ebc-text-muted)";
-                        const LVS_SERVICES = [
-                            "0000fff0-0000-1000-8000-00805f9b34fb",
-                            "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-                            "50300001-0023-4bd4-bbd5-a6920e4c5653",
-                            "57300001-0023-4bd4-bbd5-a6920e4c5653",
-                            "5a300001-0023-4bd4-bbd5-a6920e4c5653",
-                            "55300001-0023-4bd4-bbd5-a6920e4c5653",
-                        ];
+                        lovConnBtn.textContent = "🔄 Opening…";
                         btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                             .then(async (rawDevice) => {
-                            var _a;
+                            var _a, _b;
                             const device = rawDevice;
-                            this._lovBtDevice = device;
-                            device.addEventListener("gattserverdisconnected", () => { this._lovBtChar = null; lovUpdateStatus(); });
-                            lovDevName.textContent = "Connecting…";
+                            const devName = (_a = device.name) !== null && _a !== void 0 ? _a : "Lovense toy";
+                            const connKey = devName + "_" + String(this._lovConnections.size);
+                            device.addEventListener("gattserverdisconnected", () => {
+                                const existing = this._lovConnections.get(connKey);
+                                if (existing) {
+                                    existing.char = null;
+                                }
+                                renderToyList();
+                            });
+                            lovConnBtn.textContent = "🔄 Connecting…";
                             const server = await device.gatt.connect();
                             let services = [];
                             for (let attempt = 0; attempt < 3; attempt++) {
@@ -28395,43 +28476,40 @@
                                 try {
                                     services = await server.getPrimaryServices();
                                 }
-                                catch ( /* try again */_b) { /* try again */ }
+                                catch ( /* try again */_c) { /* try again */ }
                                 if (services.length > 0)
                                     break;
                             }
-                            console.log("[EBC Lovense] Services found:", services.map(sv => sv.uuid));
                             if (!services.length)
-                                throw new Error("No services found — make sure Lovense Connect app is fully closed and the toy is not connected to anything else.");
+                                throw new Error("No services found — ensure Lovense Connect app is closed and toy is not connected elsewhere.");
                             let char = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
-                                console.log(`[EBC Lovense] ${svc.uuid}:`, chars.map(c => `${c.uuid}(w:${c.properties["write"]},wr:${c.properties["writeWithoutResponse"]})`));
-                                char = (_a = chars.find(c => c.properties["write"] || c.properties["writeWithoutResponse"])) !== null && _a !== void 0 ? _a : null;
+                                char = (_b = chars.find(c => c.properties["write"] || c.properties["writeWithoutResponse"])) !== null && _b !== void 0 ? _b : null;
                                 if (char)
                                     break;
                             }
                             if (!char)
                                 throw new Error("No writable characteristic found");
-                            this._lovBtChar = char;
-                            lovUpdateStatus();
+                            this._lovConnections.set(connKey, { device, char, name: devName });
+                            lovConnBtn.textContent = "＋ Connect Toy";
                             lovConnBtn.disabled = false;
+                            renderToyList();
                         })
                             .catch((err) => {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            lovDot.textContent = "🔴";
-                            lovDevName.textContent = (err instanceof Error && err.name === "NotFoundError" && !this._lovBtDevice) ? "Cancelled" : `Error: ${msg}`;
-                            lovDevName.style.color = "#e07070";
+                            lovConnBtn.textContent = "＋ Connect Toy";
                             lovConnBtn.disabled = false;
+                            if (!(err instanceof Error && err.name === "NotFoundError")) {
+                                console.warn("[EBC Lovense] Connect error:", err);
+                            }
                         });
                     });
-                    lovDiscBtn.addEventListener("click", () => {
-                        var _a;
-                        const dev = this._lovBtDevice;
-                        (_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.disconnect();
-                        this._lovBtChar = null;
-                        this._lovBtDevice = null;
-                        lovUpdateStatus();
-                    });
+                    connBtnRow.appendChild(lovConnBtn);
+                    connCard.appendChild(connBtnRow);
+                    const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
+                    connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                    connCard.appendChild(connNote);
+                    lovContent.appendChild(connCard);
                 }
                 // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
                 lovContent.appendChild(sep());
@@ -28446,8 +28524,8 @@
                     sl.min = String(min);
                     sl.max = String(max);
                     sl.value = String(cur);
-                    sl.style.cssText = `flex:1;min-width:0;accent-color:${LA};cursor:pointer;`;
-                    const val = mk("span", `${FONT}font-size:12px;color:${LA};min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                    sl.style.cssText = `flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;`;
+                    const val = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
                     val.textContent = fmtFn(cur);
                     sl.addEventListener("input", () => { const v = parseInt(sl.value, 10); s[key] = v; val.textContent = fmtFn(v); syncSettings(); });
                     row.appendChild(lbl);
@@ -28460,9 +28538,9 @@
                 const lovTestRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                 const lovTestBtn = document.createElement("button");
                 lovTestBtn.textContent = "〜 Test Vibrate";
-                lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid ${LA};background:#1e0f2a;color:${LA};transition:background 0.1s;`;
-                lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "#2e1540"; });
-                lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "#1e0f2a"; });
+                lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "var(--ebc-bg)"; });
+                lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "transparent"; });
                 const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
                 lovTestBtn.addEventListener("click", () => {
                     lovTestBtn.disabled = true;
@@ -28481,7 +28559,7 @@
                 lovContent.appendChild(lvsHdr("CHAT PHRASES — fire when phrase is said in chat"));
                 const phraseAddBtn = document.createElement("button");
                 phraseAddBtn.textContent = "+ Add phrase";
-                phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid ${LA};background:transparent;color:${LA};margin-bottom:7px;`;
+                phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);margin-bottom:7px;`;
                 lovContent.appendChild(phraseAddBtn);
                 const lovTriggers = EBCDrawer.getLovenseTriggers();
                 const lovListEl = mk("div");
@@ -28505,7 +28583,7 @@
                         r1.appendChild(removeBtn);
                         tCard.appendChild(r1);
                         const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
-                        const mkOLbl = (txt) => { const l = mk("span", `${FONT}font-size:10px;color:${LM};`); l.textContent = txt; return l; };
+                        const mkOLbl = (txt) => { const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); l.textContent = txt; return l; };
                         r2.appendChild(mkOLbl("I:"));
                         const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : "");
                         r2.appendChild(iInp);
@@ -28526,7 +28604,7 @@
                         lovListEl.appendChild(tCard);
                     });
                     if (!lovTriggers.length) {
-                        const empty = mk("div", `${FONT}font-size:11px;color:${LM};text-align:center;padding:8px 0;`);
+                        const empty = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
                         empty.textContent = "No phrases — click + Add phrase.";
                         lovListEl.appendChild(empty);
                     }
@@ -28547,7 +28625,7 @@
                     const chk = document.createElement("input");
                     chk.type = "checkbox";
                     chk.checked = enNow;
-                    chk.style.cssText = `accent-color:${LA};cursor:pointer;flex-shrink:0;margin:0;`;
+                    chk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;flex-shrink:0;margin:0;`;
                     const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
                     tlbl.textContent = def.label;
                     tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
@@ -28555,15 +28633,15 @@
                     r1.appendChild(tlbl);
                     cellWrap.appendChild(r1);
                     const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
-                    const iLbl2 = mk("span", `${FONT}font-size:10px;color:${LM};`);
+                    const iLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
                     iLbl2.textContent = "I:";
                     const iInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.intensity) !== undefined ? String(stored.intensity) : "");
                     iInp2.style.width = "42px";
-                    const dLbl2 = mk("span", `${FONT}font-size:10px;color:${LM};`);
+                    const dLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
                     dLbl2.textContent = "D:";
                     const dInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.duration) !== undefined ? String(stored.duration) : "");
                     dInp2.style.width = "42px";
-                    const sUnit = mk("span", `${FONT}font-size:10px;color:${LM};`);
+                    const sUnit = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
                     sUnit.textContent = "s";
                     r2.appendChild(iLbl2);
                     r2.appendChild(iInp2);
@@ -28593,7 +28671,7 @@
                     touchGrid.appendChild(cellWrap);
                 }
                 lovContent.appendChild(touchGrid);
-                const touchHint = mk("div", `${FONT}font-size:10px;color:${LM};margin:0 0 4px;`);
+                const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:0 0 4px;`);
                 touchHint.textContent = "I = intensity (1–20)  D = duration in seconds  blank = use defaults";
                 lovContent.appendChild(touchHint);
                 // ── BC TOY SYNC ─────────────────────────────────────────────────────
@@ -28605,7 +28683,7 @@
                 const syncChk = document.createElement("input");
                 syncChk.type = "checkbox";
                 syncChk.checked = syncEnabled;
-                syncChk.style.cssText = `accent-color:${LA};cursor:pointer;margin:0;`;
+                syncChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
                 const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
                 syncLbl.textContent = "Mirror BC toy activations to Lovense";
                 syncLbl.addEventListener("click", () => { syncChk.checked = !syncChk.checked; syncChk.dispatchEvent(new Event("change")); });
@@ -28623,8 +28701,8 @@
                     sl.min = String(min);
                     sl.max = String(max);
                     sl.value = String(cur);
-                    sl.style.cssText = `flex:1;min-width:0;accent-color:${LA};cursor:pointer;`;
-                    const val = mk("span", `${FONT}font-size:12px;color:${LA};min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
+                    sl.style.cssText = `flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;`;
+                    const val = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
                     val.textContent = fmtFn(cur);
                     sl.addEventListener("input", () => { const v = parseInt(sl.value, 10); s[key] = v; val.textContent = fmtFn(v); syncSettings(); });
                     row.appendChild(lbl);
@@ -28634,7 +28712,7 @@
                 };
                 mkSyncSlider("Intensity", "lovenseBcSyncIntensity", 1, 20, 10, v => `${v}/20`);
                 mkSyncSlider("Duration", "lovenseBcSyncDuration", 1, 60, 5, v => `${v}s`);
-                const syncNote = mk("div", `${FONT}font-size:10px;color:${LM};margin-top:4px;line-height:1.5;`);
+                const syncNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-top:4px;line-height:1.5;`);
                 syncNote.textContent = "Fires on ItemVulva, ItemVulvaPiercings, ItemButt, ItemNipples. Skipped if a body-touch trigger matched.";
                 syncSliders.appendChild(syncNote);
                 syncCard.appendChild(syncSliders);
@@ -28649,37 +28727,364 @@
                 });
                 lovContent.appendChild(syncCard);
             }
+            // ── GAME TOYS ────────────────────────────────────────────────────────────
+            // Always-accessible section — no enable toggle
+            const gtCollapsed = localStorage.getItem("EBC_ui_gt_open") === "1";
+            const gtWrap = mk("div");
+            const gtHRow = mk("div", "display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;");
+            const gtChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
+            gtChevron.textContent = gtCollapsed ? "▶" : "▼";
+            const gtTitleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
+            gtTitleEl.textContent = "🎮 GAME TOYS";
+            gtHRow.appendChild(gtChevron);
+            gtHRow.appendChild(gtTitleEl);
+            const gtContent = mk("div", `display:${gtCollapsed ? "none" : "block"};`);
+            gtHRow.addEventListener("click", () => {
+                const nowOpen = gtContent.style.display === "none";
+                gtContent.style.display = nowOpen ? "block" : "none";
+                gtChevron.textContent = nowOpen ? "▼" : "▶";
+                try {
+                    localStorage.setItem("EBC_ui_gt_open", nowOpen ? "0" : "1");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            gtWrap.appendChild(gtHRow);
+            gtWrap.appendChild(gtContent);
+            const gtHdr = (txt) => {
+                const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
+                d.textContent = txt;
+                return d;
+            };
+            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
+            // ── MY PRIVACY ──────────────────────────────────────────────────────
+            gtContent.appendChild(gtHdr("MY PRIVACY"));
+            const privCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
+            const acceptEnabled = s["gameToyAcceptRequests"] === true;
+            const acceptRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:7px;");
+            const acceptChk = document.createElement("input");
+            acceptChk.type = "checkbox";
+            acceptChk.checked = acceptEnabled;
+            acceptChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
+            const acceptLbl = mk("span", `${FONT}font-size:11px;color:${acceptEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${acceptEnabled ? "bold" : "normal"};`);
+            acceptLbl.textContent = "Accept control requests from friends";
+            acceptLbl.addEventListener("click", () => { acceptChk.checked = !acceptChk.checked; acceptChk.dispatchEvent(new Event("change")); });
+            acceptChk.addEventListener("change", () => {
+                const en = acceptChk.checked;
+                acceptLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                acceptLbl.style.fontWeight = en ? "bold" : "normal";
+                s["gameToyAcceptRequests"] = en;
+                syncSettings();
+            });
+            acceptRow.appendChild(acceptChk);
+            acceptRow.appendChild(acceptLbl);
+            privCard.appendChild(acceptRow);
+            const acceptNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:10px;line-height:1.4;`);
+            acceptNote.textContent = "Friends only. Off = no new requests. Whitelist always bypasses this.";
+            privCard.appendChild(acceptNote);
+            const wlHdrEl = mk("div", `${FONT}font-size:10px;font-weight:bold;color:var(--ebc-text-muted);margin-bottom:5px;`);
+            wlHdrEl.textContent = "WHITELIST — always allowed:";
+            privCard.appendChild(wlHdrEl);
+            const gtWl = EBCDrawer.getGameToyWhitelist();
+            // Member 230466 is always allowed
+            if (!gtWl.includes(230466)) {
+                gtWl.push(230466);
+                EBCDrawer.saveGameToyWhitelist(gtWl);
+            }
+            const wlListEl = mk("div", "margin-bottom:8px;");
+            const renderWl = () => {
+                while (wlListEl.firstChild)
+                    wlListEl.removeChild(wlListEl.firstChild);
+                if (!gtWl.length) {
+                    const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:3px 0;`);
+                    empty.textContent = "No entries.";
+                    wlListEl.appendChild(empty);
+                }
+                else {
+                    gtWl.forEach((num, idx) => {
+                        var _a;
+                        const roomChar = window.ChatRoomCharacter;
+                        const found = roomChar === null || roomChar === void 0 ? void 0 : roomChar.find(c => c.MemberNumber === num);
+                        const displayName = found ? (((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || String(num)) : String(num);
+                        const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:5px 8px;");
+                        const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                        wlName.textContent = `${displayName} (#${num})`;
+                        const wlRem = document.createElement("button");
+                        wlRem.textContent = "×";
+                        wlRem.style.cssText = `${FONT}font-size:13px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`;
+                        wlRem.addEventListener("click", () => { gtWl.splice(idx, 1); EBCDrawer.saveGameToyWhitelist(gtWl); renderWl(); });
+                        wlRow.appendChild(wlName);
+                        wlRow.appendChild(wlRem);
+                        wlListEl.appendChild(wlRow);
+                    });
+                }
+            };
+            renderWl();
+            privCard.appendChild(wlListEl);
+            // Add from current room
+            const wlRoomChars = window.ChatRoomCharacter;
+            const wlPlayerW = window.Player;
+            const wlMyMN = wlPlayerW === null || wlPlayerW === void 0 ? void 0 : wlPlayerW.MemberNumber;
+            const wlRoomPeers = (wlRoomChars !== null && wlRoomChars !== void 0 ? wlRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN && !gtWl.includes(c.MemberNumber));
+            if (wlRoomPeers.length > 0) {
+                const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
+                const roomSel = document.createElement("select");
+                roomSel.style.cssText = GTSel;
+                const defOpt = document.createElement("option");
+                defOpt.value = "";
+                defOpt.textContent = "Add from room…";
+                defOpt.disabled = true;
+                defOpt.selected = true;
+                roomSel.appendChild(defOpt);
+                for (const c of wlRoomPeers) {
+                    const opt = document.createElement("option");
+                    opt.value = String(c.MemberNumber);
+                    opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    roomSel.appendChild(opt);
+                }
+                const roomAddBtn = document.createElement("button");
+                roomAddBtn.textContent = "+ Add";
+                roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                roomAddBtn.addEventListener("click", () => {
+                    const num = parseInt(roomSel.value, 10);
+                    if (!num || isNaN(num) || gtWl.includes(num))
+                        return;
+                    gtWl.push(num);
+                    EBCDrawer.saveGameToyWhitelist(gtWl);
+                    const opt = roomSel.querySelector(`option[value="${num}"]`);
+                    if (opt)
+                        opt.remove();
+                    roomSel.value = "";
+                    renderWl();
+                });
+                fromRoomRow.appendChild(roomSel);
+                fromRoomRow.appendChild(roomAddBtn);
+                privCard.appendChild(fromRoomRow);
+            }
+            // Manual member # entry
+            const wlAddRow = mk("div", "display:flex;align-items:center;gap:6px;");
+            const wlInp = document.createElement("input");
+            wlInp.type = "number";
+            wlInp.placeholder = "Member # (manual)";
+            wlInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;outline:none;`;
+            const wlAddBtn = document.createElement("button");
+            wlAddBtn.textContent = "+ Add";
+            wlAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+            wlAddBtn.addEventListener("click", () => {
+                const num = parseInt(wlInp.value.trim(), 10);
+                if (!num || isNaN(num) || gtWl.includes(num))
+                    return;
+                gtWl.push(num);
+                EBCDrawer.saveGameToyWhitelist(gtWl);
+                wlInp.value = "";
+                renderWl();
+            });
+            wlInp.addEventListener("keydown", (e) => { if (e.key === "Enter")
+                wlAddBtn.click(); });
+            wlAddRow.appendChild(wlInp);
+            wlAddRow.appendChild(wlAddBtn);
+            privCard.appendChild(wlAddRow);
+            gtContent.appendChild(privCard);
+            // ── CONTROL A FRIEND ────────────────────────────────────────────────
+            gtContent.appendChild(sep());
+            gtContent.appendChild(gtHdr("CONTROL A FRIEND'S TOY"));
+            const gtRoomChars = window.ChatRoomCharacter;
+            const gtPlayerW = window.Player;
+            const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
+            const gtFriendNums = (_c = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _c !== void 0 ? _c : [];
+            const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
+            const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+            if (gtFriendsInRoom.length === 0) {
+                const noFr = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 4px;`);
+                noFr.textContent = "No friends currently in the room.";
+                ctrlCard.appendChild(noFr);
+            }
+            else {
+                const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+                const friendSel = document.createElement("select");
+                friendSel.style.cssText = GTSel;
+                for (const c of gtFriendsInRoom) {
+                    const opt = document.createElement("option");
+                    opt.value = String(c.MemberNumber);
+                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    friendSel.appendChild(opt);
+                }
+                const reqBtn = document.createElement("button");
+                reqBtn.textContent = "→ Request";
+                reqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+                reqBtn.addEventListener("mouseenter", () => { reqBtn.style.background = "var(--ebc-bg)"; });
+                reqBtn.addEventListener("mouseleave", () => { reqBtn.style.background = "transparent"; });
+                pickRow.appendChild(friendSel);
+                pickRow.appendChild(reqBtn);
+                ctrlCard.appendChild(pickRow);
+                const statusArea = mk("div");
+                ctrlCard.appendChild(statusArea);
+                const updateCtrlUI = () => {
+                    while (statusArea.firstChild)
+                        statusArea.removeChild(statusArea.firstChild);
+                    for (const [memberNum, sess] of this._toyCtrlSessions) {
+                        const sessCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
+                        const sessTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                        const sDot = mk("span", "font-size:12px;");
+                        sDot.textContent = "🟢";
+                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text);font-weight:bold;flex:1;`);
+                        sName.textContent = sess.name;
+                        const endBtn = document.createElement("button");
+                        endBtn.textContent = "✗ End";
+                        endBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
+                        endBtn.addEventListener("click", () => {
+                            this.sendGameToyMsg(memberNum, "REV");
+                            this._toyCtrlSessions.delete(memberNum);
+                            updateCtrlUI();
+                        });
+                        sessTop.appendChild(sDot);
+                        sessTop.appendChild(sName);
+                        sessTop.appendChild(endBtn);
+                        sessCard.appendChild(sessTop);
+                        let vibI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
+                        let vibD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
+                        const iRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                        const iLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                        iLblS.textContent = "Intensity";
+                        const iSlS = document.createElement("input");
+                        iSlS.type = "range";
+                        iSlS.min = "1";
+                        iSlS.max = "20";
+                        iSlS.value = String(vibI);
+                        iSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                        const iValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                        iValS.textContent = `${vibI}/20`;
+                        iSlS.addEventListener("input", () => { vibI = parseInt(iSlS.value, 10); iValS.textContent = `${vibI}/20`; });
+                        iRowS.appendChild(iLblS);
+                        iRowS.appendChild(iSlS);
+                        iRowS.appendChild(iValS);
+                        sessCard.appendChild(iRowS);
+                        const dRowS = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                        const dLblS = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                        dLblS.textContent = "Duration";
+                        const dSlS = document.createElement("input");
+                        dSlS.type = "range";
+                        dSlS.min = "1";
+                        dSlS.max = "60";
+                        dSlS.value = String(vibD);
+                        dSlS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                        const dValS = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                        dValS.textContent = `${vibD}s`;
+                        dSlS.addEventListener("input", () => { vibD = parseInt(dSlS.value, 10); dValS.textContent = `${vibD}s`; });
+                        dRowS.appendChild(dLblS);
+                        dRowS.appendChild(dSlS);
+                        dRowS.appendChild(dValS);
+                        sessCard.appendChild(dRowS);
+                        const vibBtnS = document.createElement("button");
+                        vibBtnS.textContent = "〜 Vibrate";
+                        vibBtnS.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                        vibBtnS.addEventListener("mouseenter", () => { vibBtnS.style.background = "var(--ebc-bg)"; });
+                        vibBtnS.addEventListener("mouseleave", () => { vibBtnS.style.background = "transparent"; });
+                        vibBtnS.addEventListener("click", () => {
+                            this.sendGameToyMsg(memberNum, "VIB", vibI, vibD);
+                            vibBtnS.disabled = true;
+                            window.setTimeout(() => { vibBtnS.disabled = false; }, (vibD + 0.5) * 1000);
+                        });
+                        sessCard.appendChild(vibBtnS);
+                        statusArea.appendChild(sessCard);
+                    }
+                    for (const [pendNum, pend] of this._toyPendingOut) {
+                        const pendRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px 10px;");
+                        const pendTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                        pendTxt.textContent = `⏳ Waiting for ${pend.name} to accept…`;
+                        const cancelBtn = document.createElement("button");
+                        cancelBtn.textContent = "Cancel";
+                        cancelBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
+                        cancelBtn.addEventListener("click", () => {
+                            this.sendGameToyMsg(pendNum, "REV");
+                            this._toyPendingOut.delete(pendNum);
+                            updateCtrlUI();
+                        });
+                        pendRow.appendChild(pendTxt);
+                        pendRow.appendChild(cancelBtn);
+                        statusArea.appendChild(pendRow);
+                    }
+                    if (this._toyCtrlSessions.size === 0 && this._toyPendingOut.size === 0) {
+                        const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                        hint.textContent = "Pick a friend and click → Request to start a session.";
+                        statusArea.appendChild(hint);
+                    }
+                };
+                updateCtrlUI();
+                reqBtn.addEventListener("click", () => {
+                    const targetNum = parseInt(friendSel.value, 10);
+                    if (!targetNum || this._toyCtrlSessions.has(targetNum) || this._toyPendingOut.has(targetNum))
+                        return;
+                    const selOpt = friendSel.options[friendSel.selectedIndex];
+                    const targetName = selOpt ? selOpt.text.replace(/ \(#\d+\)$/, "") : String(targetNum);
+                    this._toyPendingOut.set(targetNum, { name: targetName });
+                    this.sendGameToyMsg(targetNum, "REQ");
+                    updateCtrlUI();
+                });
+            }
+            gtContent.appendChild(ctrlCard);
+            // ── MY ACTIVE GRANTS ────────────────────────────────────────────────
+            if (this._toyGrantedTo.size > 0) {
+                gtContent.appendChild(sep());
+                gtContent.appendChild(gtHdr("PEOPLE I GAVE TOY ACCESS TO"));
+                for (const [memberNum, grant] of this._toyGrantedTo) {
+                    const grantRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 10px;");
+                    const gDot = mk("span", "font-size:12px;");
+                    gDot.textContent = "🟢";
+                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                    gName.textContent = grant.name;
+                    const revokeBtn = document.createElement("button");
+                    revokeBtn.textContent = "✗ Revoke";
+                    revokeBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                    revokeBtn.addEventListener("click", () => {
+                        this.sendGameToyMsg(memberNum, "REV");
+                        this._toyGrantedTo.delete(memberNum);
+                        this.refreshToysIfActive();
+                    });
+                    grantRow.appendChild(gDot);
+                    grantRow.appendChild(gName);
+                    grantRow.appendChild(revokeBtn);
+                    gtContent.appendChild(grantRow);
+                }
+            }
+            // GAME TOYS on top, IRL TOYS below
+            card.appendChild(gtWrap);
+            card.appendChild(lovWrap);
             body.appendChild(card);
         }
         async fireLovense(intensity, duration) {
-            var _a;
             const s = getSettings();
             if (s.lovenseEnabled !== true)
                 return "";
-            const writeChar = this._lovBtChar;
-            const dev = this._lovBtDevice;
-            if (!writeChar || ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) !== true)
-                return "⚠ Lovense: not connected via Bluetooth";
+            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
+            if (active.length === 0)
+                return "⚠ Lovense: no toys connected via Bluetooth";
             const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
             const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
             const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
             const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 60));
             const enc = new TextEncoder();
-            const doWrite = (cmd) => {
+            const doWrite = (char, cmd) => {
                 const d = enc.encode(cmd);
-                return (writeChar.writeValueWithoutResponse && writeChar.properties["writeWithoutResponse"])
-                    ? writeChar.writeValueWithoutResponse(d)
-                    : writeChar.writeValue(d);
+                return (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
+                    ? char.writeValueWithoutResponse(d)
+                    : char.writeValue(d);
             };
-            try {
-                await doWrite(`Vibrate:${finalI};`);
-                setTimeout(() => { doWrite("Vibrate:0;").catch(() => { }); }, finalD * 1000);
-                return `〜 Lovense: ${finalI}/20 for ${finalD}s`;
+            const errors = [];
+            await Promise.all(active.map(async (conn) => {
+                const char = conn.char;
+                try {
+                    await doWrite(char, `Vibrate:${finalI};`);
+                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, finalD * 1000);
+                }
+                catch (err) {
+                    errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
+                }
+            }));
+            if (errors.length > 0) {
+                console.warn("[EBC Lovense] BLE write errors:", errors);
+                return `⚠ Lovense BLE error: ${errors.join("; ")}`;
             }
-            catch (err) {
-                console.warn("[EBC Lovense] BLE write failed:", err);
-                return `⚠ Lovense BLE error: ${err instanceof Error ? err.message : String(err)}`;
-            }
+            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
         }
         checkLovenseTriggers(content) {
             try {
@@ -28725,7 +29130,135 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        // ─────────────────────────────────────────────────────────────────────────────
+        refreshToysIfActive() {
+            var _a;
+            if (!((_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-toys-card")))
+                return;
+            this.renderToys();
+        }
+        sendGameToyMsg(targetNum, type, intensity, duration) {
+            try {
+                let content = `[EBC-TOY:${type}]`;
+                if (type === "VIB" && intensity !== undefined && duration !== undefined) {
+                    content = `[EBC-TOY:VIB:${intensity}:${duration}]`;
+                }
+                const serverSend = window.ServerSend;
+                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        handleGameToyMsg(senderNumber, senderName, type, intensity, duration) {
+            var _a, _b;
+            try {
+                const s = getSettings();
+                if (type === "REQ") {
+                    const wl = EBCDrawer.getGameToyWhitelist();
+                    const fromFriend = ((_b = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.FriendList) !== null && _b !== void 0 ? _b : []).includes(senderNumber);
+                    if (!fromFriend && !wl.includes(senderNumber))
+                        return;
+                    const acceptOn = s["gameToyAcceptRequests"] === true;
+                    if (!acceptOn && !wl.includes(senderNumber)) {
+                        this.sendGameToyMsg(senderNumber, "DEN");
+                        return;
+                    }
+                    this._toyIncoming = { memberNumber: senderNumber, name: senderName };
+                    this._showToyReqPopup();
+                }
+                else if (type === "ACK") {
+                    const pend = this._toyPendingOut.get(senderNumber);
+                    if (pend) {
+                        this._toyPendingOut.delete(senderNumber);
+                        this._toyCtrlSessions.set(senderNumber, { name: pend.name });
+                        this._showToyToast(`${pend.name} accepted toy control!`);
+                        this.refreshToysIfActive();
+                    }
+                }
+                else if (type === "DEN") {
+                    const pend = this._toyPendingOut.get(senderNumber);
+                    if (pend) {
+                        this._toyPendingOut.delete(senderNumber);
+                        this._showToyToast(`${pend.name} declined toy control.`);
+                        this.refreshToysIfActive();
+                    }
+                }
+                else if (type === "VIB") {
+                    if (!this._toyGrantedTo.has(senderNumber))
+                        return;
+                    const i = intensity !== null && intensity !== void 0 ? intensity : 10;
+                    const d = duration !== null && duration !== void 0 ? duration : 5;
+                    this._showToyToast(`${senderName} is vibrating your toy~ (${i}/20, ${d}s)`);
+                    this.fireLovense(i, d).catch(() => { });
+                }
+                else if (type === "REV") {
+                    if (this._toyGrantedTo.has(senderNumber)) {
+                        this._toyGrantedTo.delete(senderNumber);
+                        this._showToyToast(`${senderName} ended the toy session.`);
+                        this.refreshToysIfActive();
+                    }
+                    else if (this._toyCtrlSessions.has(senderNumber)) {
+                        this._toyCtrlSessions.delete(senderNumber);
+                        this._showToyToast(`${senderName} revoked your toy access.`);
+                        this.refreshToysIfActive();
+                    }
+                }
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        _showToyReqPopup() {
+            const mk = (tag, css) => { const el = document.createElement(tag); if (css)
+                el.style.cssText = css; return el; };
+            const req = this._toyIncoming;
+            if (!req)
+                return;
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            const box = mk("div", "background:#1a0e2a;border:1px solid #9a6fd0;border-radius:12px;padding:22px 26px;max-width:320px;width:90%;font-family:'Palatino Linotype',serif;text-align:center;");
+            const title = mk("div", "font-size:14px;font-weight:bold;color:#c9a8ff;margin-bottom:10px;");
+            title.textContent = "Toy Control Request";
+            const msg = mk("div", "font-size:12px;color:#d0b8e0;margin-bottom:18px;line-height:1.5;");
+            msg.textContent = `${req.name} (#${req.memberNumber}) wants to control your toy. Allow them?`;
+            const btnRow = mk("div", "display:flex;gap:12px;justify-content:center;");
+            const allowBtn = document.createElement("button");
+            allowBtn.textContent = "✓ Allow";
+            allowBtn.style.cssText = "font-family:'Palatino Linotype',serif;font-size:12px;font-weight:bold;padding:7px 20px;border-radius:7px;cursor:pointer;border:1px solid #9a6fd0;background:#2e1540;color:#c9a8ff;";
+            const denyBtn = document.createElement("button");
+            denyBtn.textContent = "✗ Deny";
+            denyBtn.style.cssText = "font-family:'Palatino Linotype',serif;font-size:12px;font-weight:bold;padding:7px 20px;border-radius:7px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;";
+            allowBtn.addEventListener("click", () => {
+                this._toyGrantedTo.set(req.memberNumber, { name: req.name });
+                this._toyIncoming = null;
+                this.sendGameToyMsg(req.memberNumber, "ACK");
+                this._showToyToast(`Allowed ${req.name} to control your toy.`);
+                this.refreshToysIfActive();
+                document.body.removeChild(overlay);
+            });
+            denyBtn.addEventListener("click", () => {
+                this._toyIncoming = null;
+                this.sendGameToyMsg(req.memberNumber, "DEN");
+                document.body.removeChild(overlay);
+            });
+            btnRow.appendChild(allowBtn);
+            btnRow.appendChild(denyBtn);
+            box.appendChild(title);
+            box.appendChild(msg);
+            box.appendChild(btnRow);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            window.setTimeout(() => {
+                if (document.body.contains(overlay)) {
+                    this._toyIncoming = null;
+                    this.sendGameToyMsg(req.memberNumber, "DEN");
+                    document.body.removeChild(overlay);
+                }
+            }, 30000);
+        }
+        _showToyToast(message) {
+            const mk = (tag, css) => { const el = document.createElement(tag); el.style.cssText = css; return el; };
+            const toast = mk("div", "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a0e2a;border:1px solid #9a6fd0;border-radius:8px;padding:10px 18px;color:#c9a8ff;font-family:'Palatino Linotype',serif;font-size:12px;z-index:999998;pointer-events:none;white-space:nowrap;");
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            window.setTimeout(() => { if (document.body.contains(toast))
+                document.body.removeChild(toast); }, 3500);
+        }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
             var _a;
@@ -30684,7 +31217,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.40";
+    const MOD_VERSION = "6.9.43";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30696,13 +31229,28 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "6.9.40",
+            version: "6.9.43",
             changes: [
+                "TOYS TAB: GAME TOYS moved above IRL TOYS. GAME TOYS section no longer has an ON/OFF toggle — always accessible.",
+                "TOYS TAB: Full dark-theme styling pass — all hardcoded hex colors replaced with EBC CSS variables (--ebc-accent, --ebc-text-muted, --ebc-bg-darker, etc.). Native select elements now styled with appearance:none and custom purple arrow.",
+                "GAME TOYS: Whitelist now shows 'Add from room' dropdown to pick people by name; manual member# input retained below. Member 230466 always pre-added to whitelist.",
+                "GAME TOYS: Friend picker dropdown fully styled with EBC dark theme (no more OS-native white/black UI).",
+                "IRL TOYS: CONNECTION section now supports multiple simultaneous Lovense toys — each connected toy shown in a list with individual disconnect (✗) button. 'Connect Another Toy' adds more toys without replacing the existing one.",
+                "IRL TOYS: fireLovense() now fires vibrate to ALL connected toys in parallel.",
+                "Fix: _showToyReqPopup and _showToyToast now correctly resolve the mk() helper (was failing at runtime).",
+            ],
+        },
+        {
+            version: "6.9.42",
+            changes: [
+                "Fix: Profile button now shows characters with their outfit and bio even across sessions. Character bundles (appearance, name, bio, etc.) are now persisted to localStorage (capped at 100 entries, oldest evicted) so profiles stay viewable after reloading the page. Previously bundles were session-memory only — reloading reset them and every offline profile showed a blank character.",
                 "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
                 "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
                 "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
                 "LOVENSE: Duration slider extended to 60s (was 30s).",
                 "LOVENSE: Chat phrase trigger UI polished with 'blank = default' hints on I/D inputs.",
+                "TOYS TAB: IRL TOYS and GAME TOYS collapsible sections added.",
+                "GAME TOYS: Friends-only remote toy control — send/accept vibrate commands via hidden EBC whispers, with request popup, whitelist, accept toggle, and revoke support.",
             ],
         },
         {
@@ -36493,6 +37041,15 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
     }
+    function parseEBCToyMsg(content) {
+        const m = content.match(/^\[EBC-TOY:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+        if (!m)
+            return null;
+        const type = m[1];
+        const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+        const duration = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+        return { type, intensity, duration };
+    }
     function handleKittyCommand(msg) {
         var _a, _b, _c, _d;
         const parsed = parseKittyCmd(msg);
@@ -38131,9 +38688,24 @@
         });
         // Lovense triggers: chat phrases + body touch activities + BC toy sync
         tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
-            var _a;
+            var _a, _b;
             try {
                 const [data] = args;
+                // EBC-TOY whisper intercept — suppress from BC chat display
+                if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                    data.Content.startsWith("[EBC-TOY:")) {
+                    const parsed = parseEBCToyMsg(data.Content);
+                    if (parsed) {
+                        const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                        if (senderNum && senderNum !== Player.MemberNumber) {
+                            const roomChars = window.ChatRoomCharacter;
+                            const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === senderNum);
+                            const senderName = found ? (((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.handleGameToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                        }
+                        return; // suppress — do not call next(args)
+                    }
+                }
                 if (data.Type === "Chat" && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
@@ -38141,7 +38713,7 @@
                 if (data.Type === "Activity" && typeof data.Content === "string") {
                     const dict = data.Dictionary;
                     const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                    const targetNum = (_a = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _a !== void 0 ? _a : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
+                    const targetNum = (_b = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _b !== void 0 ? _b : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
                     if (targetNum === Player.MemberNumber) {
                         const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
                         const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["AssetGroupName"];
@@ -38149,7 +38721,7 @@
                     }
                 }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).

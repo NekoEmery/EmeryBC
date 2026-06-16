@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.42";
+const MOD_VERSION = "6.9.43";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,18 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.43",
+        changes: [
+            "TOYS TAB: GAME TOYS moved above IRL TOYS. GAME TOYS section no longer has an ON/OFF toggle — always accessible.",
+            "TOYS TAB: Full dark-theme styling pass — all hardcoded hex colors replaced with EBC CSS variables (--ebc-accent, --ebc-text-muted, --ebc-bg-darker, etc.). Native select elements now styled with appearance:none and custom purple arrow.",
+            "GAME TOYS: Whitelist now shows 'Add from room' dropdown to pick people by name; manual member# input retained below. Member 230466 always pre-added to whitelist.",
+            "GAME TOYS: Friend picker dropdown fully styled with EBC dark theme (no more OS-native white/black UI).",
+            "IRL TOYS: CONNECTION section now supports multiple simultaneous Lovense toys — each connected toy shown in a list with individual disconnect (✗) button. 'Connect Another Toy' adds more toys without replacing the existing one.",
+            "IRL TOYS: fireLovense() now fires vibrate to ALL connected toys in parallel.",
+            "Fix: _showToyReqPopup and _showToyToast now correctly resolve the mk() helper (was failing at runtime).",
+        ],
+    },
     {
         version: "6.9.42",
         changes: [
