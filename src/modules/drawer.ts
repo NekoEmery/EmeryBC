@@ -3984,8 +3984,9 @@ export class EBCDrawer {
     private windowResizeHandler: (() => void) | null = null;
     private positioned = false;
     private hasBeenShown = false;
-    private version = "";
-    private isDev   = false;
+    private version    = "";
+    private isDev      = false;
+    private salVersion = 0;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins  = new Map<number, { el: HTMLElement; minimized: boolean }>();
@@ -4039,6 +4040,9 @@ export class EBCDrawer {
     private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string }>();
     private _bcLiveSyncPoller: ReturnType<typeof setInterval> | null = null;
     private _bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+    private _lovHttpUrl: string | null = null;
+    private _lovHttpConnected = false;
+    private _lovHttpToyCount  = 0;
     private _toyCtrlSessions  = new Map<number, { name: string }>();
     private _toyPendingOut    = new Map<number, { name: string }>();
     private _toyGrantedTo     = new Map<number, { name: string }>();
@@ -4078,10 +4082,11 @@ export class EBCDrawer {
         pickBtn?: HTMLButtonElement;
     } = {};
 
-    constructor(version = "", isDev = false) {
+    constructor(version = "", isDev = false, salVersion = 0) {
         EBCDrawer._instance = this;
-        this.version = version;
-        this.isDev   = isDev;
+        this.version    = version;
+        this.isDev      = isDev;
+        this.salVersion = salVersion;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
         // Live-update the DEV tab whisper log section when new messages arrive
         setWhisperUpdateCallback(() => {
@@ -4281,7 +4286,9 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
-        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+        const _isEmeryHdr = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber === EMERY_MEMBER;
+        const _salSuffix  = _isEmeryHdr && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + _salSuffix;
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
@@ -20742,12 +20749,12 @@ export class EBCDrawer {
             const nav = navigator as unknown as Record<string, unknown>;
             const btApi = nav["bluetooth"] as { requestDevice: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
 
-            if (!btApi) {
-                const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:6px;padding:8px 10px;margin:4px 0 10px;line-height:1.6;`);
-                noBlue.innerHTML = "<b>Web Bluetooth not available</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys.";
-                lovContent.appendChild(noBlue);
-            } else {
+            // ── BLE (Web Bluetooth) ─────────────────────────────────────────────
+            if (btApi) {
                 const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                connCard.appendChild(bleHdrRow);
 
                 const toyListEl = mk("div", "margin-bottom:8px;");
 
@@ -20844,9 +20851,72 @@ export class EBCDrawer {
                 connCard.appendChild(connBtnRow);
 
                 const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
-                connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
                 connCard.appendChild(connNote);
                 lovContent.appendChild(connCard);
+            }
+
+            // ── HTTP (Lovense Connect app) ───────────────────────────────────────
+            // Works in all browsers (Firefox, Safari, Chrome, etc.).
+            // Requires the Lovense Connect app running locally.
+            {
+                const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                const httpHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                httpHdrRow.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                httpCard.appendChild(httpHdrRow);
+
+                // Load saved URL
+                const savedHttpUrl = typeof s["lovenseHttpUrl"] === "string" ? (s["lovenseHttpUrl"] as string) : "";
+                if (savedHttpUrl) {
+                    this._lovHttpUrl = savedHttpUrl || null;
+                }
+
+                const urlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex-shrink:0;`); urlLbl.textContent = "URL:";
+                const urlInp = document.createElement("input"); urlInp.type = "text";
+                urlInp.value = savedHttpUrl || "http://127.0.0.1:20010";
+                urlInp.placeholder = "http://127.0.0.1:20010";
+                urlInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;min-width:0;box-sizing:border-box;`;
+                urlRow.appendChild(urlLbl); urlRow.appendChild(urlInp);
+                httpCard.appendChild(urlRow);
+
+                const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                const httpTestBtn = document.createElement("button");
+                httpTestBtn.textContent = "Test Connection";
+                httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
+                const httpStatus = mk("span", `${FONT}font-size:11px;`);
+                httpStatus.textContent = this._lovHttpConnected
+                    ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
+                    : "⚫ Not tested";
+                httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-muted)";
+                httpBtnRow.appendChild(httpTestBtn); httpBtnRow.appendChild(httpStatus);
+                httpCard.appendChild(httpBtnRow);
+
+                httpTestBtn.addEventListener("click", () => {
+                    const rawUrl = urlInp.value.trim().replace(/\/$/, "");
+                    if (!rawUrl) return;
+                    (s as Record<string, unknown>)["lovenseHttpUrl"] = rawUrl;
+                    syncSettings();
+                    this._lovHttpUrl = rawUrl;
+                    httpTestBtn.disabled = true;
+                    httpStatus.textContent = "🔄 Testing…";
+                    httpStatus.style.color = "var(--ebc-text-muted)";
+                    this._lovHttpPing().then(ok => {
+                        httpTestBtn.disabled = false;
+                        if (ok) {
+                            httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                            httpStatus.style.color = "#80c080";
+                        } else {
+                            httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
+                            httpStatus.style.color = "#e07070";
+                        }
+                    });
+                });
+
+                const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.6;`);
+                httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
+                httpCard.appendChild(httpNote);
+                lovContent.appendChild(httpCard);
             }
 
             // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
@@ -21622,14 +21692,20 @@ export class EBCDrawer {
     private async fireLovense(intensity?: number, duration?: number): Promise<string> {
         const s = getSettings();
         if (s.lovenseEnabled !== true) return "";
-        type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
-        type ConnDev = { gatt?: { connected?: boolean } };
-        const active = [...this._lovConnections.values()].filter(c => (c.device as ConnDev)?.gatt?.connected === true && c.char != null);
-        if (active.length === 0) return "⚠ Lovense: no toys connected via Bluetooth";
         const defI = typeof s.lovenseIntensity === "number" ? (s.lovenseIntensity as number) : 10;
         const defD = typeof s.lovenseDuration  === "number" ? (s.lovenseDuration  as number) : 5;
         const finalI = Math.max(1, Math.min(intensity ?? defI, 20));
         const finalD = Math.max(1, Math.min(duration  ?? defD, 60));
+        type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
+        type ConnDev = { gatt?: { connected?: boolean } };
+        const active = [...this._lovConnections.values()].filter(c => (c.device as ConnDev)?.gatt?.connected === true && c.char != null);
+        if (active.length === 0) {
+            // No BLE toys — fall through to HTTP path if configured
+            if (this._lovHttpUrl && this._lovHttpConnected) {
+                return await this._lovHttpVibrate(finalI, finalD);
+            }
+            return "⚠ Lovense: no toys connected (BLE or HTTP)";
+        }
         const enc = new TextEncoder();
         const doWrite = (char: WriteChar, cmd: string): Promise<void> => {
             const d = enc.encode(cmd);
@@ -21694,7 +21770,13 @@ export class EBCDrawer {
         type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
         type ConnDev = { gatt?: { connected?: boolean } };
         const active = [...this._lovConnections.values()].filter(c => (c.device as ConnDev)?.gatt?.connected === true && c.char != null);
-        if (active.length === 0) return;
+        if (active.length === 0) {
+            // HTTP path for BC live sync (t=0 = continuous until next command)
+            if (this._lovHttpUrl && this._lovHttpConnected) {
+                await this._lovHttpVibrate(intensity, 0);
+            }
+            return;
+        }
         const enc = new TextEncoder();
         const cmd = enc.encode(`Vibrate:${intensity};`);
         await Promise.all(active.map(async conn => {
@@ -21705,6 +21787,50 @@ export class EBCDrawer {
                     : char.writeValue(cmd));
             } catch { /* ignore BLE errors */ }
         }));
+    }
+
+    private async _lovHttpPing(): Promise<boolean> {
+        if (!this._lovHttpUrl) return false;
+        try {
+            const resp = await fetch(this._lovHttpUrl + "/GetToys", {
+                signal: AbortSignal.timeout(4000),
+            });
+            if (!resp.ok) { this._lovHttpConnected = false; return false; }
+            const json = await resp.json() as { data?: Record<string, unknown> } | null;
+            if (json?.data && typeof json.data === "object") {
+                this._lovHttpToyCount = Object.keys(json.data).length;
+            } else {
+                this._lovHttpToyCount = 0;
+            }
+            this._lovHttpConnected = true;
+            return true;
+        } catch {
+            this._lovHttpConnected = false;
+            return false;
+        }
+    }
+
+    private async _lovHttpVibrate(intensity: number, durationSec: number): Promise<string> {
+        const url = this._lovHttpUrl;
+        if (!url) return "⚠ Lovense HTTP: not configured";
+        try {
+            const v = Math.max(0, Math.min(Math.round(intensity), 20));
+            // t=0 means continuous (stop only via next command); t>0 means auto-stop
+            const t = Math.max(0, Math.min(Math.round(durationSec), 60));
+            const resp = await fetch(`${url}/Vibrate?v=${v}&t=${t}`, {
+                signal: AbortSignal.timeout(3000),
+            });
+            if (!resp.ok) {
+                this._lovHttpConnected = false;
+                return `⚠ Lovense HTTP: server error ${resp.status}`;
+            }
+            if (v === 0) return "";
+            return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+        } catch (err) {
+            this._lovHttpConnected = false;
+            const msg = err instanceof Error ? err.message : String(err);
+            return `⚠ Lovense HTTP error: ${msg}`;
+        }
     }
 
     public checkLovenseTriggers(content: string): void {

@@ -24,7 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.73";
+const MOD_VERSION = "8.1.1";
+const SAL_VERSION  = 1;    // internal sub-version — only shown to Emery
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +39,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.1.1",
+        changes: [
+            "Lovense: added HTTP connection path via Lovense Connect app — works on Firefox and other non-BLE browsers. Configure the local API URL (default http://127.0.0.1:20010) in the IRL Toys section.",
+            "LianChat compat: EBC beep hook now always passes events through the mod chain so mods like LianChat running on the same client also see incoming friend beeps.",
+            "Version jump to 8.1.1. Internal sal sub-version counter added (only visible to Emery).",
+        ],
+    },
     {
         version: "6.9.73",
         changes: [
@@ -5713,7 +5722,9 @@ function appendClickableCmd(cmd: string, desc: string): void {
 }
 
 function showVersionInfo(): void {
-    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
+    const isEmery = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber === EMERY_MEMBER;
+    const salStr  = isEmery ? ` (s${SAL_VERSION})` : "";
+    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
 }
 
 function showChangelog(): void {
@@ -7083,7 +7094,7 @@ function init(): void {
     let drawer: EBCDrawer | null = null;
     try {
         EBCDrawer.pawDataUri = EBC_PAW_DATA;
-        drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
+        drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
@@ -7752,10 +7763,10 @@ function init(): void {
                 }
             } catch { /* ignore */ }
 
-            // Suppress BC's native chat-log notification for ALL friend beeps when
-            // the toggle is on. document.hidden is intentionally NOT checked here —
-            // OS-level notifications come through FriendListBeep, not this path.
-            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) return;
+            // Suppress EBC's own sound already ran above. Always call next() here so
+            // other mods in the chain (LianChat, WCE, etc.) also see this beep —
+            // returning without next() would block their hooks silently.
+            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) return next(args);
         } catch { /* ignore */ }
         return next(args);
     });
