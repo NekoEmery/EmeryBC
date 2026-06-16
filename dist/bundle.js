@@ -28331,7 +28331,7 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
         renderToys() {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -28775,51 +28775,103 @@
                 if (syncEnabled)
                     this.startBCLiveSync();
                 lovContent.appendChild(syncCard);
-                // ── LOVENSE REMOTE CONTROL ─────────────────────────────────────────────
+                // ── IRL TOYS (collapsible) ─────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("LOVENSE REMOTE CONTROL — let others fire your toy"));
+                const irlLsGet = (key, def) => { var _a; try {
+                    return (_a = localStorage.getItem(key)) !== null && _a !== void 0 ? _a : def;
+                }
+                catch (_b) {
+                    return def;
+                } };
+                const irlLsSet = (key, val) => { try {
+                    localStorage.setItem(key, val);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } };
+                const makeCollSection = (titleText, lsKey) => {
+                    const wrap = mk("div", "margin-bottom:10px;");
+                    const isOpen = irlLsGet(lsKey, "1") === "1";
+                    const hdr = mk("div", "background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                    const chev = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
+                    chev.textContent = isOpen ? "▼" : "▶";
+                    const htxt = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-text-bright);flex:1;`);
+                    htxt.textContent = titleText;
+                    hdr.appendChild(chev);
+                    hdr.appendChild(htxt);
+                    const body = mk("div", "");
+                    body.style.display = isOpen ? "" : "none";
+                    hdr.addEventListener("click", () => {
+                        const open = body.style.display === "none";
+                        body.style.display = open ? "" : "none";
+                        chev.textContent = open ? "▼" : "▶";
+                        irlLsSet(lsKey, open ? "1" : "0");
+                    });
+                    wrap.appendChild(hdr);
+                    wrap.appendChild(body);
+                    return { wrap, body };
+                };
+                // ── SECTION 1: LET OTHERS CONTROL YOUR TOY ───────────────────────────
+                const { wrap: s1Wrap, body: s1Body } = makeCollSection("LET OTHERS CONTROL YOUR TOY", "EBC_irl_s1_open");
                 const irlAllowReqs = s["irlToyAllowRequests"] === true;
-                const irlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
-                const irlTogRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                const irlTogLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                const s1Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;margin-bottom:8px;");
+                const irlTogRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+                const irlTogLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;font-weight:bold;`);
                 irlTogLbl.textContent = "Allow others to request IRL toy control";
                 const irlTog = document.createElement("input");
                 irlTog.type = "checkbox";
                 irlTog.checked = irlAllowReqs;
-                irlTog.style.cssText = "accent-color:var(--ebc-accent);width:14px;height:14px;cursor:pointer;";
+                irlTog.style.cssText = "accent-color:var(--ebc-accent);width:16px;height:16px;cursor:pointer;";
                 irlTogRow.appendChild(irlTogLbl);
                 irlTogRow.appendChild(irlTog);
-                irlCard.appendChild(irlTogRow);
-                const irlWlArea = mk("div");
-                irlCard.appendChild(irlWlArea);
+                s1Card.appendChild(irlTogRow);
+                // collapsible whitelist sub-section
+                const wlWrap = mk("div", "margin-bottom:8px;");
+                wlWrap.style.display = irlAllowReqs ? "" : "none";
+                const wlIsOpen = irlLsGet("EBC_irl_wl_open", "1") === "1";
+                const wlHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;margin-bottom:4px;");
+                const wlChev = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+                wlChev.textContent = wlIsOpen ? "▼" : "▶";
+                const wlHdrTxt = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);font-weight:bold;letter-spacing:0.8px;`);
+                wlHdrTxt.textContent = "WHITELIST";
+                wlHdr.appendChild(wlChev);
+                wlHdr.appendChild(wlHdrTxt);
+                const wlBody = mk("div", "");
+                wlBody.style.display = wlIsOpen ? "" : "none";
+                wlHdr.addEventListener("click", () => {
+                    const open = wlBody.style.display === "none";
+                    wlBody.style.display = open ? "" : "none";
+                    wlChev.textContent = open ? "▼" : "▶";
+                    irlLsSet("EBC_irl_wl_open", open ? "1" : "0");
+                });
+                wlWrap.appendChild(wlHdr);
+                wlWrap.appendChild(wlBody);
                 const renderIrlWl = () => {
                     var _a, _b;
-                    while (irlWlArea.firstChild)
-                        irlWlArea.removeChild(irlWlArea.firstChild);
+                    while (wlBody.firstChild)
+                        wlBody.removeChild(wlBody.firstChild);
                     if (!irlTog.checked)
                         return;
                     const irlWl = EBCDrawer.getIrlToyWhitelist();
-                    const wlNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                    const wlNote = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;`);
                     wlNote.textContent = "Friends can always request. Add others by member #:";
-                    irlWlArea.appendChild(wlNote);
+                    wlBody.appendChild(wlNote);
                     for (let idx = 0; idx < irlWl.length; idx++) {
                         const num = irlWl[idx];
-                        const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                        const wlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                        const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`);
                         wlLbl.textContent = `#${num}`;
                         const wlRem = document.createElement("button");
                         wlRem.textContent = "✗";
-                        wlRem.style.cssText = `${FONT}font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                        wlRem.style.cssText = `${FONT}font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                         wlRem.addEventListener("click", () => { irlWl.splice(idx, 1); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
                         wlRow.appendChild(wlLbl);
                         wlRow.appendChild(wlRem);
-                        irlWlArea.appendChild(wlRow);
+                        wlBody.appendChild(wlRow);
                     }
                     const irlRoomChs = window.ChatRoomCharacter;
                     const irlMyMN = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber;
                     const nonWl = (irlRoomChs !== null && irlRoomChs !== void 0 ? irlRoomChs : []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN && !irlWl.includes(c.MemberNumber));
                     if (nonWl.length > 0) {
-                        const addRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                        const addRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
                         const roomSel = document.createElement("select");
                         roomSel.style.cssText = GTSel;
                         for (const c of nonWl) {
@@ -28830,22 +28882,22 @@
                         }
                         const addBtn = document.createElement("button");
                         addBtn.textContent = "+ Add";
-                        addBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                        addBtn.style.cssText = `${FONT}font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                         addBtn.addEventListener("click", () => { const n = parseInt(roomSel.value, 10); if (!n || irlWl.includes(n))
                             return; irlWl.push(n); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
                         addRow.appendChild(roomSel);
                         addRow.appendChild(addBtn);
-                        irlWlArea.appendChild(addRow);
+                        wlBody.appendChild(addRow);
                     }
-                    const manRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;");
-                    const manLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                    const manRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:6px;");
+                    const manLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
                     manLbl.textContent = "Member # (manual)";
                     const manInp = document.createElement("input");
                     manInp.type = "number";
-                    manInp.style.cssText = `${FONT}font-size:11px;flex:1;padding:4px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;`;
+                    manInp.style.cssText = `${FONT}font-size:12px;flex:1;padding:5px 8px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;`;
                     const manBtn = document.createElement("button");
                     manBtn.textContent = "+ Add";
-                    manBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                    manBtn.style.cssText = `${FONT}font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                     manBtn.addEventListener("click", () => { const n = parseInt(manInp.value, 10); if (!n || n < 1 || irlWl.includes(n)) {
                         manInp.value = "";
                         return;
@@ -28853,43 +28905,55 @@
                     manRow.appendChild(manLbl);
                     manRow.appendChild(manInp);
                     manRow.appendChild(manBtn);
-                    irlWlArea.appendChild(manRow);
+                    wlBody.appendChild(manRow);
                 };
-                irlTog.addEventListener("change", () => { s["irlToyAllowRequests"] = irlTog.checked; syncSettings(); renderIrlWl(); });
+                s1Card.appendChild(wlWrap);
                 renderIrlWl();
+                // active grants
+                const grantsWrap = mk("div", "");
+                grantsWrap.style.display = irlAllowReqs ? "" : "none";
                 if (this._irlGrantedTo.size > 0) {
-                    const gHdr = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:10px 0 4px;letter-spacing:0.8px;`);
+                    const gHdr = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;font-weight:bold;letter-spacing:0.8px;`);
                     gHdr.textContent = "PEOPLE WITH ACCESS:";
-                    irlCard.appendChild(gHdr);
+                    grantsWrap.appendChild(gHdr);
                     for (const [memberNum, grant] of this._irlGrantedTo) {
-                        const gRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                        const gDot = mk("span");
-                        gDot.textContent = "🟢";
-                        const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        const gPill = mk("div", "display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:20px;margin-bottom:5px;");
+                        const gDot = mk("span", "font-size:10px;color:#40c060;");
+                        gDot.textContent = "●";
+                        const gName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`);
                         gName.textContent = grant.name;
                         const rBtn = document.createElement("button");
                         rBtn.textContent = "✗ Revoke";
-                        rBtn.style.cssText = `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                        rBtn.style.cssText = `${FONT}font-size:11px;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                         rBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlGrantedTo.delete(memberNum); this.refreshToysIfActive(); });
-                        gRow.appendChild(gDot);
-                        gRow.appendChild(gName);
-                        gRow.appendChild(rBtn);
-                        irlCard.appendChild(gRow);
+                        gPill.appendChild(gDot);
+                        gPill.appendChild(gName);
+                        gPill.appendChild(rBtn);
+                        grantsWrap.appendChild(gPill);
                     }
                 }
-                lovContent.appendChild(irlCard);
-                lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("CONTROL A FRIEND'S LOVENSE"));
+                s1Card.appendChild(grantsWrap);
+                irlTog.addEventListener("change", () => {
+                    s["irlToyAllowRequests"] = irlTog.checked;
+                    syncSettings();
+                    wlWrap.style.display = irlTog.checked ? "" : "none";
+                    grantsWrap.style.display = irlTog.checked ? "" : "none";
+                    renderIrlWl();
+                });
+                s1Body.appendChild(s1Card);
+                lovContent.appendChild(s1Wrap);
+                // ── SECTION 2: CONTROL A FRIEND'S LOVENSE ────────────────────────────
+                const { wrap: s2Wrap, body: s2Body } = makeCollSection("CONTROL A FRIEND'S LOVENSE", "EBC_irl_s2_open");
                 const irlFriendChs = window.ChatRoomCharacter;
                 const irlPW = window.Player;
                 const irlMyMN2 = irlPW === null || irlPW === void 0 ? void 0 : irlPW.MemberNumber;
                 const irlFnums = (_b = irlPW === null || irlPW === void 0 ? void 0 : irlPW.FriendList) !== null && _b !== void 0 ? _b : [];
                 const irlFriends = (irlFriendChs !== null && irlFriendChs !== void 0 ? irlFriendChs : []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN2 && irlFnums.includes(c.MemberNumber));
-                const irlOutCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+                const s2Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;");
                 if (irlFriends.length === 0) {
-                    const noFr = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 4px;`);
+                    const noFr = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);padding:4px 0;`);
                     noFr.textContent = "No friends currently in the room.";
-                    irlOutCard.appendChild(noFr);
+                    s2Card.appendChild(noFr);
                 }
                 else {
                     const irlPickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
@@ -28903,27 +28967,27 @@
                     }
                     const irlReqBtn = document.createElement("button");
                     irlReqBtn.textContent = "→ Request";
-                    irlReqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+                    irlReqBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
                     irlReqBtn.addEventListener("mouseenter", () => { irlReqBtn.style.background = "var(--ebc-bg)"; });
                     irlReqBtn.addEventListener("mouseleave", () => { irlReqBtn.style.background = "transparent"; });
                     irlPickRow.appendChild(irlFriendSel);
                     irlPickRow.appendChild(irlReqBtn);
-                    irlOutCard.appendChild(irlPickRow);
+                    s2Card.appendChild(irlPickRow);
                     const irlStatusArea = mk("div");
-                    irlOutCard.appendChild(irlStatusArea);
+                    s2Card.appendChild(irlStatusArea);
                     const updateIrlUI = () => {
                         while (irlStatusArea.firstChild)
                             irlStatusArea.removeChild(irlStatusArea.firstChild);
                         for (const [memberNum, sess] of this._irlCtrlSessions) {
-                            const sCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
-                            const sTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
-                            const sDot = mk("span");
-                            sDot.textContent = "🟢";
-                            const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`);
+                            const sCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:10px;padding:12px 14px;margin-bottom:10px;");
+                            const sTop = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:12px;");
+                            const sDot = mk("span", "font-size:11px;color:#40c060;");
+                            sDot.textContent = "●";
+                            const sName = mk("span", `${FONT}font-size:13px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`);
                             sName.textContent = sess.name;
                             const endBtn = document.createElement("button");
                             endBtn.textContent = "✗ End";
-                            endBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
+                            endBtn.style.cssText = `${FONT}font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
                             endBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlCtrlSessions.delete(memberNum); updateIrlUI(); });
                             sTop.appendChild(sDot);
                             sTop.appendChild(sName);
@@ -28931,8 +28995,8 @@
                             sCard.appendChild(sTop);
                             let vI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
                             let vD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
-                            const iR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
-                            const iL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                            const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+                            const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
                             iL.textContent = "Intensity";
                             const iS = document.createElement("input");
                             iS.type = "range";
@@ -28940,15 +29004,15 @@
                             iS.max = "20";
                             iS.value = String(vI);
                             iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                            const iV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                            const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
                             iV.textContent = `${vI}/20`;
                             iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
                             iR.appendChild(iL);
                             iR.appendChild(iS);
                             iR.appendChild(iV);
                             sCard.appendChild(iR);
-                            const dR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                            const dL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                            const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
+                            const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
                             dL.textContent = "Duration";
                             const dS = document.createElement("input");
                             dS.type = "range";
@@ -28956,7 +29020,7 @@
                             dS.max = "60";
                             dS.value = String(vD);
                             dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                            const dV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                            const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
                             dV.textContent = `${vD}s`;
                             dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
                             dR.appendChild(dL);
@@ -28965,7 +29029,7 @@
                             sCard.appendChild(dR);
                             const vBtn = document.createElement("button");
                             vBtn.textContent = "〜 Vibrate";
-                            vBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                            vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                             vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
                             vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
                             vBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "VIB", vI, vD); vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000); });
@@ -28973,19 +29037,19 @@
                             irlStatusArea.appendChild(sCard);
                         }
                         for (const [pendNum, pend] of this._irlPendingOut) {
-                            const pRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px 10px;");
-                            const pTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                            const pRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:8px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+                            const pTxt = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);flex:1;`);
                             pTxt.textContent = `⏳ Waiting for ${pend.name} to accept…`;
                             const cBtn = document.createElement("button");
                             cBtn.textContent = "Cancel";
-                            cBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
+                            cBtn.style.cssText = `${FONT}font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
                             cBtn.addEventListener("click", () => { this.sendIrlToyMsg(pendNum, "REV"); this._irlPendingOut.delete(pendNum); updateIrlUI(); });
                             pRow.appendChild(pTxt);
                             pRow.appendChild(cBtn);
                             irlStatusArea.appendChild(pRow);
                         }
                         if (this._irlCtrlSessions.size === 0 && this._irlPendingOut.size === 0) {
-                            const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                            const hint = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
                             hint.textContent = "Pick a friend and click → Request to start a session.";
                             irlStatusArea.appendChild(hint);
                         }
@@ -29002,7 +29066,8 @@
                         updateIrlUI();
                     });
                 }
-                lovContent.appendChild(irlOutCard);
+                s2Body.appendChild(s2Card);
+                lovContent.appendChild(s2Wrap);
             }
             // ── GAME TOYS ────────────────────────────────────────────────────────────
             // Always-accessible section — no enable toggle
@@ -29063,6 +29128,7 @@
             const gtWl = EBCDrawer.getGameToyWhitelist();
             const wlListEl = mk("div", "margin-bottom:8px;");
             const renderWl = () => {
+                var _a, _b;
                 while (wlListEl.firstChild)
                     wlListEl.removeChild(wlListEl.firstChild);
                 if (!gtWl.length) {
@@ -29088,49 +29154,44 @@
                         wlListEl.appendChild(wlRow);
                     });
                 }
+                // Add from room dropdown — rebuilt every time so removals reappear
+                const wlRoomChs = window.ChatRoomCharacter;
+                const wlMyMN2 = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber;
+                const wlPeers = (wlRoomChs !== null && wlRoomChs !== void 0 ? wlRoomChs : []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN2 && !gtWl.includes(c.MemberNumber));
+                if (wlPeers.length > 0) {
+                    const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                    const roomSel = document.createElement("select");
+                    roomSel.style.cssText = GTSel;
+                    const defOpt = document.createElement("option");
+                    defOpt.value = "";
+                    defOpt.textContent = "Add from room…";
+                    defOpt.disabled = true;
+                    defOpt.selected = true;
+                    roomSel.appendChild(defOpt);
+                    for (const c of wlPeers) {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.MemberNumber);
+                        opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                        roomSel.appendChild(opt);
+                    }
+                    const roomAddBtn = document.createElement("button");
+                    roomAddBtn.textContent = "+ Add";
+                    roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                    roomAddBtn.addEventListener("click", () => {
+                        const num = parseInt(roomSel.value, 10);
+                        if (!num || isNaN(num) || gtWl.includes(num))
+                            return;
+                        gtWl.push(num);
+                        EBCDrawer.saveGameToyWhitelist(gtWl);
+                        renderWl();
+                    });
+                    fromRoomRow.appendChild(roomSel);
+                    fromRoomRow.appendChild(roomAddBtn);
+                    wlListEl.appendChild(fromRoomRow);
+                }
             };
             renderWl();
             privCard.appendChild(wlListEl);
-            // Add from current room
-            const wlRoomChars = window.ChatRoomCharacter;
-            const wlPlayerW = window.Player;
-            const wlMyMN = wlPlayerW === null || wlPlayerW === void 0 ? void 0 : wlPlayerW.MemberNumber;
-            const wlRoomPeers = (wlRoomChars !== null && wlRoomChars !== void 0 ? wlRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN && !gtWl.includes(c.MemberNumber));
-            if (wlRoomPeers.length > 0) {
-                const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
-                const roomSel = document.createElement("select");
-                roomSel.style.cssText = GTSel;
-                const defOpt = document.createElement("option");
-                defOpt.value = "";
-                defOpt.textContent = "Add from room…";
-                defOpt.disabled = true;
-                defOpt.selected = true;
-                roomSel.appendChild(defOpt);
-                for (const c of wlRoomPeers) {
-                    const opt = document.createElement("option");
-                    opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
-                    roomSel.appendChild(opt);
-                }
-                const roomAddBtn = document.createElement("button");
-                roomAddBtn.textContent = "+ Add";
-                roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
-                roomAddBtn.addEventListener("click", () => {
-                    const num = parseInt(roomSel.value, 10);
-                    if (!num || isNaN(num) || gtWl.includes(num))
-                        return;
-                    gtWl.push(num);
-                    EBCDrawer.saveGameToyWhitelist(gtWl);
-                    const opt = roomSel.querySelector(`option[value="${num}"]`);
-                    if (opt)
-                        opt.remove();
-                    roomSel.value = "";
-                    renderWl();
-                });
-                fromRoomRow.appendChild(roomSel);
-                fromRoomRow.appendChild(roomAddBtn);
-                privCard.appendChild(fromRoomRow);
-            }
             // Manual member # entry
             const wlAddRow = mk("div", "display:flex;align-items:center;gap:6px;");
             const wlInp = document.createElement("input");
@@ -29161,7 +29222,7 @@
             const gtRoomChars = window.ChatRoomCharacter;
             const gtPlayerW = window.Player;
             const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
-            const gtFriendNums = (_e = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _e !== void 0 ? _e : [];
+            const gtFriendNums = (_d = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _d !== void 0 ? _d : [];
             const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
             const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
             if (gtFriendsInRoom.length === 0) {
@@ -29170,23 +29231,57 @@
                 ctrlCard.appendChild(noFr);
             }
             else {
-                const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+                const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                 const friendSel = document.createElement("select");
                 friendSel.style.cssText = GTSel;
                 for (const c of gtFriendsInRoom) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_f = c.Nickname) !== null && _f !== void 0 ? _f : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_e = c.Nickname) !== null && _e !== void 0 ? _e : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     friendSel.appendChild(opt);
                 }
+                const charHasVibs = (memberNum) => {
+                    var _a;
+                    try {
+                        const lookup = (_a = window.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
+                        const roomChars = window.ChatRoomCharacter;
+                        const ch = (roomChars !== null && roomChars !== void 0 ? roomChars : []).find(c => c.MemberNumber === memberNum);
+                        if (!(ch === null || ch === void 0 ? void 0 : ch.Appearance))
+                            return false;
+                        return ch.Appearance.some(item => {
+                            var _a, _b, _c;
+                            if (!((_b = (_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) || !((_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Name))
+                                return false;
+                            return (item.Asset.Group.Name + item.Asset.Name) in lookup;
+                        });
+                    }
+                    catch (_b) {
+                        return false;
+                    }
+                };
                 const reqBtn = document.createElement("button");
                 reqBtn.textContent = "→ Request";
-                reqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
-                reqBtn.addEventListener("mouseenter", () => { reqBtn.style.background = "var(--ebc-bg)"; });
-                reqBtn.addEventListener("mouseleave", () => { reqBtn.style.background = "transparent"; });
+                const reqBtnBase = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+                reqBtn.style.cssText = reqBtnBase + "cursor:pointer;";
+                reqBtn.addEventListener("mouseenter", () => { if (!reqBtn.disabled)
+                    reqBtn.style.background = "var(--ebc-bg)"; });
+                reqBtn.addEventListener("mouseleave", () => { if (!reqBtn.disabled)
+                    reqBtn.style.background = "transparent"; });
                 pickRow.appendChild(friendSel);
                 pickRow.appendChild(reqBtn);
                 ctrlCard.appendChild(pickRow);
+                const noVibWarn = mk("div", `${FONT}font-size:10px;color:#b04050;margin-bottom:8px;display:none;`);
+                noVibWarn.textContent = "⚠ No vibrators equipped";
+                ctrlCard.appendChild(noVibWarn);
+                const applyVibState = () => {
+                    const mn = parseInt(friendSel.value, 10);
+                    const hasVibs = !mn || charHasVibs(mn);
+                    reqBtn.disabled = !hasVibs;
+                    reqBtn.style.cssText = reqBtnBase + (hasVibs ? "cursor:pointer;opacity:1;" : "cursor:default;opacity:0.4;pointer-events:none;");
+                    noVibWarn.style.display = hasVibs ? "none" : "block";
+                };
+                friendSel.addEventListener("change", applyVibState);
+                applyVibState();
                 const statusArea = mk("div");
                 ctrlCard.appendChild(statusArea);
                 const updateCtrlUI = () => {
@@ -29212,17 +29307,30 @@
                         sessTop.appendChild(endBtn);
                         sessCard.appendChild(sessTop);
                         const TOY_MODE_ROWS = [
-                            [{ label: "Off", mode: "Off" }, { label: "Low", mode: "Low" }, { label: "Medium", mode: "Medium" }, { label: "High", mode: "High" }, { label: "Max", mode: "Maximum" }],
-                            [{ label: "Tease", mode: "Tease" }, { label: "Random", mode: "Random" }, { label: "Escalate", mode: "Escalate" }, { label: "Deny", mode: "Deny" }, { label: "Edge", mode: "Edge" }],
+                            [
+                                { label: "Off", mode: "Off", color: "#7a7a9a" },
+                                { label: "Low", mode: "Low", color: "#50b870" },
+                                { label: "Medium", mode: "Medium", color: "#c8a030" },
+                                { label: "High", mode: "High", color: "#d06820" },
+                                { label: "Max", mode: "Maximum", color: "#d03060" },
+                            ],
+                            [
+                                { label: "Tease", mode: "Tease", color: "#9060d0" },
+                                { label: "Random", mode: "Random", color: "#3888d0" },
+                                { label: "Escalate", mode: "Escalate", color: "#c05028" },
+                                { label: "Deny", mode: "Deny", color: "#a02040" },
+                                { label: "Edge", mode: "Edge", color: "#c03898" },
+                            ],
                         ];
                         for (const mRow of TOY_MODE_ROWS) {
-                            const rowEl = mk("div", "display:flex;gap:5px;margin-bottom:5px;");
+                            const rowEl = mk("div", "display:flex;gap:4px;margin-bottom:5px;");
                             for (const m of mRow) {
                                 const mBtn = document.createElement("button");
                                 mBtn.textContent = m.label;
-                                mBtn.style.cssText = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:5px 2px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text-bright);transition:background 0.1s,border-color 0.1s,color 0.1s;`;
-                                mBtn.addEventListener("mouseenter", () => { mBtn.style.background = "var(--ebc-bg-mid)"; mBtn.style.borderColor = "var(--ebc-accent)"; mBtn.style.color = "var(--ebc-accent)"; });
-                                mBtn.addEventListener("mouseleave", () => { mBtn.style.background = "var(--ebc-bg)"; mBtn.style.borderColor = "var(--ebc-border)"; mBtn.style.color = "var(--ebc-text-bright)"; });
+                                const baseCSS = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:6px 2px;border-radius:5px;cursor:pointer;border:1px solid ${m.color}44;background:${m.color}18;color:${m.color};transition:background 0.1s,border-color 0.1s;`;
+                                mBtn.style.cssText = baseCSS;
+                                mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
+                                mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
                                 mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
                                 rowEl.appendChild(mBtn);
                             }
@@ -29439,41 +29547,21 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
         _applyBCVibratorMode(modeName) {
-            var _a, _b, _c, _d;
+            var _a, _b;
             try {
                 const win = window;
                 const player = win.Player;
                 if (!(player === null || player === void 0 ? void 0 : player.Appearance))
                     return;
                 const lookup = (_a = win.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
-                const wantsVibrating = modeName !== "Off";
-                const intensityMap = { Off: -1, Low: 0, Medium: 1, High: 2, Maximum: 3 };
-                const finalIntensity = (_b = intensityMap[modeName]) !== null && _b !== void 0 ? _b : 0;
-                const changed = [];
                 for (const item of player.Appearance) {
                     const key = item.Asset.Group.Name + item.Asset.Name;
                     if (!(key in lookup))
                         continue;
-                    if (!item.Property)
-                        item.Property = {};
-                    item.Property["Mode"] = modeName;
-                    item.Property["Intensity"] = finalIntensity;
-                    const eff = Array.isArray(item.Property["Effect"]) ? [...item.Property["Effect"]] : [];
-                    if (wantsVibrating && !eff.includes("Vibrating"))
-                        eff.push("Vibrating");
-                    if (!wantsVibrating)
-                        item.Property["Effect"] = eff.filter((e) => e !== "Vibrating");
-                    else
-                        item.Property["Effect"] = eff;
-                    changed.push(item.Asset.Group.Name);
+                    (_b = win.VibratorModeSetOptionByName) === null || _b === void 0 ? void 0 : _b.call(win, player, item, modeName, true);
                 }
-                if (changed.length === 0)
-                    return;
-                (_c = win.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(win, player, false, false);
-                for (const group of changed)
-                    (_d = win.ChatRoomCharacterItemUpdate) === null || _d === void 0 ? void 0 : _d.call(win, player, group);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         sendIrlToyMsg(targetNum, type, intensity, duration) {
             try {
@@ -31659,7 +31747,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.50";
+    const MOD_VERSION = "6.9.54";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31670,6 +31758,33 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.54",
+            changes: [
+                "IRL TOYS: full layout redesign — collapsible sections (Let Others Control / Control a Friend), bigger font (12-13px), pill-style grant rows, sub-collapsible whitelist.",
+                "GAME TOYS: Request button disabled with warning when selected friend has no vibrators equipped.",
+            ],
+        },
+        {
+            version: "6.9.53",
+            changes: [
+                "Chat phrase triggers now fire on emote messages (Type 'Emote') in addition to regular chat — *roleplay actions* now trigger correctly.",
+            ],
+        },
+        {
+            version: "6.9.52",
+            changes: [
+                "Fix: GAME TOYS vibrator control now works — uses BC's VibratorModeSetOptionByName() instead of manual property manipulation.",
+                "Fix: Whitelist room dropdown now reappears after removing an entry (rebuilt on every renderWl call).",
+                "GAME TOYS: Mode buttons now color-coded (Off=grey, Low=green, Medium=gold, High=orange, Max=pink, Tease=purple, Random=blue, Escalate=burnt-orange, Deny=red, Edge=magenta).",
+            ],
+        },
+        {
+            version: "6.9.51",
+            changes: [
+                "Fix: BODY TOUCH triggers now actually fire — BC activity Content is 'ChatOther-Group-Activity' not just the activity name, and group was read from wrong dictionary key (FocusGroupName not AssetGroupName).",
+            ],
+        },
         {
             version: "6.9.50",
             changes: [
@@ -39190,7 +39305,7 @@
         });
         // Lovense triggers: chat phrases + body touch activities + BC toy sync
         tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             try {
                 const [data] = args;
                 // EBC-TOY whisper intercept — suppress from BC chat display
@@ -39223,22 +39338,28 @@
                         return; // suppress — do not call next(args)
                     }
                 }
-                if (data.Type === "Chat" && typeof data.Content === "string" &&
+                if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
                 }
-                if (data.Type === "Activity" && typeof data.Content === "string") {
+                if (data.Type === "Activity" && typeof data.Content === "string" &&
+                    typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     const dict = data.Dictionary;
-                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                    const targetNum = (_c = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _c !== void 0 ? _c : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
+                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => "TargetCharacter" in e);
+                    const targetNum = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
                     if (targetNum === Player.MemberNumber) {
-                        const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
-                        const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["AssetGroupName"];
-                        drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(data.Content, assetGroup);
+                        // Content is "ChatOther-GroupName-ActivityName" — extract the activity name
+                        const actEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => "ActivityName" in e);
+                        const activityName = (_d = (_c = actEntry === null || actEntry === void 0 ? void 0 : actEntry["ActivityName"]) !== null && _c !== void 0 ? _c : data.Content.split("-").pop()) !== null && _d !== void 0 ? _d : "";
+                        // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
+                        const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                        const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
+                        if (activityName)
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(activityName, assetGroup);
                     }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).

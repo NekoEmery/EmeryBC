@@ -20996,44 +20996,81 @@ export class EBCDrawer {
             if (syncEnabled) this.startBCLiveSync();
             lovContent.appendChild(syncCard);
 
-            // ── LOVENSE REMOTE CONTROL ─────────────────────────────────────────────
+            // ── IRL TOYS (collapsible) ─────────────────────────────────────────────
             lovContent.appendChild(sep());
-            lovContent.appendChild(lvsHdr("LOVENSE REMOTE CONTROL — let others fire your toy"));
 
+            const irlLsGet = (key: string, def: string): string => { try { return localStorage.getItem(key) ?? def; } catch { return def; } };
+            const irlLsSet = (key: string, val: string): void => { try { localStorage.setItem(key, val); } catch { /* ignore */ } };
+
+            const makeCollSection = (titleText: string, lsKey: string): { wrap: HTMLElement; body: HTMLElement } => {
+                const wrap = mk("div", "margin-bottom:10px;");
+                const isOpen = irlLsGet(lsKey, "1") === "1";
+                const hdr = mk("div", "background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                const chev = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`); chev.textContent = isOpen ? "▼" : "▶";
+                const htxt = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-text-bright);flex:1;`); htxt.textContent = titleText;
+                hdr.appendChild(chev); hdr.appendChild(htxt);
+                const body = mk("div", ""); body.style.display = isOpen ? "" : "none";
+                hdr.addEventListener("click", () => {
+                    const open = body.style.display === "none";
+                    body.style.display = open ? "" : "none";
+                    chev.textContent = open ? "▼" : "▶";
+                    irlLsSet(lsKey, open ? "1" : "0");
+                });
+                wrap.appendChild(hdr); wrap.appendChild(body);
+                return { wrap, body };
+            };
+
+            // ── SECTION 1: LET OTHERS CONTROL YOUR TOY ───────────────────────────
+            const { wrap: s1Wrap, body: s1Body } = makeCollSection("LET OTHERS CONTROL YOUR TOY", "EBC_irl_s1_open");
             const irlAllowReqs = s["irlToyAllowRequests"] === true;
-            const irlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
-            const irlTogRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-            const irlTogLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+            const s1Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;margin-bottom:8px;");
+
+            const irlTogRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+            const irlTogLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;font-weight:bold;`);
             irlTogLbl.textContent = "Allow others to request IRL toy control";
             const irlTog = document.createElement("input"); irlTog.type = "checkbox"; irlTog.checked = irlAllowReqs;
-            irlTog.style.cssText = "accent-color:var(--ebc-accent);width:14px;height:14px;cursor:pointer;";
+            irlTog.style.cssText = "accent-color:var(--ebc-accent);width:16px;height:16px;cursor:pointer;";
             irlTogRow.appendChild(irlTogLbl); irlTogRow.appendChild(irlTog);
-            irlCard.appendChild(irlTogRow);
+            s1Card.appendChild(irlTogRow);
 
-            const irlWlArea = mk("div");
-            irlCard.appendChild(irlWlArea);
+            // collapsible whitelist sub-section
+            const wlWrap = mk("div", "margin-bottom:8px;");
+            wlWrap.style.display = irlAllowReqs ? "" : "none";
+            const wlIsOpen = irlLsGet("EBC_irl_wl_open", "1") === "1";
+            const wlHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;margin-bottom:4px;");
+            const wlChev = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`); wlChev.textContent = wlIsOpen ? "▼" : "▶";
+            const wlHdrTxt = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);font-weight:bold;letter-spacing:0.8px;`); wlHdrTxt.textContent = "WHITELIST";
+            wlHdr.appendChild(wlChev); wlHdr.appendChild(wlHdrTxt);
+            const wlBody = mk("div", ""); wlBody.style.display = wlIsOpen ? "" : "none";
+            wlHdr.addEventListener("click", () => {
+                const open = wlBody.style.display === "none";
+                wlBody.style.display = open ? "" : "none";
+                wlChev.textContent = open ? "▼" : "▶";
+                irlLsSet("EBC_irl_wl_open", open ? "1" : "0");
+            });
+            wlWrap.appendChild(wlHdr); wlWrap.appendChild(wlBody);
 
             const renderIrlWl = (): void => {
-                while (irlWlArea.firstChild) irlWlArea.removeChild(irlWlArea.firstChild);
+                while (wlBody.firstChild) wlBody.removeChild(wlBody.firstChild);
                 if (!irlTog.checked) return;
                 const irlWl = EBCDrawer.getIrlToyWhitelist();
-                const wlNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                const wlNote = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;`);
                 wlNote.textContent = "Friends can always request. Add others by member #:";
-                irlWlArea.appendChild(wlNote);
+                wlBody.appendChild(wlNote);
                 for (let idx = 0; idx < irlWl.length; idx++) {
                     const num = irlWl[idx];
-                    const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                    const wlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = `#${num}`;
+                    const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                    const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = `#${num}`;
                     const wlRem = document.createElement("button"); wlRem.textContent = "✗";
-                    wlRem.style.cssText = `${FONT}font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                    wlRem.style.cssText = `${FONT}font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                     wlRem.addEventListener("click", () => { irlWl.splice(idx, 1); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
-                    wlRow.appendChild(wlLbl); wlRow.appendChild(wlRem); irlWlArea.appendChild(wlRow);
+                    wlRow.appendChild(wlLbl); wlRow.appendChild(wlRem); wlBody.appendChild(wlRow);
                 }
                 const irlRoomChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
                 const irlMyMN = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber;
                 const nonWl = (irlRoomChs ?? []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN && !irlWl.includes(c.MemberNumber as number));
                 if (nonWl.length > 0) {
-                    const addRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                    const addRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
                     const roomSel = document.createElement("select"); roomSel.style.cssText = GTSel;
                     for (const c of nonWl) {
                         const opt = document.createElement("option"); opt.value = String(c.MemberNumber);
@@ -21041,51 +21078,64 @@ export class EBCDrawer {
                         roomSel.appendChild(opt);
                     }
                     const addBtn = document.createElement("button"); addBtn.textContent = "+ Add";
-                    addBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                    addBtn.style.cssText = `${FONT}font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                     addBtn.addEventListener("click", () => { const n = parseInt(roomSel.value, 10); if (!n || irlWl.includes(n)) return; irlWl.push(n); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
-                    addRow.appendChild(roomSel); addRow.appendChild(addBtn); irlWlArea.appendChild(addRow);
+                    addRow.appendChild(roomSel); addRow.appendChild(addBtn); wlBody.appendChild(addRow);
                 }
-                const manRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;");
-                const manLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); manLbl.textContent = "Member # (manual)";
+                const manRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:6px;");
+                const manLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`); manLbl.textContent = "Member # (manual)";
                 const manInp = document.createElement("input"); manInp.type = "number";
-                manInp.style.cssText = `${FONT}font-size:11px;flex:1;padding:4px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;`;
+                manInp.style.cssText = `${FONT}font-size:12px;flex:1;padding:5px 8px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;`;
                 const manBtn = document.createElement("button"); manBtn.textContent = "+ Add";
-                manBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                manBtn.style.cssText = `${FONT}font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                 manBtn.addEventListener("click", () => { const n = parseInt(manInp.value, 10); if (!n || n < 1 || irlWl.includes(n)) { manInp.value = ""; return; } irlWl.push(n); EBCDrawer.saveIrlToyWhitelist(irlWl); manInp.value = ""; renderIrlWl(); });
-                manRow.appendChild(manLbl); manRow.appendChild(manInp); manRow.appendChild(manBtn); irlWlArea.appendChild(manRow);
+                manRow.appendChild(manLbl); manRow.appendChild(manInp); manRow.appendChild(manBtn); wlBody.appendChild(manRow);
             };
-            irlTog.addEventListener("change", () => { s["irlToyAllowRequests"] = irlTog.checked; syncSettings(); renderIrlWl(); });
+            s1Card.appendChild(wlWrap);
             renderIrlWl();
 
+            // active grants
+            const grantsWrap = mk("div", "");
+            grantsWrap.style.display = irlAllowReqs ? "" : "none";
             if (this._irlGrantedTo.size > 0) {
-                const gHdr = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:10px 0 4px;letter-spacing:0.8px;`);
+                const gHdr = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;font-weight:bold;letter-spacing:0.8px;`);
                 gHdr.textContent = "PEOPLE WITH ACCESS:";
-                irlCard.appendChild(gHdr);
+                grantsWrap.appendChild(gHdr);
                 for (const [memberNum, grant] of this._irlGrantedTo) {
-                    const gRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
-                    const gDot = mk("span"); gDot.textContent = "🟢";
-                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`); gName.textContent = grant.name;
+                    const gPill = mk("div", "display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:20px;margin-bottom:5px;");
+                    const gDot = mk("span", "font-size:10px;color:#40c060;"); gDot.textContent = "●";
+                    const gName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); gName.textContent = grant.name;
                     const rBtn = document.createElement("button"); rBtn.textContent = "✗ Revoke";
-                    rBtn.style.cssText = `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                    rBtn.style.cssText = `${FONT}font-size:11px;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                     rBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlGrantedTo.delete(memberNum); this.refreshToysIfActive(); });
-                    gRow.appendChild(gDot); gRow.appendChild(gName); gRow.appendChild(rBtn); irlCard.appendChild(gRow);
+                    gPill.appendChild(gDot); gPill.appendChild(gName); gPill.appendChild(rBtn); grantsWrap.appendChild(gPill);
                 }
             }
-            lovContent.appendChild(irlCard);
+            s1Card.appendChild(grantsWrap);
 
-            lovContent.appendChild(sep());
-            lovContent.appendChild(lvsHdr("CONTROL A FRIEND'S LOVENSE"));
+            irlTog.addEventListener("change", () => {
+                s["irlToyAllowRequests"] = irlTog.checked; syncSettings();
+                wlWrap.style.display = irlTog.checked ? "" : "none";
+                grantsWrap.style.display = irlTog.checked ? "" : "none";
+                renderIrlWl();
+            });
 
+            s1Body.appendChild(s1Card);
+            lovContent.appendChild(s1Wrap);
+
+            // ── SECTION 2: CONTROL A FRIEND'S LOVENSE ────────────────────────────
+            const { wrap: s2Wrap, body: s2Body } = makeCollSection("CONTROL A FRIEND'S LOVENSE", "EBC_irl_s2_open");
             const irlFriendChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
             const irlPW = (window as unknown as { Player?: { MemberNumber?: number; FriendList?: number[] } }).Player;
             const irlMyMN2 = irlPW?.MemberNumber;
             const irlFnums = irlPW?.FriendList ?? [];
             const irlFriends = (irlFriendChs ?? []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN2 && irlFnums.includes(c.MemberNumber as number));
-            const irlOutCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+            const s2Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;");
+
             if (irlFriends.length === 0) {
-                const noFr = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 4px;`);
+                const noFr = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);padding:4px 0;`);
                 noFr.textContent = "No friends currently in the room.";
-                irlOutCard.appendChild(noFr);
+                s2Card.appendChild(noFr);
             } else {
                 const irlPickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
                 const irlFriendSel = document.createElement("select"); irlFriendSel.style.cssText = GTSel;
@@ -21095,58 +21145,61 @@ export class EBCDrawer {
                     irlFriendSel.appendChild(opt);
                 }
                 const irlReqBtn = document.createElement("button"); irlReqBtn.textContent = "→ Request";
-                irlReqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+                irlReqBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
                 irlReqBtn.addEventListener("mouseenter", () => { irlReqBtn.style.background = "var(--ebc-bg)"; });
                 irlReqBtn.addEventListener("mouseleave", () => { irlReqBtn.style.background = "transparent"; });
-                irlPickRow.appendChild(irlFriendSel); irlPickRow.appendChild(irlReqBtn); irlOutCard.appendChild(irlPickRow);
+                irlPickRow.appendChild(irlFriendSel); irlPickRow.appendChild(irlReqBtn);
+                s2Card.appendChild(irlPickRow);
 
                 const irlStatusArea = mk("div");
-                irlOutCard.appendChild(irlStatusArea);
+                s2Card.appendChild(irlStatusArea);
 
                 const updateIrlUI = (): void => {
                     while (irlStatusArea.firstChild) irlStatusArea.removeChild(irlStatusArea.firstChild);
                     for (const [memberNum, sess] of this._irlCtrlSessions) {
-                        const sCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
-                        const sTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
-                        const sDot = mk("span"); sDot.textContent = "🟢";
-                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`); sName.textContent = sess.name;
+                        const sCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:10px;padding:12px 14px;margin-bottom:10px;");
+                        const sTop = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:12px;");
+                        const sDot = mk("span", "font-size:11px;color:#40c060;"); sDot.textContent = "●";
+                        const sName = mk("span", `${FONT}font-size:13px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`); sName.textContent = sess.name;
                         const endBtn = document.createElement("button"); endBtn.textContent = "✗ End";
-                        endBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
+                        endBtn.style.cssText = `${FONT}font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
                         endBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlCtrlSessions.delete(memberNum); updateIrlUI(); });
                         sTop.appendChild(sDot); sTop.appendChild(sName); sTop.appendChild(endBtn); sCard.appendChild(sTop);
                         let vI = typeof s["lovenseIntensity"] === "number" ? (s["lovenseIntensity"] as number) : 10;
                         let vD = typeof s["lovenseDuration"] === "number" ? (s["lovenseDuration"] as number) : 5;
-                        const iR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
-                        const iL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`); iL.textContent = "Intensity";
+                        const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+                        const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); iL.textContent = "Intensity";
                         const iS = document.createElement("input"); iS.type = "range"; iS.min = "1"; iS.max = "20"; iS.value = String(vI);
                         iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const iV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`); iV.textContent = `${vI}/20`;
+                        const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); iV.textContent = `${vI}/20`;
                         iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
                         iR.appendChild(iL); iR.appendChild(iS); iR.appendChild(iV); sCard.appendChild(iR);
-                        const dR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                        const dL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`); dL.textContent = "Duration";
+                        const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
+                        const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); dL.textContent = "Duration";
                         const dS = document.createElement("input"); dS.type = "range"; dS.min = "1"; dS.max = "60"; dS.value = String(vD);
                         dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const dV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`); dV.textContent = `${vD}s`;
+                        const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); dV.textContent = `${vD}s`;
                         dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
                         dR.appendChild(dL); dR.appendChild(dS); dR.appendChild(dV); sCard.appendChild(dR);
                         const vBtn = document.createElement("button"); vBtn.textContent = "〜 Vibrate";
-                        vBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                        vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                         vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
                         vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
                         vBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "VIB", vI, vD); vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000); });
                         sCard.appendChild(vBtn); irlStatusArea.appendChild(sCard);
                     }
                     for (const [pendNum, pend] of this._irlPendingOut) {
-                        const pRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px 10px;");
-                        const pTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`); pTxt.textContent = `⏳ Waiting for ${pend.name} to accept…`;
+                        const pRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:8px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+                        const pTxt = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);flex:1;`); pTxt.textContent = `⏳ Waiting for ${pend.name} to accept…`;
                         const cBtn = document.createElement("button"); cBtn.textContent = "Cancel";
-                        cBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
+                        cBtn.style.cssText = `${FONT}font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
                         cBtn.addEventListener("click", () => { this.sendIrlToyMsg(pendNum, "REV"); this._irlPendingOut.delete(pendNum); updateIrlUI(); });
                         pRow.appendChild(pTxt); pRow.appendChild(cBtn); irlStatusArea.appendChild(pRow);
                     }
                     if (this._irlCtrlSessions.size === 0 && this._irlPendingOut.size === 0) {
-                        const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); hint.textContent = "Pick a friend and click → Request to start a session."; irlStatusArea.appendChild(hint);
+                        const hint = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
+                        hint.textContent = "Pick a friend and click → Request to start a session.";
+                        irlStatusArea.appendChild(hint);
                     }
                 };
                 updateIrlUI();
@@ -21160,7 +21213,8 @@ export class EBCDrawer {
                     updateIrlUI();
                 });
             }
-            lovContent.appendChild(irlOutCard);
+            s2Body.appendChild(s2Card);
+            lovContent.appendChild(s2Wrap);
         }
 
         // ── GAME TOYS ────────────────────────────────────────────────────────────
@@ -21302,7 +21356,7 @@ export class EBCDrawer {
             noFr.textContent = "No friends currently in the room.";
             ctrlCard.appendChild(noFr);
         } else {
-            const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+            const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
             const friendSel = document.createElement("select");
             friendSel.style.cssText = GTSel;
             for (const c of gtFriendsInRoom) {
@@ -21310,12 +21364,41 @@ export class EBCDrawer {
                 opt.textContent = `${(c.Nickname ?? "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                 friendSel.appendChild(opt);
             }
+
+            const charHasVibs = (memberNum: number): boolean => {
+                try {
+                    const lookup = (window as unknown as { VibratorModeDataLookup?: Record<string, unknown> }).VibratorModeDataLookup ?? {};
+                    const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Appearance?: Array<{ Asset?: { Name?: string; Group?: { Name?: string } } }> }> }).ChatRoomCharacter;
+                    const ch = (roomChars ?? []).find(c => c.MemberNumber === memberNum);
+                    if (!ch?.Appearance) return false;
+                    return ch.Appearance.some(item => {
+                        if (!item.Asset?.Group?.Name || !item.Asset?.Name) return false;
+                        return (item.Asset.Group.Name + item.Asset.Name) in lookup;
+                    });
+                } catch { return false; }
+            };
+
             const reqBtn = document.createElement("button"); reqBtn.textContent = "→ Request";
-            reqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
-            reqBtn.addEventListener("mouseenter", () => { reqBtn.style.background = "var(--ebc-bg)"; });
-            reqBtn.addEventListener("mouseleave", () => { reqBtn.style.background = "transparent"; });
+            const reqBtnBase = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+            reqBtn.style.cssText = reqBtnBase + "cursor:pointer;";
+            reqBtn.addEventListener("mouseenter", () => { if (!reqBtn.disabled) reqBtn.style.background = "var(--ebc-bg)"; });
+            reqBtn.addEventListener("mouseleave", () => { if (!reqBtn.disabled) reqBtn.style.background = "transparent"; });
             pickRow.appendChild(friendSel); pickRow.appendChild(reqBtn);
             ctrlCard.appendChild(pickRow);
+
+            const noVibWarn = mk("div", `${FONT}font-size:10px;color:#b04050;margin-bottom:8px;display:none;`);
+            noVibWarn.textContent = "⚠ No vibrators equipped";
+            ctrlCard.appendChild(noVibWarn);
+
+            const applyVibState = (): void => {
+                const mn = parseInt(friendSel.value, 10);
+                const hasVibs = !mn || charHasVibs(mn);
+                reqBtn.disabled = !hasVibs;
+                reqBtn.style.cssText = reqBtnBase + (hasVibs ? "cursor:pointer;opacity:1;" : "cursor:default;opacity:0.4;pointer-events:none;");
+                noVibWarn.style.display = hasVibs ? "none" : "block";
+            };
+            friendSel.addEventListener("change", applyVibState);
+            applyVibState();
 
             const statusArea = mk("div");
             ctrlCard.appendChild(statusArea);

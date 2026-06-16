@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.53";
+const MOD_VERSION = "6.9.54";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.54",
+        changes: [
+            "IRL TOYS: full layout redesign — collapsible sections (Let Others Control / Control a Friend), bigger font (12-13px), pill-style grant rows, sub-collapsible whitelist.",
+            "GAME TOYS: Request button disabled with warning when selected friend has no vibrators equipped.",
+        ],
+    },
     {
         version: "6.9.53",
         changes: [
