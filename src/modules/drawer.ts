@@ -138,7 +138,6 @@ import {
 } from "./domTools";
 import {
     LUCY_MEMBER, EMERY_MEMBER, JULIA_MEMBER,
-    getKittyEmotes, saveKittyEmotes,
     getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
     getKittyPunishments, saveKittyPunishments,
@@ -18419,50 +18418,40 @@ export class EBCDrawer {
         funLbl.textContent = t("buttons.funActions");
         body.appendChild(funLbl);
 
-        const boopBtn = document.createElement("button");
-        boopBtn.className = "ebc-create-btn";
-        boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const makeFunBtn = (color: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.style.cssText = `width:100%;margin:5px 0 0;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:10px 14px;border-radius:10px;cursor:pointer;border:2px solid ${color}55;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;`;
+            b.addEventListener("mouseenter", () => { if (!b.disabled) { b.style.background = `${color}30`; b.style.borderColor = `${color}99`; b.style.transform = "scale(1.02)"; } });
+            b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}55`; b.style.transform = ""; });
+            return b;
+        };
+
+        const boopBtn = makeFunBtn("#9a70cf");
         boopBtn.title = "Send a unique boop message to every friend currently in the room";
         boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
             const booped = this.boopFriendsInRoom();
-            if (booped === 0) {
-                boopBtn.textContent = t("buttons.noFriendsHere");
-            } else {
-                boopBtn.textContent = t("buttons.boopedN", { n: booped });
-            }
+            boopBtn.textContent = booped === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: booped });
             window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
 
-        const cuddleBtn = document.createElement("button");
-        cuddleBtn.className = "ebc-create-btn";
-        cuddleBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const cuddleBtn = makeFunBtn("#cf6f98");
         cuddleBtn.title = "Send a cuddle to every friend currently in the room";
         cuddleBtn.textContent = t("kitty.cuddleAll");
         cuddleBtn.addEventListener("click", () => {
             const count = this.cuddleFriendsInRoom();
-            if (count === 0) {
-                cuddleBtn.textContent = t("buttons.noFriendsHere");
-            } else {
-                cuddleBtn.textContent = t("buttons.cuddledN", { n: count });
-            }
+            cuddleBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: count });
             window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
         });
         body.appendChild(cuddleBtn);
 
-        const petBtn = document.createElement("button");
-        petBtn.className = "ebc-create-btn";
-        petBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const petBtn = makeFunBtn("#70c898");
         petBtn.title = "Pet every friend currently in the room";
         petBtn.textContent = t("kitty.petAll");
         petBtn.addEventListener("click", () => {
             const count = this.petFriendsInRoom();
-            if (count === 0) {
-                petBtn.textContent = t("buttons.noFriendsHere");
-            } else {
-                petBtn.textContent = t("buttons.pettedN", { n: count });
-            }
+            petBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: count });
             window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
         });
         body.appendChild(petBtn);
@@ -18997,120 +18986,6 @@ export class EBCDrawer {
             });
             return { wrap, cBody };
         };
-
-        // ── EMOTES ───────────────────────────────────────────────────────────────
-        const emotesWrap = document.createElement("div");
-        emotesWrap.style.marginBottom = "10px";
-
-        const renderEmotes = (editing: boolean): void => {
-            emotesWrap.innerHTML = "";
-            const emotes = getKittyEmotes();
-
-            if (!editing) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
-                for (const em of emotes) {
-                    row.appendChild(makePill(em.label, "#c8a040", () => {
-                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-                        const mood = getKittyMood();
-                        const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
-                        sendRoomEmote(text);
-                        if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
-                        if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
-                        // Fire a random pet reaction from the emote's assigned category
-                        if (em.reactionCategory) {
-                            const pool = getKittyReactions().filter(r => r.category === em.reactionCategory);
-                            if (pool.length > 0) {
-                                const pick = pool[Math.floor(Math.random() * pool.length)];
-                                sendKittyCmd("emote", pick.text);
-                            }
-                        }
-                    }, 1500));
-                }
-                emotesWrap.appendChild(row);
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
-                hint.textContent = "Sends emote to room; mood-aware text";
-                emotesWrap.appendChild(hint);
-                return;
-            }
-
-            // Edit mode
-            const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-            const cur = getKittyEmotes();
-            cur.forEach((em, idx) => {
-                const r = document.createElement("div");
-                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
-
-                // Row 1: label + delete
-                const r1 = document.createElement("div"); r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const lblInp = document.createElement("input"); lblInp.value = em.label; lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
-                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
-                r1.appendChild(lblInp); r1.appendChild(delBtn);
-
-                // Row 2: kind text
-                const kindRow = document.createElement("div"); kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
-                const kindInp = document.createElement("input"); kindInp.value = em.text; kindInp.placeholder = "Kind mode text…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
-                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
-
-                // Row 3: rough text
-                const roughRow = document.createElement("div"); roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
-                const roughInp = document.createElement("input"); roughInp.value = em.roughText ?? ""; roughInp.placeholder = "Rough mode text (optional)…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
-                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
-
-                // Row 4: reaction category
-                const catRow = document.createElement("div"); catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
-                const catSel = document.createElement("select"); catSel.style.cssText = "flex:1;min-width:0;" + INP;
-                for (const [v, t] of [["", "- none -"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
-                    const o = document.createElement("option"); o.value = v; o.textContent = t; catSel.appendChild(o);
-                }
-                catSel.value = em.reactionCategory ?? "";
-                catRow.appendChild(catLbl); catRow.appendChild(catSel);
-
-                const saveRow = (): void => {
-                    const updated = getKittyEmotes();
-                    updated[idx].label = lblInp.value;
-                    updated[idx].text  = kindInp.value;
-                    updated[idx].roughText = roughInp.value;
-                    updated[idx].reactionCategory = (catSel.value as "punishment" | "reward") || undefined;
-                    saveKittyEmotes(updated);
-                };
-                [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
-                catSel.addEventListener("change", saveRow);
-                delBtn.addEventListener("click", () => {
-                    saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
-                    renderEmotes(true);
-                });
-
-                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(catRow);
-                list.appendChild(r);
-            });
-
-            const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
-            const newText = document.createElement("input"); newText.placeholder = t("buttons.emoteText"); newText.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = t("core.add");
-            addBtnE.addEventListener("click", () => {
-                if (!newLbl.value.trim()) return;
-                const updated = getKittyEmotes();
-                updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newText.value.trim(), type: "emote", roughText: "", expression: "" });
-                saveKittyEmotes(updated);
-                newLbl.value = ""; newText.value = "";
-                renderEmotes(true);
-            });
-            addRow.appendChild(newLbl); addRow.appendChild(newText); addRow.appendChild(addBtnE);
-            list.appendChild(addRow);
-            emotesWrap.appendChild(list);
-        };
-
-        const { cBody: emotesCBody, wrap: emotesWrap2 } = makeCollapsible("EBC_kittyEmotesOpen", "🐾 Emotes", true, (ed) => renderEmotes(ed));
-        renderEmotes(false);
-        emotesCBody.appendChild(emotesWrap);
-        body.appendChild(emotesWrap2);
 
         // ── PET REACTIONS ─────────────────────────────────────────────────────────
         const reactionsWrap = document.createElement("div");

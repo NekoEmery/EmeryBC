@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.66
+// @version      6.9.67
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -6929,66 +6929,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const LUCY_MEMBER = 230466;
     const EMERY_MEMBER = 130267;
     const KITTY_CMD_PREFIX = "[EBC-KITTY:";
-    // ── Defaults ──────────────────────────────────────────────────────────────────
-    const DEFAULT_EMOTES = [
-        {
-            id: "headpat", label: "🐾 Headpat",
-            text: "gently pats Emery on the head~ 🐾",
-            roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-            type: "emote", expression: "Blush:Low",
-            bcGroup: "ItemHead", bcActivity: "Pet",
-            reactionCategory: "reward",
-        },
-        {
-            id: "goodgirl", label: "✨ Good girl",
-            text: "scratches Emery behind the ears~ Good girl~ ✨",
-            roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-            type: "emote", expression: "Blush:Medium",
-            reactionCategory: "reward",
-        },
-        {
-            id: "treat", label: "🍖 Treat",
-            text: "holds out a treat for her little pet~ 🍖",
-            roughText: "tosses a treat at Emery's feet without even looking up~",
-            type: "emote", interactive: true,
-            reactionCategory: "reward",
-        },
-        {
-            id: "praise", label: "🎀 Praise",
-            text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
-            roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
-            type: "emote", interactive: true,
-            reactionCategory: "reward",
-        },
-        {
-            id: "announce", label: "💜 Mine",
-            text: "Emery belongs to Lucy~ 💜",
-            roughText: "Emery is Lucy's. End of discussion.~",
-            type: "action",
-        },
-        {
-            id: "snuggle", label: "🤗 Snuggle",
-            text: "pulls Emery into a warm snuggle, resting her chin on her head~",
-            roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
-            type: "emote",
-            reactionCategory: "reward",
-        },
-        {
-            id: "spank", label: "👋 Spank",
-            text: "gives Emery a playful swat on the bottom~",
-            roughText: "delivers a sharp smack to Emery's bottom without warning~",
-            type: "emote",
-            bcGroup: "ItemButt", bcActivity: "Spank",
-            reactionCategory: "punishment",
-        },
-        {
-            id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the head~ 🐾",
-            roughText: "gives Emery a sharp flick to the forehead without warning~",
-            type: "emote",
-            reactionCategory: "punishment",
-        },
-    ];
     const DEFAULT_POSES = [
         {
             id: "allfours", label: "🐱 All fours", poses: ["AllFours"],
@@ -7073,89 +7013,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return v === "rough" ? "rough" : "kind";
     }
     function setKittyMood(m) { kSet("kittyMood", m); }
-    // Seed values for existing stored emotes that predate the roughText / expression fields.
-    // Only applied if the field is currently undefined (user hasn't touched it yet).
-    const ROUGH_TEXT_SEEDS = {
-        "headpat": "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-        "goodgirl": "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-        "treat": "tosses a treat at Emery's feet without even looking up~",
-        "praise": "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
-        "announce": "Emery is Lucy's. End of discussion.~",
-        "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
-        "spank": "delivers a sharp smack to Emery's bottom without warning~",
-        "bap": "gives Emery a sharp flick to the forehead without warning~",
-    };
-    // "Ears" is not a valid CharacterSetFacialExpression group in BC.
-    // Seeds updated to valid Blush states (only applied when the field is still undefined).
-    const EXPRESSION_SEEDS = {
-        "headpat": "Blush:Low",
-        "goodgirl": "Blush:Medium",
-    };
-    // Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
-    const BC_ACTIVITY_SEEDS = {
-        "headpat": { group: "ItemHead", activity: "Pet" },
-        "spank": { group: "ItemButt", activity: "Spank" },
-    };
-    // Seed reactionCategory for stored emotes that predate the field (v2.2.115+).
-    const REACTION_CATEGORY_SEEDS = {
-        "headpat": "reward",
-        "goodgirl": "reward",
-        "treat": "reward",
-        "praise": "reward",
-        "snuggle": "reward",
-        "spank": "punishment",
-        "bap": "punishment",
-    };
-    // New emotes to seed into existing stored lists that predate them.
-    const NEW_EMOTE_SEEDS = [
-        {
-            id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the head~ 🐾",
-            roughText: "gives Emery a sharp flick to the forehead without warning~",
-            type: "emote",
-            reactionCategory: "punishment",
-        },
-        {
-            id: "spank", label: "👋 Spank",
-            text: "gives Emery a playful swat on the bottom~",
-            roughText: "delivers a sharp smack to Emery's bottom without warning~",
-            type: "emote",
-            bcGroup: "ItemButt", bcActivity: "Spank",
-            reactionCategory: "punishment",
-        },
-    ];
-    function getKittyEmotes() {
-        const raw = kGet("kittyEmotes", DEFAULT_EMOTES);
-        const emotes = raw
-            // Migration: remove leash emote (replaced by standalone leash button)
-            .filter(e => e.id !== "leash")
-            .map(e => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-            return (Object.assign(Object.assign({}, e), { 
-                // Migration: fix stored bap kind text that still says "nose" — should be "head"
-                // Use .includes() rather than exact match because old seeds omitted the 🐾 emoji
-                text: e.id === "bap" && e.text.includes("bap on the nose")
-                    ? "gives Emery a playful bap on the head~ 🐾"
-                    : e.text, 
-                // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
-                roughText: e.id === "bap" && ((_a = e.roughText) !== null && _a !== void 0 ? _a : "").includes("flick on the nose")
-                    ? "gives Emery a sharp flick to the forehead without warning~"
-                    : ((_c = (_b = e.roughText) !== null && _b !== void 0 ? _b : ROUGH_TEXT_SEEDS[e.id]) !== null && _c !== void 0 ? _c : ""), expression: (_e = (_d = e.expression) !== null && _d !== void 0 ? _d : EXPRESSION_SEEDS[e.id]) !== null && _e !== void 0 ? _e : "", 
-                // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
-                // message which would say "boops nose" and conflict with the custom emote text)
-                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity), 
-                // Migration: seed reactionCategory for emotes saved before v2.2.115
-                reactionCategory: (_k = e.reactionCategory) !== null && _k !== void 0 ? _k : REACTION_CATEGORY_SEEDS[e.id] }));
-        });
-        // Append any new default emotes that weren't in the stored list yet
-        for (const seed of NEW_EMOTE_SEEDS) {
-            if (!emotes.find(e => e.id === seed.id)) {
-                emotes.push(Object.assign({ roughText: "", expression: "" }, seed));
-            }
-        }
-        return emotes;
-    }
-    function saveKittyEmotes(v) { kSet("kittyEmotes", v); }
     function getKittyRestraintSets() {
         // Migrate old sets that lack emote fields
         const raw = kGet("kittyRestraintSets", []);
@@ -25691,51 +25548,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             funLbl.style.marginTop = "10px";
             funLbl.textContent = t("buttons.funActions");
             body.appendChild(funLbl);
-            const boopBtn = document.createElement("button");
-            boopBtn.className = "ebc-create-btn";
-            boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            const makeFunBtn = (color) => {
+                const b = document.createElement("button");
+                b.style.cssText = `width:100%;margin:5px 0 0;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:10px 14px;border-radius:10px;cursor:pointer;border:2px solid ${color}55;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;`;
+                b.addEventListener("mouseenter", () => { if (!b.disabled) {
+                    b.style.background = `${color}30`;
+                    b.style.borderColor = `${color}99`;
+                    b.style.transform = "scale(1.02)";
+                } });
+                b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}55`; b.style.transform = ""; });
+                return b;
+            };
+            const boopBtn = makeFunBtn("#9a70cf");
             boopBtn.title = "Send a unique boop message to every friend currently in the room";
             boopBtn.textContent = t("kitty.boopAll");
             boopBtn.addEventListener("click", () => {
                 const booped = this.boopFriendsInRoom();
-                if (booped === 0) {
-                    boopBtn.textContent = t("buttons.noFriendsHere");
-                }
-                else {
-                    boopBtn.textContent = t("buttons.boopedN", { n: booped });
-                }
+                boopBtn.textContent = booped === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: booped });
                 window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
             });
             body.appendChild(boopBtn);
-            const cuddleBtn = document.createElement("button");
-            cuddleBtn.className = "ebc-create-btn";
-            cuddleBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            const cuddleBtn = makeFunBtn("#cf6f98");
             cuddleBtn.title = "Send a cuddle to every friend currently in the room";
             cuddleBtn.textContent = t("kitty.cuddleAll");
             cuddleBtn.addEventListener("click", () => {
                 const count = this.cuddleFriendsInRoom();
-                if (count === 0) {
-                    cuddleBtn.textContent = t("buttons.noFriendsHere");
-                }
-                else {
-                    cuddleBtn.textContent = t("buttons.cuddledN", { n: count });
-                }
+                cuddleBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: count });
                 window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
             });
             body.appendChild(cuddleBtn);
-            const petBtn = document.createElement("button");
-            petBtn.className = "ebc-create-btn";
-            petBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            const petBtn = makeFunBtn("#70c898");
             petBtn.title = "Pet every friend currently in the room";
             petBtn.textContent = t("kitty.petAll");
             petBtn.addEventListener("click", () => {
                 const count = this.petFriendsInRoom();
-                if (count === 0) {
-                    petBtn.textContent = t("buttons.noFriendsHere");
-                }
-                else {
-                    petBtn.textContent = t("buttons.pettedN", { n: count });
-                }
+                petBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: count });
                 window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
             });
             body.appendChild(petBtn);
@@ -26249,154 +26096,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 return { wrap, cBody };
             };
-            // ── EMOTES ───────────────────────────────────────────────────────────────
-            const emotesWrap = document.createElement("div");
-            emotesWrap.style.marginBottom = "10px";
-            const renderEmotes = (editing) => {
-                emotesWrap.innerHTML = "";
-                const emotes = getKittyEmotes();
-                if (!editing) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
-                    for (const em of emotes) {
-                        row.appendChild(makePill(em.label, "#c8a040", () => {
-                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
-                                return;
-                            const mood = getKittyMood();
-                            const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
-                            sendRoomEmote(text);
-                            if (em.bcGroup && em.bcActivity)
-                                runKittyActivity(em.bcGroup, em.bcActivity);
-                            if (em.interactive)
-                                sendKittyCmd("react", JSON.stringify({ label: em.label }));
-                            // Fire a random pet reaction from the emote's assigned category
-                            if (em.reactionCategory) {
-                                const pool = getKittyReactions().filter(r => r.category === em.reactionCategory);
-                                if (pool.length > 0) {
-                                    const pick = pool[Math.floor(Math.random() * pool.length)];
-                                    sendKittyCmd("emote", pick.text);
-                                }
-                            }
-                        }, 1500));
-                    }
-                    emotesWrap.appendChild(row);
-                    const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;margin-top:3px;";
-                    hint.textContent = "Sends emote to room; mood-aware text";
-                    emotesWrap.appendChild(hint);
-                    return;
-                }
-                // Edit mode
-                const list = document.createElement("div");
-                list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-                const cur = getKittyEmotes();
-                cur.forEach((em, idx) => {
-                    var _a, _b;
-                    const r = document.createElement("div");
-                    r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
-                    // Row 1: label + delete
-                    const r1 = document.createElement("div");
-                    r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const lblInp = document.createElement("input");
-                    lblInp.value = em.label;
-                    lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
-                    const delBtn = document.createElement("button");
-                    delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                    delBtn.textContent = "×";
-                    r1.appendChild(lblInp);
-                    r1.appendChild(delBtn);
-                    // Row 2: kind text
-                    const kindRow = document.createElement("div");
-                    kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const kindLbl = document.createElement("span");
-                    kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79c8a0;flex-shrink:0;width:38px;";
-                    kindLbl.textContent = "🌸 Kind:";
-                    const kindInp = document.createElement("input");
-                    kindInp.value = em.text;
-                    kindInp.placeholder = "Kind mode text…";
-                    kindInp.style.cssText = "flex:1;min-width:0;" + INP;
-                    kindRow.appendChild(kindLbl);
-                    kindRow.appendChild(kindInp);
-                    // Row 3: rough text
-                    const roughRow = document.createElement("div");
-                    roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const roughLbl = document.createElement("span");
-                    roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e07070;flex-shrink:0;width:38px;";
-                    roughLbl.textContent = "⚡ Rough:";
-                    const roughInp = document.createElement("input");
-                    roughInp.value = (_a = em.roughText) !== null && _a !== void 0 ? _a : "";
-                    roughInp.placeholder = "Rough mode text (optional)…";
-                    roughInp.style.cssText = "flex:1;min-width:0;" + INP;
-                    roughRow.appendChild(roughLbl);
-                    roughRow.appendChild(roughInp);
-                    // Row 4: reaction category
-                    const catRow = document.createElement("div");
-                    catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const catLbl = document.createElement("span");
-                    catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:38px;";
-                    catLbl.textContent = "😊 React:";
-                    const catSel = document.createElement("select");
-                    catSel.style.cssText = "flex:1;min-width:0;" + INP;
-                    for (const [v, t] of [["", "- none -"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]]) {
-                        const o = document.createElement("option");
-                        o.value = v;
-                        o.textContent = t;
-                        catSel.appendChild(o);
-                    }
-                    catSel.value = (_b = em.reactionCategory) !== null && _b !== void 0 ? _b : "";
-                    catRow.appendChild(catLbl);
-                    catRow.appendChild(catSel);
-                    const saveRow = () => {
-                        const updated = getKittyEmotes();
-                        updated[idx].label = lblInp.value;
-                        updated[idx].text = kindInp.value;
-                        updated[idx].roughText = roughInp.value;
-                        updated[idx].reactionCategory = catSel.value || undefined;
-                        saveKittyEmotes(updated);
-                    };
-                    [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
-                    catSel.addEventListener("change", saveRow);
-                    delBtn.addEventListener("click", () => {
-                        saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
-                        renderEmotes(true);
-                    });
-                    r.appendChild(r1);
-                    r.appendChild(kindRow);
-                    r.appendChild(roughRow);
-                    r.appendChild(catRow);
-                    list.appendChild(r);
-                });
-                const addRow = document.createElement("div");
-                addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const newLbl = document.createElement("input");
-                newLbl.placeholder = "Label";
-                newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
-                const newText = document.createElement("input");
-                newText.placeholder = t("buttons.emoteText");
-                newText.style.cssText = "flex:1;min-width:0;" + INP;
-                const addBtnE = document.createElement("button");
-                addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                addBtnE.textContent = t("core.add");
-                addBtnE.addEventListener("click", () => {
-                    if (!newLbl.value.trim())
-                        return;
-                    const updated = getKittyEmotes();
-                    updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newText.value.trim(), type: "emote", roughText: "", expression: "" });
-                    saveKittyEmotes(updated);
-                    newLbl.value = "";
-                    newText.value = "";
-                    renderEmotes(true);
-                });
-                addRow.appendChild(newLbl);
-                addRow.appendChild(newText);
-                addRow.appendChild(addBtnE);
-                list.appendChild(addRow);
-                emotesWrap.appendChild(list);
-            };
-            const { cBody: emotesCBody, wrap: emotesWrap2 } = makeCollapsible("EBC_kittyEmotesOpen", "🐾 Emotes", true, (ed) => renderEmotes(ed));
-            renderEmotes(false);
-            emotesCBody.appendChild(emotesWrap);
-            body.appendChild(emotesWrap2);
             // ── PET REACTIONS ─────────────────────────────────────────────────────────
             const reactionsWrap = document.createElement("div");
             reactionsWrap.style.marginBottom = "10px";
@@ -31972,7 +31671,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.66";
+    const MOD_VERSION = "6.9.67";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31983,6 +31682,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.67",
+            changes: [
+                "Removed emotes collapsible section from kitty tab.",
+                "Fun action buttons (Boop/Cuddle/Pet all) restyled with distinct accent colors, hover scale, and pill shape.",
+            ],
+        },
         {
             version: "6.9.66",
             changes: [
