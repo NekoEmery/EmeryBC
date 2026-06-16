@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.47";
+const MOD_VERSION = "6.9.48";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.48",
+        changes: [
+            "IRL TOYS: added Lovense Remote Control — others can request to fire your real toy via EBC-IRL whisper protocol. Toggle to allow requests, friends-or-whitelist gating, popup accept/deny, intensity+duration control panel, sessions shown in IRL TOYS tab.",
+        ],
+    },
     {
         version: "6.9.47",
         changes: [
@@ -5890,6 +5896,14 @@ function parseEBCToyMsg(content: string): { type: string; intensity?: number; du
     const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
     return { type, intensity, duration };
 }
+function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
+    const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+    if (!m) return null;
+    const type = m[1];
+    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+    return { type, intensity, duration };
+}
 
 function handleKittyCommand(msg: string): void {
     const parsed = parseKittyCmd(msg);
@@ -7419,6 +7433,21 @@ function init(): void {
                         const found = roomChars?.find(c => c.MemberNumber === senderNum);
                         const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
                         drawer?.handleGameToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                    }
+                    return; // suppress — do not call next(args)
+                }
+            }
+            // EBC-IRL whisper intercept — IRL Lovense remote control
+            if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                (data.Content as string).startsWith("[EBC-IRL:")) {
+                const parsed = parseEBCIrlMsg(data.Content as string);
+                if (parsed) {
+                    const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                    if (senderNum && senderNum !== Player.MemberNumber) {
+                        const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
+                        const found = roomChars?.find(c => c.MemberNumber === senderNum);
+                        const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
                     }
                     return; // suppress — do not call next(args)
                 }
