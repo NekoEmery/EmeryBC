@@ -20635,7 +20635,7 @@ export class EBCDrawer {
             const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
             chevron.textContent = collapsed ? "▶" : "▼";
             const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-            titleEl.textContent = `${icon} ${title}`;
+            titleEl.textContent = icon ? `${icon} ${title}` : title;
             const eBtn = mkBtn(enabled ? "ON" : "OFF",
                 `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
             eBtn.addEventListener("click", (e) => {
@@ -20658,7 +20658,7 @@ export class EBCDrawer {
         };
 
         const lovEnabled = s.lovenseEnabled === true;
-        const { wrap: lovWrap, content: lovContent } = mkSection("🧸", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
+        const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
@@ -21232,7 +21232,7 @@ export class EBCDrawer {
         const gtChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
         gtChevron.textContent = gtCollapsed ? "▶" : "▼";
         const gtTitleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-        gtTitleEl.textContent = "🎮 GAME TOYS";
+        gtTitleEl.textContent = "GAME TOYS";
         gtHRow.appendChild(gtChevron); gtHRow.appendChild(gtTitleEl);
         const gtContent = mk("div", `display:${gtCollapsed ? "none" : "block"};`);
         gtHRow.addEventListener("click", () => {
