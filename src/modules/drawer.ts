@@ -9636,6 +9636,66 @@ export class EBCDrawer {
         }
     }
 
+    private cuddleOne(target: Character): void {
+        try {
+            const win = window as unknown as Record<string, unknown>;
+            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
+            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
+            if (!ActivityRun || !AssetGetActivity) return;
+            const cuddleActivity = AssetGetActivity("Female3DCG", "Cuddle");
+            if (!cuddleActivity) return;
+            ActivityRun(Player, target, { Name: "ItemArms" }, { Activity: cuddleActivity, Item: null });
+        } catch { /* ignore */ }
+    }
+
+    private cuddleFriendsInRoom(): number {
+        try {
+            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
+            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            const friendSet = new Set(friendList);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
+            if (friends.length === 0) return 0;
+            let count = 0;
+            for (const friend of friends) {
+                const target = friend;
+                window.setTimeout(() => { try { this.cuddleOne(target); } catch { /* ignore */ } }, count * 1800);
+                count++;
+            }
+            return count;
+        } catch { return 0; }
+    }
+
+    private petOne(target: Character): void {
+        try {
+            const win = window as unknown as Record<string, unknown>;
+            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
+            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
+            if (!ActivityRun || !AssetGetActivity) return;
+            const petActivity = AssetGetActivity("Female3DCG", "Pet");
+            if (!petActivity) return;
+            ActivityRun(Player, target, { Name: "ItemHead" }, { Activity: petActivity, Item: null });
+        } catch { /* ignore */ }
+    }
+
+    private petFriendsInRoom(): number {
+        try {
+            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
+            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            const friendSet = new Set(friendList);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
+            if (friends.length === 0) return 0;
+            let count = 0;
+            for (const friend of friends) {
+                const target = friend;
+                window.setTimeout(() => { try { this.petOne(target); } catch { /* ignore */ } }, count * 1800);
+                count++;
+            }
+            return count;
+        } catch { return 0; }
+    }
+
     // -- Appearance diff -------------------------------------------------------
 
     private renderDiff(panel: HTMLElement, outfit: ConfiguredOutfit): void {
@@ -18374,6 +18434,38 @@ export class EBCDrawer {
             window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
+
+        const cuddleBtn = document.createElement("button");
+        cuddleBtn.className = "ebc-create-btn";
+        cuddleBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        cuddleBtn.title = "Send a cuddle to every friend currently in the room";
+        cuddleBtn.textContent = t("kitty.cuddleAll");
+        cuddleBtn.addEventListener("click", () => {
+            const count = this.cuddleFriendsInRoom();
+            if (count === 0) {
+                cuddleBtn.textContent = t("buttons.noFriendsHere");
+            } else {
+                cuddleBtn.textContent = t("buttons.cuddledN", { n: count });
+            }
+            window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
+        });
+        body.appendChild(cuddleBtn);
+
+        const petBtn = document.createElement("button");
+        petBtn.className = "ebc-create-btn";
+        petBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        petBtn.title = "Pet every friend currently in the room";
+        petBtn.textContent = t("kitty.petAll");
+        petBtn.addEventListener("click", () => {
+            const count = this.petFriendsInRoom();
+            if (count === 0) {
+                petBtn.textContent = t("buttons.noFriendsHere");
+            } else {
+                petBtn.textContent = t("buttons.pettedN", { n: count });
+            }
+            window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
+        });
+        body.appendChild(petBtn);
 
         // -- Useful Buttons ------------------------------------------------------
         const usefulLbl = document.createElement("div");
