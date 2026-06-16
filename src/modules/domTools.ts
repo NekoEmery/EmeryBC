@@ -346,18 +346,12 @@ export function removeTargetItems(targetId: number, groups: string[]): { inRoom:
     const char = room.find(c => c.MemberNumber === targetId);
     if (!char) return { inRoom: false, count: 0 };
 
-    const InventoryRemoveFn = (window as unknown as Record<string, unknown>).InventoryRemove as
-        ((c: Character, group: string, push: boolean) => void) | undefined;
-
     let count = 0;
     for (const group of groups) {
         try {
-            if (InventoryRemoveFn) {
-                InventoryRemoveFn(char, group, false);
-            } else {
-                const idx = char.Appearance.findIndex((a: Item) => a.Asset.Group.Name === group);
-                if (idx >= 0) char.Appearance.splice(idx, 1);
-            }
+            const idx = char.Appearance.findIndex((a: Item) => a.Asset.Group.Name === group);
+            if (idx < 0) continue;
+            char.Appearance.splice(idx, 1);
             count++;
         } catch { /* ignore */ }
     }
@@ -392,9 +386,17 @@ export function unlockAllTargetItems(targetIds?: Set<number>): Array<{ name: str
         let count = 0;
         for (const item of char.Appearance) {
             const prop = item.Property as Record<string, unknown> | undefined;
-            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+            if (!prop) continue;
+            const isLocked = (typeof prop.LockedBy === "string" && prop.LockedBy !== "") ||
+                prop.CombinationNumber !== undefined ||
+                prop.LockMemberNumber !== undefined ||
+                prop.MemberNumberListKeys !== undefined;
+            if (isLocked) {
                 prop.LockedBy = "";
-                if ("Password" in prop) delete prop.Password;
+                delete prop.Password;
+                delete prop.LockMemberNumber;
+                delete prop.CombinationNumber;
+                delete prop.MemberNumberListKeys;
                 count++;
             }
         }
@@ -417,7 +419,7 @@ export function getRoomMembers(): Array<{ id: number; name: string }> {
 }
 
 // Returns a snapshot of what a room member is wearing, split into restraints and locks.
-export function getRoomMemberItems(memberId: number): Array<{ group: string; name: string; locked: boolean }> {
+export function getRoomMemberItems(memberId: number): Array<{ group: string; name: string; locked: boolean; craftName?: string }> {
     try {
         const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
         const char = room.find(c => c.MemberNumber === memberId);
@@ -429,7 +431,9 @@ export function getRoomMemberItems(memberId: number): Array<{ group: string; nam
             .map((item: Item) => {
                 const prop = item.Property as Record<string, unknown> | undefined;
                 const locked = typeof prop?.LockedBy === "string" && prop.LockedBy !== "";
-                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
+                const craft = (item as unknown as Record<string, unknown>).Craft as Record<string, unknown> | undefined;
+                const craftName = typeof craft?.Name === "string" && craft.Name.trim() ? craft.Name.trim() : undefined;
+                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked, craftName };
             });
     } catch { return []; }
 }
@@ -576,22 +580,65 @@ export function setTargetPoses(targetId: number, poses: string[], poseName?: str
     try {
         const char = findRoomChar(targetId);
         if (!char) return;
-        // Set ActivePose directly - works for single and multi-pose combinations
-        // across all BC versions (CharacterSetActivePose only accepts a single string
-        // in many versions and breaks multi-pose combos like Kneel+OverTheHead).
+        // CharacterRefresh re-applies item pose constraints and would overwrite ActivePose
+        // if we set it before calling refresh.  Run it first, sort layers, THEN override
+        // the pose — that way the push carries our intended pose, not the item-forced one.
+        callBC(() => CharacterRefresh(char, false, false));
+        try {
+            const sortFn = (window as unknown as Record<string, unknown>).CharacterAppearanceSortLayers as
+                ((c: Character) => Character) | undefined;
+            if (sortFn) sortFn(char);
+        } catch { /* ignore */ }
         (char as unknown as Record<string, unknown>).ActivePose = poses.length ? poses : [];
-        syncChar(char);
-        // Send a visible room emote so others know what's happening
+        // Push directly without a second CharacterRefresh (which would wipe our pose)
+        try {
+            const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+                ((c: Character) => void) | undefined;
+            if (updateFn) callBC(() => updateFn(char));
+            else callBC(() => CharacterRefresh(char, true, false));
+        } catch { /* ignore */ }
         const name = charDisplayName(char);
         const label = poseName ?? (poses.length ? poses.join("+") : "stand");
         const desc = poses.length
-            ? `guides ${name} into the ${label} position.`
+            ? `guides ${name} ${label}.`
             : `lets ${name} return to a comfortable position.`;
         sendRoomAction(desc);
     } catch { /* ignore */ }
 }
 
 // ── Toy control ───────────────────────────────────────────────────────────────
+
+/** Maps BC VibratorMode name → Intensity and Effect, per VibratorMode.js. */
+const VIBRATOR_MODE_PROPS: Record<string, { Intensity: number; Effect: string[] }> = {
+    "Off":      { Intensity: -1, Effect: ["Egged"] },
+    "Low":      { Intensity: 0,  Effect: ["Egged", "Vibrating"] },
+    "Medium":   { Intensity: 1,  Effect: ["Egged", "Vibrating"] },
+    "High":     { Intensity: 2,  Effect: ["Egged", "Vibrating"] },
+    "Maximum":  { Intensity: 3,  Effect: ["Egged", "Vibrating"] },
+    "Random":   { Intensity: 0,  Effect: ["Egged"] },
+    "Escalate": { Intensity: 0,  Effect: ["Egged", "Vibrating"] },
+    "Tease":    { Intensity: 0,  Effect: ["Egged"] },
+    "Deny":     { Intensity: 0,  Effect: ["Egged", "Edged"] },
+    "Edge":     { Intensity: 0,  Effect: ["Egged", "Vibrating", "Edged"] },
+};
+/** Combined STANDARD + ADVANCED mode list order, matching VibratorModeOptions index. */
+const VIBRATOR_MODE_ORDER = ["Off", "Low", "Medium", "High", "Maximum", "Random", "Escalate", "Tease", "Deny", "Edge"];
+
+/** Write Mode/Intensity/Effect and update TypeRecord on an item's Property in-place. */
+function applyVibratorModeProps(prop: Record<string, unknown>, mode: string): void {
+    const mp = VIBRATOR_MODE_PROPS[mode];
+    if (!mp) return;
+    prop.Mode = mode;
+    prop.Intensity = mp.Intensity;
+    prop.Effect = [...mp.Effect];
+    // TypeRecord key = asset name (first key), value = mode index in combined list
+    const modeIdx = VIBRATOR_MODE_ORDER.indexOf(mode);
+    const tr = prop.TypeRecord as Record<string, unknown> | undefined;
+    if (tr && modeIdx >= 0) {
+        const key = Object.keys(tr)[0];
+        if (key !== undefined) tr[key] = modeIdx;
+    }
+}
 
 /** Returns vibrating items currently worn by an in-room character. */
 export function getTargetVibratingItems(targetId: number): Array<{ group: string; name: string; mode: string }> {
@@ -619,19 +666,15 @@ export function setTargetToyMode(targetId: number, mode: string): void {
         if (!char) return;
         let changed = false;
 
-        // If BC's ExtendedItemSetValue is available, use it with publish=true so BC handles
-        // derived-state updates (Effect, Intensity …) AND the server push in one call.
-        // We must NOT call syncChar afterwards — CharacterRefresh inside syncChar can
-        // overwrite in-flight property changes before ChatRoomCharacterUpdate fires.
-        const extSetFn = (window as unknown as Record<string, unknown>).ExtendedItemSetValue as
-            ((c: Character, i: Item, v: Record<string, unknown>, push: boolean) => void) | undefined;
-        // Also grab InventoryGet so we work on BC's live item reference (not a stale copy).
+        // Use InventoryGet for the canonical live reference, then mutate in-place.
         const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
             ((c: Character, group: string) => Item | null | undefined) | undefined;
-        const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
-            ((c: Character) => void) | undefined;
-
-        let usedExtSet = false;
+        // ChatRoomCharacterItemUpdate is the correct call for pushing item changes on OTHER
+        // characters — it sends a per-item update packet that the server broadcasts to the room.
+        // ChatRoomCharacterUpdate only propagates full appearance for the player's own character,
+        // so it does nothing when called with another player's Character object.
+        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+            ((c: Character, group: string) => void) | undefined;
 
         for (const item of char.Appearance) {
             const asset = item.Asset as unknown as Record<string, unknown>;
@@ -639,26 +682,16 @@ export function setTargetToyMode(targetId: number, mode: string): void {
             // Detect vibrating items: exact archetype match OR existing Mode property
             if (asset.Archetype !== "VibratingItem" && !(prop && typeof prop.Mode === "string")) continue;
             try {
-                if (extSetFn) {
-                    // publish=true → BC updates derived state + pushes ChatRoomCharacterUpdate itself
-                    extSetFn(char, item, { Mode: mode }, true);
-                    changed = true;
-                    usedExtSet = true;
-                } else {
-                    // Fallback: use InventoryGet for the canonical live reference, then mutate in-place
-                    const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
-                    if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
-                    (liveItem.Property as Record<string, unknown>).Mode = mode;
-                    changed = true;
-                }
+                const liveItem = invGetFn ? (invGetFn(char, item.Asset.Group.Name) ?? item) : item;
+                if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+                applyVibratorModeProps(liveItem.Property as Record<string, unknown>, mode);
+                // Push per-item so the server + all room clients see the change on the target
+                if (itemUpdateFn) callBC(() => itemUpdateFn(char, liveItem.Asset.Group.Name));
+                changed = true;
             } catch { /* ignore */ }
         }
 
         if (changed) {
-            if (!usedExtSet) {
-                // Manual push — bypass CharacterRefresh entirely to preserve our in-place changes
-                callBC(() => updateFn ? updateFn(char) : CharacterRefresh(char, true, false));
-            }
             const name = charDisplayName(char);
             const desc = mode === "Off"
                 ? `turns ${name}'s toy off.`
@@ -668,9 +701,32 @@ export function setTargetToyMode(targetId: number, mode: string): void {
     } catch { /* ignore */ }
 }
 
+/** Set the vibrator mode on ONE specific group slot worn by an in-room character. */
+export function setTargetSingleToyMode(targetId: number, group: string, mode: string): void {
+    try {
+        const char = findRoomChar(targetId);
+        if (!char) return;
+        const invGetFn = (window as unknown as Record<string, unknown>).InventoryGet as
+            ((c: Character, group: string) => Item | null | undefined) | undefined;
+        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+            ((c: Character, group: string) => void) | undefined;
+        const liveItem = invGetFn ? (invGetFn(char, group) ?? null) : null;
+        if (!liveItem) return;
+        if (!liveItem.Property) (liveItem as unknown as Record<string, unknown>).Property = {};
+        applyVibratorModeProps(liveItem.Property as Record<string, unknown>, mode);
+        if (itemUpdateFn) callBC(() => itemUpdateFn(char, group));
+        const name = charDisplayName(char);
+        const itemName = liveItem.Asset.Name;
+        const desc = mode === "Off"
+            ? `turns off ${name}'s ${itemName}.`
+            : `sets ${name}'s ${itemName} to ${mode}.`;
+        sendRoomAction(desc);
+    } catch { /* ignore */ }
+}
+
 // ── Activity control ──────────────────────────────────────────────────────────
 
-/** Activity label -> room action description. */
+/** Activity label -> room action description (used as fallback when ActivityRun is unavailable). */
 const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Spank":   n => `gives ${n} a firm spank.`,
     "Pat":     n => `pats ${n} on the head.`,
@@ -678,56 +734,110 @@ const ACTIVITY_DESCS: Record<string, (name: string) => string> = {
     "Bite":    n => `bites ${n}'s neck.`,
     "Slap":    n => `slaps ${n}.`,
     "Caress":  n => `caresses ${n} gently.`,
-    "Massage": n => `massages ${n}.`,
+    "Bap":     n => `baps ${n} on the head.`,
     "Lick":    n => `licks ${n}.`,
 };
 
-/**
- * Maps our internal activity label to the native BC ActivityName used for animation/sound triggers.
- * Required when the label doesn't match an activity that BC's engine recognises (e.g. "Pat").
- */
+/** EBC activity label → BC asset activity name (where they differ). */
 const BC_ACTIVITY_NAME: Record<string, string> = {
-    "Pat": "Caress",  // no native "Pat" in BC — use Caress animation on the head
+    "Pat": "Pet", // BC uses "Pet" for patting/headpats
 };
 
 /**
- * Perform a quick action on an in-room character.
- * Sends a Type:"Activity" message so BC clients play the matching facial
- * expressions and sounds.
- *
- * Content MUST use the "Player<ActivityName>" format (e.g. "PlayerKiss") so BC
- * can resolve the activity audio path.  Using arbitrary text as Content causes
- * BC's audio system to produce a "Failed to load — no supported source found"
- * unhandled rejection because the audio URL lookup returns null.
- *
- * If BC's text system can't find the "Player<X>" key (unlikely for standard
- * activities), the MISSING TEXT fallback shows our custom description instead.
+ * Perform a quick action on an in-room character using BC's ActivityRun pipeline.
+ * Produces correct sounds, arousal updates, and BCX/LSCG reactions — identical to
+ * clicking the activity in BC's character dialog. Falls back to a room action emote
+ * if ActivityRun is unavailable.
  */
 export function performActivityOnTarget(targetId: number, activityName: string, zone: string): boolean {
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
+        const win = window as unknown as Record<string, unknown>;
+        const ActivityRun = win.ActivityRun as
+            ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
+        const AssetGetActivity = win.AssetGetActivity as
+            ((family: string, name: string) => unknown) | undefined;
+        if (ActivityRun && AssetGetActivity && zone) {
+            const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
+            const bcName = BC_ACTIVITY_NAME[activityName] ?? activityName;
+            const act = AssetGetActivity(family, bcName);
+            if (act) {
+                ActivityRun(Player, target, { Name: zone }, { Activity: act, Item: null });
+                return true;
+            }
+        }
+        // Fallback: room action text (no sounds)
         const name = charDisplayName(target);
         const descFn = ACTIVITY_DESCS[activityName];
-        const desc = descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`;
-        // BC activity name for animation (may differ from our label, e.g. "Pat"→"Caress")
-        const bcActivity = BC_ACTIVITY_NAME[activityName] ?? activityName;
-        callBC(() => ServerSend("ChatRoomChat", {
-            Type: "Activity",
-            // "Player<X>" is BC's canonical content key — resolves text template AND audio
-            Content: "Player" + bcActivity,
-            Dictionary: [
-                // Fallback text if BC can't find the key in its CSV (normally not needed)
-                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: Player.Name + " " + desc },
-                { Tag: "SourceCharacter",  MemberNumber: Player.MemberNumber },
-                { Tag: "TargetCharacter",  MemberNumber: targetId },
-                { Tag: "ActivityName",     ActivityName: bcActivity }, // animation compat
-                { Tag: "FocusGroup",       AssetGroupName: zone },     // BC R113+ zone tag
-                { Tag: "AssetGroupName",   AssetGroupName: zone },     // older compat
-            ],
-        }));
+        sendRoomAction(descFn ? descFn(name) : `${activityName.toLowerCase()}s ${name}.`);
         return true;
     } catch { return false; }
+}
+
+// ── Character Positioning ─────────────────────────────────────────────────────
+
+export type PositionMode = "side" | "arms" | "hold";
+
+const _posSlots = new Map<number, PositionMode>();
+
+export function setPosition(memberNumber: number, mode: PositionMode): void {
+    _posSlots.set(memberNumber, mode);
+    applyPositions();
+    const char = findRoomChar(memberNumber);
+    if (!char) return;
+    const name = charDisplayName(char);
+    const desc = mode === "side"
+        ? `pulls ${name} to their side.`
+        : mode === "arms"
+        ? `scoops ${name} up in their arms.`
+        : `holds ${name} tightly in their arms.`;
+    sendRoomAction(desc);
+}
+
+export function setPositionSilent(memberNumber: number, mode: PositionMode): void {
+    _posSlots.set(memberNumber, mode);
+    applyPositions();
+}
+
+export function clearPosition(memberNumber: number): void {
+    _posSlots.delete(memberNumber);
+    applyPositions();
+}
+
+export function clearAllPositions(): void {
+    _posSlots.clear();
+    applyPositions();
+}
+
+export function getPositionSlots(): ReadonlyMap<number, PositionMode> {
+    return _posSlots;
+}
+
+export function applyPositions(): void {
+    try {
+        if (_posSlots.size === 0) return;
+        const arr = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number }> | undefined;
+        if (!Array.isArray(arr)) return;
+
+        // Use MemberNumber comparison — IsPlayer may be a boolean property, not a function,
+        // in some BC versions; calling it with ?.() would throw "true is not a function".
+        const pNum = Player.MemberNumber;
+        const playerIdx = arr.findIndex(c => c.MemberNumber === pNum);
+        if (playerIdx < 0) return;
+
+        let insertAt = playerIdx + 1;
+        for (const memberNum of _posSlots.keys()) {
+            const currentIdx = arr.findIndex(c => c.MemberNumber === memberNum);
+            if (currentIdx < 0) continue;
+            if (currentIdx === insertAt) { insertAt++; continue; }
+            const [charToMove] = arr.splice(currentIdx, 1);
+            const adjusted = currentIdx < insertAt ? insertAt - 1 : insertAt;
+            arr.splice(adjusted, 0, charToMove);
+            insertAt = adjusted + 1;
+        }
+    } catch { /* ignore */ }
 }
 
 // Handle a chat command (e.g. /gag → apply the matching set).

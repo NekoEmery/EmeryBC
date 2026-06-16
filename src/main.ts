@@ -5,7 +5,7 @@ import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
-import { handleDomCommand } from "./modules/domTools";
+import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
@@ -14,16 +14,17 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback } from "./modules/friends";
+import { appendLocalLogLine } from "./modules/notify";
+import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
+import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
-import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
+import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.1";
+const MOD_VERSION = "5.5.2";
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,9 +39,541 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.5.1",
+        version: "5.5.2",
         changes: [
-            "Fix: Added right padding to beep window footer so the Send button no longer overlaps the resize grip in the bottom-right corner.",
+            "TOYS tab: now visible to all users; IRL TOYS renamed to 'IRL TOYS (lovense)'; dropdown clip fixed; same-room note added; active access badges on section headers.",
+            "GAME TOYS: BC-native vibrator control with chat attribution via VibratorModeSetOptionByName.",
+            "Fun Actions: Cuddle all friends and Pet all friends buttons added; all three restyled with distinct accent colors and hover effects.",
+            "Guide '?' button repositioned to footer right side with absolute positioning.",
+            "Kitty tab: emotes section removed.",
+        ],
+    },
+    {
+        version: "6.9.67",
+        changes: [
+            "Removed emotes collapsible section from kitty tab.",
+            "Fun action buttons (Boop/Cuddle/Pet all) restyled with distinct accent colors, hover scale, and pill shape.",
+        ],
+    },
+    {
+        version: "6.9.66",
+        changes: [
+            "Fun Actions: added 'Cuddle all friends in room' and 'Pet all friends in room' buttons below Boop All.",
+        ],
+    },
+    {
+        version: "6.9.65",
+        changes: [
+            "Guide '?' button placed in footer, right side, absolute positioned - text stays centered, no overlap with scrollbar.",
+        ],
+    },
+    {
+        version: "6.9.64",
+        changes: [
+            "Guide '?' button repositioned: now a 30x30 pink square fixed at the bottom-right corner of the panel (above resize handle). Footer text restored to centered.",
+        ],
+    },
+    {
+        version: "6.9.63",
+        changes: [
+            "Guide '?' button moved from header to footer (bigger, pink, always visible). Removed from header.",
+            "GAME TOYS header now shows a green 'X controlling you' badge when someone has active toy access.",
+            "IRL TOYS 'LET OTHERS CONTROL YOUR TOY' header lights up with accent border and green badge when someone has active access.",
+        ],
+    },
+    {
+        version: "6.9.62",
+        changes: [
+            "TOYS tab is now visible to all users (removed hardcoded member restriction).",
+            "IRL TOYS section renamed to 'IRL TOYS (lovense)'.",
+            "GAME TOYS: added same-room note, improved privacy/whitelist descriptions, fixed 'No friends' text.",
+            "All em-dashes (--) replaced with hyphens (-) throughout the UI.",
+            "Guide: added Toys step covering GAME TOYS and IRL TOYS.",
+            "Fix: removed overflow:hidden from ebc-panel so native select dropdowns are no longer clipped.",
+        ],
+    },
+    {
+        version: "6.9.61",
+        changes: [
+            "TOYS tab is now visible for member #215013.",
+        ],
+    },
+    {
+        version: "6.9.60",
+        changes: [
+            "GAME TOYS: mode buttons now call VibratorModeSetOptionByName on the target character directly (same as BC's DOM toy controller), so chat messages appear with the controller as source. Target applies the mode silently (no double message).",
+        ],
+    },
+    {
+        version: "6.9.59",
+        changes: [
+            "Fix: vib check now uses three fallbacks — Asset.Archetype, VibratorModeDataLookup key, and Property.Mode being set (covers handheld wands and older typed-vibrator items).",
+        ],
+    },
+    {
+        version: "6.9.58",
+        changes: [
+            "CHAT PHRASES, BODY TOUCH, BC TOY SYNC are now collapsible subsections (▶/▼, state saved in localStorage).",
+            "BODY TOUCH: renamed 'I:' / 'D:' labels to 'Int:' / 'Dur:' for clarity; updated hint text.",
+            "CHAT PHRASES: renamed 'I:' / 'D:' to 'Intensity:' / 'Duration:'; removed confusing '(blank = default)' suffix.",
+        ],
+    },
+    {
+        version: "6.9.57",
+        changes: [
+            "Fix: GAME TOYS vib check now uses Asset.Archetype instead of VibratorModeDataLookup (lookup was unreliable at render time).",
+        ],
+    },
+    {
+        version: "6.9.56",
+        changes: [
+            "TOYS: removed emoji icons from GAME TOYS and IRL TOYS section headers.",
+        ],
+    },
+    {
+        version: "6.9.55",
+        changes: [
+            "BODY TOUCH: checkboxes replaced with ON/OFF toggle buttons (accent-colored when active).",
+        ],
+    },
+    {
+        version: "6.9.54",
+        changes: [
+            "IRL TOYS: full layout redesign — collapsible sections (Let Others Control / Control a Friend), bigger font (12-13px), pill-style grant rows, sub-collapsible whitelist.",
+            "GAME TOYS: Request button disabled with warning when selected friend has no vibrators equipped.",
+        ],
+    },
+    {
+        version: "6.9.53",
+        changes: [
+            "Chat phrase triggers now fire on emote messages (Type 'Emote') in addition to regular chat — *roleplay actions* now trigger correctly.",
+        ],
+    },
+    {
+        version: "6.9.52",
+        changes: [
+            "Fix: GAME TOYS vibrator control now works — uses BC's VibratorModeSetOptionByName() instead of manual property manipulation.",
+            "Fix: Whitelist room dropdown now reappears after removing an entry (rebuilt on every renderWl call).",
+            "GAME TOYS: Mode buttons now color-coded (Off=grey, Low=green, Medium=gold, High=orange, Max=pink, Tease=purple, Random=blue, Escalate=burnt-orange, Deny=red, Edge=magenta).",
+        ],
+    },
+    {
+        version: "6.9.51",
+        changes: [
+            "Fix: BODY TOUCH triggers now actually fire — BC activity Content is 'ChatOther-Group-Activity' not just the activity name, and group was read from wrong dictionary key (FocusGroupName not AssetGroupName).",
+        ],
+    },
+    {
+        version: "6.9.50",
+        changes: [
+            "Fix: GTSel TDZ crash when opening Toys tab (used before declaration).",
+        ],
+    },
+    {
+        version: "6.9.49",
+        changes: [
+            "Toys tab now visible for Julia (#197217) in addition to Emery and Lucy.",
+        ],
+    },
+    {
+        version: "6.9.48",
+        changes: [
+            "IRL TOYS: added Lovense Remote Control — others can request to fire your real toy via EBC-IRL whisper protocol. Toggle to allow requests, friends-or-whitelist gating, popup accept/deny, intensity+duration control panel, sessions shown in IRL TOYS tab.",
+        ],
+    },
+    {
+        version: "6.9.47",
+        changes: [
+            "GAME TOYS overhaul: now controls BC in-game vibrators (not Lovense directly). Sender UI replaced with Off/Low/Medium/High/Max + Tease/Random/Escalate/Deny/Edge buttons matching BC's TOY CONTROL layout. Receiver applies the mode to worn vibrator items via ChatRoomCharacterItemUpdate. Lovense follows automatically via BC TOY SYNC.",
+        ],
+    },
+    {
+        version: "6.9.46",
+        changes: [
+            "Toys tab now visible for Lucy (#230466) in addition to Emery.",
+            "Fix: removed auto-injection of #230466 into every user's game toy whitelist (was a mistake from v6.9.43).",
+        ],
+    },
+    {
+        version: "6.9.45",
+        changes: [
+            "BC TOY SYNC: Replaced one-shot fire with live polling. Now reads Player.ArousalSettings.VibratorLevel every 500ms and maps the BC 0–4 scale to Lovense 0–20 continuously. BC already updates this value in real-time for ALL vibrator modes (Constant, Escalate, Random, Tease, Deny, Edge), so edge mode bounces, escalate ramps, random flickers — all mirror to Lovense automatically.",
+            "BC TOY SYNC: Added max intensity cap slider (1–20) to limit how hard the Lovense goes even when BC toy is at max.",
+            "BC TOY SYNC: Live status indicator in the panel shows whether the poller is running and the current Lovense level.",
+            "BC TOY SYNC: Poller also auto-starts on room join (ChatRoomSync hook).",
+        ],
+    },
+    {
+        version: "6.9.44",
+        changes: [
+            "Fix: All var(--ebc-text) references replaced with var(--ebc-text-bright) — that variable didn't exist so form elements (input, select) fell back to browser-default black text. Inputs/selects now show correct light text on dark background.",
+            "Fix: Added color-scheme:dark to styled select dropdowns so native option list also renders dark instead of white.",
+        ],
+    },
+    {
+        version: "6.9.43",
+        changes: [
+            "TOYS TAB: GAME TOYS moved above IRL TOYS. GAME TOYS section no longer has an ON/OFF toggle — always accessible.",
+            "TOYS TAB: Full dark-theme styling pass — all hardcoded hex colors replaced with EBC CSS variables (--ebc-accent, --ebc-text-muted, --ebc-bg-darker, etc.). Native select elements now styled with appearance:none and custom purple arrow.",
+            "GAME TOYS: Whitelist now shows 'Add from room' dropdown to pick people by name; manual member# input retained below. Member 230466 always pre-added to whitelist.",
+            "GAME TOYS: Friend picker dropdown fully styled with EBC dark theme (no more OS-native white/black UI).",
+            "IRL TOYS: CONNECTION section now supports multiple simultaneous Lovense toys — each connected toy shown in a list with individual disconnect (✗) button. 'Connect Another Toy' adds more toys without replacing the existing one.",
+            "IRL TOYS: fireLovense() now fires vibrate to ALL connected toys in parallel.",
+            "Fix: _showToyReqPopup and _showToyToast now correctly resolve the mk() helper (was failing at runtime).",
+        ],
+    },
+    {
+        version: "6.9.42",
+        changes: [
+            "Fix: Profile button now shows characters with their outfit and bio even across sessions. Character bundles (appearance, name, bio, etc.) are now persisted to localStorage (capped at 100 entries, oldest evicted) so profiles stay viewable after reloading the page. Previously bundles were session-memory only — reloading reset them and every offline profile showed a blank character.",
+            "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
+            "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
+            "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
+            "LOVENSE: Duration slider extended to 60s (was 30s).",
+            "LOVENSE: Chat phrase trigger UI polished with 'blank = default' hints on I/D inputs.",
+            "TOYS TAB: IRL TOYS and GAME TOYS collapsible sections added.",
+            "GAME TOYS: Friends-only remote toy control — send/accept vibrate commands via hidden EBC whispers, with request popup, whitelist, accept toggle, and revoke support.",
+        ],
+    },
+    {
+        version: "6.9.39",
+        changes: [
+            "DOM POSITION: Pull to Side / Get in Arms / Hold in Arms now immediately apply the position on the DOM player's screen (setPositionSilent) in addition to dispatching the ECHO activity — previously only the ECHO activity was sent so nothing moved locally.",
+            "DOM POSITION: Release from Arms now clears the EBC position slot and immediately re-applies remaining positions (clearPosition now calls applyPositions) — previously the released character stayed in their moved spot until the next BC room sync.",
+        ],
+    },
+    {
+        version: "6.9.38",
+        changes: [
+            "TOYS: Removed PiShock integration entirely.",
+        ],
+    },
+    {
+        version: "6.9.37",
+        changes: [
+            "Lovense BLE: Expand optionalServices list with four more Lovense proprietary UUIDs (v1–v4 variants). Add retry logic — getPrimaryServices() is retried up to 3 times with delays after connect to handle GATT discovery timing. Improved error message when no services are found.",
+        ],
+    },
+    {
+        version: "6.9.36",
+        changes: [
+            "PiShock: Expand debug log to show first 8 chars and length of API key — helps diagnose 404 errors caused by a missing or incorrect API key.",
+        ],
+    },
+    {
+        version: "6.9.35",
+        changes: [
+            "Lovense BLE: Replace static service UUID guessing with dynamic service discovery — connects to any Lovense toy by enumerating all primary services and finding the first writable characteristic. Supports writeValueWithoutResponse for characteristics that require it. Logs discovered services/characteristics to console for debugging.",
+        ],
+    },
+    {
+        version: "6.9.34",
+        changes: [
+            "PiShock: Add debug console log showing username, share code, op, intensity, and duration before each proxy call — makes it easy to verify credentials are loaded correctly.",
+        ],
+    },
+    {
+        version: "6.9.33",
+        changes: [
+            "Lovense BLE: Fix connection for Gen2+ toys (Domi 2, Lush 3, etc.) that use Nordic UART Service (6e400001) instead of the Gen1 fff0 service. Now tries fff0 first, falls back to NUS automatically. Both services declared in optionalServices so Chrome grants access to either.",
+        ],
+    },
+    {
+        version: "6.9.32",
+        changes: [
+            "Lovense: Replaced Lovense Connect local HTTP API with direct Web Bluetooth (BLE). Click 'Connect' to pair your toy directly in the browser — no Lovense Connect app needed. Chrome/Edge only. Service 0000fff0, write characteristic 0000fff2. Vibrate:N; command sent on trigger; Vibrate:0; stop sent after duration via setTimeout.",
+        ],
+    },
+    {
+        version: "6.9.31",
+        changes: [
+            "PiShock: Send Op/Duration/Intensity as strings in the API payload — the PiShock docs show these as quoted strings and sending integers was causing 404 rejections.",
+        ],
+    },
+    {
+        version: "6.9.30",
+        changes: [
+            "DOM: Removed emojis from toy control mode buttons (Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge).",
+        ],
+    },
+    {
+        version: "6.9.29",
+        changes: [
+            "PiShock: Shared EBC Cloudflare Worker proxy pre-configured as default — no setup needed for FUSAM users. Proxy URL field auto-populates on first open. Requests include an abuse-prevention token. Users can still replace with their own Worker.",
+            "Lovense Connect: Full integration added to TOYS tab. Connection scan (auto-detects port 20010-30010), vibrate defaults (intensity 1-20, duration 1-30s), test button, and two trigger modes: (1) mirror PiShock shock triggers, (2) own phrase list with per-trigger intensity/duration overrides.",
+        ],
+    },
+    {
+        version: "6.9.28",
+        changes: [
+            "PiShock: Added CORS Proxy URL field to credentials section. Set this to your own Cloudflare Worker URL to bypass the PiShock CORS wall in FUSAM/page-context mode. When set, firePiShock() routes all requests through the proxy using Content-Type: application/json and reads the real server response — no more blind fire-and-forget.",
+            "PiShock: Reverted @inject-into from 'auto' back to 'page' — the auto mode broke TOYS and DOM tabs for FUSAM users by making Player.MemberNumber unavailable. Proxy URL field is the correct CORS solution for FUSAM.",
+            "rollup.config.mjs: Cleaned up stale comment about @inject-into auto / GM_xmlhttpRequest content-script approach.",
+        ],
+    },
+    {
+        version: "6.9.27",
+        changes: [
+            "PiShock FUSAM/page-context fix: replaced useless cors-mode fetch fallbacks (which all fail because PiShock locks CORS to pishock.com) with a no-cors + text/plain fetch. no-cors bypasses all browser CORS checks and delivers the request to PiShock's server. Response is opaque (no server confirmation), but the shocker should respond. Test buttons now show 'Sent blind — did the shocker respond?' in page-context mode.",
+        ],
+    },
+    {
+        version: "6.9.26",
+        changes: [
+            "PiShock CORS fix (root cause): PiShock's API allows only pishock.com as CORS origin — no browser fetch from bondage-europe.com can ever succeed. Fix: changed userscript from @inject-into page to @inject-into auto + @grant GM_xmlhttpRequest. Both Tampermonkey and Violentmonkey now inject EBC in content-script context where GM_xmlhttpRequest bypasses CORS entirely. A page-bridge IIFE (added to the banner) re-exposes BC's globals (Player, ChatRoomCharacter, etc.) via unsafeWindow getters so the rest of EBC works unchanged. REQUIRES REINSTALL — update button alone won't apply new @grant/@inject-into directives.",
+        ],
+    },
+    {
+        version: "6.9.25",
+        changes: [
+            "PiShock CORS fix attempt 2: fetch fallback now tries Content-Type: text/plain first (avoids CORS OPTIONS preflight; PiShock's server handles simple cross-origin POST), then falls back to application/json if that fails. Both paths log to F12 Console under [EBC PiShock]. Error message now directs users to F12 Console for diagnosis.",
+        ],
+    },
+    {
+        version: "6.9.24",
+        changes: [
+            "TOYS / PiShock: CORS fix — firePiShock() now tries GM_xmlhttpRequest first (bypasses CORS entirely for Tampermonkey users; @grant GM_xmlhttpRequest + @connect do.pishock.com added to userscript header). Falls back to fetch with credentials:'omit'. Both paths log to DevTools console for debugging.",
+            "TOYS / PiShock: Per-shocker test buttons — replaced single '📡 Test' (beep only) with three buttons: '🔔 Beep', '〜 Vib', '⚡ Shock'. Each fires independently with bypass=true. Shock test requires a confirm dialog.",
+            "TOYS / PiShock: UI readability improvements — all labels and inputs bumped from 10px to 11-12px. Section headers and limit value labels now bold. Inputs have more padding. Warning banner and credential notes improved.",
+            "TOYS / PiShock: Allow-toggle row now prefixed with 'ALLOW:' label; test button row prefixed with 'TEST:' label for clearer visual grouping.",
+            "BEEP: Chat message font-size bumped from 10px to 13px so emoji and text in the beep window are legible.",
+        ],
+    },
+    {
+        version: "6.9.23",
+        changes: [
+            "Fix: Friend names now resolve correctly for offline friends and friends not yet seen in a room. Root cause: resolveName() never checked BC's own Player.FriendNames map, which is populated at login from the server's LZ-compressed friend name store and covers ALL friends (online and offline). resolveName() now checks Player.FriendNames as a final fallback before #number, and caches the name on find. handleAccountQueryResult also proactively seeds the EBC cache from Player.FriendNames so offline friends are populated the first time AccountQueryResult fires (3 s after load).",
+        ],
+    },
+    {
+        version: "6.9.23",
+        changes: [
+            "TOYS tab: PiShock and Lovense are now collapsible sections within the same tab (▼/▶ header). Lovense removed as a standalone tab.",
+            "TOYS tab: Lovense section added with ON/OFF toggle — shows 'coming soon' placeholder when enabled, off-note when disabled. Collapse state persists in localStorage.",
+            "TOYS tab: PiShock section also collapsible — shows 'enable above' note when disabled, full settings when enabled and expanded.",
+        ],
+    },
+    {
+        version: "6.9.21",
+        changes: [
+            "New: Lovense tab added (placeholder — integration coming soon). Emery-only while in development.",
+            "PiShock: API Key field now has a show/hide toggle (👁 eye button) so you can reveal the key to verify it without re-typing.",
+            "PiShock: Credentials section header and note now use plain hyphens instead of em-dashes, and the note makes clear that EmeryBC never stores credentials anywhere — only in your own browser's localStorage.",
+        ],
+    },
+    {
+        version: "6.9.20",
+        changes: [
+            "PiShock: Redesigned to support multiple shockers and multiple chat triggers. Each shocker has its own name, share code, and per-shocker allow toggles (Beep/Vibrate/Shock). Chat triggers each specify a phrase, which shocker to fire, and which operation. All matching triggers fire independently (previously only one phrase was supported).",
+            "PiShock: Share code field now auto-strips full PiShock share URLs (e.g. https://pishock.com/#/Control?sharecode=ABC) down to just the code. Placeholder updated to make the format clear.",
+            "PiShock: Added credentials: 'omit' to API fetch to fix '⚠ Network error' that appeared on some setups due to CORS preflight issues.",
+            "Fix: View Profile button in the friends/beep panel now works for users who have left the room — synthesizes a minimal bundle so the info sheet opens with the cached name and member number.",
+            "Fix: People Met profile button now passes ID field in minimal bundle so CharacterLoadOnline no longer throws a TypeError when the person is not in the current room.",
+        ],
+    },
+    {
+        version: "6.9.19",
+        changes: [
+            "Fix: Friend names no longer reset to #number after leaving a room. ChatRoomSync and ChatRoomSyncSingle hooks now cache every character's name into friendNames before BC mutates the bundle. Previously only ChatRoomSyncMemberJoin cached names, so players already present when you joined were never cached — once you left the room and ChatRoomCharacter was cleared, resolveName() fell through to #number.",
+            "Fix: Locker name in the restraints section now uses resolveName() so it shows the correct cached name even when the locker has left the room (previously fell back to #number for anyone not in ChatRoomCharacter).",
+        ],
+    },
+    {
+        version: "6.9.18",
+        changes: [
+            "Fix: TOYS tab credentials (username, API key, share code) now persist across relogs. Were using 'change' event which only fires on blur — clicking a toggle before leaving a field would destroy the input and lose the typed value. Switched to 'input' event so every keystroke writes to localStorage immediately.",
+            "Fix: 'Failed to fetch' PiShock API error now shows a clearer message (network/ad-blocker/VPN hint) instead of the raw error string.",
+            "New: 'Test Connection' button in the credentials section — fires a 1s/1% beep bypassing allow-toggles and cooldown to confirm credentials are valid.",
+            "New: Chat trigger Action selector — choose Beep, Vibrate, Shock, or Auto (strongest allowed) per trigger phrase instead of always auto-picking.",
+            "UI: Share code field now has a descriptive placeholder explaining what it is; credentials section is cleaner overall.",
+        ],
+    },
+    {
+        version: "6.9.17",
+        changes: [
+            "Fix: ChatRoomKeyDown crash ('Cannot read properties of undefined (reading length)') that occurred after interacting with the TOYS tab. BC's InputKeyDown crashes when ev.key is undefined, which happens when any hook in the chain passes a synthetic or plain object instead of a real KeyboardEvent. EBC's hook now guards against this and returns false early, preventing the crash.",
+        ],
+    },
+    {
+        version: "6.9.16",
+        changes: [
+            "New: TOYS tab with PiShock integration. Configure your PiShock username, API key, and share code (stored only in local browser storage, never synced to BC servers). Set per-operation limits (max intensity 1-100%, max duration 1-15s, cooldown 3-120s). Toggle Beep, Vibrate, and Shock independently (Shock requires an explicit confirmation dialog). Test buttons in the tab fire operations immediately. Optional chat-command trigger: set a phrase and anyone in the room saying it fires your enabled operations. Tab is toggleable in drawer settings like all other tabs.",
+        ],
+    },
+    {
+        version: "6.9.15",
+        changes: [
+            "Fix: 'Release from Arms' button now works correctly. Was sending Type:'Action' with free-form text, but BC treats Action Content as a localization key and showed 'MISSING TEXT IN Interface.csv: gently sets Lucas down.' — switched to Type:'Emote' which renders free-form text directly (BC prepends the sender's name). Also fixed target name showing account name instead of nickname.",
+        ],
+    },
+    {
+        version: "6.9.14",
+        changes: [
+            "Fix: ECHO addon activity messages (cuddle, pull to side, hold in arms) now show nicknames instead of account names. Was reading .Name directly from ChatRoomCharacter; now uses resolveName() which correctly prefers Nickname over Name.",
+        ],
+    },
+    {
+        version: "6.9.13",
+        changes: [
+            "Fix: EBC button (tab) no longer disappears when a beep notification opens the FriendList screen. Root cause: BC's async CommonSetScreen() can set display:none on unknown DOM elements after EBC's updateVisibility() runs. The CRABS poller heartbeat guard (which restores display:block within 200ms) was stopped in roaming mode, leaving the rootEl permanently hidden until the next screen navigation. Fix: keep the CRABS poller running in roaming mode so the heartbeat fires continuously, and remove the this.positioned guard so it protects visibility even before anchoring to the chat log.",
+        ],
+    },
+    {
+        version: "6.9.12",
+        changes: [
+            "Fix: Kiss action now targets ItemMouth ('Kiss Lips') instead of ItemHead ('Kiss Forehead') — gets proper lip emotes and BC animations.",
+        ],
+    },
+    {
+        version: "6.9.11",
+        changes: [
+            "Fix: Friend names now correctly persist across browser restarts. Root cause: reinitFromExtensionSettings() was called inside the PreferenceInitPlayer hook (BC line 1098) but Player.ExtensionSettings is set 85 lines later (BC line 1183) — so the reinit always read stale/empty data. Fix: pass args[1].ExtensionSettings.EmeryBC (the raw server response) directly to reinitFromExtensionSettings() instead of reading the not-yet-set Player.ExtensionSettings.",
+        ],
+    },
+    {
+        version: "6.9.10",
+        changes: [
+            "Fix: DOM Position 'Pull to Side' now sends HoldLeash before the ECHO activity so ECHO can trigger with any leash-effect item (ChokeChain, ChainLeash, CollarLeash, etc.) — not just a 'full leash'. Release button now sends StopHoldLeash to properly unhook the BC leash state.",
+        ],
+    },
+    {
+        version: "6.9.9",
+        changes: [
+            "Fix: DOM action buttons (Spank, Pat, Kiss, etc.) now use BC's ActivityRun pipeline — correct sounds, arousal updates, and BCX/LSCG reactions fire as if the button was clicked in BC's own dialog. Pat maps to BC's 'Pet' activity. Falls back to room action emote if ActivityRun is unavailable.",
+            "Fix: ECHO position buttons (Pull to Side, Get in Arms, Hold in Arms) no longer show 'MISSING ACTIVITY DESCRIPTION FOR KEYWORD' in chat. A ChatRoomMessage hook intercepts at priority 0, lets ECHO process the position effect via next(), then immediately replaces any BC-rendered MISSING element with a proper action description.",
+            "New: 'Release from Arms' button in DOM POSITION panel — sends a room action and clears local position tracking.",
+        ],
+    },
+    {
+        version: "6.9.8",
+        changes: [
+            "Fix: cursed item removal by other players now correctly blocked via ChatRoomSyncItem hook (fires before the item leaves Player.Appearance). Previous CharacterRefresh re-equip approach came too late. Blocked sync is immediately corrected back to the server so all clients see the item restored.",
+        ],
+    },
+    {
+        version: "6.9.7",
+        changes: [
+            "Cursed items now resist removal by anyone: if a dom or other player removes a cursed item via the normal BC UI, it is immediately re-equipped on the target's client and a notification fires. Self-removal attempts also show an EBC notification.",
+            "Curse beep now includes item name (group=assetName) so the target's client knows exactly which item to restore. Per-item lift now sends clear:group (precise) instead of re-applying remaining curses.",
+        ],
+    },
+    {
+        version: "6.9.6",
+        changes: [
+            "Curse notifications: DOM sees an EBC chat log line when they apply or lift curses; target sees a notification when they receive a curse beep. appendLocalLogLine extracted to shared notify.ts module.",
+            "Position panel (Pull to Side / Get in Arms / Hold in Arms) now dispatches ECHO activity extension events instead of the broken local-array hack — requires ECHO to be installed on both sides.",
+        ],
+    },
+    {
+        version: "6.9.5",
+        changes: [
+            "Curse panel now shows an 'Active Curses' list: groups currently cursed on the focus target are displayed with ✕ lift buttons so individual curses can be removed from the same room. Curse records are saved to settings and persist across page refreshes.",
+        ],
+    },
+    {
+        version: "6.9.4",
+        changes: [
+            "Fix: Toy control now detects toys immediately on accordion open and on tab render — chips and status were only refreshing on target change, never on accordion open.",
+        ],
+    },
+    {
+        version: "6.9.3",
+        changes: [
+            "Fix: Pose action messages now read naturally — 'guides Angel into a kneeling position with arms raised.' instead of 'guides Angel into the Kneel+Up position.'",
+        ],
+    },
+    {
+        version: "6.9.2",
+        changes: [
+            "Remove: 'Fade when not hovered' feature and toggle removed entirely.",
+        ],
+    },
+    {
+        version: "6.9.1",
+        changes: [
+            "Fix: Position (Pull to Side / Get in Arms / Hold in Arms) now works — applyPositions() was calling c.IsPlayer?.() which throws 'true is not a function' when IsPlayer is a boolean property in BC; switched to MemberNumber comparison.",
+            "Fix: Active position list now shows entries after clicking a position button and after tab re-renders — rebuildPosActive() is now called on initial render and when the POSITION accordion is opened.",
+        ],
+    },
+    {
+        version: "6.9.0",
+        changes: [
+            "Fix: Activity buttons (Spank, Pat, Kiss, etc.) now show correct room text — switched from Type:Activity (keys not in BC R129 ActivityDictionary.csv) to Type:Action via sendRoomAction.",
+            "Fix: Stand pose now clears kneeling — setTargetPoses now runs CharacterRefresh first, then sets ActivePose, then pushes directly; prevents CharacterRefresh from overwriting the pose.",
+            "Fix: Toy control now actually changes toy state — setTargetToyMode/setTargetSingleToyMode now set Intensity, Effect, and TypeRecord alongside Mode, matching BC's VibratorModeOptions.",
+            "Fix: Fade when not hovered now works — replaced CSS class toggle (fought with CSS opacity transitions) with JS mouseenter/mouseleave listeners storing handlers on __ebcFade.",
+            "Toy control: Added 'Deny' and 'Edge' modes; added per-toy chip selector above mode buttons — clicking a chip targets only that toy.",
+            "Curse panel: Now rebuilds item list when accordion is opened (previously only rebuilt on target change while already open).",
+            "Curse panel: Items now show lock icon (🔒) and crafted names when available.",
+            "Release tools: Added 'Unlock Selected' button in pick panel (uses clearLocksOnMember for selected groups only).",
+        ],
+    },
+    {
+        version: "6.8.0",
+        changes: [
+            "Dom menu: Added POSITION accordion — 'Pull to Side', 'Get in Arms', 'Hold in Arms' buttons reorder ChatRoomCharacter[] locally so the target appears next to you. Positions re-apply after every room sync and clear automatically on room leave.",
+        ],
+    },
+    {
+        version: "6.7.9",
+        changes: [
+            "Fix: Friend names now persist across restarts — cacheName/cacheAccountName were accumulating names in memory but never flushing to ExtensionSettings; added sync() call to both functions.",
+            "Fix: 'Fade when not hovered' now actually works — open() and close() were doing className= assignment which wiped the ebc-fade-hover class; switched to classList.add/remove to preserve it.",
+            "Dom menu: Renamed 'Massage' action to 'Bap' — targets head zone with slap animation and description 'baps X on the head'.",
+        ],
+    },
+    {
+        version: "6.7.8",
+        changes: [
+            "Fix: Toy control now actually works on others — was using ChatRoomCharacterUpdate which BC ignores for non-player characters; switched to ChatRoomCharacterItemUpdate which sends a per-item update packet that the server correctly broadcasts to the whole room.",
+        ],
+    },
+    {
+        version: "6.7.7",
+        changes: [
+            "Fix: 'Fade when not hovered' now works correctly — replaced broken JS event-listener approach with a CSS :not(:hover) class toggle.",
+            "Dom menu: Room Rescue section removed — use Release Tools with the target selector instead.",
+            "Dom menu: Release Tools now bypasses all lock types — items are removed directly from the character's appearance array, skipping BC's lock permission checks.",
+            "Dom menu: Unlock All Locks now clears combination locks and member-number list locks in addition to padlocks and password locks.",
+        ],
+    },
+    {
+        version: "6.7.6",
+        changes: [
+            "Fix: Friends showing as offline even when online — the AccountQueryResult dedup check was firing before the query type filter, so any non-OnlineFriends result BC sent in a burst (e.g. on login) would eat the OnlineFriends response for 50ms. Type check now runs first.",
+            "Fix: Added initial OnlineFriends query 3s after load so the friends list populates immediately rather than waiting for the first 30s heartbeat poll.",
+            "Fix: Reduced heartbeat interval from 60s to 30s for faster friend status updates.",
+        ],
+    },
+    {
+        version: "6.7.5",
+        changes: [
+            "Fix: Friend names showing as numbers on tablet now fully fixed — reinitFromExtensionSettings merges the server's full name cache instead of skipping keys already set by the tablet's smaller local cache.",
+            "Dom menu: Reordered sections — Restraint Sets → Target → Actions → Release Tools → Room Rescue (Target now directly above Actions; Release Tools grouped with Room Rescue below).",
+            "Dom menu: Restraint Sets 'Chat:' announce dropdown renamed from '✓ Emote / Silent' to '📢 Announce / 🤫 Silent' with tooltip — much clearer what it does.",
+            "New: 'Fade when not hovered' toggle in Drawer Preferences — when on, the panel fades to 20% opacity when your mouse leaves it and fades back on hover. Default off.",
+        ],
+    },
+    {
+        version: "6.7.4",
+        changes: [
+            "Feature: Dom menu '↳ From Current' picker now has a Source selector — choose yourself or any character currently in the room; captures their worn restraints as a dom set.",
+            "Feature: Main Saved Restraints panel '+ New Restraint Set from Current' now shows a per-item checkbox picker (with All toggle) before saving, so you can include only specific worn items instead of all of them.",
+        ],
+    },
+    {
+        version: "6.7.3",
+        changes: [
+            "Fix: Friend names showing as #number after using a second device (tablet) — re-seeds the name cache from server data in the PreferenceInitPlayer hook, fixing a race where initSettings() ran before ExtensionSettings arrived from the server.",
+            "Fix: Curse feature now works between any two EBC users (not just Emery→Lucy); curses are accepted from anyone on your friend list, so you can curse anyone who has EBC loaded.",
+            "UX: Relationship status in friends list now shows 💍 Engaged / 💒 Married based on BC's Lovership Stage, in both the friend-row badge icon and the expanded info panel with dates.",
+        ],
+    },
+    {
+        version: "6.7.2",
+        changes: [
+            "Feature: '↳ From Current' button in dom Restraint Sets — opens a picker showing your currently worn restraints with individual checkboxes and an All toggle; clicking 'Create Set' saves the selection as a new set.",
+            "Feature: '⛓ CURSE' accordion in dom Actions — select items on the Focus Target and send a curse via beep; Lucy's EBC blocks her from self-removing cursed items until Emery sends 'Lift All' to clear them.",
         ],
     },
     {
@@ -5107,30 +5640,6 @@ function playBeepSound(): void {
     } catch { /* ignore — AudioContext may not be available */ }
 }
 
-function appendLocalLogLine(text: string, color = UI.accent): void {
-    const doAppend = (): boolean => {
-        const log = document.getElementById("TextAreaChatLog");
-        if (!log) return false;
-        const msg = document.createElement("div");
-        msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${color};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-        msg.textContent = text;
-        log.appendChild(msg);
-        log.scrollTop = log.scrollHeight;
-        return true;
-    };
-    // Try immediately; if the chat log isn't mounted yet retry once after a short delay
-    if (!doAppend()) {
-        window.setTimeout(() => doAppend(), 300);
-    }
-}
 
 // Appends a clickable command row to the chat log. Clicking fills the chat input
 // with the command text so the user only has to press Enter to run it.
@@ -5514,6 +6023,23 @@ function patchKittyExpressions(): void {
             }
         } catch { /* ignore */ }
     }
+}
+
+function parseEBCToyMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
+    const m = content.match(/^\[EBC-TOY:([A-Za-z]+)(?::(\d+):(\d+))?\]$/);
+    if (!m) return null;
+    const type = m[1];
+    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+    return { type, intensity, duration };
+}
+function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
+    const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+    if (!m) return null;
+    const type = m[1];
+    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+    return { type, intensity, duration };
 }
 
 function handleKittyCommand(msg: string): void {
@@ -6411,7 +6937,19 @@ function init(): void {
                 } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
-        return next(args);
+        const result = next(args);
+        // Re-seed _mem from the server's raw response data.
+        // CRITICAL: Player.ExtensionSettings is set at line 1183 of LoginSetupPlayer,
+        // but PreferenceInitPlayer is called at line 1098 — reading Player.ExtensionSettings
+        // here would get stale/empty data. Read from args[1].ExtensionSettings.EmeryBC
+        // (the raw ServerAccountData) instead, which always has the correct server values.
+        try {
+            const serverData = args[1] as Record<string, unknown>;
+            const serverES = serverData?.ExtensionSettings as Record<string, unknown> | undefined;
+            const ebcData = (serverES?.["EmeryBC"] ?? {}) as Record<string, unknown>;
+            reinitFromExtensionSettings(ebcData);
+        } catch { /* ignore */ }
+        return result;
     });
 
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
@@ -6741,6 +7279,12 @@ function init(): void {
                     const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
                     if (num && num !== Player.MemberNumber) {
                         try { copies.push(structuredClone(c)); } catch { /* ignore */ }
+                        // Cache name before next() mutates the bundle — ensures resolveName()
+                        // works after leaving the room (ChatRoomCharacter is cleared on leave).
+                        const nick = typeof c?.Nickname === "string" ? (c.Nickname as string).trim() : "";
+                        const acct = typeof c?.Name === "string" ? (c.Name as string) : "";
+                        cacheName(num, nick || acct || String(num));
+                        if (acct) cacheAccountName(num, acct);
                     }
                 }
             }
@@ -6751,6 +7295,8 @@ function init(): void {
                 for (const copy of copies) try { storeRawBundle(copy); } catch { /* ignore */ }
             }, 0);
         }
+        try { applyPositions(); } catch { /* ignore */ }
+        try { drawer?.startBCLiveSync(); } catch { /* ignore */ }
         return result;
     });
     tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
@@ -6760,6 +7306,11 @@ function init(): void {
             const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
             if (num && num !== Player.MemberNumber) {
                 try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
+                // Keep name cache up-to-date when a character's appearance refreshes.
+                const nick = typeof c?.Nickname === "string" ? (c.Nickname as string).trim() : "";
+                const acct = typeof c?.Name === "string" ? (c.Name as string) : "";
+                cacheName(num, nick || acct || String(num));
+                if (acct) cacheAccountName(num, acct);
             }
         } catch { /* ignore */ }
         return next(args);
@@ -6784,7 +7335,9 @@ function init(): void {
         // This keeps the ts current for long-running sessions where ChatRoomSync
         // (which also calls syncPresenceMarker) was fired hours ago.
         try { syncPresenceMarker(); } catch { /* ignore */ }
-        return next(args);
+        const joinResult = next(args);
+        try { applyPositions(); } catch { /* ignore */ }
+        return joinResult;
     });
 
     // Anti-restraint + grace period: detect new restraints on the player after any refresh
@@ -6838,6 +7391,7 @@ function init(): void {
         try { timerOnRoomLeave(); } catch { /* ignore */ }
         try { onRoomLeave();     } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
+        try { clearAllPositions(); } catch { /* ignore */ }
         return result;
     });
 
@@ -6865,6 +7419,200 @@ function init(): void {
         return next(args);
     });
 
+    // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
+    const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
+    const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
+    const getCursedGroups = (): Set<string> => {
+        try {
+            const raw = localStorage.getItem(getCurseKey());
+            if (!raw) return new Set();
+            const parsed = JSON.parse(raw) as unknown;
+            if (Array.isArray(parsed)) return new Set(parsed.filter((v): v is string => typeof v === "string"));
+        } catch { /* ignore */ }
+        return new Set();
+    };
+    const saveCursedGroups = (groups: Set<string>): void => {
+        try { localStorage.setItem(getCurseKey(), JSON.stringify([...groups])); } catch { /* ignore */ }
+    };
+    const getCurseItemMap = (): Record<string, string> => {
+        try {
+            const raw = localStorage.getItem(getCurseItemKey());
+            return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+        } catch { return {}; }
+    };
+    const saveCurseItemMap = (map: Record<string, string>): void => {
+        try { localStorage.setItem(getCurseItemKey(), JSON.stringify(map)); } catch { /* ignore */ }
+    };
+    const handleCurseCommand = (msg: string): void => {
+        const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+        const current = getCursedGroups();
+        if (inner.startsWith("apply:")) {
+            const itemMap = getCurseItemMap();
+            for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const itemName = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                if (g) { current.add(g); if (itemName) itemMap[g] = itemName; }
+            }
+            saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
+        } else if (inner === "clear") {
+            saveCursedGroups(new Set());
+            saveCurseItemMap({});
+        } else if (inner.startsWith("clear:")) {
+            const itemMap = getCurseItemMap();
+            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
+                current.delete(g);
+                delete itemMap[g];
+            }
+            saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
+        }
+    };
+
+    // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
+    tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
+        try {
+            const [char, group] = args as [Character, string, boolean?];
+            if (char === Player && typeof group === "string") {
+                const cursed = getCursedGroups();
+                if (cursed.has(group)) {
+                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
+                    return; // block self-removal of cursed item
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Hook ChatRoomSyncItem: block EXTERNAL removal of cursed items (another player removing via BC UI).
+    // This fires BEFORE InventoryRemove, so returning early keeps the item in Player.Appearance.
+    // We then immediately send a correction sync so the server and other clients restore the item.
+    tryHookFunction(modAPI, "ChatRoomSyncItem", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const item = data.Item as Record<string, unknown> | undefined;
+            if (!item) return next(args);
+            const targetNum = typeof item.Target === "number" ? item.Target : 0;
+            const group = typeof item.Group === "string" ? item.Group : "";
+            const nameVal = item.Name; // undefined = removal
+            if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
+                const cursed = getCursedGroups();
+                if (cursed.has(group)) {
+                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+                    // Send correction: our item is still here, push it back to the server
+                    const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+                        ((c: Character, g: string) => void) | undefined;
+                    window.setTimeout(() => {
+                        try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
+                    }, 0);
+                    return; // block the removal sync
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Hook ChatRoomMessage: intercept ECHO addon activity messages and replace BC's
+    // "MISSING ACTIVITY DESCRIPTION FOR KEYWORD" rendering with proper descriptions.
+    // ECHO (echo-activity-ext) uses Chinese keywords as Type:"Activity" content that BC's
+    // activity dictionary doesn't know about. We fire at priority 0 (before ECHO's own hook),
+    // call next(args) so ECHO still processes the position/arms effect, then immediately
+    // replace any "MISSING ACTIVITY DESCRIPTION" element BC added with our own action text.
+    const ECHO_ACTIVITY_DESCS: Readonly<Record<string, (src: string, tgt: string) => string>> = {
+        "拉到身边": (s, t) => `${s} pulls ${t} to their side.`,
+        "钻进怀里": (s, t) => `${t} cuddles into ${s}'s arms.`,
+        "抱入怀中": (s, t) => `${s} holds ${t} tightly in their arms.`,
+    };
+    tryHookFunction(modAPI, "ChatRoomMessage", 0, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            if (data.Type === "Activity" && typeof data.Content === "string" &&
+                data.Content in ECHO_ACTIVITY_DESCS) {
+                const log = document.getElementById("TextAreaChatLog");
+                const prevCount = log?.childElementCount ?? 0;
+                const result = next(args); // let ECHO process movement, let BC try to render
+                if (log && log.childElementCount > prevCount) {
+                    // Scan newly added elements for BC's "MISSING" text and replace
+                    const dict = Array.isArray(data.Dictionary)
+                        ? (data.Dictionary as Record<string, unknown>[])
+                        : [];
+                    const srcNum = dict.find(e => "SourceCharacter" in e)?.SourceCharacter as number | undefined;
+                    const tgtNum = dict.find(e => "TargetCharacter" in e)?.TargetCharacter as number | undefined;
+                    const srcName = srcNum ? resolveName(srcNum) : `#?`;
+                    const tgtName = tgtNum ? resolveName(tgtNum) : `#?`;
+                    const desc = `(${ECHO_ACTIVITY_DESCS[data.Content]!(srcName, tgtName)})`;
+                    for (let i = prevCount; i < log.childElementCount; i++) {
+                        const el = log.children[i] as HTMLElement;
+                        if (el.textContent?.includes("MISSING ACTIVITY DESCRIPTION")) {
+                            el.textContent = desc;
+                        }
+                    }
+                }
+                return result;
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Lovense triggers: chat phrases + body touch activities + BC toy sync
+    tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            // EBC-TOY whisper intercept — suppress from BC chat display
+            if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                (data.Content as string).startsWith("[EBC-TOY:")) {
+                const parsed = parseEBCToyMsg(data.Content as string);
+                if (parsed) {
+                    const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                    if (senderNum && senderNum !== Player.MemberNumber) {
+                        const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
+                        const found = roomChars?.find(c => c.MemberNumber === senderNum);
+                        const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                        drawer?.handleGameToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                    }
+                    return; // suppress — do not call next(args)
+                }
+            }
+            // EBC-IRL whisper intercept — IRL Lovense remote control
+            if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                (data.Content as string).startsWith("[EBC-IRL:")) {
+                const parsed = parseEBCIrlMsg(data.Content as string);
+                if (parsed) {
+                    const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                    if (senderNum && senderNum !== Player.MemberNumber) {
+                        const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
+                        const found = roomChars?.find(c => c.MemberNumber === senderNum);
+                        const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                    }
+                    return; // suppress — do not call next(args)
+                }
+            }
+            if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
+                typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
+                drawer?.checkLovenseTriggers(data.Content as string);
+            }
+            if (data.Type === "Activity" && typeof data.Content === "string" &&
+                typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
+                const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
+                const targetEntry = dict?.find(e => "TargetCharacter" in e);
+                const targetNum = targetEntry?.["TargetCharacter"] as number | undefined;
+                if (targetNum === Player.MemberNumber) {
+                    // Content is "ChatOther-GroupName-ActivityName" — extract the activity name
+                    const actEntry = dict?.find(e => "ActivityName" in e);
+                    const activityName = (actEntry?.["ActivityName"] as string | undefined)
+                        ?? (data.Content as string).split("-").pop() ?? "";
+                    // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
+                    const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                    const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
+                    if (activityName) drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
@@ -6876,6 +7624,27 @@ function init(): void {
                 beep.Message.startsWith("[EBC-KITTY:")) {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
+            }
+            // Curse commands from any EBC user — runs on the receiver's client.
+            // Only accepted from friends to prevent random abuse.
+            if (typeof beep.Message === "string" &&
+                beep.Message.startsWith("[EBC-CURSE:")) {
+                const senderNum = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                const friendList2 = (Player.FriendList as number[] | undefined) ?? [];
+                if (senderNum && friendList2.includes(senderNum)) {
+                    handleCurseCommand(beep.Message);
+                    const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
+                    const inner = beep.Message.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+                    if (inner.startsWith("apply:")) {
+                        const groups = inner.slice("apply:".length).split(",").filter(Boolean).map(g => g.replace("Item", ""));
+                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you: ${groups.join(", ")}`, UI.accent);
+                    } else if (inner === "clear") {
+                        appendLocalLogLine(`[EBC] ✓ ${senderName} lifted all your curses.`, UI.textMuted);
+                    }
+                    return; // suppress notification
+                }
             }
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -7026,11 +7795,15 @@ function init(): void {
     let _lastQueryResultTs = 0;
     const handleAccountQueryResult = (raw: unknown): void => {
         try {
-            const now = Date.now();
-            if (now - _lastQueryResultTs < 50) return; // dedup if both hook + socket fire (50 ms is enough — they fire ~1 ms apart)
-            _lastQueryResultTs = now;
             const data = raw as Record<string, unknown>;
+            // IMPORTANT: type-check BEFORE the dedup timestamp check.
+            // If we stamp _lastQueryResultTs for every AccountQueryResult (including
+            // non-OnlineFriends queries that BC fires on login), a rapid burst drops
+            // the OnlineFriends response because the dedup eats it.
             if (data.Query !== "OnlineFriends") return;
+            const now = Date.now();
+            if (now - _lastQueryResultTs < 50) return; // dedup only OnlineFriends (hook + socket fire ~1 ms apart)
+            _lastQueryResultTs = now;
             const results = data.Result as Array<Record<string, unknown>> | undefined;
             if (!Array.isArray(results)) return;
             for (const r of results) {
@@ -7049,6 +7822,22 @@ function init(): void {
                 }
             }
             updateOnlineFriends(results);
+            // Proactively seed EBC name cache from BC's own FriendNames map.
+            // Player.FriendNames is populated at login from the server's LZ-compressed
+            // store and includes ALL friends (online and offline). Seeding here ensures
+            // offline friends show real names without needing to share a room first.
+            try {
+                const bcNames = (Player as unknown as { FriendNames?: Map<number, string> }).FriendNames;
+                if (bcNames instanceof Map && bcNames.size > 0) {
+                    const cached = getCachedNames();
+                    for (const [num, name] of bcNames) {
+                        if (num && name && !cached[String(num)]) {
+                            cacheName(num, name);
+                            cacheAccountName(num, name);
+                        }
+                    }
+                }
+            } catch { /* ignore */ }
             try { syncFriendsSince(); } catch { /* ignore */ }
             try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
             try { drawer?.refreshFriendList(); } catch { /* ignore */ }
@@ -7068,11 +7857,15 @@ function init(): void {
         sock?.on("AccountQueryResult", handleAccountQueryResult);
     } catch { /* ignore */ }
 
-    // Heartbeat: poll every 60 s so the friends list stays current when BC doesn't
-    // push AccountQueryResult automatically (e.g. friend goes offline mid-session).
+    // Initial query — fire 3 s after load so the connection is settled, then every
+    // 30 s to stay current. (Previously was 60 s with no initial query, so the list
+    // could stay stale for a full minute if BC's own query burst got deduplicated.)
+    window.setTimeout(() => {
+        try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
+    }, 3000);
     setInterval(() => {
         try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
-    }, 60 * 1000);
+    }, 30 * 1000);
 
     // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
     // Typing *text (or * text) in the chat box sends a BC Emote message so it
@@ -7140,7 +7933,12 @@ function init(): void {
     // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
-            if ((args[0] as KeyboardEvent | undefined)?.shiftKey) return next(args);
+            const ev = args[0] as KeyboardEvent | undefined;
+            // BC's InputKeyDown crashes at ev.key.length when ev.key is undefined.
+            // This can happen when a hook in the chain passes a synthetic/plain object
+            // instead of a real KeyboardEvent.  Guard here to prevent the crash.
+            if (!ev || typeof ev.key !== "string") return false;
+            if (ev.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();
                 if (input?.value.trim() && (

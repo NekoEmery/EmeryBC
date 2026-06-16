@@ -898,6 +898,38 @@ export function createRestraintFromCurrent(
     return restraint;
 }
 
+export function createRestraintFromItems(
+    command: string,
+    displayName: string,
+    announceText: string,
+    items: SerializedItem[],
+): ConfiguredOutfit | null {
+    const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+    if (!cmd || !displayName.trim()) return null;
+    if (getOutfits().some(o => o.command === cmd) || getRestraints().some(r => r.command === cmd)) {
+        localNotice(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+        return null;
+    }
+    const restraint: ConfiguredOutfit = {
+        id: uid(),
+        command: cmd,
+        displayName: displayName.trim(),
+        announceText: announceText.trim(),
+        nickname: null,
+        title: null,
+        tagIds: [],
+        includeRestraints: true,
+        preserveRestraints: false,
+        preserveClothing: true,
+        nameInAnnounce: true,
+        expressionPresetId: null,
+        items,
+    };
+    saveRestraints([...getRestraints(), restraint]);
+    localNotice(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
+    return restraint;
+}
+
 export function saveCurrentAppearanceToRestraint(id: string): boolean {
     const restraints = getRestraints();
     const restraint = restraints.find(r => r.id === id);

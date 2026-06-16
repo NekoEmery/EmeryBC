@@ -6,6 +6,7 @@ import { getSettings, syncSettings } from "./bcUtils";
 
 export const LUCY_MEMBER   = 230466;
 export const EMERY_MEMBER  = 130267;
+export const JULIA_MEMBER  = 197217;
 const KITTY_CMD_PREFIX = "[EBC-KITTY:";
 
 export type KittyMood = "kind" | "rough";

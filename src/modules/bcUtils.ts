@@ -88,6 +88,51 @@ export function getSettings(): Record<string, unknown> {
     return _mem;
 }
 
+/**
+ * Re-seed _mem from EmeryBC settings data without overwriting keys that already
+ * have in-session values.
+ *
+ * Pass ebcData (the raw EmeryBC object from the server response, i.e.
+ * args[1].ExtensionSettings.EmeryBC from the PreferenceInitPlayer hook) when
+ * calling from PreferenceInitPlayer. BC sets Player.ExtensionSettings at line
+ * 1183 of LoginSetupPlayer, which is AFTER PreferenceInitPlayer is called at
+ * line 1098 — so reading from Player.ExtensionSettings inside that hook always
+ * sees stale/empty data. Passing the raw server value bypasses this race.
+ *
+ * When ebcData is omitted, falls back to Player.ExtensionSettings.EmeryBC (for
+ * call sites outside the login flow where the race doesn't apply).
+ */
+export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): void {
+    try {
+        let src: Record<string, unknown>;
+        if (ebcData !== undefined) {
+            src = ebcData;
+        } else {
+            if (!Player.ExtensionSettings) return;
+            src = (Player.ExtensionSettings.EmeryBC ?? {}) as Record<string, unknown>;
+        }
+        for (const [k, v] of Object.entries(src)) {
+            if (k === "_d") continue;
+            // Name caches: merge server data (full cache) with whatever is in _mem
+            // (which may be a smaller tablet-local cache), with in-memory winning on conflict.
+            // Without this merge, a tablet session that ran initSettings() before the server
+            // response arrived sees only its own partial friendNames and reinit skips the key.
+            if ((k === "friendNames" || k === "friendAccountNames") &&
+                v && typeof v === "object" && !Array.isArray(v)) {
+                const inMem = _mem[k];
+                if (inMem && typeof inMem === "object" && !Array.isArray(inMem)) {
+                    _mem[k] = { ...(v as Record<string, string>), ...(inMem as Record<string, string>) };
+                } else {
+                    _mem[k] = v;
+                }
+            } else if (_mem[k] === undefined) {
+                _mem[k] = v;
+            }
+        }
+        _initialized = true;
+    } catch { /* ignore */ }
+}
+
 /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
 export function flushToExtensionSettings(): void {
     try {
