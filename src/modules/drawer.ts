@@ -13765,7 +13765,7 @@ export class EBCDrawer {
         ));
 
         // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
-        chatSettingsBody.appendChild(mkToggleRow(
+        const showBeepInChatRow = mkToggleRow(
             "Show beeps in BC chat",
             () => !getSuppressNativeBeep(),
             (v) => {
@@ -13776,7 +13776,8 @@ export class EBCDrawer {
                     try { fn?.(); } catch { /* ignore */ }
                 }
             },
-        ));
+        );
+        chatSettingsBody.appendChild(showBeepInChatRow);
 
         chatSettingsBody.appendChild(mkToggleRow(
             "Use BC native beep sound",
@@ -13793,6 +13794,12 @@ export class EBCDrawer {
             "LianChat compatibility",
             getLianChatCompat,
             (v) => setLianChatCompat(v),
+            () => {
+                // When enabling LianChat compat, auto-enable "Show beeps in BC chat" too
+                if (getLianChatCompat() && getSuppressNativeBeep()) {
+                    (showBeepInChatRow.querySelector("button") as HTMLButtonElement | null)?.click();
+                }
+            },
         ));
         const lianHint = document.createElement("div");
         lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
