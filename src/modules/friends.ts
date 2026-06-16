@@ -687,6 +687,7 @@ export function clearConversation(memberNumber: number): void {
 // (string `ID` field, raw Appearance array) that CharacterLoadOnline expects.
 //
 // Large / privacy-sensitive fields are stripped before storage.
+// localStorage cap: 100 entries (oldest evicted), tracked by EBC_bundle_idx.
 
 const BUNDLE_STRIP_FIELDS = [
     "Inventory", "BlockItems", "LimitedItems", "FavoriteItems",
@@ -694,13 +695,49 @@ const BUNDLE_STRIP_FIELDS = [
     "WhiteList", "BlackList", "Crafting",
 ];
 
+const BUNDLE_LS_MAX = 100;
+const BUNDLE_IDX_KEY = "EBC_bundle_idx";
+
 // Tier 1: fast in-memory cache for the current session.
 const sessionCharacterBundles = new Map<number, unknown>();
 
+function readBundleIndex(): number[] {
+    try {
+        const raw = localStorage.getItem(BUNDLE_IDX_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw) as number[];
+    } catch { return []; }
+}
+
+function writeBundleIndex(idx: number[]): void {
+    try { localStorage.setItem(BUNDLE_IDX_KEY, JSON.stringify(idx)); } catch { /* ignore */ }
+}
+
+function writeBundleToLS(num: number, bundle: Record<string, unknown>): void {
+    try {
+        localStorage.setItem(`EBC_bundle_${num}`, JSON.stringify(bundle));
+        const idx = readBundleIndex().filter(n => n !== num);
+        idx.push(num);
+        if (idx.length > BUNDLE_LS_MAX) {
+            const evicted = idx.splice(0, idx.length - BUNDLE_LS_MAX);
+            for (const old of evicted) {
+                try { localStorage.removeItem(`EBC_bundle_${old}`); } catch { /* ignore */ }
+            }
+        }
+        writeBundleIndex(idx);
+    } catch { /* ignore */ }
+}
+
+function readBundleFromLS(num: number): unknown | null {
+    try {
+        const raw = localStorage.getItem(`EBC_bundle_${num}`);
+        return raw ? JSON.parse(raw) as unknown : null;
+    } catch { return null; }
+}
+
 /**
  * Store the raw server bundle for an online character.
- * Session cache only — IndexedDB was removed (caused persistent
- * "[object Event]" unhandled rejections in Chrome that couldn't be suppressed).
+ * Writes to both the in-memory session cache and localStorage.
  */
 export function storeRawBundle(data: unknown): void {
     try {
@@ -710,14 +747,17 @@ export function storeRawBundle(data: unknown): void {
         const bundle: Record<string, unknown> = { ...d };
         for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
         sessionCharacterBundles.set(num, bundle);
+        writeBundleToLS(num, bundle);
     } catch { /* ignore */ }
 }
 
 /**
- * Retrieve a stored bundle — session cache only.
+ * Retrieve a stored bundle — session cache first, then localStorage fallback.
  */
 export async function getCharacterBundle(memberNumber: number): Promise<unknown | null> {
-    return sessionCharacterBundles.get(memberNumber) ?? null;
+    const session = sessionCharacterBundles.get(memberNumber);
+    if (session !== undefined) return session;
+    return readBundleFromLS(memberNumber);
 }
 
 /** Synchronous check — true if a session bundle exists for this member. */

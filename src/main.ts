@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.41";
+const MOD_VERSION = "6.9.42";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -39,8 +39,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "6.9.41",
+        version: "6.9.42",
         changes: [
+            "Fix: Profile button now shows characters with their outfit and bio even across sessions. Character bundles (appearance, name, bio, etc.) are now persisted to localStorage (capped at 100 entries, oldest evicted) so profiles stay viewable after reloading the page. Previously bundles were session-memory only — reloading reset them and every offline profile showed a blank character.",
             "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
             "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
             "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
