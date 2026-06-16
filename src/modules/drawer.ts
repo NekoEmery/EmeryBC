@@ -4045,6 +4045,7 @@ export class EBCDrawer {
     private _lovHttpConnected = false;
     private _lovHttpToyCount  = 0;
     private _lovHttpLastRaw   = "";
+    private _lovHttpToys: Array<{ id: string; name: string; intensity: number; duration: number }> = [];
     private _toyCtrlSessions  = new Map<number, { name: string }>();
     private _toyPendingOut    = new Map<number, { name: string }>();
     private _toyGrantedTo     = new Map<number, { name: string }>();
@@ -21069,6 +21070,53 @@ export class EBCDrawer {
                     httpRawEl.style.display = text ? "block" : "none";
                 };
 
+                const httpToyListEl = mk("div", "margin-bottom:8px;");
+                httpToyListEl.style.display = "none";
+                httpBody.appendChild(httpToyListEl);
+
+                const renderHttpToyList = (): void => {
+                    while (httpToyListEl.firstChild) httpToyListEl.removeChild(httpToyListEl.firstChild);
+                    if (!this._lovHttpConnected || this._lovHttpToys.length === 0) {
+                        httpToyListEl.style.display = "none";
+                        return;
+                    }
+                    httpToyListEl.style.display = "";
+                    const mkTinySlider = (label: string, min: number, max: number, val: number, unit: string, onChange: (v: number) => void): HTMLElement => {
+                        const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);flex-shrink:0;`); lbl.textContent = label;
+                        const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(val);
+                        sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);min-width:22px;`); vl.textContent = val + unit;
+                        sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                        wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
+                        return wrap;
+                    };
+                    for (const toy of this._lovHttpToys) {
+                        const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                        const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
+                        const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = "🟢";
+                        const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;color:#c8e0c8;`);
+                        tName.textContent = toy.name;
+                        const testBtn = document.createElement("button"); testBtn.textContent = "Test";
+                        testBtn.style.cssText = `${FONT}font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                        testBtn.addEventListener("click", () => {
+                            testBtn.disabled = true;
+                            void this._lovHttpVibrate(toy.intensity, toy.duration).then(() => {
+                                setTimeout(() => { testBtn.disabled = false; }, 1200);
+                            });
+                        });
+                        tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(testBtn);
+                        tCard.appendChild(tRow);
+                        const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                        sRow.appendChild(mkTinySlider("Intensity", 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
+                        const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
+                        sRow.appendChild(divider);
+                        sRow.appendChild(mkTinySlider("Seconds", 1, 60, toy.duration, "s", v => { toy.duration = v; }));
+                        tCard.appendChild(sRow);
+                        httpToyListEl.appendChild(tCard);
+                    }
+                };
+
                 httpTestBtn.addEventListener("click", () => {
                     const rawUrl = urlInp.value.trim().replace(/\/$/, "");
                     if (!rawUrl) return;
@@ -21095,6 +21143,7 @@ export class EBCDrawer {
                             httpStatus.style.color = "#e07070";
                             showRaw(this._lovHttpLastRaw || "");
                         }
+                        renderHttpToyList();
                     });
                 });
 
@@ -22054,9 +22103,31 @@ export class EBCDrawer {
         const cmdRes = await this._lovPostCommand({ command: "Function", action: "Vibrate:0", timeSec: 0, apiVer: 1 });
         if (cmdRes && !EBCDrawer._lovIsError(cmdRes.json)) {
             this._lovHttpLastRaw = cmdRes.raw.slice(0, 400);
-            // /command works but doesn't return a toy list — report 1 as a placeholder
-            // so the status shows "Ready" rather than "0 toys".
-            this._lovHttpToyCount = 1;
+            // Try to get a real toy list via GetToys command.
+            const toysRes = await this._lovPostCommand({ command: "GetToys", apiVer: 1 });
+            let toysParsed = false;
+            if (toysRes && !EBCDrawer._lovIsError(toysRes.json) && toysRes.json?.data) {
+                let toyData: Record<string, unknown> | null = null;
+                if (typeof toysRes.json.data === "string") {
+                    try { toyData = JSON.parse(toysRes.json.data) as Record<string, unknown>; } catch { /* ignore */ }
+                } else if (typeof toysRes.json.data === "object" && !Array.isArray(toysRes.json.data)) {
+                    toyData = toysRes.json.data as Record<string, unknown>;
+                }
+                if (toyData && Object.keys(toyData).length > 0) {
+                    this._lovHttpToys = Object.entries(toyData).map(([id, info]) => {
+                        const t = (info as Record<string, unknown>);
+                        const name = typeof t.name === "string" ? t.name : (typeof t.deviceName === "string" ? t.deviceName : id);
+                        return { id, name, intensity: 10, duration: 5 };
+                    });
+                    this._lovHttpToyCount = this._lovHttpToys.length;
+                    toysParsed = true;
+                }
+            }
+            if (!toysParsed) {
+                // /command works but GetToys didn't return data — show single placeholder entry
+                this._lovHttpToys = [{ id: "http0", name: "Lovense Connect", intensity: 10, duration: 5 }];
+                this._lovHttpToyCount = 1;
+            }
             this._lovHttpConnected = true;
             return true;
         }
@@ -22067,6 +22138,9 @@ export class EBCDrawer {
             if (!res || EBCDrawer._lovIsError(res.json)) continue;
             this._lovHttpLastRaw = res.raw.slice(0, 400);
             this._lovHttpToyCount = EBCDrawer._lovParseToyCount(res.json);
+            this._lovHttpToys = this._lovHttpToyCount > 0
+                ? [{ id: "http0", name: "Lovense Connect", intensity: 10, duration: 5 }]
+                : [];
             this._lovHttpConnected = true;
             return true;
         }
@@ -22075,10 +22149,12 @@ export class EBCDrawer {
         if (cmdRes !== null) {
             this._lovHttpLastRaw = cmdRes.raw.slice(0, 400);
             this._lovHttpToyCount = 0;
+            this._lovHttpToys = [];
             this._lovHttpConnected = true;
             return true;
         }
         this._lovHttpConnected = false;
+        this._lovHttpToys = [];
         return false;
     }
 

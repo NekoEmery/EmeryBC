@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 17;   // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 18;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -45,6 +45,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.1.2",
         changes: [
+            "Lovense HTTP: connected toys now appear as cards (matching BLE style) with a Test button and per-toy Intensity/Seconds sliders. Attempts to fetch real toy names via GetToys command; falls back to 'Lovense Connect' placeholder if unavailable.",
             "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
             "UI: brightened --ebc-text-sub across all themes (was too low-contrast on dark backgrounds); affects secondary labels, hints, and notes throughout the panel.",
             "Fix: Lovense HTTP /GetToys now correctly parses toy count — Lovense Connect v1 API returns data as a JSON-encoded string, not an object; count was always 0 before this fix.",
