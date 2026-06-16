@@ -32118,9 +32118,12 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 7; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 8; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
+    // Set to true by the beep hook when we want to let the mod chain through
+    // (for LianChat/WCE compat) but still block BC's native notification.
+    let _ebcBlockBeepNative = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
     // on repeated CharacterRefresh calls for the same person in a large room.
     const seenThisSession = new Set();
@@ -32132,6 +32135,7 @@
         {
             version: "8.1.2",
             changes: [
+                "Fix: beep suppression now uses a sentinel hook so LianChat/WCE still see friend beeps through the mod chain, but BC's native chat notification is blocked as intended.",
                 "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
                 "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
                 "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
@@ -40017,13 +40021,32 @@
                     }
                 }
                 catch ( /* ignore */_m) { /* ignore */ }
-                // Suppress EBC's own sound already ran above. Always call next() here so
-                // other mods in the chain (LianChat, WCE, etc.) also see this beep —
-                // returning without next() would block their hooks silently.
-                if (!getUseNativeBeepSound() && getSuppressNativeBeep())
-                    return next(args);
+                // Suppress EBC's own sound already ran above. Call next() so other mods in
+                // the chain (LianChat, WCE, etc.) still see this beep, but set a flag first
+                // so the low-priority sentinel hook below can block BC's native notification
+                // from running at the end of the chain.
+                if (!getUseNativeBeepSound() && getSuppressNativeBeep()) {
+                    _ebcBlockBeepNative = true;
+                    try {
+                        return next(args);
+                    }
+                    finally {
+                        _ebcBlockBeepNative = false;
+                    }
+                }
             }
             catch ( /* ignore */_o) { /* ignore */ }
+            return next(args);
+        });
+        // Sentinel hook at priority 0 (runs just before BC native). When _ebcBlockBeepNative
+        // is set by the priority-3 hook above, we swallow the call here so BC's native
+        // notification never fires — while LianChat/WCE hooks at intermediate priorities
+        // have already seen the beep normally.
+        tryHookFunction(modAPI, "ServerAccountBeep", 0, (args, next) => {
+            if (_ebcBlockBeepNative) {
+                _ebcBlockBeepNative = false;
+                return;
+            }
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
