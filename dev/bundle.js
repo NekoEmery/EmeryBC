@@ -29366,7 +29366,7 @@
                                 mBtn.style.cssText = baseCSS;
                                 mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
                                 mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
-                                mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
+                                mBtn.addEventListener("click", () => { this._controlGameToyMode(memberNum, m.mode); this.sendGameToyMsg(memberNum, m.mode); });
                                 rowEl.appendChild(mBtn);
                             }
                             sessCard.appendChild(rowEl);
@@ -29581,8 +29581,26 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        _controlGameToyMode(targetNum, modeName) {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+            try {
+                const win = window;
+                const targetChar = ((_a = win.ChatRoomCharacter) !== null && _a !== void 0 ? _a : []).find(c => c.MemberNumber === targetNum);
+                if (!(targetChar === null || targetChar === void 0 ? void 0 : targetChar.Appearance))
+                    return;
+                const lookup = (_b = win.VibratorModeDataLookup) !== null && _b !== void 0 ? _b : {};
+                for (const item of targetChar.Appearance) {
+                    const g = (_e = (_d = (_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Group) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : "";
+                    const n = (_g = (_f = item.Asset) === null || _f === void 0 ? void 0 : _f.Name) !== null && _g !== void 0 ? _g : "";
+                    if (((_h = item.Asset) === null || _h === void 0 ? void 0 : _h.Archetype) === "vibrating" || (g + n) in lookup || typeof ((_j = item.Property) === null || _j === void 0 ? void 0 : _j["Mode"]) === "string") {
+                        (_k = win.VibratorModeSetOptionByName) === null || _k === void 0 ? void 0 : _k.call(win, targetChar, item, modeName, true);
+                    }
+                }
+            }
+            catch ( /* ignore */_l) { /* ignore */ }
+        }
         _applyBCVibratorMode(modeName) {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const win = window;
                 const player = win.Player;
@@ -29591,12 +29609,12 @@
                 const lookup = (_a = win.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
                 for (const item of player.Appearance) {
                     const key = item.Asset.Group.Name + item.Asset.Name;
-                    if (!(key in lookup))
-                        continue;
-                    (_b = win.VibratorModeSetOptionByName) === null || _b === void 0 ? void 0 : _b.call(win, player, item, modeName, true);
+                    if (item.Asset.Archetype === "vibrating" || key in lookup || typeof ((_b = item.Property) === null || _b === void 0 ? void 0 : _b["Mode"]) === "string") {
+                        (_c = win.VibratorModeSetOptionByName) === null || _c === void 0 ? void 0 : _c.call(win, player, item, modeName, false);
+                    }
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         sendIrlToyMsg(targetNum, type, intensity, duration) {
             try {
@@ -31782,7 +31800,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.59";
+    const MOD_VERSION = "6.9.60";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31793,6 +31811,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.60",
+            changes: [
+                "GAME TOYS: mode buttons now call VibratorModeSetOptionByName on the target character directly (same as BC's DOM toy controller), so chat messages appear with the controller as source. Target applies the mode silently (no double message).",
+            ],
+        },
         {
             version: "6.9.59",
             changes: [
