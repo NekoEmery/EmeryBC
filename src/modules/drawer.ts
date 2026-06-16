@@ -216,55 +216,55 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
 
 // Valid BC facial expression states (verified against Female3DCG asset directories).
 // Groups: Blush, Eyes, Eyes2, Mouth, Eyebrows, Fluids, Emoticon.
-// "Ears" is NOT a valid CharacterSetFacialExpression group — removed.
+// "Ears" is NOT a valid CharacterSetFacialExpression group - removed.
 // Empty state string → handler sends null → clears that group.
 const KITTY_EXPRESSIONS = [
     // ── Blush ────────────────────────────────────────────────────
-    { label: "😊 Blush — light",    cmd: "Blush:Low" },
-    { label: "😊 Blush — medium",   cmd: "Blush:Medium" },
-    { label: "😳 Blush — high",     cmd: "Blush:High" },
-    { label: "🔥 Blush — extreme",  cmd: "Blush:Extreme" },
-    { label: "× Blush — clear",     cmd: "Blush:" },
+    { label: "😊 Blush - light",    cmd: "Blush:Low" },
+    { label: "😊 Blush - medium",   cmd: "Blush:Medium" },
+    { label: "😳 Blush - high",     cmd: "Blush:High" },
+    { label: "🔥 Blush - extreme",  cmd: "Blush:Extreme" },
+    { label: "× Blush - clear",     cmd: "Blush:" },
     // ── Eyes ─────────────────────────────────────────────────────
-    { label: "😌 Eyes — closed",    cmd: "Eyes:Closed" },
-    { label: "😳 Eyes — shy",       cmd: "Eyes:Shy" },
-    { label: "😢 Eyes — sad",       cmd: "Eyes:Sad" },
-    { label: "😱 Eyes — surprised", cmd: "Eyes:Surprised" },
-    { label: "😡 Eyes — angry",     cmd: "Eyes:Angry" },
-    { label: "😵 Eyes — dazed",     cmd: "Eyes:Dazed" },
-    { label: "💕 Eyes — heart",     cmd: "Eyes:Heart" },
-    { label: "😍 Eyes — lewd",      cmd: "Eyes:Lewd" },
-    { label: "× Eyes — clear",      cmd: "Eyes:" },
+    { label: "😌 Eyes - closed",    cmd: "Eyes:Closed" },
+    { label: "😳 Eyes - shy",       cmd: "Eyes:Shy" },
+    { label: "😢 Eyes - sad",       cmd: "Eyes:Sad" },
+    { label: "😱 Eyes - surprised", cmd: "Eyes:Surprised" },
+    { label: "😡 Eyes - angry",     cmd: "Eyes:Angry" },
+    { label: "😵 Eyes - dazed",     cmd: "Eyes:Dazed" },
+    { label: "💕 Eyes - heart",     cmd: "Eyes:Heart" },
+    { label: "😍 Eyes - lewd",      cmd: "Eyes:Lewd" },
+    { label: "× Eyes - clear",      cmd: "Eyes:" },
     // ── Mouth ────────────────────────────────────────────────────
-    { label: "😊 Mouth — happy",    cmd: "Mouth:Happy" },
-    { label: "😢 Mouth — sad",      cmd: "Mouth:Sad" },
-    { label: "😤 Mouth — pout",     cmd: "Mouth:Pout" },
-    { label: "😠 Mouth — angry",    cmd: "Mouth:Angry" },
-    { label: "😩 Mouth — moan",     cmd: "Mouth:Moan" },
-    { label: "😈 Mouth — devious",  cmd: "Mouth:Devious" },
-    { label: "😬 Mouth — grin",     cmd: "Mouth:Grin" },
-    { label: "😋 Mouth — smirk",    cmd: "Mouth:Smirk" },
-    { label: "× Mouth — clear",     cmd: "Mouth:" },
+    { label: "😊 Mouth - happy",    cmd: "Mouth:Happy" },
+    { label: "😢 Mouth - sad",      cmd: "Mouth:Sad" },
+    { label: "😤 Mouth - pout",     cmd: "Mouth:Pout" },
+    { label: "😠 Mouth - angry",    cmd: "Mouth:Angry" },
+    { label: "😩 Mouth - moan",     cmd: "Mouth:Moan" },
+    { label: "😈 Mouth - devious",  cmd: "Mouth:Devious" },
+    { label: "😬 Mouth - grin",     cmd: "Mouth:Grin" },
+    { label: "😋 Mouth - smirk",    cmd: "Mouth:Smirk" },
+    { label: "× Mouth - clear",     cmd: "Mouth:" },
     // ── Eyebrows ─────────────────────────────────────────────────
-    { label: "🤨 Brow — raised",    cmd: "Eyebrows:Raised" },
-    { label: "😤 Brow — harsh",     cmd: "Eyebrows:Harsh" },
-    { label: "😡 Brow — angry",     cmd: "Eyebrows:Angry" },
-    { label: "😊 Brow — soft",      cmd: "Eyebrows:Soft" },
-    { label: "× Brow — clear",      cmd: "Eyebrows:" },
+    { label: "🤨 Brow - raised",    cmd: "Eyebrows:Raised" },
+    { label: "😤 Brow - harsh",     cmd: "Eyebrows:Harsh" },
+    { label: "😡 Brow - angry",     cmd: "Eyebrows:Angry" },
+    { label: "😊 Brow - soft",      cmd: "Eyebrows:Soft" },
+    { label: "× Brow - clear",      cmd: "Eyebrows:" },
     // ── Fluids ───────────────────────────────────────────────────
-    { label: "💧 Drool — low",      cmd: "Fluids:DroolLow" },
-    { label: "💧 Drool — medium",   cmd: "Fluids:DroolMedium" },
-    { label: "💦 Drool — high",     cmd: "Fluids:DroolHigh" },
-    { label: "💦 Drool — sides",    cmd: "Fluids:DroolSides" },
-    { label: "💦 Drool — messy",    cmd: "Fluids:DroolMessy" },
-    { label: "😢 Tears — low",      cmd: "Fluids:TearsLow" },
-    { label: "😢 Tears — medium",   cmd: "Fluids:TearsMedium" },
-    { label: "😭 Tears — high",     cmd: "Fluids:TearsHigh" },
-    { label: "× Fluids — clear",    cmd: "Fluids:" },
+    { label: "💧 Drool - low",      cmd: "Fluids:DroolLow" },
+    { label: "💧 Drool - medium",   cmd: "Fluids:DroolMedium" },
+    { label: "💦 Drool - high",     cmd: "Fluids:DroolHigh" },
+    { label: "💦 Drool - sides",    cmd: "Fluids:DroolSides" },
+    { label: "💦 Drool - messy",    cmd: "Fluids:DroolMessy" },
+    { label: "😢 Tears - low",      cmd: "Fluids:TearsLow" },
+    { label: "😢 Tears - medium",   cmd: "Fluids:TearsMedium" },
+    { label: "😭 Tears - high",     cmd: "Fluids:TearsHigh" },
+    { label: "× Fluids - clear",    cmd: "Fluids:" },
 ];
 
 const KITTY_REACTION_POSES = [
-    { label: "— None —",       poses: [] as string[] },
+    { label: "- None -",       poses: [] as string[] },
     { label: "🙏 Kneel",       poses: ["Kneel"] },
     { label: "🐱 All fours",   poses: ["AllFours"] },
     { label: "🙌 Hands up",    poses: ["OverTheHead"] },
@@ -272,15 +272,15 @@ const KITTY_REACTION_POSES = [
 
 /**
  * Normalise a string for fuzzy search:
- *  1. NFKD decomposition — collapses full-width/circled/squared compatibility
+ *  1. NFKD decomposition - collapses full-width/circled/squared compatibility
  *     chars and splits diacritics into combining marks.
  *  2. Strip combining diacritical marks → é→e, ñ→n, ü→u …
  *  3. Map Mathematical Alphanumeric Symbol code-points (U+1D400-U+1D7C3) back
- *     to their plain ASCII equivalents — covers every style BC players use:
+ *     to their plain ASCII equivalents - covers every style BC players use:
  *     Bold, Italic, Bold Italic, Script, Bold Script, Fraktur, Double-struck,
  *     Sans-serif (regular / Bold / Italic / Bold Italic), and Monospace.
  *
- * Result is NOT lowercased — callers should chain .toLowerCase() as needed.
+ * Result is NOT lowercased - callers should chain .toLowerCase() as needed.
  */
 function normalizeForSearch(s: string): string {
     if (!s) return s;
@@ -424,7 +424,7 @@ function isTouchModeActive(): boolean {
     try {
         const v = localStorage.getItem(TOUCH_MODE_FORCE_KEY);
         if (v === "1") return true;   // explicitly forced ON
-        if (v === "0") return false;  // explicitly forced OFF — beats device detection
+        if (v === "0") return false;  // explicitly forced OFF - beats device detection
     } catch { /* ignore */ }
     return isTouchDevice();           // fall back to hardware detection
 }
@@ -446,7 +446,7 @@ function savePanelOpacity(v: number): void {
 }
 
 // -- Panel zoom (persisted to localStorage) ------------------------------------
-// Scales the entire EBC panel (text, buttons, spacing — everything).
+// Scales the entire EBC panel (text, buttons, spacing - everything).
 // Range: 0.6 – 2.0. Default 1.0 (matches native BC text density).
 
 const PANEL_ZOOM_KEY = "EBC_panelZoom";
@@ -610,7 +610,7 @@ const CSS = `
     cursor: pointer;
 }
 /* Outside chatrooms (roaming mode) the root sits at right:0 so there is no
-   chat-log column to overlap — keep the tab fully visible at all times. */
+   chat-log column to overlap - keep the tab fully visible at all times. */
 #emerybc-root.ebc-roaming #ebc-tab,
 #emerybc-root.ebc-roaming #ebc-tab.ebc-tab-closed {
     left: -44px;
@@ -620,10 +620,10 @@ const CSS = `
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
     position: absolute;
-    right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
+    right: 44px;   /* leave the 44px tab strip uncovered - tab is to our right */
     top: 0;
     width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
-    height: 100%;  /* full chat log height — no vertical conflict with tab */
+    height: 100%;  /* full chat log height - no vertical conflict with tab */
     display: flex;
     flex-direction: column;
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -631,11 +631,11 @@ const CSS = `
                 visibility 0.35s;
     will-change: transform, opacity;
     pointer-events: none;
-    touch-action: pan-y; /* tell the browser vertical scroll is allowed — overrides BC's canvas touch-action */
+    touch-action: pan-y; /* tell the browser vertical scroll is allowed - overrides BC's canvas touch-action */
 }
 
 /* +60px extra so the panel clears the 44px tab offset when closed.
-   opacity+visibility mirror what CRABS does — ensures zero visual bleed
+   opacity+visibility mirror what CRABS does - ensures zero visual bleed
    even if the transform doesn't push every pixel off-screen. */
 #emerybc-panel.ebc-closed {
     transform: translateX(calc(100% + 60px));
@@ -644,7 +644,7 @@ const CSS = `
 }
 #emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
-/* Drag-resize handles — invisible hit areas on the outer edges, cursor only */
+/* Drag-resize handles - invisible hit areas on the outer edges, cursor only */
 .ebc-resize-w {
     position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
     cursor: ew-resize; z-index: 200;
@@ -653,7 +653,7 @@ const CSS = `
     position: absolute; left: 0; right: 0; bottom: 0; height: 10px;
     cursor: ns-resize; z-index: 200;
 }
-/* Corner resize grip — the only visible affordance */
+/* Corner resize grip - the only visible affordance */
 .ebc-resize-corner {
     position: absolute; left: 0; bottom: 0; width: 28px; height: 28px;
     cursor: nesw-resize; z-index: 202;
@@ -675,7 +675,7 @@ const CSS = `
     width: 100%;
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -793,7 +793,7 @@ const CSS = `
     scrollbar-color: #cf6f98 #1a0814;
     touch-action: pan-y; /* allow vertical touch scroll */
     overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch; /* momentum scroll — needed on some Android builds */
+    -webkit-overflow-scrolling: touch; /* momentum scroll - needed on some Android builds */
 }
 
 /* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
@@ -2084,7 +2084,7 @@ const CSS = `
     pointer-events: none;
 }
 
-/* tag chip inside the expand panel — larger, with remove button */
+/* tag chip inside the expand panel - larger, with remove button */
 .ebc-etag-chip {
     display: inline-flex;
     align-items: center;
@@ -2744,7 +2744,7 @@ const CSS = `
 }
 .ebc-beep-room-bar:hover { color: #cf6f98; background: rgba(50,14,34,0.70); }
 
-/* Expandable room info drawer — slides open below the room bar on hover/tap */
+/* Expandable room info drawer - slides open below the room bar on hover/tap */
 .ebc-beep-room-drawer {
     max-height: 0;
     overflow: hidden;
@@ -2803,7 +2803,7 @@ const CSS = `
 
 /* Message wrap */
 .ebc-beep-msg-wrap { position: relative; }
-/* Copy button — shown inline beside the timestamp */
+/* Copy button - shown inline beside the timestamp */
 .ebc-bubble-copy-btn {
     display: inline-block;
     flex-shrink: 0;
@@ -2986,7 +2986,7 @@ const CSS = `
 #emerybc-panel.ebc-free-mode {
     position: fixed !important;
     right: auto !important;
-    top: auto;           /* no !important — inline style.top must win during drag */
+    top: auto;           /* no !important - inline style.top must win during drag */
     width: min(390px, calc(100vw - 16px));
     height: min(80vh, 650px);
     border-radius: 10px;
@@ -3261,7 +3261,7 @@ const CSS = `
 }
 
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
-/* Applied when #emerybc-panel has [data-touch] — auto on coarse-pointer     */
+/* Applied when #emerybc-panel has [data-touch] - auto on coarse-pointer     */
 /* devices (phones/tablets), or force-enabled from the DEV → Drawer Prefs.  */
 /* All rules use !important so they beat the inline cssText on lang pills    */
 /* and other elements that set styles programmatically.                      */
@@ -3326,7 +3326,7 @@ const CSS = `
 }
 #emerybc-panel[data-touch] .ebc-tabs::-webkit-scrollbar { display: none; }
 #emerybc-panel[data-touch] .ebc-tab-btn {
-    flex: 0 0 auto !important; /* don't shrink — allow horizontal scroll instead */
+    flex: 0 0 auto !important; /* don't shrink - allow horizontal scroll instead */
     min-width: 48px !important;
 }
 
@@ -3354,7 +3354,7 @@ const CSS = `
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Interactive guide — floating side panel ────────────────────────── */
+/* ── Interactive guide - floating side panel ────────────────────────── */
 /* Detached from the main panel so the full menu stays visible while reading. */
 .ebc-guide-side {
     position: fixed;
@@ -3507,7 +3507,7 @@ const CSS = `
 }
 .ebc-guide-action-btn:hover:not(:disabled) { background: #4a1535; border-color: #cf6f98; color: #f0b0d0; }
 .ebc-guide-action-btn:disabled { opacity: 0.65; cursor: default; }
-/* Highlighted keyword chips — the main teaching tool */
+/* Highlighted keyword chips - the main teaching tool */
 .ebc-guide-hl {
     display: inline-block;
     background: #b84878;
@@ -3710,7 +3710,7 @@ const DEFAULT_COLORS: CoreColors = {
 
 interface ThemePreset { name: string; colors: CoreColors; }
 const EBC_THEME_PRESETS: Record<string, ThemePreset> = {
-    // Each preset is fully cohesive — backgrounds tinted with the theme hue,
+    // Each preset is fully cohesive - backgrounds tinted with the theme hue,
     // accent is the primary colour, text & border complement it naturally.
     rose:     { name: "Rose (Default)",  colors: DEFAULT_COLORS },
     sakura:   { name: "Sakura",          colors: { bg:"#200e14", card:"#2e1520", cardMuted:"#190a0f", border:"#481a24", accent:"#e8608a", textBright:"#ffecf2", textSub:"#b87890", textMuted:"#906070", gold:"#e0b060" } },
@@ -3807,11 +3807,11 @@ function buildCSS(c: CoreColors): string {
 // -- VIP members (highlighted in Notes tab when present in the room) -----------
 
 const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {
-    130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] },  // Emery  — pink → turquoise
-    143776: { label: "Sin",     color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] },  // Sin    — light pink → hot pink
-    124264: { label: "Lara",    color: "#d898f0", gradient: ["#d898f0", "#8840d0"] },  // Lara   — lilac → deep purple
-    230466: { label: "Lucy",    color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] },  // Lucy   — light teal → dark teal
-        80: { label: "Sybil",   color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] },  // Sybil  — mint → forest green
+    130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] },  // Emery  - pink → turquoise
+    143776: { label: "Sin",     color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] },  // Sin    - light pink → hot pink
+    124264: { label: "Lara",    color: "#d898f0", gradient: ["#d898f0", "#8840d0"] },  // Lara   - lilac → deep purple
+    230466: { label: "Lucy",    color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] },  // Lucy   - light teal → dark teal
+        80: { label: "Sybil",   color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] },  // Sybil  - mint → forest green
 };
 
 /** Apply an animated flowing gradient as text fill colour to an element. */
@@ -3856,7 +3856,7 @@ function addPointerDown(
 // Add move+end listeners to document for both mouse and touch, returning a cleanup fn.
 // Touch listeners use the CAPTURE phase so they fire before any stopPropagation()
 // calls lower in the tree (e.g. the slideContainer's stopTouch guard that prevents
-// BC from calling preventDefault on scroll events — without capture, those guards
+// BC from calling preventDefault on scroll events - without capture, those guards
 // eat the touchmove before it ever reaches our drag handler).
 function addPointerTracking(
     onMove: (pos: { clientX: number; clientY: number }) => void,
@@ -3951,7 +3951,7 @@ const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; 
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
-    /** Gold paw data URI — set from main.ts after EBC_PAW_DATA is defined. */
+    /** Gold paw data URI - set from main.ts after EBC_PAW_DATA is defined. */
     static pawDataUri: string = "";
 
     // -- Persist open beep windows across sessions -----------------------------
@@ -3999,7 +3999,7 @@ export class EBCDrawer {
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
-    private friendSearch = "";       // live search query — not persisted
+    private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
     // a reverse pass can revert them when switching/resetting to a different theme.
     private _lastPaintedColors: CoreColors = { ...DEFAULT_COLORS };
@@ -4019,7 +4019,7 @@ export class EBCDrawer {
     private userPanelWidth:  number | null = null;
     // Set to true once we've confirmed no saved position exists, so we stop polling storage.
     private tabOffsetChecked = false;
-    private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
+    private tabDragging = false; // true while mouse is held on tab - blocks CRABS poller
     private domFocusTargetId: number | null = null;
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
@@ -4031,7 +4031,7 @@ export class EBCDrawer {
     // Category dropdown in quick actions bar
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
-    // Tag tooltip — kept at instance level so it survives list rebuilds
+    // Tag tooltip - kept at instance level so it survives list rebuilds
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
@@ -4050,7 +4050,7 @@ export class EBCDrawer {
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
-    // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
+    // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
     private _langPillsRefresh: (() => void) | null = null;
     private _i18nRefs: {
@@ -4119,7 +4119,7 @@ export class EBCDrawer {
         tab.id = "ebc-tab";
         tab.title = "EBC";
         tab.innerHTML = TAB_ICON;
-        // Panel starts closed — clip the tab so it doesn't block the BC canvas.
+        // Panel starts closed - clip the tab so it doesn't block the BC canvas.
         tab.classList.add("ebc-tab-closed");
         root.appendChild(tab);
 
@@ -4127,14 +4127,14 @@ export class EBCDrawer {
         const slideContainer = document.createElement("div");
         slideContainer.id = "emerybc-panel";
         slideContainer.className = "ebc-closed";
-        // Touch / phone mode — enlarges all tap targets automatically on phones.
+        // Touch / phone mode - enlarges all tap targets automatically on phones.
         applyTouchMode(slideContainer);
 
         // Inner panel (visual content)
         const panel = document.createElement("div");
         panel.className = "ebc-panel";
 
-        // Anchor the skeleton to the DOM immediately — if any later step in setup()
+        // Anchor the skeleton to the DOM immediately - if any later step in setup()
         // throws, updateVisibility() can still show the tab and the panel won't be
         // permanently lost (content gets appended to the live panel as setup continues).
         slideContainer.appendChild(panel);
@@ -4202,7 +4202,7 @@ export class EBCDrawer {
         });
 
         // ── Corner resize handle (bottom-left) ───────────────────────────────
-        // Diagonal drag — resizes width and height simultaneously.
+        // Diagonal drag - resizes width and height simultaneously.
         // Higher z-index than the edge handles so it captures the overlap area.
         const resizeCorner = document.createElement("div");
         resizeCorner.className = "ebc-resize-corner";
@@ -4262,7 +4262,7 @@ export class EBCDrawer {
         // BC registers touchmove/touchstart at document level (non-passive) and calls
         // preventDefault(), which kills native scroll inside HTML overlays.
         // bubble-phase stopImmediatePropagation is sufficient to stop document-level handlers.
-        // NOTE: Do NOT register a capture-phase stopPropagation here — doing so would prevent
+        // NOTE: Do NOT register a capture-phase stopPropagation here - doing so would prevent
         // touchstart from reaching child elements (e.g. the header drag handler), breaking
         // drawer dragging on touch devices entirely.
         const stopTouchBubble = (e: TouchEvent): void => { e.stopImmediatePropagation(); };
@@ -4305,7 +4305,7 @@ export class EBCDrawer {
         refreshBtn.title = t("header.refresh");
         refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 
-        // Drag handle icon — same mousedown behaviour as the header title area.
+        // Drag handle icon - same mousedown behaviour as the header title area.
         const moveHandle = document.createElement("span");
         moveHandle.className = "ebc-move-handle";
         moveHandle.title = t("header.dragToMove");
@@ -4325,7 +4325,7 @@ export class EBCDrawer {
 
         const guideBtn = document.createElement("button");
         guideBtn.className = "ebc-guide-btn";
-        guideBtn.title = "Interactive guide — walks you through every feature";
+        guideBtn.title = "Interactive guide - walks you through every feature";
         guideBtn.textContent = "?";
 
         // Store refs for later translation updates (langSelect ref stored after pill row is built below)
@@ -4344,7 +4344,7 @@ export class EBCDrawer {
         header.appendChild(title);
         header.appendChild(headerBtns);
 
-        // Header drag — moves the panel when in free-float mode.
+        // Header drag - moves the panel when in free-float mode.
         // In anchored mode it drags to detach the panel; after 5px movement the panel
         // enters free-float mode and follows the cursor from that point.
         addPointerDown(header, (start, e) => {
@@ -4373,7 +4373,7 @@ export class EBCDrawer {
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
-                    // Keep panel fully inside viewport — right/bottom edge must stay visible
+                    // Keep panel fully inside viewport - right/bottom edge must stay visible
                     const pW = panelEl.offsetWidth  || 360;
                     const pH = panelEl.offsetHeight || 200;
                     const newX = Math.max(0, Math.min(window.innerWidth  - pW, startPanelX + dx));
@@ -4429,7 +4429,7 @@ export class EBCDrawer {
         toysTabBtn.id = "ebc-tab-toys";
         toysTabBtn.textContent = "TOYS";
         toysTabBtn.title = "Toys & Integrations";
-        toysTabBtn.style.display = "none"; // Emery-only — revealed in open()
+        toysTabBtn.style.display = "none"; // Emery-only - revealed in open()
 
 
         const thanksTabBtn = document.createElement("button");
@@ -4444,7 +4444,7 @@ export class EBCDrawer {
         devTabBtn2.textContent = t("tabs.dev");
         devTabBtn2.title = t("tabs.devTitle");
 
-        // DOM tools tab — creator only, hidden until open() confirms the member number
+        // DOM tools tab - creator only, hidden until open() confirms the member number
         const domTabBtn = document.createElement("button");
         domTabBtn.className = "ebc-tab-btn";
         domTabBtn.id = "ebc-tab-dom";
@@ -4452,7 +4452,7 @@ export class EBCDrawer {
         domTabBtn.title = t("tabs.domTitle");
         domTabBtn.style.display = "none"; // revealed in open() for creator only
 
-        // Puppy tab — Lucy only (member 230466)
+        // Puppy tab - Lucy only (member 230466)
         const puppyTabBtn = document.createElement("button");
         puppyTabBtn.className = "ebc-tab-btn";
         puppyTabBtn.id = "ebc-tab-puppy";
@@ -4460,7 +4460,7 @@ export class EBCDrawer {
         puppyTabBtn.title = t("tabs.puppy");
         puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
-        // Kitty tab — Lucy only (member 230466)
+        // Kitty tab - Lucy only (member 230466)
         const kittyTabBtn = document.createElement("button");
         kittyTabBtn.className = "ebc-tab-btn";
         kittyTabBtn.id = "ebc-tab-kitty";
@@ -4491,7 +4491,7 @@ export class EBCDrawer {
         tabBar.appendChild(puppyTabBtn);
         tabBar.appendChild(kittyTabBtn);
 
-        // ── Language picker row — sits between tab bar and quick-actions ─────
+        // ── Language picker row - sits between tab bar and quick-actions ─────
         const langRow = document.createElement("div");
         langRow.className = "ebc-lang-row";
 
@@ -4595,7 +4595,7 @@ export class EBCDrawer {
         qaConfirmRow.appendChild(qaConfirmToggle);
         quickActions.appendChild(qaConfirmRow);
 
-        // Row 2: self-picker toggle — styled as accordion header
+        // Row 2: self-picker toggle - styled as accordion header
         const selfPickToggle = document.createElement("div");
         selfPickToggle.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;border-radius:6px;border:1px solid #3a1928;background:#1e0d18;transition:background 0.12s;";
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.background = "rgba(42,20,33,0.6)"; });
@@ -4754,7 +4754,7 @@ export class EBCDrawer {
         safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
         this.safewordRowEl = safewordRow;
 
-        // Header row — one line, always visible
+        // Header row - one line, always visible
         const swHdr = document.createElement("div");
         swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;";
         swHdr.setAttribute("data-guide-target", "strip-safewords");
@@ -4812,7 +4812,7 @@ export class EBCDrawer {
         swHdr.appendChild(swArrow);
         safewordRow.appendChild(swHdr);
 
-        // Collapsible settings panel — rebuilt on every open so values + outfit list are always fresh
+        // Collapsible settings panel - rebuilt on every open so values + outfit list are always fresh
         const swInner = document.createElement("div");
         swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
 
@@ -4829,7 +4829,7 @@ export class EBCDrawer {
                 const rem = getGraceRemaining();
                 graceLbl.textContent = rem === Infinity
                     ? "🛡 Grace active (indefinite)"
-                    : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
+                    : `🛡 Grace active - ${Math.ceil((rem as number) / 60_000)} min remaining`;
                 const cancelBtn = document.createElement("button");
                 cancelBtn.textContent = t("sw.endGrace");
                 cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
@@ -4920,7 +4920,7 @@ export class EBCDrawer {
                 const sel = document.createElement("select");
                 sel.className = "ebc-form-input"; sel.style.fontSize = "10px";
                 const noneOpt = document.createElement("option");
-                noneOpt.value = ""; noneOpt.textContent = "— none —";
+                noneOpt.value = ""; noneOpt.textContent = "- none -";
                 sel.appendChild(noneOpt);
                 try {
                     for (const o of getOutfits()) {
@@ -4996,7 +4996,7 @@ export class EBCDrawer {
 
         };
 
-        // Toggle expand — rebuild inner content on every open
+        // Toggle expand - rebuild inner content on every open
         swHdr.addEventListener("click", () => {
             const open = swInner.style.display !== "flex";
             swInner.style.display = open ? "flex" : "none";
@@ -5013,7 +5013,7 @@ export class EBCDrawer {
         body.className = "ebc-body";
         body.id = "ebc-body";
 
-        // Footer: version credit + live timer only — no controls here.
+        // Footer: version credit + live timer only - no controls here.
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
 
@@ -5028,7 +5028,7 @@ export class EBCDrawer {
         this.timerEl = timerEl;
 
 
-        // ── EBC Tags strip — collapsible, always below safewords ─────────────
+        // ── EBC Tags strip - collapsible, always below safewords ─────────────
         const ebcTagsStrip = document.createElement("div");
         ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
         ebcTagsStrip.setAttribute("data-guide-target", "strip-ebc-tags");
@@ -5040,12 +5040,12 @@ export class EBCDrawer {
         // applyPanelZoom() uses transform:scale() on this wrapper instead of
         // CSS zoom on #emerybc-panel.  transform doesn't affect the slide
         // container's layout, so #emerybc-panel never changes size and the
-        // slide transition never misfires — fixes the slider glitch.
+        // slide transition never misfires - fixes the slider glitch.
         const zoomWrapper = document.createElement("div");
         zoomWrapper.className = "ebc-zoom-wrapper";
         zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
 
-        // Flat flex column — applyPanelZoom always keeps width/height:100% so the
+        // Flat flex column - applyPanelZoom always keeps width/height:100% so the
         // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
         // real constraint and making overflow-y:auto scroll correctly.
         panel.appendChild(header);
@@ -5065,12 +5065,12 @@ export class EBCDrawer {
         // Guide is now a detached side panel (created dynamically in startGuide).
         this.guideEl = null;
 
-        // (slideContainer/root/body already anchored early in setup — see above)
+        // (slideContainer/root/body already anchored early in setup - see above)
         this.applyPanelOpacity();
         this.applyPanelZoom();
         this.updatePinnedStrips();
 
-        // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
+        // Events - tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
         // Works with both mouse and touch input via addPointerDown / addPointerTracking.
         addPointerDown(tab, (start, e) => {
@@ -5108,7 +5108,7 @@ export class EBCDrawer {
                     tab.style.cursor = "";
                     this.tabDragging = false;
                     if (longPressed) {
-                        // Emergency reset — shown after 5-second hold on the tab.
+                        // Emergency reset - shown after 5-second hold on the tab.
                         showConfirmOverlay(
                             "Reset all EBC drawer settings?\n\nRestores the default position, text size, panel size, and panel opacity.",
                             "Cancel", "Reset",
@@ -5145,7 +5145,7 @@ export class EBCDrawer {
         tab.addEventListener("contextmenu", (e: MouseEvent) => {
             e.preventDefault();
             this.userTabOffset = null;
-            this.tabOffsetChecked = true; // no need to re-poll — user explicitly reset
+            this.tabOffsetChecked = true; // no need to re-poll - user explicitly reset
             this.lastCrabsBottom = -1;
             // Clear inline fixed-position overrides so CSS absolute layout takes over
             tab.style.position = "";
@@ -5211,7 +5211,7 @@ export class EBCDrawer {
     private applyTabVisibility(): void {
         if (!this.rootEl) return;
         const hidden = getHiddenTabs();
-        // dev tab can never be hidden — repair if it somehow got stored as hidden
+        // dev tab can never be hidden - repair if it somehow got stored as hidden
         if (hidden.includes("dev")) {
             setHiddenTabs(hidden.filter(t => t !== "dev"));
             return this.applyTabVisibility();
@@ -5253,7 +5253,7 @@ export class EBCDrawer {
 
         const rightOffset = document.documentElement.clientWidth - rect.right;
 
-        // Only write to the DOM when the chat log actually moved or resized —
+        // Only write to the DOM when the chat log actually moved or resized -
         // eliminates layout thrashing on every animation frame (pattern from CRABS).
         // Round to whole pixels to ignore sub-pixel drift that can cause constant
         // re-fires (e.g. getBoundingClientRect() returning 4.5 vs 4.500001).
@@ -5276,7 +5276,7 @@ export class EBCDrawer {
             if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${panelH}px`;
             this.lastRect = { top: rTop, width: rWidth, height: rHeight, right: rRight };
             this.positioned = true;
-            // Chat log moved — force a fresh CRABS position read next tick
+            // Chat log moved - force a fresh CRABS position read next tick
             this.lastCrabsBottom = -1;
 
             // Re-apply user's saved tab position (if any) after layout changes
@@ -5369,7 +5369,7 @@ export class EBCDrawer {
         panel.classList.add("ebc-free-mode");
         panel.style.left = `${x}px`;
         panel.style.top  = `${y}px`;
-        // Restore user-resized dimensions — CSS width/height no longer use !important
+        // Restore user-resized dimensions - CSS width/height no longer use !important
         // so inline styles must be (re-)applied after the class switch.
         if (this.userPanelWidth  !== null) panel.style.width  = `${this.userPanelWidth}px`;
         if (this.userPanelHeight !== null) panel.style.height = `${this.userPanelHeight}px`;
@@ -5386,7 +5386,7 @@ export class EBCDrawer {
 
     // Reads CRABS's #drawer-tab position and updates our tab's top accordingly.
     // Skipped entirely when the user has pinned a custom position via drag.
-    // Safe to call at any frequency — writes the DOM only when the value changes.
+    // Safe to call at any frequency - writes the DOM only when the value changes.
     private updateCrabsPosition(): void {
         if (!this.rootEl) return;
 
@@ -5399,7 +5399,7 @@ export class EBCDrawer {
         }
 
         if (!this.positioned) {
-            // Haven't anchored to the chat log yet — keep retrying until we succeed.
+            // Haven't anchored to the chat log yet - keep retrying until we succeed.
             this.syncToChat();
             return;
         }
@@ -5408,7 +5408,7 @@ export class EBCDrawer {
         if (!tabEl) return;
 
         // Once a saved position is confirmed or absent, skip polling storage.
-        if (this.userTabOffset !== null) return; // user has pinned a position — don't override
+        if (this.userTabOffset !== null) return; // user has pinned a position - don't override
 
         // Keep retrying storage until we either load a value or confirm none exists.
         // ExtensionSettings is restored from the server asynchronously after ChatRoomSync,
@@ -5427,7 +5427,7 @@ export class EBCDrawer {
         }
 
         const crabsTab = document.getElementById("drawer-tab");
-        if (!crabsTab) return; // CRABS absent — CSS default (top:58px) stays
+        if (!crabsTab) return; // CRABS absent - CSS default (top:58px) stays
 
         const crabsRect = crabsTab.getBoundingClientRect();
         if (crabsRect.bottom === this.lastCrabsBottom) return; // nothing changed
@@ -5440,7 +5440,7 @@ export class EBCDrawer {
         this.lastCrabsBottom = crabsRect.bottom;
     }
 
-    // Called every 200ms by the CRABS poller — piggyback a 30s friend-list poll.
+    // Called every 200ms by the CRABS poller - piggyback a 30s friend-list poll.
     // Runs regardless of which tab is active so that online-status changes are always
     // detected and offline-beep re-delivery fires even when the notes tab is closed.
     private tickFriendPoll(): void {
@@ -5471,7 +5471,7 @@ export class EBCDrawer {
         if (!this.rootEl || !this.panelEl) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
 
-        // Tabs that only make sense inside a chatroom — hidden when outside one
+        // Tabs that only make sense inside a chatroom - hidden when outside one
         const ROOM_ONLY: DrawerTab[] = ["anims"];
 
         if (!inRoom) {
@@ -5499,7 +5499,7 @@ export class EBCDrawer {
             if ((ROOM_ONLY as string[]).includes(this.currentTab)) this.switchTab("outfits");
 
             // Roaming mode: root at right:0 so the closed panel (translateX(W+60))
-            // lands at vw+16 — completely off-screen.  A CSS class keeps the tab
+            // lands at vw+16 - completely off-screen.  A CSS class keeps the tab
             // fully visible (overrides the in-room left:-10px collapsed state).
             // Centre the panel vertically in the viewport.
             this.rootEl.classList.add("ebc-roaming");
@@ -5546,13 +5546,13 @@ export class EBCDrawer {
             }
         }
 
-        // Always make the root visible immediately — do NOT gate on syncToChat().
+        // Always make the root visible immediately - do NOT gate on syncToChat().
         // BC can temporarily clear or resize TextAreaChatLog during screen transitions
         // (reconnect, room load, character menus) causing syncToChat() to fail, which
         // previously left the root hidden indefinitely. Visibility and positioning are
         // now separate concerns: show first, position best-effort.
         if (!this.hasBeenShown) {
-            // Suppress the slide transition on the very first reveal — switching from
+            // Suppress the slide transition on the very first reveal - switching from
             // display:none to display:block can cause the browser to animate the
             // transform from an unrendered state, making the panel flash visible.
             this.hasBeenShown = true;
@@ -5576,7 +5576,7 @@ export class EBCDrawer {
             }
         }
 
-        // ResizeObserver only fires when the element's intrinsic size changes — it
+        // ResizeObserver only fires when the element's intrinsic size changes - it
         // does NOT fire when BC repositions TextAreaChatLog via style.left / style.top
         // (which is what happens when the browser window is resized or snapped).
         // Listen on window "resize" directly so we can re-anchor after BC redraws.
@@ -5593,7 +5593,7 @@ export class EBCDrawer {
         this.startCrabsPoller();
         this.startTimerPoller();
 
-        // Re-read persisted settings — BC may restore ExtensionSettings after the
+        // Re-read persisted settings - BC may restore ExtensionSettings after the
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
         try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
@@ -5615,95 +5615,100 @@ export class EBCDrawer {
         {
             tab: null,
             label: "Welcome to EBC",
-            text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go — just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
+            text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go - just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
         },
         {
             tab: null,
             label: "Opening, Moving & Resizing",
-            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner — this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
+            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner - this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
             spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
-            label: "Outfits — Save & Apply Looks",
-            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset — the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look — all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
+            label: "Outfits - Save & Apply Looks",
+            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset - the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look - all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
             label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags — then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day — both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends — use [[Import]] to load a code you received.))",
+            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags - then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day - both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends - use [[Import]] to load a code you received.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
             autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons — Quick Commands",
-            text: "Buttons send actions or emotes to the room with a single tap — great for quick reactions like nods, waves and poses.\nEach button has a label (up to [[16 characters]]), a hex colour, and the chat text to send. Choose style: [[action]] (Name text), [[emote]] (* Name text *), or [[sequence]] (pipe-separated multi-step).\nLink an [[Expression Preset]] to a button so your face changes automatically when you press it.\n[[Categories]] group buttons into named tabs — switch between them using the arrow chips on the sidebar.",
+            label: "Action Buttons - Quick Commands",
+            text: "Buttons send actions or emotes to the room with a single tap - great for quick reactions like nods, waves and poses.\nEach button has a label (up to [[16 characters]]), a hex colour, and the chat text to send. Choose style: [[action]] (Name text), [[emote]] (* Name text *), or [[sequence]] (pipe-separated multi-step).\nLink an [[Expression Preset]] to a button so your face changes automatically when you press it.\n[[Categories]] group buttons into named tabs - switch between them using the arrow chips on the sidebar.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "buttons",
             label: "Slow Leave",
-            text: "[[Slow Leave]] is in the [[Useful Buttons]] section — it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] — pick a pre-written departure style\n  • [[Sequence]] — the text sent to the room\n  • [[Duration]] — time (in seconds) between messages",
+            text: "[[Slow Leave]] is in the [[Useful Buttons]] section - it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] - pick a pre-written departure style\n  • [[Sequence]] - the text sent to the room\n  • [[Duration]] - time (in seconds) between messages",
             spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
         },
         {
             tab: "anims",
             label: "Poses & Animations",
-            text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
+            text: "Pose combos chain multiple pose changes together with delays - perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it - no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "anims",
             label: "Expression Presets",
-            text: "Save your facial expressions as named presets so you can restore any look with one click.\nUse BC's own face controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click [[💾 Save face]] to capture it.\nMark one preset as [[Default]] — the [[↺ Reset face]] button always jumps back to it, and you can enable [[Auto-apply on room join]] so your default face loads automatically every time you enter a room.\n((Presets can also be linked to outfits or fired from action buttons and scenes.))",
+            text: "Save your facial expressions as named presets so you can restore any look with one click.\nUse BC's own face controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click [[💾 Save face]] to capture it.\nMark one preset as [[Default]] - the [[↺ Reset face]] button always jumps back to it, and you can enable [[Auto-apply on room join]] so your default face loads automatically every time you enter a room.\n((Presets can also be linked to outfits or fired from action buttons and scenes.))",
             spotlight: ["[data-guide-target='btn-save-face']"],
         },
         {
             tab: "anims",
             label: "Chat Triggers",
-            text: "Chat triggers fire a face preset automatically when your outgoing message contains a match phrase — no button press needed.\nClick [[＋ New Trigger]] and fill in:\n  • [[Contains]] — the phrase that fires it (e.g. >:3, >_<)\n  • [[Apply]] — which expression preset activates\n  • [[Hold]] — how long the face stays before reverting (0 = keep forever)\nType the phrase naturally in chat and the face swaps with it instantly.\n((Case-insensitive. Triggers work on action messages, emotes and regular chat.))",
+            text: "Chat triggers fire a face preset automatically when your outgoing message contains a match phrase - no button press needed.\nClick [[＋ New Trigger]] and fill in:\n  • [[Contains]] - the phrase that fires it (e.g. >:3, >_<)\n  • [[Apply]] - which expression preset activates\n  • [[Hold]] - how long the face stays before reverting (0 = keep forever)\nType the phrase naturally in chat and the face swaps with it instantly.\n((Case-insensitive. Triggers work on action messages, emotes and regular chat.))",
             spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
             label: "Users & Friends",
-            text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
+            text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate - perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions - a permanent address book of everyone you've encountered.))",
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
             tab: "dev",
-            label: "DEV — Preferences & Themes",
-            text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+            label: "DEV - Preferences & Themes",
+            text: "[[Quick Preset]] lets you apply a full colour theme instantly - try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
-            label: "DEV — Logs & History",
-            text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
+            label: "DEV - Logs & History",
+            text: "[[Whisper Log]] - every whisper sent and received this session.\n[[Current Room]] - who is in your room right now, with member IDs.\n[[Rooms Visited]] - all rooms you've entered this session.\n[[Restraint Log]] - when items were applied or removed.\n[[People Met]] - persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
             spotlight: ["[data-guide-target='section-dev-logs']"],
             autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
             label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area - click its header to expand it.\n[[My tag]] - shows your custom badge above your own head.\n[[Others]] - shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
             tab: null,
             label: "Safewords Strip",
-            text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+            text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel - reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] - clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
             spotlight: ["[data-guide-target='strip-safewords']"],
+        },
+        {
+            tab: "toys",
+            label: "Toys - In-Game & IRL Control",
+            text: "The [[TOYS]] tab lets you remotely control a friend's in-game vibrators and real Lovense devices.\n[[GAME TOYS]] - controls a friend's BC vibrator mode. Click [[Request]] to ask for control - they must be in the same room. Once they accept, mode buttons appear: [[Off]], [[Low]], [[Medium]], [[High]], [[Max]], [[Tease]], [[Random]], [[Escalate]], [[Deny]], [[Edge]].\n  • [[My Privacy]] - toggle whether friends can send you requests\n  • [[Whitelist]] - specific members who can always send requests regardless of the toggle\n  • Chat messages appear exactly like BC's own toy controller - attributed to you as the controller\n[[IRL TOYS (lovense)]] - controls a friend's real Lovense toy. Same request/accept flow. Set [[Intensity]] (1-20) and [[Duration]] in seconds before sending a buzz.\n((Both systems require the target to be in the same room as you.))",
         },
         {
             tab: null,
             label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs - you never know when you'll need it quickly.))",
         },
     ];
 
@@ -5832,7 +5837,7 @@ export class EBCDrawer {
         EBCDrawer.parseGuideMarkup(step.text, textEl);
         card.appendChild(textEl);
 
-        // Spotlight dots — shown when the step has multiple spotlights
+        // Spotlight dots - shown when the step has multiple spotlights
         // One dot per spotlight; the active dot is accent-coloured
         if (spotCount > 1) {
             const dotsRow = document.createElement("div");
@@ -5924,7 +5929,7 @@ export class EBCDrawer {
     }
 
     /** Close the guide overlay. Pass `andClosePanel = true` when the user
-     *  intentionally finishes the guide — the main panel is closed too. */
+     *  intentionally finishes the guide - the main panel is closed too. */
     private closeGuide(andClosePanel = false): void {
         this.clearGuideSpotlights();
         if (this.guideEl) { this.guideEl.remove(); this.guideEl = null; }
@@ -5941,12 +5946,12 @@ export class EBCDrawer {
         try {
             const el = this.rootEl?.querySelector(`[data-guide-target="${selector}"]`) as HTMLElement | null;
             if (!el) return;
-            // Case 1: element textContent starts with ▶ — direct toggle (tagToggleBtn, schedules lbl, roomToggle)
+            // Case 1: element textContent starts with ▶ - direct toggle (tagToggleBtn, schedules lbl, roomToggle)
             if (el.textContent?.charAt(0) === "▶") { el.click(); return; }
-            // Case 2: first child span has ▶ — makeSection hdr pattern (dev-prefs, dev-logs)
+            // Case 2: first child span has ▶ - makeSection hdr pattern (dev-prefs, dev-logs)
             const firstChild = el.firstElementChild as HTMLElement | null;
             if (firstChild?.textContent?.trim() === "▶") { el.click(); return; }
-            // Case 3: ebc-new-outfit-btn — next sibling is an ebc-new-form that is hidden
+            // Case 3: ebc-new-outfit-btn - next sibling is an ebc-new-form that is hidden
             const next = el.nextElementSibling as HTMLElement | null;
             if (next?.classList.contains("ebc-new-form") && next.style.display !== "flex") {
                 el.click();
@@ -6061,7 +6066,7 @@ export class EBCDrawer {
      * changes so that inline styles (which cannot be reached by CSS class rules)
      * reflect the active theme.
      *
-     * Short-circuits immediately when the active theme matches the defaults —
+     * Short-circuits immediately when the active theme matches the defaults -
      * inline styles are always built with the default palette so nothing needs
      * rewriting in that case.
      */
@@ -6193,7 +6198,7 @@ export class EBCDrawer {
      * container never changes size and its transition never misfires.
      *
      * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
-     * fills .ebc-panel exactly — no overflow, no clipping, no background bleed.
+     * fills .ebc-panel exactly - no overflow, no clipping, no background bleed.
      * Rapid slider changes are completely smooth since no layout reflow occurs
      * on the outer container.
      */
@@ -6202,7 +6207,7 @@ export class EBCDrawer {
         if (!wrapper) return;
         if (scale === 1) {
             wrapper.style.transform = "";
-            wrapper.style.width     = "100%";  // must keep 100% — clearing to "" removes the
+            wrapper.style.width     = "100%";  // must keep 100% - clearing to "" removes the
             wrapper.style.height    = "100%";  // inline height, collapsing the wrapper to content
         } else {                               // height and breaking flex scroll + footer layout.
             // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
@@ -6267,7 +6272,7 @@ export class EBCDrawer {
         if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
         if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
-        // EBC tags strip is a persistent DOM section — rebuild it so all labels re-translate
+        // EBC tags strip is a persistent DOM section - rebuild it so all labels re-translate
         this.rebuildEbcTagsStrip();
     }
 
@@ -6283,7 +6288,7 @@ export class EBCDrawer {
         let ebcTagsCollapsed = false;
         try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
 
-        // Header row — clickable to collapse
+        // Header row - clickable to collapse
         const ebcTagsHdr = document.createElement("div");
         ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
         ebcTagsHdr.title = "Click to show / hide";
@@ -6545,7 +6550,7 @@ export class EBCDrawer {
 
         const exportBadgeCode = (): string => {
             try {
-                // Read from the live in-memory store (getSettings()) — always up to date
+                // Read from the live in-memory store (getSettings()) - always up to date
                 const store = getSettings();
                 const settings: Record<string, unknown> = {};
                 for (const k of BADGE_KEYS) {
@@ -6560,7 +6565,7 @@ export class EBCDrawer {
             if (!trimmed.startsWith(BADGE_CODE_PREFIX)) throw new Error("Invalid");
             const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length))))) as Record<string, unknown>;
             if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("Invalid");
-            // Write to the in-memory store (_mem) — syncSettings() flushes _mem →
+            // Write to the in-memory store (_mem) - syncSettings() flushes _mem →
             // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
             // syncSettings() would overwrite it with the old _mem values.
             const mem = getSettings();
@@ -6593,7 +6598,7 @@ export class EBCDrawer {
         tagShareHeaderRow.appendChild(exportTagBtn);
         tagShareHeaderRow.appendChild(importTagBtn);
 
-        // Export panel — read-only textarea, click to copy
+        // Export panel - read-only textarea, click to copy
         const exportTagPanel = document.createElement("div");
         exportTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
         const exportTagTA = document.createElement("textarea");
@@ -6608,7 +6613,7 @@ export class EBCDrawer {
         });
         exportTagPanel.appendChild(exportTagTA);
 
-        // Import panel — paste code + apply
+        // Import panel - paste code + apply
         const importTagPanel = document.createElement("div");
         importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
         const importTagTA = document.createElement("textarea");
@@ -6704,7 +6709,7 @@ export class EBCDrawer {
         this.timerPoller = null;
     }
 
-    // Force an immediate timer refresh — called after ChatRoomSync once
+    // Force an immediate timer refresh - called after ChatRoomSync once
     // Appearance has been populated so the bound state is accurate.
     public refreshTimer(): void {
         try { timerCheckRestraints(); } catch { /* ignore */ }
@@ -6713,7 +6718,7 @@ export class EBCDrawer {
 
     // -- Expression preset select helper --------------------------------------
     // Builds a <select> listing all saved expression presets.
-    // First option is "— None —" (empty value = no expression change on wear).
+    // First option is "- None -" (empty value = no expression change on wear).
     private makeExprPresetSelect(currentId: string | null | undefined): HTMLSelectElement {
         const sel = document.createElement("select");
         sel.style.cssText = [
@@ -6724,7 +6729,7 @@ export class EBCDrawer {
         ].join(";");
         const noneOpt = document.createElement("option");
         noneOpt.value = "";
-        noneOpt.textContent = "— None —";
+        noneOpt.textContent = "- None -";
         sel.appendChild(noneOpt);
         for (const p of getExpressionPresets()) {
             const opt = document.createElement("option");
@@ -6765,7 +6770,7 @@ export class EBCDrawer {
             return camelToWords(key);
         };
 
-        // Hardcoded fallback — used when window.TitleNames is empty/unavailable
+        // Hardcoded fallback - used when window.TitleNames is empty/unavailable
         const FALLBACK_TITLES = [
             "Admiral","Alien","Angel","Archbishop","Archjudge","Bishop",
             "BondageMaid","Brat","Bunny","Captain","Champion","CollegeStudent",
@@ -6777,14 +6782,14 @@ export class EBCDrawer {
             "Switch","Witch",
         ];
 
-        // "(No change)" — leave title untouched on outfit apply
+        // "(No change)" - leave title untouched on outfit apply
         const noChangeOpt = document.createElement("option");
         noChangeOpt.value = "";
         noChangeOpt.textContent = isDefault ? t("settings.noDefaultTitle") : "(No change)";
         if (!currentValue) noChangeOpt.selected = true;
         sel.appendChild(noChangeOpt);
 
-        // "None" — explicitly clear the title (stored as sentinel "__clear__")
+        // "None" - explicitly clear the title (stored as sentinel "__clear__")
         const clearOpt = document.createElement("option");
         clearOpt.value = "__clear__";
         clearOpt.textContent = "None (remove title)";
@@ -6937,7 +6942,7 @@ export class EBCDrawer {
             } else {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 0 5px;";
-                hint.textContent = "No tags yet — add one below.";
+                hint.textContent = "No tags yet - add one below.";
                 tagMgmtBody.appendChild(hint);
             }
 
@@ -7294,14 +7299,14 @@ export class EBCDrawer {
                         lockEl.textContent = "Unlocked";
                     }
 
-                    // Duration badge — how long this item has been worn
+                    // Duration badge - how long this item has been worn
                     const dur = getRestraintItemDuration(group);
                     const durEl = document.createElement("span");
                     durEl.className = "ebc-restraint-duration";
                     durEl.textContent = dur ? `⏱ ${dur}` : "";
                     durEl.title = "Time worn (persists offline)";
 
-                    // Timer exclude toggle — highlighted when this slot IS excluded from the ⛓ bound counter
+                    // Timer exclude toggle - highlighted when this slot IS excluded from the ⛓ bound counter
                     const excluded = isTimerGroupExcluded(group);
                     const timerToggle = document.createElement("button");
                     timerToggle.textContent = "Exclude";
@@ -7321,8 +7326,8 @@ export class EBCDrawer {
                             "transition:opacity 0.15s,border-color 0.15s,background 0.15s,color 0.15s",
                         ].join(";");
                         timerToggle.title = isExcluded
-                            ? `${group.replace("Item", "")} excluded from bound timer — click to count`
-                            : `${group.replace("Item", "")} counts toward bound timer — click to exclude`;
+                            ? `${group.replace("Item", "")} excluded from bound timer - click to count`
+                            : `${group.replace("Item", "")} counts toward bound timer - click to exclude`;
                     };
                     applyToggleStyle(excluded);
                     timerToggle.addEventListener("click", () => {
@@ -7417,7 +7422,7 @@ export class EBCDrawer {
 
         wrap.appendChild(svBox); wrap.appendChild(hueBar); wrap.appendChild(btm);
 
-        // Render helper — updates all visual elements from H/S/V state.
+        // Render helper - updates all visual elements from H/S/V state.
         // silent=true skips the onChange callback (used for initial render).
         const render = (silent = false): void => {
             const [hr, hg, hb] = hsvToRgb(H, 1, 1);
@@ -7432,7 +7437,7 @@ export class EBCDrawer {
             if (!silent) onChange(hex);
         };
 
-        // Drag — SV box
+        // Drag - SV box
         const moveSv = (cx: number, cy: number): void => {
             const rect = svBox.getBoundingClientRect();
             S = clamp((cx - rect.left) / rect.width,  0, 1);
@@ -7451,7 +7456,7 @@ export class EBCDrawer {
         svBox.addEventListener("mousedown",  (e) => { svDrag = true; moveSv(e.clientX, e.clientY); });
         svBox.addEventListener("touchstart", (e) => { svDrag = true; if (e.touches[0]) { e.preventDefault(); moveSv(e.touches[0].clientX, e.touches[0].clientY); } }, { passive: false });
 
-        // Drag — hue bar
+        // Drag - hue bar
         const moveHue = (cx: number): void => {
             const rect = hueBar.getBoundingClientRect();
             H = clamp((cx - rect.left) / rect.width, 0, 1) * 360;
@@ -7469,7 +7474,7 @@ export class EBCDrawer {
         hueBar.addEventListener("mousedown",  (e) => { hueDrag = true; moveHue(e.clientX); });
         hueBar.addEventListener("touchstart", (e) => { hueDrag = true; if (e.touches[0]) { e.preventDefault(); moveHue(e.touches[0].clientX); } }, { passive: false });
 
-        // Hex input — validate on every keystroke
+        // Hex input - validate on every keystroke
         hexInp.addEventListener("input", () => {
             let v = hexInp.value.trim();
             if (!v.startsWith("#")) v = "#" + v;
@@ -7515,7 +7520,7 @@ export class EBCDrawer {
             if (!rgb) return;
             [H, S, V] = rgbToHsv(rgb[0], rgb[1], rgb[2]);
             hexInp.style.color = "";
-            render(true); // silent — don't re-fire onChange
+            render(true); // silent - don't re-fire onChange
         };
 
         render(true); // initial paint
@@ -7589,7 +7594,7 @@ export class EBCDrawer {
             } else {
                 const empty = document.createElement("div");
                 empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;margin-bottom:6px;";
-                empty.textContent = "No protected items — add some from the list below.";
+                empty.textContent = "No protected items - add some from the list below.";
                 inner.appendChild(empty);
             }
 
@@ -7603,7 +7608,7 @@ export class EBCDrawer {
             wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
 
             const updateWornToggle = (): void => {
-                wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints — click to protect";
+                wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints - click to protect";
             };
             updateWornToggle();
 
@@ -7666,7 +7671,7 @@ export class EBCDrawer {
         section.appendChild(inner);
         body.appendChild(section);
 
-        void wl; // suppress unused-variable warning — length tracked via getOutfitWhitelist() calls
+        void wl; // suppress unused-variable warning - length tracked via getOutfitWhitelist() calls
     }
 
     private renderPalettes(body: HTMLElement): void {
@@ -7681,11 +7686,11 @@ export class EBCDrawer {
         try { collapsed = localStorage.getItem("EBC_coloursCollapsed") !== "0"; } catch { /* ignore */ }
         let selectedColor: string | null = null;
 
-        // Targeted updaters — assigned inside build(), called without full rebuild
+        // Targeted updaters - assigned inside build(), called without full rebuild
         let updateSelRow:    () => void = () => {};
         let updateSwatchRow: () => void = () => {};
 
-        // Custom picker handles — refreshed each time build() creates a new widget
+        // Custom picker handles - refreshed each time build() creates a new widget
         let pickerCleanup: (() => void) | null = null;
         let setPickerHex:  ((hex: string) => void) | null = null;
 
@@ -7914,7 +7919,7 @@ export class EBCDrawer {
                             const zDot = document.createElement("span");
                             zDot.className = "ebc-zone-dot";
                             zDot.style.background = isDefault ? "#3a2030" : zc;
-                            zDot.title = isDefault ? "Default — click to apply selected" : `${(zc ?? "").toUpperCase()} — click to apply selected`;
+                            zDot.title = isDefault ? "Default - click to apply selected" : `${(zc ?? "").toUpperCase()} - click to apply selected`;
                             zDot.addEventListener("click", () => {
                                 if (!selectedColor) { flashHint(); return; }
                                 applyColorZoneToGroup(wItem.group, zi, selectedColor);
@@ -7997,7 +8002,7 @@ export class EBCDrawer {
                 savePresGroupSel.style.cssText = "font-size:11px;flex:none;width:auto;max-width:90px;";
                 savePresGroupSel.title = "Capture colours from this worn item";
                 const phOpt = document.createElement("option");
-                phOpt.value = ""; phOpt.textContent = "— from —";
+                phOpt.value = ""; phOpt.textContent = "- from -";
                 savePresGroupSel.appendChild(phOpt);
                 for (const wItem of worn) {
                     const opt = document.createElement("option");
@@ -8065,7 +8070,7 @@ export class EBCDrawer {
                     applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:11px;flex:none;width:auto;max-width:90px;";
                     applyToSel.title = "Choose restraint to apply to";
                     const phOpt2 = document.createElement("option");
-                    phOpt2.value = ""; phOpt2.textContent = "— pick —";
+                    phOpt2.value = ""; phOpt2.textContent = "- pick -";
                     applyToSel.appendChild(phOpt2);
                     for (const wItem of worn) {
                         const opt = document.createElement("option");
@@ -8216,7 +8221,7 @@ export class EBCDrawer {
         const isPreservingClothing = !!o.preserveClothing;
         const isNameInAnnounce = o.nameInAnnounce !== false;
 
-        // Labeled toggle chips — live inside the info column so they're readable without hover
+        // Labeled toggle chips - live inside the info column so they're readable without hover
         const flagsRow = document.createElement("div");
         flagsRow.className = "ebc-outfit-flags";
 
@@ -8347,7 +8352,7 @@ export class EBCDrawer {
         });
         const eNicknameInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", value: o.nickname ?? "", maxLength: 40,
-            placeholder: "Optional — blank = no change",
+            placeholder: "Optional - blank = no change",
         });
         const eTitleSel = this.makeTitleSelect(o.title ?? "");
         const eExprSel  = this.makeExprPresetSelect(o.expressionPresetId ?? null);
@@ -8373,7 +8378,7 @@ export class EBCDrawer {
             if (allTags.length === 0) {
                 const hint = document.createElement("span");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
-                hint.textContent = "No tags yet — create some in the Tags section below.";
+                hint.textContent = "No tags yet - create some in the Tags section below.";
                 eTagsGrid.appendChild(hint);
                 return;
             }
@@ -8546,7 +8551,7 @@ export class EBCDrawer {
             const json = exportOutfitById(o.id);
             if (!json) return;
             const showFallback = (): void => {
-                // Can't write clipboard — fall back to legacy execCommand
+                // Can't write clipboard - fall back to legacy execCommand
                 try {
                     const tmp = document.createElement("input");
                     tmp.value = json;
@@ -8643,7 +8648,7 @@ export class EBCDrawer {
             className: "ebc-form-input", type: "text", placeholder: "e.g. changes into dom mode", maxLength: 120,
         });
         const nicknameInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
+            className: "ebc-form-input", type: "text", placeholder: "Optional - blank = no change", maxLength: 40,
         });
         const newTitleSel = this.makeTitleSelect("");
         const newExprSel  = this.makeExprPresetSelect(null);
@@ -9014,7 +9019,7 @@ export class EBCDrawer {
             form.className = "ebc-new-form";
             sectionBody.appendChild(form);
 
-            // Picker section — rebuilt each time the form opens
+            // Picker section - rebuilt each time the form opens
             const newPickerWrap = document.createElement("div");
             newPickerWrap.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
             form.appendChild(newPickerWrap);
@@ -9054,7 +9059,7 @@ export class EBCDrawer {
             form.appendChild(createBtn);
 
             // Start hidden via inline style (CSS default is display:none but inline style
-            // starts as "" which the toggle check misreads — set it explicitly)
+            // starts as "" which the toggle check misreads - set it explicitly)
             form.style.display = "none";
 
             let newPickerSelected = new Set<string>();
@@ -9075,7 +9080,7 @@ export class EBCDrawer {
                 if (worn.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
-                    hint.textContent = "No restraints worn — set will be empty.";
+                    hint.textContent = "No restraints worn - set will be empty.";
                     newPickerWrap.appendChild(hint);
                     return;
                 }
@@ -9199,7 +9204,7 @@ export class EBCDrawer {
                 if (presets.length === 0) {
                     const empty = document.createElement("div");
                     empty.className = "ebc-empty";
-                    empty.textContent = "No colour presets yet — use 💾 in the restraint log to save one.";
+                    empty.textContent = "No colour presets yet - use 💾 in the restraint log to save one.";
                     cpContainer.appendChild(empty);
                     return;
                 }
@@ -9223,7 +9228,7 @@ export class EBCDrawer {
                     const nameEl2 = document.createElement("span");
                     nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
                     nameEl2.textContent = preset.name;
-                    nameEl2.title = `${preset.group} · ${preset.itemName} — click to rename`;
+                    nameEl2.title = `${preset.group} · ${preset.itemName} - click to rename`;
                     nameEl2.addEventListener("click", () => {
                         showNameInputOverlay(`Rename "${preset.name}"`, preset.name, "Rename", (newName) => {
                             renameColorPreset(preset.id, newName);
@@ -9359,7 +9364,7 @@ export class EBCDrawer {
         if (r.items.length === 0) {
             const emptyHint = document.createElement("span");
             emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;font-style:italic;";
-            emptyHint.textContent = "⚠ no items — click Update while wearing restraints";
+            emptyHint.textContent = "⚠ no items - click Update while wearing restraints";
             info.appendChild(emptyHint);
         }
 
@@ -9471,7 +9476,7 @@ export class EBCDrawer {
             if (allTags.length === 0) {
                 const hint = document.createElement("span");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
-                hint.textContent = "No tags yet — create some in the Tags section above.";
+                hint.textContent = "No tags yet - create some in the Tags section above.";
                 eTagsGrid.appendChild(hint);
                 return;
             }
@@ -9590,7 +9595,7 @@ export class EBCDrawer {
     // -- Boop friends ----------------------------------------------------------
 
     // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
-    // This is the exact same event as clicking a character and selecting Boop Nose —
+    // This is the exact same event as clicking a character and selecting Boop Nose -
     // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
     private boopOne(target: Character): void {
         try {
@@ -9762,7 +9767,7 @@ export class EBCDrawer {
                     const empty = document.createElement("div");
                     empty.className = "ebc-import-hint";
                     empty.style.textAlign = "center";
-                    empty.textContent = "No steps yet — add poses below";
+                    empty.textContent = "No steps yet - add poses below";
                     listEl.appendChild(empty);
                     return;
                 }
@@ -9867,7 +9872,7 @@ export class EBCDrawer {
                 btnRow.className = "ebc-pose-add-grid";
                 for (const p of group.poses) {
                     // Body: skip empty key (Stand = clear all, not a useful combo step)
-                    // Arms: keep empty key — it's "Relaxed", a valid step
+                    // Arms: keep empty key - it's "Relaxed", a valid step
                     if (!p.key && group.group !== "Arms") continue;
                     const btn = document.createElement("button");
                     btn.className = "ebc-pose-add-btn";
@@ -9883,7 +9888,7 @@ export class EBCDrawer {
             parent.appendChild(delayRowEl);
 
             return {
-                getPoses: () => [...poses], // keep "" (Relaxed) — applyPoses handles it
+                getPoses: () => [...poses], // keep "" (Relaxed) - applyPoses handles it
                 getDelay: () => Number(delayInp.value),
             };
         };
@@ -9968,13 +9973,13 @@ export class EBCDrawer {
                     ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
                     : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
-                    // Always read fresh — the closure-captured currentPoses is stale
+                    // Always read fresh - the closure-captured currentPoses is stale
                     // if the user clicks a second button before the 150ms rerender fires.
                     const livePoses = getCurrentPoses();
                     if (preset.key === "" && group.group === "Arms") {
-                        // "Relaxed" — surgical arm-pose removal.
+                        // "Relaxed" - surgical arm-pose removal.
                         // Directly mutates ActivePoseMapping/ActivePose to drop arm entries
-                        // without touching the body pose — safer than any PoseSetActive path
+                        // without touching the body pose - safer than any PoseSetActive path
                         // which can silently clear the body pose as a side-effect.
                         clearArmPose();
                     } else if (preset.key === "") {
@@ -10122,7 +10127,7 @@ export class EBCDrawer {
             topSaveBtn.className = "ebc-update-btn";
             topSaveBtn.textContent = t("outfits.saveChanges");
             topSaveBtn.style.cssText = "flex:1;font-size:11px;";
-            editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
+            editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay - wired below
 
             // Ordered pose step editor
             const poseSectionLbl = document.createElement("div");
@@ -10206,7 +10211,7 @@ export class EBCDrawer {
         ncNameRow.appendChild(ncNameInp);
         newComboForm.appendChild(ncNameRow);
 
-        // Quick-save at top — always visible without scrolling
+        // Quick-save at top - always visible without scrolling
         const ncTopSaveBar = document.createElement("div");
         ncTopSaveBar.className = "ebc-editor-save-bar";
         const ncTopSaveBtn = document.createElement("button");
@@ -10264,7 +10269,7 @@ export class EBCDrawer {
         // ── EXPRESSION SEQUENCES (collapsible) ──────────────────────────────
         const exprSeqCnt = makeCollapse(t("expr.sequences"), "EBC_exprSeqCollapsed", true);
 
-        // Helper — builds a draggable step list with per-step hold-time + an "add from preset" row.
+        // Helper - builds a draggable step list with per-step hold-time + an "add from preset" row.
         const buildSeqStepEditor = (
             container: HTMLElement,
             initial: ExprSequenceStep[],
@@ -10281,7 +10286,7 @@ export class EBCDrawer {
                     const empty = document.createElement("div");
                     empty.className = "ebc-import-hint";
                     empty.style.textAlign = "center";
-                    empty.textContent = "No steps yet — add a preset below";
+                    empty.textContent = "No steps yet - add a preset below";
                     listEl.appendChild(empty);
                     return;
                 }
@@ -10307,7 +10312,7 @@ export class EBCDrawer {
                     const holdInp = document.createElement("input") as HTMLInputElement;
                     holdInp.type = "number"; holdInp.min = "100"; holdInp.max = "9999";
                     holdInp.value = String(Math.max(100, step.delayMs ?? 800));
-                    holdInp.title = "Hold duration (ms) — how long this face is shown before the next step";
+                    holdInp.title = "Hold duration (ms) - how long this face is shown before the next step";
                     holdInp.style.cssText = "width:48px;font-size:10px;font-family:'Trebuchet MS',serif;padding:1px 3px;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:3px;text-align:right;";
                     holdInp.addEventListener("input", () => { steps[idx].delayMs = Math.max(100, parseInt(holdInp.value) || 800); });
                     holdInp.addEventListener("keydown", e => e.stopPropagation());
@@ -10378,7 +10383,7 @@ export class EBCDrawer {
                 const presets = getExpressionPresets();
                 if (presets.length === 0) {
                     const opt = document.createElement("option");
-                    opt.textContent = "(no presets — save faces in Expressions tab first)";
+                    opt.textContent = "(no presets - save faces in Expressions tab first)";
                     opt.disabled = true; presetSel.appendChild(opt);
                     addBtn.disabled = true;
                 } else {
@@ -10406,7 +10411,7 @@ export class EBCDrawer {
             const resetBtn = document.createElement("button");
             resetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
             resetBtn.textContent = "↺ Reset";
-            resetBtn.title = "Add a reset step — applies your default face preset (or clears all expressions if none is set)";
+            resetBtn.title = "Add a reset step - applies your default face preset (or clears all expressions if none is set)";
             resetBtn.addEventListener("mouseenter", () => { resetBtn.style.color = "#cf6f98"; resetBtn.style.borderColor = "#cf6f98"; });
             resetBtn.addEventListener("mouseleave", () => { resetBtn.style.color = "#9a6878"; resetBtn.style.borderColor = "#3a1928"; });
             resetBtn.addEventListener("click", () => {
@@ -10643,14 +10648,14 @@ export class EBCDrawer {
     private renderScenes(body: HTMLElement): void {
         const STEP_TYPE_LABELS: Record<StepType, string> = {
             pose: "Pose",
-            equip: "Equip Item",                 // primary equip type — searches all groups
+            equip: "Equip Item",                 // primary equip type - searches all groups
             "equip-restraint": "Equip Restraint", // legacy label (backward compat display only)
             "equip-clothes":   "Equip Item (clothes, props…)", // legacy label
             unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
             expression: "Expression",
         };
         // "equip" is the primary equip type (searches all groups via the search box).
-        // "equip-restraint" and "equip-clothes" are legacy — injected into the dropdown
+        // "equip-restraint" and "equip-clothes" are legacy - injected into the dropdown
         // only when an existing step was saved with one of those types.
         const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "chat", "wait", "expression"];
 
@@ -10726,7 +10731,7 @@ export class EBCDrawer {
 
                 // 1. BC R91+: TypedItemGetOptionNames is a global function that returns the
                 //    registered option names for any typed item from TypedItemDataLookup.
-                //    This is the authoritative source — use it first.
+                //    This is the authoritative source - use it first.
                 {
                     type GetOptNamesFn = (group: string, name: string) => string[];
                     const fn = (window as unknown as Record<string, unknown>).TypedItemGetOptionNames as GetOptNamesFn | undefined;
@@ -10746,7 +10751,7 @@ export class EBCDrawer {
                 if (types.length === 0 && Array.isArray(a.AllowType) && (a.AllowType as unknown[]).length > 0)
                     types = a.AllowType as string[];
 
-                // 3. Extended Typed — various older structures
+                // 3. Extended Typed - various older structures
                 if (types.length === 0) {
                     const ext = a.Extended as Record<string, unknown> | undefined;
                     if (ext && typeof ext === "object") {
@@ -10806,7 +10811,7 @@ export class EBCDrawer {
             } catch { return []; }
         };
 
-        // Build a live step card — returns getStep() which always reads current field state
+        // Build a live step card - returns getStep() which always reads current field state
         const buildStepCard = (
             initStep: SceneStep,
             onMoveUp: (() => void) | null,
@@ -10897,7 +10902,7 @@ export class EBCDrawer {
             header.appendChild(delBtn);
             card.appendChild(header);
 
-            // Fields area — rebuilt when type changes
+            // Fields area - rebuilt when type changes
             const fieldsEl = document.createElement("div");
             fieldsEl.className = "ebc-scene-fields";
             card.appendChild(fieldsEl);
@@ -10993,7 +10998,7 @@ export class EBCDrawer {
                     searchInp.className = "ebc-form-input";
                     searchInp.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px 3px 26px;";
                     searchInp.placeholder = "Search items…";
-                    searchInp.title = "Type any item name to find it instantly — no need to browse slots";
+                    searchInp.title = "Type any item name to find it instantly - no need to browse slots";
 
                     const searchIcon = document.createElement("span");
                     searchIcon.textContent = "🔍";
@@ -11091,7 +11096,7 @@ export class EBCDrawer {
                         if (assets.length === 0) {
                             const opt = document.createElement("option");
                             opt.value = "";
-                            opt.textContent = groupSel.value ? "— no items —" : "— pick slot first —";
+                            opt.textContent = groupSel.value ? "- no items -" : "- pick slot first -";
                             assetSel.appendChild(opt);
                             equipAsset = "";
                             return;
@@ -11114,13 +11119,13 @@ export class EBCDrawer {
                     groupSel.className = "ebc-scene-type-sel";
                     groupSel.style.cssText = "flex:1;width:auto;max-width:130px;";
                     groupSel.title = type === "equip-clothes"
-                        ? "Slot — includes all non-restraint items: clothes, accessories, props, laptops, etc."
+                        ? "Slot - includes all non-restraint items: clothes, accessories, props, laptops, etc."
                         : type === "equip-restraint"
-                        ? "Slot — restraint items only (cuffs, gags, collars…)"
+                        ? "Slot - restraint items only (cuffs, gags, collars…)"
                         : "Item slot";
                     {
                         const ph = document.createElement("option");
-                        ph.value = ""; ph.textContent = "— pick slot —";
+                        ph.value = ""; ph.textContent = "- pick slot -";
                         ph.disabled = true; ph.selected = !equipGroup;
                         groupSel.appendChild(ph);
                     }
@@ -11143,7 +11148,7 @@ export class EBCDrawer {
                     captureBtn.title = "Fill from currently worn item in selected slot";
                     captureBtn.style.cssText = "flex:0 0 auto;font-size:12px;padding:2px 6px;";
 
-                    // ── State row — shows either a type dropdown OR a height input
+                    // ── State row - shows either a type dropdown OR a height input
                     //    depending on what the selected asset supports
                     const stateRow = document.createElement("div");
                     stateRow.className = "ebc-scene-fields-row";
@@ -11177,7 +11182,7 @@ export class EBCDrawer {
                     heightWrap.appendChild(heightInp);
                     heightWrap.appendChild(heightRangeLbl);
 
-                    // Free-text type input — shown for typed items when options can't be auto-detected.
+                    // Free-text type input - shown for typed items when options can't be auto-detected.
                     // User sets the desired type in BC's own UI first, then hits 📷 to capture it.
                     const typeTextInp = document.createElement("input");
                     typeTextInp.className = "ebc-form-input";
@@ -11195,7 +11200,7 @@ export class EBCDrawer {
                         while (stateSel.firstChild) stateSel.removeChild(stateSel.firstChild);
                         const defOpt = document.createElement("option");
                         defOpt.value = "";
-                        defOpt.textContent = info.types.length ? "— default state —" : "— no variants —";
+                        defOpt.textContent = info.types.length ? "- default state -" : "- no variants -";
                         stateSel.appendChild(defOpt);
                         for (const t of info.types) {
                             const opt = document.createElement("option");
@@ -11257,7 +11262,7 @@ export class EBCDrawer {
                                 equipColorRaw = s;
                             }
                             const prop = item.Property as Record<string, unknown> | undefined;
-                            // Capture Property.Type — try TypeRecord (BC R91+) first, fall back to Type string
+                            // Capture Property.Type - try TypeRecord (BC R91+) first, fall back to Type string
                             {
                                 let capturedType = "";
                                 // BC R91+: TypeRecord = { "typed": <index> }, map index → option Name
@@ -11300,7 +11305,7 @@ export class EBCDrawer {
 
                     const colorInp = Object.assign(document.createElement("input"), {
                         className: "ebc-form-input", type: "text",
-                        placeholder: "Color — optional, e.g. Default or #ff0000,Default",
+                        placeholder: "Color - optional, e.g. Default or #ff0000,Default",
                         value: equipColorRaw, maxLength: 200,
                     }) as HTMLInputElement;
                     colorInp.addEventListener("input", () => { equipColorRaw = colorInp.value; });
@@ -11313,10 +11318,10 @@ export class EBCDrawer {
                     const slotSel = document.createElement("select");
                     slotSel.className = "ebc-scene-type-sel";
                     slotSel.style.cssText = "width:100%;max-width:100%;";
-                    slotSel.title = "Slot to clear — removes whatever is worn there when the scene plays";
+                    slotSel.title = "Slot to clear - removes whatever is worn there when the scene plays";
                     {
                         const ph = document.createElement("option");
-                        ph.value = ""; ph.textContent = "— pick slot —";
+                        ph.value = ""; ph.textContent = "- pick slot -";
                         ph.disabled = true; ph.selected = !unequipGroup;
                         slotSel.appendChild(ph);
                     }
@@ -11385,7 +11390,7 @@ export class EBCDrawer {
                     fieldsEl.appendChild(row);
 
                 }
-                // wait: no extra fields — delay IS the step
+                // wait: no extra fields - delay IS the step
 
                 if (type === "expression") {
                     const F2 = "font-family:'Trebuchet MS',serif;font-size:";
@@ -11394,7 +11399,7 @@ export class EBCDrawer {
                     if (presets.length === 0) {
                         const hint2 = document.createElement("div");
                         hint2.style.cssText = `${F2}11px;color:#b090c0;padding:4px 0;`;
-                        hint2.textContent = "No face presets yet — create some in the Anims tab first.";
+                        hint2.textContent = "No face presets yet - create some in the Anims tab first.";
                         fieldsEl.appendChild(hint2);
                     } else {
                         const exprRow1 = document.createElement("div");
@@ -11405,7 +11410,7 @@ export class EBCDrawer {
                         const exprPresetSel = document.createElement("select");
                         exprPresetSel.style.cssText = INP2;
                         const exprEmptyOpt = document.createElement("option");
-                        exprEmptyOpt.value = ""; exprEmptyOpt.textContent = "— pick preset —";
+                        exprEmptyOpt.value = ""; exprEmptyOpt.textContent = "- pick preset -";
                         exprPresetSel.appendChild(exprEmptyOpt);
                         for (const p of presets) {
                             const exprOpt = document.createElement("option");
@@ -11456,7 +11461,7 @@ export class EBCDrawer {
                 const step: SceneStep = { type: currentType, delayMs: delay };
                 switch (currentType) {
                     case "pose":
-                        step.poses = posePoses.slice(); // preserve "" (Relaxed arms marker) — filter(Boolean) would strip it
+                        step.poses = posePoses.slice(); // preserve "" (Relaxed arms marker) - filter(Boolean) would strip it
                         break;
                     case "equip":
                     case "equip-restraint":
@@ -11491,7 +11496,7 @@ export class EBCDrawer {
             return { el: card, getStep };
         };
 
-        // Build a full step list editor — returns getSteps()
+        // Build a full step list editor - returns getSteps()
         const buildSceneEditor = (
             parent: HTMLElement,
             initSteps: SceneStep[],
@@ -11517,7 +11522,7 @@ export class EBCDrawer {
                     const empty = document.createElement("div");
                     empty.className = "ebc-import-hint";
                     empty.style.cssText = "text-align:center;padding:5px 0 3px;";
-                    empty.textContent = "No steps yet — add one below.";
+                    empty.textContent = "No steps yet - add one below.";
                     stepsContainer.appendChild(empty);
                     return;
                 }
@@ -11547,7 +11552,7 @@ export class EBCDrawer {
                             fullRebuild(idx + 1);
                         },
                     );
-                    // Step number badge — shows clear visual order in the card header
+                    // Step number badge - shows clear visual order in the card header
                     const hdr = entry.el.querySelector(".ebc-scene-step-header") as HTMLElement | null;
                     if (hdr) {
                         const numBadge = document.createElement("span");
@@ -11618,7 +11623,7 @@ export class EBCDrawer {
             const none = document.createElement("div");
             none.className = "ebc-empty";
             none.style.padding = "4px 0 6px";
-            none.textContent = "No scenes yet — create one below.";
+            none.textContent = "No scenes yet - create one below.";
             body.appendChild(none);
         }
 
@@ -12011,7 +12016,7 @@ export class EBCDrawer {
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
             const el = existing.el;
-            // Ensure visible — may have been hidden while outside a chatroom
+            // Ensure visible - may have been hidden while outside a chatroom
             el.style.display = "";
             // Un-minimize first so we can measure real height
             const restoreFn = (el as unknown as Record<string, unknown>)._restoreMin as (() => void) | undefined;
@@ -12045,13 +12050,13 @@ export class EBCDrawer {
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
-        // Offline indicator banner — created here (before updateStatus) so it's captured
+        // Offline indicator banner - created here (before updateStatus) so it's captured
         // by the closure. Appended to win after the history div.
         const offlineBanner = document.createElement("div");
         offlineBanner.className = "ebc-beep-offline-banner";
-        offlineBanner.textContent = "📭 They're offline — you can still send a message and they'll receive it when they come back online";
+        offlineBanner.textContent = "📭 They're offline - you can still send a message and they'll receive it when they come back online";
 
-        // "Came online" transient notice — declared here so updateStatus() can reference it.
+        // "Came online" transient notice - declared here so updateStatus() can reference it.
         // Appended right after offlineBanner.
         const onlineAlert = document.createElement("div");
         onlineAlert.className = "ebc-beep-online-alert";
@@ -12060,10 +12065,10 @@ export class EBCDrawer {
         let _onlineAlertTimer: ReturnType<typeof setTimeout> | null = null;
         let _prevStatus: string | null = null;
 
-        // Join a room by name — shared by the room pill header click and the Join → card button.
+        // Join a room by name - shared by the room pill header click and the Join → card button.
         // ChatRoomJoin (BC's own function) is tried first; if unavailable the fallback is to
         // leave the current room (if any) and then send a ChatRoomJoin socket event.
-        // Module-level join cooldown — prevents "Duplicate join request" errors when
+        // Module-level join cooldown - prevents "Duplicate join request" errors when
         // the user clicks Join in multiple places (drawer button + invite card) at once.
         // Shared across the openBeepWindow closure via the outer class scope.
         let _joinCooldownTs = 0;
@@ -12076,7 +12081,7 @@ export class EBCDrawer {
                 // BC's own join function handles leave/rejoin automatically.
                 const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
                 if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
-                // Direct join request — the server handles the implicit leave from any
+                // Direct join request - the server handles the implicit leave from any
                 // current room.  Skipping ChatRoomLeave() avoids the black screen that
                 // results from ChatRoomData being cleared before ChatRoomSync arrives.
                 try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
@@ -12113,12 +12118,12 @@ export class EBCDrawer {
         };
         updateTitle();
 
-        // Slim room bar — click/tap to toggle the info drawer below it.
+        // Slim room bar - click/tap to toggle the info drawer below it.
         const roomBar = document.createElement("div");
         roomBar.className = "ebc-beep-room-bar";
         roomBar.style.display = "none";
 
-        // Info drawer — slides open on hover (desktop) or tap (touch).
+        // Info drawer - slides open on hover (desktop) or tap (touch).
         const roomDrawer = document.createElement("div");
         roomDrawer.className = "ebc-beep-room-drawer";
         roomDrawer.style.display = "none";
@@ -12185,7 +12190,7 @@ export class EBCDrawer {
             dot.className = "ebc-friend-dot " + s;
             offlineBanner.style.display = s === "away" ? "" : "none";
 
-            // Online alert — flash briefly when they come back from offline
+            // Online alert - flash briefly when they come back from offline
             if (_prevStatus === "away" && s !== "away") {
                 onlineAlert.style.display = "";
                 if (_onlineAlertTimer !== null) clearTimeout(_onlineAlertTimer);
@@ -12208,7 +12213,7 @@ export class EBCDrawer {
                 roomDrawerJoin.style.display = "";
                 roomDrawerCopy.style.display = "";
             } else if (info && isInCurrentRoom(memberNumber)) {
-                // Friend is in our room but BC didn't return a room name — use our tracked name.
+                // Friend is in our room but BC didn't return a room name - use our tracked name.
                 const sameRoomName = getCurrentRoomName();
                 if (sameRoomName) {
                     roomBar.textContent = `📍 ${sameRoomName}`;
@@ -12250,13 +12255,13 @@ export class EBCDrawer {
         const _mkIconSvg = (inner: string) =>
             `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none">${inner}</svg>`;
 
-        // Per-person mute toggle — silences beep sounds from this specific person
+        // Per-person mute toggle - silences beep sounds from this specific person
         const muteBtn = document.createElement("button");
         muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
         const refreshMuteBtn = (): void => {
             const muted = isBeepMemberMuted(memberNumber);
             muteBtn.textContent = muted ? "🔇" : "🔔";
-            muteBtn.title = muted ? "Beep sounds from this person are muted — click to unmute" : "Click to mute beep sounds from this person";
+            muteBtn.title = muted ? "Beep sounds from this person are muted - click to unmute" : "Click to mute beep sounds from this person";
             muteBtn.classList.toggle("muted", muted);
         };
         refreshMuteBtn();
@@ -12266,7 +12271,7 @@ export class EBCDrawer {
             refreshMuteBtn();
         });
 
-        // Room invite button — sends the player's current room name to this person.
+        // Room invite button - sends the player's current room name to this person.
         // The click handler is added after renderHistory() is defined (see below)
         // so it can call renderHistory() to refresh the chat after sending.
         const roomInviteBtn = document.createElement("button");
@@ -12274,7 +12279,7 @@ export class EBCDrawer {
         roomInviteBtn.textContent = "📍";
         roomInviteBtn.title = "Send your current room as an invite";
 
-        // Clear conversation button — wipes local history after confirmation
+        // Clear conversation button - wipes local history after confirmation
         const clearBtn = document.createElement("button");
         clearBtn.className = "ebc-beep-win-hbtn";
         clearBtn.textContent = "🗑️";
@@ -12302,7 +12307,7 @@ export class EBCDrawer {
             minimizeBtn.textContent = entry.minimized ? "▲" : "–";
             minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
             if (!entry.minimized) {
-                // History just became visible — scroll to bottom (scrollHeight is 0 while hidden)
+                // History just became visible - scroll to bottom (scrollHeight is 0 while hidden)
                 window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
                 unreadDot.classList.remove("visible");
                 this.beepUnread.delete(memberNumber);
@@ -12320,7 +12325,7 @@ export class EBCDrawer {
             win.classList.remove("minimized");
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
-            // History just became visible — scroll to bottom
+            // History just became visible - scroll to bottom
             window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
         };
 
@@ -12369,10 +12374,10 @@ export class EBCDrawer {
                     win.style.bottom = `${clamped.bottom}px`;
                     win.style.right  = "";
                 }
-            } catch { /* ignore — use default offset position */ }
+            } catch { /* ignore - use default offset position */ }
         }
 
-        // Make header draggable — anchored by bottom so expanding grows upward.
+        // Make header draggable - anchored by bottom so expanding grows upward.
         // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
         addPointerDown(header, (start, e) => {
@@ -12387,7 +12392,7 @@ export class EBCDrawer {
                 (pos) => {
                     const rawL  = pos.clientX - ox;
                     const rawB  = vh - pos.clientY - oyFromBottom;
-                    // Clamp so the full window stays within the viewport (use winH, not hdrH —
+                    // Clamp so the full window stays within the viewport (use winH, not hdrH -
                     // using hdrH let the window be dragged almost entirely off the top edge).
                     const winW  = win.offsetWidth  || 300;
                     const winH  = win.offsetHeight || 380;
@@ -12463,7 +12468,7 @@ export class EBCDrawer {
                     ? ((Player as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || Player.Name || "You"
                     : resolveName(bubbleMember);
 
-                // Name row — flex so we can add the account-name sub-text and copy icon inline
+                // Name row - flex so we can add the account-name sub-text and copy icon inline
                 const nameLabel = document.createElement("div");
                 nameLabel.style.cssText = "display:flex;align-items:baseline;gap:3px;margin-bottom:2px;padding:0 3px;min-width:0;flex-wrap:nowrap;";
 
@@ -12471,7 +12476,7 @@ export class EBCDrawer {
                 nameText.textContent = `${bubbleName} #${bubbleMember}`;
                 nameText.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
 
-                // Account name sub-text — only for received messages where it differs from display name
+                // Account name sub-text - only for received messages where it differs from display name
                 if (!isSent) {
                     const acctName = getAccountName(bubbleMember);
                     if (acctName && acctName !== bubbleName) {
@@ -12521,7 +12526,7 @@ export class EBCDrawer {
 
                 // Strip embedded JSON metadata appended by other mods (WCE, FBC, etc.)
                 const cleanMsg = stripBeepMetadata(e.message);
-                // Parse message — may start with "> quote\n" reply prefix
+                // Parse message - may start with "> quote\n" reply prefix
                 let msgBody = cleanMsg;
                 if (cleanMsg.startsWith("> ") && cleanMsg.includes("\n")) {
                     const nl = cleanMsg.indexOf("\n");
@@ -12532,7 +12537,7 @@ export class EBCDrawer {
                     msgBody = cleanMsg.slice(nl + 1);
                 }
 
-                // Room invite card — sent via the 📍 button in the header.
+                // Room invite card - sent via the 📍 button in the header.
                 // Renders as a join card with a "Join →" button for the recipient.
                 const ROOM_INVITE_PFX = "📍 Room invite: ";
                 const DECLINE_PFX = "❌ Room invite declined: ";
@@ -12553,7 +12558,7 @@ export class EBCDrawer {
                         const btnRow = document.createElement("div");
                         btnRow.className = "ebc-beep-room-invite-btns";
                         if (_declinedInviteTsSet.has(e.ts)) {
-                            // Already declined this session — show static note
+                            // Already declined this session - show static note
                             const note = document.createElement("div");
                             note.style.cssText = "font-size:9px;color:#5a3040;text-align:center;padding:2px 0;";
                             note.textContent = "Declined";
@@ -12591,7 +12596,7 @@ export class EBCDrawer {
                     }
                     bubble.appendChild(inviteCard);
                 } else if (msgBody.startsWith(DECLINE_PFX)) {
-                    // Decline notification — recipient sent this back to the inviter.
+                    // Decline notification - recipient sent this back to the inviter.
                     // isSent=true → recipient's view ("You declined …")
                     // isSent=false → inviter's view ("… declined your invite")
                     const rName = msgBody.slice(DECLINE_PFX.length).trim();
@@ -12612,7 +12617,7 @@ export class EBCDrawer {
                     text.textContent = msgBody;
                     bubble.appendChild(text);
 
-                    // Image embed — detect image URL in the message body
+                    // Image embed - detect image URL in the message body
                     const imgUrl = IMAGE_RE.exec(msgBody)?.[0];
                     if (imgUrl) {
                         const img = document.createElement("img");
@@ -12627,7 +12632,7 @@ export class EBCDrawer {
 
                 wrap.appendChild(bubble);
 
-                // Reply button — only show on received messages
+                // Reply button - only show on received messages
                 if (!isSent) {
                     const replyBtn = document.createElement("button");
                     replyBtn.className = "ebc-beep-reply-btn";
@@ -12636,7 +12641,7 @@ export class EBCDrawer {
                     wrap.appendChild(replyBtn);
                 }
 
-                // Copy button — shown inline beside the timestamp
+                // Copy button - shown inline beside the timestamp
                 if (!msgBody.startsWith("📍 Room invite:") && !msgBody.startsWith("❌ Room invite declined:")) {
                     const copyBtn = document.createElement("button");
                     copyBtn.className = "ebc-bubble-copy-btn";
@@ -12652,7 +12657,7 @@ export class EBCDrawer {
 
                 history.appendChild(wrap);
             }
-            // Only scroll when the window is already in the DOM — the initial call from before
+            // Only scroll when the window is already in the DOM - the initial call from before
             // body.appendChild would read scrollHeight=0 (display:none or no layout yet).
             if (win.isConnected) {
                 requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
@@ -12661,7 +12666,7 @@ export class EBCDrawer {
 
         renderHistory();
 
-        // Room invite button click handler — deferred here so renderHistory is in scope.
+        // Room invite button click handler - deferred here so renderHistory is in scope.
         // Dual-purpose: if the user is in a room → sends their room as an invite.
         // If the user is NOT in a room but the friend IS → joins the friend's room instead.
         //
@@ -12670,15 +12675,15 @@ export class EBCDrawer {
         roomInviteBtn.addEventListener("click", () => {
             const myRoom = getCurrentRoomName();
             if (myRoom) {
-                // In a room — send invite to the other person
+                // In a room - send invite to the other person
                 sendBeep(memberNumber, `📍 Room invite: ${myRoom}`);
                 renderHistory();
                 roomInviteBtn.textContent = "✓";
                 window.setTimeout(() => { roomInviteBtn.textContent = "📍"; }, 1200);
             } else {
-                // Not in a room — shortcut: join their room if they have one.
+                // Not in a room - shortcut: join their room if they have one.
                 // Guard: if friend status is "room" they're already with us, so we ARE
-                // in a room but room name detection hasn't populated yet — don't try to join.
+                // in a room but room name detection hasn't populated yet - don't try to join.
                 const friendRoom = getFriendOnlineInfo(memberNumber)?.roomName;
                 const friendStatus = getFriendStatus(memberNumber);
                 if (friendRoom && friendStatus !== "room") {
@@ -12713,7 +12718,7 @@ export class EBCDrawer {
         replyBar.appendChild(replyCancel);
         win.appendChild(replyBar);
 
-        // Quick-reply state — declared before the footer so qrToggle (built inside the
+        // Quick-reply state - declared before the footer so qrToggle (built inside the
         // footer block) can reference qrBar and syncQrToggle without forward-ref issues.
         const qrBar = document.createElement("div");
         qrBar.className = "ebc-qr-bar";
@@ -12726,7 +12731,7 @@ export class EBCDrawer {
         footer.className = "ebc-beep-win-footer";
         footer.style.position = "relative";
 
-        // Small ▶/▼ toggle — collapses/expands the quick-reply bar above the footer
+        // Small ▶/▼ toggle - collapses/expands the quick-reply bar above the footer
         const qrToggle = document.createElement("button");
         qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
         const syncQrToggle = (): void => {
@@ -12748,7 +12753,7 @@ export class EBCDrawer {
         input.maxLength = 1000;
         input.rows = 1;
 
-        // Character counter — flex item, sits between input and emoji button
+        // Character counter - flex item, sits between input and emoji button
         const charCounter = document.createElement("span");
         charCounter.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a07080;pointer-events:none;user-select:none;transition:color 0.15s;flex-shrink:0;align-self:center;min-width:22px;text-align:right;";
         charCounter.textContent = "1000";
@@ -12947,7 +12952,7 @@ export class EBCDrawer {
                 gearBtn.addEventListener("click", () => { qrEditOpen = true; renderQR(); });
                 qrBar.appendChild(gearBtn);
             } else {
-                // Edit mode — column list of existing replies + add form
+                // Edit mode - column list of existing replies + add form
                 qrBar.className = "ebc-qr-bar edit-mode";
                 const currentReplies = getQuickReplies();
                 for (let i = 0; i < currentReplies.length; i++) {
@@ -13089,7 +13094,7 @@ export class EBCDrawer {
         win.appendChild(resizeBWCorner);
 
         document.body.appendChild(win);
-        // Now that the window is in the DOM it has real layout — scroll history to bottom.
+        // Now that the window is in the DOM it has real layout - scroll history to bottom.
         window.requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
         // Centre new user-initiated windows after layout so offsetWidth/Height are real.
         if (!startMinimized) {
@@ -13206,7 +13211,7 @@ export class EBCDrawer {
             // Always refresh history so it's current when the user restores the window
             this.refreshBeepWindow(fromNum);
             if (entry.minimized) {
-                // Window is minimized — increment unread and light up the dot
+                // Window is minimized - increment unread and light up the dot
                 this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
                 this.refreshTabDot();
                 const dot = entry.el.querySelector<HTMLElement>(".ebc-beep-win-unread-dot");
@@ -13221,7 +13226,7 @@ export class EBCDrawer {
             }
         }
 
-        // Toast popup — always shown so the user notices the new message
+        // Toast popup - always shown so the user notices the new message
         this.showBeepToast(fromNum);
     }
 
@@ -13263,7 +13268,7 @@ export class EBCDrawer {
 
             document.body.appendChild(toast);
 
-            // Stack toasts if multiple arrive — offset each one upward
+            // Stack toasts if multiple arrive - offset each one upward
             const existing = document.querySelectorAll<HTMLElement>(".ebc-toast");
             let offset = 0;
             existing.forEach(t => { if (t !== toast) offset += (t.offsetHeight || 72) + 8; });
@@ -13284,7 +13289,7 @@ export class EBCDrawer {
     // -- Group chat windows ----------------------------------------------------
 
     public onIncomingGroupBeep(_groupId: string, _groupName: string, _fromNum: number, _members: number[]): void {
-        // Group chat temporarily disabled — restore body to re-enable
+        // Group chat temporarily disabled - restore body to re-enable
         return;
     }
 
@@ -13517,11 +13522,11 @@ export class EBCDrawer {
 
     /**
      * "MISSED MESSAGES" section at the top of the USERS tab.
-     * Only rendered when there are unread beeps — disappears completely once
+     * Only rendered when there are unread beeps - disappears completely once
      * all conversations have been opened.
      */
     private renderMessagesDropdown(body: HTMLElement): void {
-        // Nothing to show — hide the whole section
+        // Nothing to show - hide the whole section
         if (this.beepUnread.size === 0) return;
 
         const self = Player.MemberNumber ?? 0;
@@ -13705,7 +13710,7 @@ export class EBCDrawer {
             (v) => setAfkEnabled(v),
         ));
 
-        // Threshold — label row + h/m/s inputs
+        // Threshold - label row + h/m/s inputs
         const afkThreshLbl = document.createElement("div");
         afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;margin-bottom:4px;";
         afkThreshLbl.textContent = t("settings.idleThreshold");
@@ -13768,7 +13773,7 @@ export class EBCDrawer {
         afkMsgArea.value = getAfkMessage();
         afkMsgArea.maxLength = 200;
         afkMsgArea.rows = 2;
-        afkMsgArea.placeholder = "I'm currently AFK — I'll reply when I'm back!";
+        afkMsgArea.placeholder = "I'm currently AFK - I'll reply when I'm back!";
         afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
         afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
         afkBody.appendChild(afkMsgArea);
@@ -14036,7 +14041,7 @@ export class EBCDrawer {
             if (grpFormVisible) grpNameInput.focus();
         });
 
-        // Group chat temporarily disabled — re-enable by uncommenting this line
+        // Group chat temporarily disabled - re-enable by uncommenting this line
         // body.appendChild(grpSec);
 
         // ── Friends ──────────────────────────────────────────────────────────
@@ -14095,7 +14100,7 @@ export class EBCDrawer {
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row";
 
-                    // Green dot — in room
+                    // Green dot - in room
                     const dot = document.createElement("div");
                     dot.className = "ebc-friend-dot room";
 
@@ -14144,7 +14149,7 @@ export class EBCDrawer {
                     // Build nameRow
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
+                    // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
                     nameRow.appendChild(nameEl);
 
                     // Show account name in muted text when they use a different nickname
@@ -14208,7 +14213,7 @@ export class EBCDrawer {
                     infoCol.appendChild(nameRow);
                     infoCol.appendChild(metaRow);
 
-                    // Profile button — always available since they're in the room
+                    // Profile button - always available since they're in the room
                     const profBtn = document.createElement("button");
                     profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                     profBtn.title = "View profile";
@@ -14253,7 +14258,7 @@ export class EBCDrawer {
                     btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
                     btnCol.appendChild(profBtn);
 
-                    // Beep button — only for friends
+                    // Beep button - only for friends
                     if (friendList.includes(num)) {
                         const unread = this.beepUnread.get(num) ?? 0;
                         const beepBtn = document.createElement("button");
@@ -14304,7 +14309,7 @@ export class EBCDrawer {
                     container.appendChild(wrap);
                 };
 
-                // Collapsible section header — styled like a section label + arrow
+                // Collapsible section header - styled like a section label + arrow
                 const roomToggle = document.createElement("div");
                 roomToggle.setAttribute("data-guide-target", "section-room-people");
                 const updateRoomToggle = (): void => {
@@ -14497,7 +14502,7 @@ export class EBCDrawer {
                 }
             });
 
-            // Build search filter — matches name, member number, notes, or tags, case-insensitive.
+            // Build search filter - matches name, member number, notes, or tags, case-insensitive.
             // normalizeForSearch strips diacritics and maps fancy Unicode letters
             // (𝓓𝓙, 𝕯𝕵, 𝗗𝗝 …) to their plain ASCII equivalents so "dj" finds "𝓓𝓙".
             const query = normalizeForSearch(this.friendSearch.trim()).toLowerCase();
@@ -14525,7 +14530,7 @@ export class EBCDrawer {
                 .filter(n => !isFriendPinned(n) && getFriendStatus(n) === "away" && matchesSearch(n))
                 .sort((a, b) => (hasRealName(a) ? 0 : 1) - (hasRealName(b) ? 0 : 1));
 
-            // Tooltip helpers — use instance-level refs so rebuilds don't orphan tooltips
+            // Tooltip helpers - use instance-level refs so rebuilds don't orphan tooltips
             const hideTooltip = (): void => {
                 this.tagTooltipEl?.remove();
                 this.tagTooltipEl = null;
@@ -14565,7 +14570,7 @@ export class EBCDrawer {
                 const relBadge = (() => {
                     try {
                         const icons: string[] = [];
-                        // They own you — crown = "this person is your owner"
+                        // They own you - crown = "this person is your owner"
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number } | undefined;
                         if (own?.MemberNumber === num) icons.push("👑");
@@ -14578,7 +14583,7 @@ export class EBCDrawer {
                             else if (loveEntry.Stage === 1) icons.push("💍");
                             else icons.push("❤️");
                         }
-                        // You own them — lock = "you have them locked"
+                        // You own them - lock = "you have them locked"
                         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number } }> | undefined;
                         const roomChar = room?.find(c => c.MemberNumber === num);
@@ -14674,7 +14679,7 @@ export class EBCDrawer {
                     tagArea.innerHTML = "";
                     const tl = getFriendTagList(num);
                     if (!tl.length) return;
-                    // First tag pill — locked tags get a bold gold crown style
+                    // First tag pill - locked tags get a bold gold crown style
                     const first = tl[0];
                     const pill = document.createElement("span");
                     pill.className = "ebc-friend-tag";
@@ -14743,7 +14748,7 @@ export class EBCDrawer {
                 // nameRow: nameEl + acctEl? + numEl + relBadge
                 const nameRow = document.createElement("div");
                 nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
+                // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
                 nameRow.appendChild(nameEl);
 
                 // If this person has a nickname, show their account name in muted text
@@ -14779,7 +14784,7 @@ export class EBCDrawer {
                 infoCol.appendChild(nameRow);
                 infoCol.appendChild(metaRow);
 
-                // Profile button — opens BC info sheet
+                // Profile button - opens BC info sheet
                 const friendProfBtn = document.createElement("button");
                 friendProfBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                 friendProfBtn.title = "View profile";
@@ -14830,9 +14835,9 @@ export class EBCDrawer {
                         if (C) { openProfile(C); return; }
                     } catch { /* ignore */ }
                     try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
-                    } catch { /* ignore — prevent unhandled rejection from async listener */ }
+                    } catch { /* ignore - prevent unhandled rejection from async listener */ }
                 });
-                // Beep button — does NOT toggle expand
+                // Beep button - does NOT toggle expand
                 const unread = this.beepUnread.get(num) ?? 0;
                 const beepBtn = document.createElement("button");
                 beepBtn.className = "ebc-friend-btn";
@@ -14901,7 +14906,7 @@ export class EBCDrawer {
                 row.appendChild(infoCol);
                 row.appendChild(btnCol);
 
-                // ── Expand panel (lazy — DOM built on first click) ─────────
+                // ── Expand panel (lazy - DOM built on first click) ─────────
                 const expand = document.createElement("div");
                 expand.className = "ebc-friend-expand";
 
@@ -14918,7 +14923,7 @@ export class EBCDrawer {
                     infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
 
                     // Read (and auto-stamp) the "friends since" date directly from the
-                    // raw store — bypasses all helper functions to rule out any module
+                    // raw store - bypasses all helper functions to rule out any module
                     // bugs. Also calls getFriendSince as a secondary path for consistency.
                     let sinceTs: number | null = null;
                     try {
@@ -14937,7 +14942,7 @@ export class EBCDrawer {
                             if (typeof fs[key] === "number") {
                                 sinceTs = fs[key];
                             } else {
-                                // No record — stamp now (this IS a friend if they appear in the list)
+                                // No record - stamp now (this IS a friend if they appear in the list)
                                 fs[key] = Date.now();
                                 sinceTs = fs[key];
                                 syncSettings();
@@ -15008,7 +15013,7 @@ export class EBCDrawer {
                                 : `${ico} ${label}`;
                             infoBox.appendChild(loveEl);
                         }
-                        // You own them (room data only — offline skip)
+                        // You own them (room data only - offline skip)
                         const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number; Start?: string | number } }> | undefined;
                         const rc = roomChars?.find(c => c.MemberNumber === num);
@@ -15051,7 +15056,7 @@ export class EBCDrawer {
                                 const lockIcon = document.createElement("span");
                                 lockIcon.textContent = "🔒";
                                 lockIcon.style.cssText = "font-size:11px;opacity:0.7;margin-left:2px;";
-                                lockIcon.title = "Permanent tag — cannot be removed";
+                                lockIcon.title = "Permanent tag - cannot be removed";
                                 chip.appendChild(txt);
                                 chip.appendChild(lockIcon);
                             } else {
@@ -15156,7 +15161,7 @@ export class EBCDrawer {
                         const w = isOnWatchList(num);
                         watchBtn.textContent = w ? "Notify online: on" : "Notify online";
                         watchBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${w ? "#4a9a60" : "#1a3a2a"};background:${w ? "#0d2015" : "transparent"};color:${w ? "#79d896" : "#4a7a5a"};`;
-                        watchBtn.title = w ? "Notifies you when this person comes online — click to turn off" : "Get a notification when this person comes online";
+                        watchBtn.title = w ? "Notifies you when this person comes online - click to turn off" : "Get a notification when this person comes online";
                     };
                     refreshWatchBtn();
                     watchBtn.addEventListener("click", () => { toggleOnlineWatch(num); refreshWatchBtn(); });
@@ -15206,7 +15211,7 @@ export class EBCDrawer {
                     });
                 };
 
-                // Toggle expand on row click — build panel on first open
+                // Toggle expand on row click - build panel on first open
                 row.addEventListener("click", () => {
                     buildExpandPanel();
                     const open = expand.classList.toggle("visible");
@@ -15232,7 +15237,7 @@ export class EBCDrawer {
                 container.appendChild(wrap);
             };
 
-            // Always render locked-tag contacts first — even if not in Player.FriendList.
+            // Always render locked-tag contacts first - even if not in Player.FriendList.
             // Cache their fallback display names so resolveName() always has something to show.
             for (const [num, fallbackName] of getLockedTagMembers()) {
                 try { cacheName(num, fallbackName); } catch { /* ignore */ }
@@ -15260,7 +15265,7 @@ export class EBCDrawer {
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
                     lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex:1;";
-                    lbl.textContent = query ? `Offline — ${offlineFriends.length} match${offlineFriends.length === 1 ? "" : "es"}` : `Offline (${offlineFriends.length})`;
+                    lbl.textContent = query ? `Offline - ${offlineFriends.length} match${offlineFriends.length === 1 ? "" : "es"}` : `Offline (${offlineFriends.length})`;
                     offlineToggle.appendChild(arrow);
                     offlineToggle.appendChild(lbl);
                     offlineContainer.style.display = col ? "none" : "block";
@@ -15467,7 +15472,7 @@ export class EBCDrawer {
             refreshTouchBtn();
             touchForceBtn.addEventListener("click", () => {
                 // Toggle based on the ACTUAL current state so the button always
-                // reflects reality — on real touch devices isTouchDevice() is true,
+                // reflects reality - on real touch devices isTouchDevice() is true,
                 // so only an explicit "0" can turn touch mode OFF.
                 setForceTouchMode(!isTouchModeActive());
                 refreshTouchBtn();
@@ -15527,7 +15532,7 @@ export class EBCDrawer {
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            zoomSlider.title = "Scale the EBC panel and beep windows — useful on 2K/4K monitors";
+            zoomSlider.title = "Scale the EBC panel and beep windows - useful on 2K/4K monitors";
 
             const zoomVal = document.createElement("span");
             zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
@@ -16035,7 +16040,7 @@ export class EBCDrawer {
 
                 clearChecklist();
                 const charName = ((char as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || char.Name;
-                checklistLbl.textContent = `${items.length} restraint(s) from ${charName} — pick what to export:`;
+                checklistLbl.textContent = `${items.length} restraint(s) from ${charName} - pick what to export:`;
 
                 for (const item of items) {
                     const craft = item.Craft as { Name?: string } | undefined;
@@ -16268,7 +16273,7 @@ export class EBCDrawer {
             });
 
             // ── Current Room ──────────────────────────────────────────────────
-            // Always live — no toggle needed. Shows who is in the current room
+            // Always live - no toggle needed. Shows who is in the current room
             // and who has joined since you arrived.
             makeInner("Current Room", "EBC_currentRoomCollapsed", true, (c) => {
                 renderRoom = (): void => {
@@ -16336,7 +16341,7 @@ export class EBCDrawer {
                                 try { const C = loadOnline(bundle, memberNumber); if (C) { openProfile(C); return; } } catch { /* ignore */ }
                             }
                             try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
-                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
+                          } catch { /* ignore - prevent unhandled rejection from async listener */ }
                         });
                         return btn;
                     };
@@ -16425,7 +16430,7 @@ export class EBCDrawer {
                     while (rhToggleRow.nextSibling) c.removeChild(rhToggleRow.nextSibling);
                     if (!getRoomHistoryEnabled()) {
                         const hint = document.createElement("div"); hint.className = "ebc-empty";
-                        hint.textContent = "Recording is off — enable above to save visited rooms."; c.appendChild(hint); return;
+                        hint.textContent = "Recording is off - enable above to save visited rooms."; c.appendChild(hint); return;
                     }
                     const visits = getVisitedHistory();
                     if (visits.length === 0) {
@@ -16543,7 +16548,7 @@ export class EBCDrawer {
                     while (rlToggleRow.nextSibling) c.removeChild(rlToggleRow.nextSibling);
                     if (!getRestraintLogEnabled()) {
                         const hint = document.createElement("div"); hint.className = "ebc-empty";
-                        hint.textContent = "Recording is off — enable above to start logging."; c.appendChild(hint); return;
+                        hint.textContent = "Recording is off - enable above to start logging."; c.appendChild(hint); return;
                     }
                     const entries = getRestraintLog();
                     if (entries.length === 0) {
@@ -16730,7 +16735,7 @@ export class EBCDrawer {
                         const hint = document.createElement("div");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:8px 6px;";
                         hint.textContent = isDevLogEnabled()
-                            ? "No messages yet — chat, emote, or click Test above."
+                            ? "No messages yet - chat, emote, or click Test above."
                             : "Logging is off. Click Enable above.";
                         msgLogEl.appendChild(hint); return;
                     }
@@ -16823,7 +16828,7 @@ export class EBCDrawer {
                     if (filtered.length === 0) {
                         const hint = document.createElement("div");
                         hint.style.cssText = `${PFONT}font-size:11px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
-                        hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
+                        hint.textContent = q ? "No matches." : "No one recorded yet - meet people in rooms!";
                         listEl.appendChild(hint);
                         return;
                     }
@@ -16872,7 +16877,7 @@ export class EBCDrawer {
                                 return;
                             }
 
-                            // 1. Person is currently in the room — use live Character object
+                            // 1. Person is currently in the room - use live Character object
                             const inRoom = Array.isArray(roomChars)
                                 ? roomChars.find(c => c.MemberNumber === person.n)
                                 : undefined;
@@ -16889,7 +16894,7 @@ export class EBCDrawer {
                                 } catch { /* ignore */ }
                             }
 
-                            // 3. No bundle — synthesize a minimal one from cached name data.
+                            // 3. No bundle - synthesize a minimal one from cached name data.
                             // CharacterLoadOnline fills in BC defaults for missing fields so
                             // the info sheet opens with a blank model but correct name + number.
                             try {
@@ -16905,7 +16910,7 @@ export class EBCDrawer {
                             } catch { /* ignore */ }
 
                             try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
-                          } catch { /* ignore — prevent unhandled rejection from async listener */ }
+                          } catch { /* ignore - prevent unhandled rejection from async listener */ }
                         });
 
                         // Copy ID button
@@ -16952,7 +16957,7 @@ export class EBCDrawer {
                     el.textContent = text; return el;
                 };
 
-                // Helper: stat row — label + number input + − +
+                // Helper: stat row - label + number input + − +
                 const statInputs = new Map<string, HTMLInputElement>();
                 const makeStatRow = (key: string, label: string, value: number): void => {
                     const row = document.createElement("div");
@@ -16990,7 +16995,7 @@ export class EBCDrawer {
                     Willpower: "Willpower", Infiltration: "Infiltration",
                     Dressage: "Dressage",
                 };
-                // SkillGetLevelReal returns base level without temporary modifiers — correct for display.
+                // SkillGetLevelReal returns base level without temporary modifiers - correct for display.
                 type SkillGetLevelRealFn = (c: unknown, skill: string) => number;
                 const skillGetLevelReal = (window as unknown as Record<string, unknown>).SkillGetLevelReal as SkillGetLevelRealFn | undefined;
                 const playerSkillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
@@ -17002,7 +17007,7 @@ export class EBCDrawer {
                     return skillMap.get(key) ?? 0;
                 };
 
-                // applySkill — uses BC's own SkillChange which handles Type property correctly
+                // applySkill - uses BC's own SkillChange which handles Type property correctly
                 // and calls ServerPlayerSkillSync() (→ QueueData({ Skill: Player.Skill })) internally.
                 type SkillChangeFn = (c: unknown, type: string, level: number, progress: number) => void;
                 const skillChangeFn = (window as unknown as Record<string, unknown>).SkillChange as SkillChangeFn | undefined;
@@ -17177,14 +17182,14 @@ export class EBCDrawer {
                             for (const asset of assetList) {
                                 try { invAdd(Player, asset.Name, asset.Group.Name, false); } catch { /* skip */ }
                             }
-                            // Do NOT call QueueData({ Inventory: Player.Inventory }) here —
+                            // Do NOT call QueueData({ Inventory: Player.Inventory }) here -
                             // the array is now thousands of entries and socket.io's deep-clone
                             // will stack-overflow trying to serialise it. BC's own account-update
                             // cycle (triggered by leaving a room, opening the profile, etc.)
                             // will persist the inventory naturally.
                             unlockBtn.textContent = `All items unlocked!`;
                             window.setTimeout(() => { unlockBtn.textContent = "Unlock All Items"; }, 2500);
-                        } catch { unlockBtn.textContent = "Error — check console"; }
+                        } catch { unlockBtn.textContent = "Error - check console"; }
                     });
                     cnt.appendChild(unlockBtn);
                 }
@@ -17225,7 +17230,7 @@ export class EBCDrawer {
                             if (entry) {
                                 entry.Value = val;
                             } else if (val !== 0) {
-                                // Not yet in Player.Reputation — add it now
+                                // Not yet in Player.Reputation - add it now
                                 rep.push({ Type: type, Value: val });
                             }
                         }
@@ -17233,7 +17238,7 @@ export class EBCDrawer {
                             (Player as unknown as Record<string, unknown>).Reputation = rep;
                         }
                         if (upd?.QueueData) upd.QueueData({ Reputation: rep });
-                    } catch { /* reputation save failed — non-fatal */ }
+                    } catch { /* reputation save failed - non-fatal */ }
 
                     applyBtn.textContent = "Applied!";
                     window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
@@ -17283,7 +17288,7 @@ export class EBCDrawer {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
         };
-        // Unified bark list — seeds from BUILTIN_BARKS on first use, migrates legacy customBarks
+        // Unified bark list - seeds from BUILTIN_BARKS on first use, migrates legacy customBarks
         const getBarks = (): string[] => {
             const store = getPuppyStore();
             if (Array.isArray(store.barks)) return store.barks as string[];
@@ -17534,7 +17539,7 @@ export class EBCDrawer {
                 textInp.maxLength = 200;
                 if (noText) textInp.style.opacity = "0.35";
 
-                // Delay input (ms) — hidden for leaveroom since nothing follows
+                // Delay input (ms) - hidden for leaveroom since nothing follows
                 const delayInp = document.createElement("input");
                 delayInp.className = "ebc-seq-delay-inp";
                 delayInp.type = "number";
@@ -17794,13 +17799,13 @@ export class EBCDrawer {
         addCatRow.appendChild(addCatBtn);
         body.appendChild(addCatRow);
 
-        // ── Slot list + render fn — appended into the active category body ─────
+        // ── Slot list + render fn - appended into the active category body ─────
         const slotList = document.createElement("div");
         slotList.id = "ebc-slot-list";
         activeBodyEl.appendChild(slotList);
 
         const renderSlots = (): void => {
-            // Always ensure btns has a real object for every slot — prevents "undefined" crashes
+            // Always ensure btns has a real object for every slot - prevents "undefined" crashes
             while (btns.length < slotCount) {
                 btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
             }
@@ -17846,7 +17851,7 @@ export class EBCDrawer {
                 colorWrap.appendChild(colorDot);
                 colorWrap.appendChild(colorInp);
 
-                // Floating picker popup — created on demand, one per slot at a time
+                // Floating picker popup - created on demand, one per slot at a time
                 let slotPickerPopup: HTMLElement | null = null;
                 let slotPickerCleanup: (() => void) | null = null;
                 const closeSlotPicker = (): void => {
@@ -17925,19 +17930,19 @@ export class EBCDrawer {
                 const isSeq = currentStyle === "seq";
 
                 if (isSeq) {
-                    // seq: badge only — step builder below handles all config
+                    // seq: badge only - step builder below handles all config
                     const seqBadge = document.createElement("span");
                     seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7ac8;padding:1px 4px;";
                     seqBadge.textContent = t("buttons.seqBadge");
                     botLine.appendChild(seqBadge);
                 } else {
-                    // action / emote — restore classic () / ** toggle button
+                    // action / emote - restore classic () / ** toggle button
                     const styleBtn = document.createElement("button");
                     styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
                     styleBtn.textContent = currentStyle === "emote" ? "**" : "()";
                     styleBtn.title = currentStyle === "emote"
-                        ? "Emote (* Name text *) — click to switch to action"
-                        : "Action (( Name text )) — click to switch to emote";
+                        ? "Emote (* Name text *) - click to switch to action"
+                        : "Action (( Name text )) - click to switch to emote";
                     styleBtn.addEventListener("click", () => {
                         btns[idx].style = (btns[idx].style === "emote" ? "action" : "emote") as ActionStyle;
                         renderSlots();
@@ -17956,8 +17961,8 @@ export class EBCDrawer {
                     nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
                     nameChip.textContent = nameIncluded ? "name" : "anon";
                     nameChip.title = nameIncluded
-                        ? "Your name is included — click to send anonymously"
-                        : "Sending without name — click to include name";
+                        ? "Your name is included - click to send anonymously"
+                        : "Sending without name - click to include name";
                     nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
                     nameChip.style.display = currentStyle === "action" ? "" : "none";
                     nameChip.addEventListener("click", () => {
@@ -17987,7 +17992,7 @@ export class EBCDrawer {
                         const exprLineSel = document.createElement("select");
                         exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
                         const exprLineNone = document.createElement("option");
-                        exprLineNone.value = ""; exprLineNone.textContent = "— no face —";
+                        exprLineNone.value = ""; exprLineNone.textContent = "- no face -";
                         exprLineSel.appendChild(exprLineNone);
                         for (const ep of exprLinePresets) {
                             const exprLineOpt = document.createElement("option");
@@ -18117,7 +18122,7 @@ export class EBCDrawer {
         footer.appendChild(resetBtn);
         activeBodyEl.appendChild(footer);
 
-        // Export / Import row — inside the active category body
+        // Export / Import row - inside the active category body
         const ioRow = document.createElement("div");
         ioRow.className = "ebc-btn-footer";
         ioRow.style.marginTop = "3px";
@@ -18418,7 +18423,7 @@ export class EBCDrawer {
         });
         body.appendChild(clearPoseBtn);
 
-        // ── Slow Leave trigger button — lives with Useful Buttons ─────────────
+        // ── Slow Leave trigger button - lives with Useful Buttons ─────────────
         const slLeaveBtn = document.createElement("button");
         slLeaveBtn.className = "ebc-create-btn";
         slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
@@ -18438,7 +18443,7 @@ export class EBCDrawer {
                 slLeaveBtn.style.color = "";
                 return;
             }
-            // Respect BC's own leave guard — locked rooms, restraints that block leaving, etc.
+            // Respect BC's own leave guard - locked rooms, restraints that block leaving, etc.
             try {
                 const canLeave = (window as unknown as Record<string, () => boolean>).ChatRoomCanLeave?.();
                 if (canLeave === false) {
@@ -18448,7 +18453,7 @@ export class EBCDrawer {
                     window.setTimeout(() => { slLeaveBtn.style.background = prev; }, 350);
                     return;
                 }
-            } catch { /* ignore — if check unavailable, allow the leave */ }
+            } catch { /* ignore - if check unavailable, allow the leave */ }
             const durMs = Math.max(2000, parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10) * 1000);
             const slps = getSlowLeavePresets();
             const slpi = Math.min(Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePresetIdx") ?? "0", 10)), slps.length - 1);
@@ -18458,7 +18463,7 @@ export class EBCDrawer {
                 slLeaveBtn.style.background = "";
                 slLeaveBtn.style.color = "";
                 // Navigate to lobby FIRST so ChatRoomRun hooks (CRABS etc.) stop running
-                // before ChatRoomLeave() clears room state — same order as the safeword leave.
+                // before ChatRoomLeave() clears room state - same order as the safeword leave.
                 callBC(() => CommonSetScreen("Online", "ChatSearch"));
                 callBC(() => ChatRoomLeave());
             });
@@ -18469,13 +18474,13 @@ export class EBCDrawer {
         });
         body.appendChild(slLeaveBtn);
 
-        // ── Slow Leave editor — collapsible accordion card ────────────────────
+        // ── Slow Leave editor - collapsible accordion card ────────────────────
         const slEditorOpen = localStorage.getItem("EBC_slowLeaveEditorOpen") === "1";
 
         const slEditorCard = document.createElement("div");
         slEditorCard.style.cssText = "border:1px solid " + (slEditorOpen ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-top:6px;overflow:hidden;";
 
-        // Header row — click to expand/collapse
+        // Header row - click to expand/collapse
         const slEditorHdr = document.createElement("div");
         slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
 
@@ -18491,7 +18496,7 @@ export class EBCDrawer {
         slEditorHdr.appendChild(slEditorLbl);
         slEditorCard.appendChild(slEditorHdr);
 
-        // Editor body — preset selector + intro emote + duration slider
+        // Editor body - preset selector + intro emote + duration slider
         const slEditorBody = document.createElement("div");
         slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
 
@@ -18682,11 +18687,11 @@ export class EBCDrawer {
                     ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
                 } catch { /* ignore */ }
                 this._leashHeld = false;
-                // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
+                // Loosen neck - Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
                 runKittyActivity("ItemNeck", "Caress");
                 runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
             } else {
-                // Grab leash — BC's HoldLeash hidden-message protocol
+                // Grab leash - BC's HoldLeash hidden-message protocol
                 sendRoomEmote(mood === "rough"
                     ? "snatches up Emery's leash with a firm grip~"
                     : "reaches out and gently takes hold of Emery's leash~");
@@ -18699,7 +18704,7 @@ export class EBCDrawer {
         });
         leashRow.appendChild(leashBtn);
 
-        // Pull Leash — triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
+        // Pull Leash - triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
         // Sends a standard BC Activity message; echo-activity-ext hooks ChatRoomMessage on both
         // clients and runs the pair-and-follow handler when it sees this content.
         const pullBtn = document.createElement("button");
@@ -18966,7 +18971,7 @@ export class EBCDrawer {
                 const catRow = document.createElement("div"); catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                 const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
                 const catSel = document.createElement("select"); catSel.style.cssText = "flex:1;min-width:0;" + INP;
-                for (const [v, t] of [["", "— none —"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
+                for (const [v, t] of [["", "- none -"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
                     const o = document.createElement("option"); o.value = v; o.textContent = t; catSel.appendChild(o);
                 }
                 catSel.value = em.reactionCategory ?? "";
@@ -19141,7 +19146,7 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                 for (const p of poses) {
                     // cooldown 700ms: covers the 600ms emote delay so the button stays
-                    // visually disabled until the room emote fires — prevents double-sends.
+                    // visually disabled until the room emote fires - prevents double-sends.
                     row.appendChild(makePill(p.label, "#a070c8", () => {
                         // Guard: never send chat when not in a room
                         if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
@@ -19378,7 +19383,7 @@ export class EBCDrawer {
                             if (kittyPresets.length > 0) {
                                 const kpRow = document.createElement("div"); kpRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-bottom:3px;";
                                 const kpSel = document.createElement("select"); kpSel.style.cssText = "flex:1;min-width:0;" + INP;
-                                const kpPh = document.createElement("option"); kpPh.value = ""; kpPh.textContent = "— load preset —"; kpPh.disabled = true; kpPh.selected = true; kpSel.appendChild(kpPh);
+                                const kpPh = document.createElement("option"); kpPh.value = ""; kpPh.textContent = "- load preset -"; kpPh.disabled = true; kpPh.selected = true; kpSel.appendChild(kpPh);
                                 for (const kp of kittyPresets) { const o = document.createElement("option"); o.value = kp.id; o.textContent = kp.label + " (" + kp.items.length + ")"; kpSel.appendChild(o); }
                                 const kpBtn = document.createElement("button"); kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; kpBtn.textContent = "Load ↓";
                                 kpBtn.addEventListener("click", () => {
@@ -19396,18 +19401,18 @@ export class EBCDrawer {
                             // Slot → Item → Color → + Add row
                             const aiSlRow = document.createElement("div"); aiSlRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
                             const aiSl = document.createElement("select"); aiSl.style.cssText = "flex:1;min-width:0;" + INP;
-                            const aiSlPh = document.createElement("option"); aiSlPh.value = ""; aiSlPh.textContent = "— slot —"; aiSlPh.disabled = true; aiSlPh.selected = true; aiSl.appendChild(aiSlPh);
+                            const aiSlPh = document.createElement("option"); aiSlPh.value = ""; aiSlPh.textContent = "- slot -"; aiSlPh.disabled = true; aiSlPh.selected = true; aiSl.appendChild(aiSlPh);
                             for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); aiSl.appendChild(o); }
                             aiSlRow.appendChild(aiSl);
 
                             const aiItemRow2 = document.createElement("div"); aiItemRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
                             const aiItemSel = document.createElement("select"); aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
-                            const aiIPh = document.createElement("option"); aiIPh.value = ""; aiIPh.textContent = "— pick slot first —"; aiIPh.disabled = true; aiIPh.selected = true; aiItemSel.appendChild(aiIPh);
+                            const aiIPh = document.createElement("option"); aiIPh.value = ""; aiIPh.textContent = "- pick slot first -"; aiIPh.disabled = true; aiIPh.selected = true; aiItemSel.appendChild(aiIPh);
                             aiSl.addEventListener("change", () => {
                                 aiItemSel.innerHTML = "";
                                 const names = getGroupAssets(aiSl.value);
-                                if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o); }
-                                else { const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); } }
+                                if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "- none -"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o); }
+                                else { const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "- pick item -"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); } }
                             });
                             aiItemRow2.appendChild(aiItemSel);
 
@@ -19430,7 +19435,7 @@ export class EBCDrawer {
                             if (fromSaved.length > 0) {
                                 const fsRow = document.createElement("div"); fsRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
                                 const fsSel = document.createElement("select"); fsSel.style.cssText = "flex:1;min-width:0;" + INP;
-                                const fsPh = document.createElement("option"); fsPh.value = ""; fsPh.textContent = "— import saved set —"; fsPh.disabled = true; fsPh.selected = true; fsSel.appendChild(fsPh);
+                                const fsPh = document.createElement("option"); fsPh.value = ""; fsPh.textContent = "- import saved set -"; fsPh.disabled = true; fsPh.selected = true; fsSel.appendChild(fsPh);
                                 for (const rs of fromSaved) { const o = document.createElement("option"); o.value = rs.id; o.textContent = rs.displayName + " (" + rs.items.filter((i: { Group: string }) => RESTRAINT_GROUPS.has(i.Group)).length + ")"; fsSel.appendChild(o); }
                                 const fsBtn = document.createElement("button"); fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; fsBtn.textContent = "Use ↓";
                                 fsBtn.addEventListener("click", () => {
@@ -19576,7 +19581,7 @@ export class EBCDrawer {
             if (presets.length === 0) {
                 const em = document.createElement("div");
                 em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b090c0;padding:2px 0;";
-                em.textContent = "No restraint presets yet — create one above.";
+                em.textContent = "No restraint presets yet - create one above.";
                 rpWrap.appendChild(em);
                 return;
             }
@@ -19588,7 +19593,7 @@ export class EBCDrawer {
             const presetSel = document.createElement("select");
             presetSel.style.cssText = "flex:1;min-width:0;" + INP;
             const selPh = document.createElement("option");
-            selPh.value = ""; selPh.textContent = "— select preset —"; selPh.disabled = true; selPh.selected = true;
+            selPh.value = ""; selPh.textContent = "- select preset -"; selPh.disabled = true; selPh.selected = true;
             presetSel.appendChild(selPh);
             for (const p of presets) {
                 const o = document.createElement("option");
@@ -19664,7 +19669,7 @@ export class EBCDrawer {
                 const rpExprRow = document.createElement("div"); rpExprRow.style.cssText = "display:flex;align-items:center;gap:4px;padding-bottom:4px;border-bottom:1px solid #3a2010;margin-bottom:4px;";
                 const rpExprLbl = document.createElement("span"); rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;width:56px;"; rpExprLbl.textContent = "😊 Expression";
                 const rpExprSel = document.createElement("select"); rpExprSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const rpExprNone = document.createElement("option"); rpExprNone.value = ""; rpExprNone.textContent = "— none —"; rpExprSel.appendChild(rpExprNone);
+                const rpExprNone = document.createElement("option"); rpExprNone.value = ""; rpExprNone.textContent = "- none -"; rpExprSel.appendChild(rpExprNone);
                 for (const ex of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = ex.cmd; o.textContent = ex.label; rpExprSel.appendChild(o); }
                 const exprPresets3 = getKittyExpressionPresets();
                 if (exprPresets3.length > 0) {
@@ -19683,15 +19688,15 @@ export class EBCDrawer {
                 // Slot + item + colour + Add
                 const slRow = document.createElement("div"); slRow.style.cssText = "display:flex;align-items:center;gap:3px;border-top:1px solid #3a2010;padding-top:4px;flex-wrap:wrap;";
                 const sl = document.createElement("select"); sl.style.cssText = "flex:1;min-width:0;" + INP;
-                const slPh = document.createElement("option"); slPh.value = ""; slPh.textContent = "— slot —"; slPh.disabled = true; slPh.selected = true; sl.appendChild(slPh);
+                const slPh = document.createElement("option"); slPh.value = ""; slPh.textContent = "- slot -"; slPh.disabled = true; slPh.selected = true; sl.appendChild(slPh);
                 for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); sl.appendChild(o); }
                 const itemSel = document.createElement("select"); itemSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const itemPh = document.createElement("option"); itemPh.value = ""; itemPh.textContent = "— pick slot —"; itemPh.disabled = true; itemPh.selected = true; itemSel.appendChild(itemPh);
+                const itemPh = document.createElement("option"); itemPh.value = ""; itemPh.textContent = "- pick slot -"; itemPh.disabled = true; itemPh.selected = true; itemSel.appendChild(itemPh);
                 sl.addEventListener("change", () => {
                     itemSel.innerHTML = "";
                     const names = getGroupAssets(sl.value);
-                    if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; itemSel.appendChild(o); }
-                    else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
+                    if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "- none -"; o.disabled = true; o.selected = true; itemSel.appendChild(o); }
+                    else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "- item -"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
                 });
                 const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
                 const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = t("core.add");
@@ -19897,7 +19902,7 @@ export class EBCDrawer {
                     return { Group: item.Asset.Group.Name, Name: item.Asset.Name, Color: item.Color, Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined, Property: prop, Craft: item.Craft ?? undefined };
                 });
                 crTA.value = LZ.compressToBase64(JSON.stringify(bundle));
-                crStatus.textContent = `✔ Code for ${selected.length} item(s) — import via BC wardrobe.`;
+                crStatus.textContent = `✔ Code for ${selected.length} item(s) - import via BC wardrobe.`;
                 crStatus.style.color = "#79a885";
             } catch (e) { crStatus.textContent = "Error: " + String(e); crStatus.style.color = "#e07070"; }
         });
@@ -19953,7 +19958,7 @@ export class EBCDrawer {
 
         const epHint = document.createElement("div");
         epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
-        epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
+        epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) - click a preset to fire all its expressions at once.";
         exprCBody.appendChild(epHint);
 
         const epWrap = document.createElement("div");
@@ -19966,7 +19971,7 @@ export class EBCDrawer {
         const exprWrap = document.createElement("div");
         exprWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
         for (const expr of KITTY_EXPRESSIONS) {
-            if (!expr.cmd) continue; // skip "— None —"
+            if (!expr.cmd) continue; // skip "- None -"
             const b = document.createElement("button");
             b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid #5a3050;background:rgba(40,15,30,0.5);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
             b.textContent = expr.label;
@@ -20161,7 +20166,7 @@ export class EBCDrawer {
                 const def = getExpressionPresets().find(p => p.id === defaultId);
                 if (def) { applyExpressionPreset(def); this.rerender(150); return; }
             }
-            // No default set — clear all groups back to neutral (batched: one refresh+sync)
+            // No default set - clear all groups back to neutral (batched: one refresh+sync)
             clearAllExprGroups();
             this.rerender(150);
         });
@@ -20218,7 +20223,7 @@ export class EBCDrawer {
                 applyBtn.title = t("expr.applyBtnTitle");
                 applyBtn.addEventListener("click", () => {
                     applyExpressionPreset(preset);
-                    // Brief visual confirmation — no full rerender needed (no live expression
+                    // Brief visual confirmation - no full rerender needed (no live expression
                     // chips to refresh; the preset list itself is unchanged by applying).
                     const origText = applyBtn.textContent;
                     applyBtn.textContent = "✔ Applied";
@@ -20658,7 +20663,7 @@ export class EBCDrawer {
         };
 
         const lovEnabled = s.lovenseEnabled === true;
-        const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
+        const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS (lovense)", "lovenseEnabled", "EBC_ui_lovense_open");
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
@@ -20760,7 +20765,7 @@ export class EBCDrawer {
                                 try { services = await server.getPrimaryServices(); } catch { /* try again */ }
                                 if (services.length > 0) break;
                             }
-                            if (!services.length) throw new Error("No services found — ensure Lovense Connect app is closed and toy is not connected elsewhere.");
+                            if (!services.length) throw new Error("No services found - ensure Lovense Connect app is closed and toy is not connected elsewhere.");
                             let char: WriteChar | null = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -20887,7 +20892,7 @@ export class EBCDrawer {
                 });
                 if (!lovTriggers.length) {
                     const empty = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);text-align:center;padding:8px 0;`);
-                    empty.textContent = "No phrases — click + Add phrase.";
+                    empty.textContent = "No phrases - click + Add phrase.";
                     lovListEl.appendChild(empty);
                 }
             };
@@ -20919,10 +20924,10 @@ export class EBCDrawer {
 
                 const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
                 const iLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); iLbl2.textContent = "Int:";
-                const iInp2 = lvsNumInp("—", stored?.intensity !== undefined ? String(stored.intensity) : "");
+                const iInp2 = lvsNumInp("-", stored?.intensity !== undefined ? String(stored.intensity) : "");
                 iInp2.style.width = "38px";
                 const dLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); dLbl2.textContent = "Dur:";
-                const dInp2 = lvsNumInp("—", stored?.duration !== undefined ? String(stored.duration) : "");
+                const dInp2 = lvsNumInp("-", stored?.duration !== undefined ? String(stored.duration) : "");
                 dInp2.style.width = "42px";
                 const sUnit = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); sUnit.textContent = "s";
                 r2.appendChild(iLbl2); r2.appendChild(iInp2); r2.appendChild(dLbl2); r2.appendChild(dInp2); r2.appendChild(sUnit);
@@ -20955,7 +20960,7 @@ export class EBCDrawer {
             }
             touchBody.appendChild(touchGrid);
             const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:2px 0 4px;`);
-            touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional — leave blank for defaults.";
+            touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional - leave blank for defaults.";
             touchBody.appendChild(touchHint);
             lovContent.appendChild(touchSec);
 
@@ -20986,7 +20991,7 @@ export class EBCDrawer {
                 const running = this._bcLiveSyncPoller !== null;
                 syncDot.textContent = running ? (this._bcLiveSyncLevel > 0 ? "🟣" : "🟢") : "⚫";
                 syncStatusLbl.textContent = running
-                    ? (this._bcLiveSyncLevel > 0 ? `Vibrating — ${this._bcLiveSyncLevel}/20` : "Running — BC toys off")
+                    ? (this._bcLiveSyncLevel > 0 ? `Vibrating - ${this._bcLiveSyncLevel}/20` : "Running - BC toys off")
                     : "Off";
             };
             refreshSyncStatus();
@@ -21162,7 +21167,7 @@ export class EBCDrawer {
 
             if (irlFriends.length === 0) {
                 const noFr = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);padding:4px 0;`);
-                noFr.textContent = "No friends currently in the room.";
+                noFr.textContent = "No friends in the same room.";
                 s2Card.appendChild(noFr);
             } else {
                 const irlPickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
@@ -21226,7 +21231,7 @@ export class EBCDrawer {
                     }
                     if (this._irlCtrlSessions.size === 0 && this._irlPendingOut.size === 0) {
                         const hint = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
-                        hint.textContent = "Pick a friend and click → Request to start a session.";
+                        hint.textContent = "Select a friend and click Request to start a session.";
                         irlStatusArea.appendChild(hint);
                     }
                 };
@@ -21246,7 +21251,7 @@ export class EBCDrawer {
         }
 
         // ── GAME TOYS ────────────────────────────────────────────────────────────
-        // Always-accessible section — no enable toggle
+        // Always-accessible section - no enable toggle
         const gtCollapsed = localStorage.getItem("EBC_ui_gt_open") === "1";
         const gtWrap = mk("div");
         const gtHRow = mk("div", "display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;");
@@ -21292,11 +21297,11 @@ export class EBCDrawer {
         privCard.appendChild(acceptRow);
 
         const acceptNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:10px;line-height:1.4;`);
-        acceptNote.textContent = "Friends only. Off = no new requests. Whitelist always bypasses this.";
+        acceptNote.textContent = "When ON, friends in the same room can request toy control. Whitelist members bypass this setting.";
         privCard.appendChild(acceptNote);
 
         const wlHdrEl = mk("div", `${FONT}font-size:10px;font-weight:bold;color:var(--ebc-text-muted);margin-bottom:5px;`);
-        wlHdrEl.textContent = "WHITELIST — always allowed:";
+        wlHdrEl.textContent = "WHITELIST - always allowed:";
         privCard.appendChild(wlHdrEl);
 
         const gtWl = EBCDrawer.getGameToyWhitelist();
@@ -21323,7 +21328,7 @@ export class EBCDrawer {
                     wlListEl.appendChild(wlRow);
                 });
             }
-            // Add from room dropdown — rebuilt every time so removals reappear
+            // Add from room dropdown - rebuilt every time so removals reappear
             const wlRoomChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
             const wlMyMN2 = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber;
             const wlPeers = (wlRoomChs ?? []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN2 && !gtWl.includes(c.MemberNumber as number));
@@ -21367,9 +21372,12 @@ export class EBCDrawer {
         privCard.appendChild(wlAddRow);
         gtContent.appendChild(privCard);
 
-        // ── CONTROL A FRIEND ────────────────────────────────────────────────
+        // CONTROL A FRIEND
         gtContent.appendChild(sep());
         gtContent.appendChild(gtHdr("CONTROL A FRIEND'S TOY"));
+        const sameRoomNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+        sameRoomNote.textContent = "Target must be in the same room as you.";
+        gtContent.appendChild(sameRoomNote);
 
         const gtRoomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
         const gtPlayerW = (window as unknown as { Player?: { MemberNumber?: number; FriendList?: number[] } }).Player;
@@ -21381,7 +21389,7 @@ export class EBCDrawer {
 
         if (gtFriendsInRoom.length === 0) {
             const noFr = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 4px;`);
-            noFr.textContent = "No friends currently in the room.";
+            noFr.textContent = "No friends in the same room.";
             ctrlCard.appendChild(noFr);
         } else {
             const pickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
@@ -21502,7 +21510,7 @@ export class EBCDrawer {
 
                 if (this._toyCtrlSessions.size === 0 && this._toyPendingOut.size === 0) {
                     const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                    hint.textContent = "Pick a friend and click → Request to start a session.";
+                    hint.textContent = "Select a friend and click Request to start a session.";
                     statusArea.appendChild(hint);
                 }
             };
@@ -21661,7 +21669,7 @@ export class EBCDrawer {
                 this.fireLovense(stored?.intensity, stored?.duration).catch(() => {});
                 return;
             }
-            // BC toy sync — live poller handles the intensity; just ensure it's started
+            // BC toy sync - live poller handles the intensity; just ensure it's started
             const TOY_ZONES = ["ItemVulva", "ItemVulvaPiercings", "ItemButt", "ItemNipples"];
             if (s["lovenseBcSyncEnabled"] === true && assetGroup && TOY_ZONES.includes(assetGroup)) {
                 this.startBCLiveSync();
@@ -22175,7 +22183,7 @@ export class EBCDrawer {
             return;
         }
 
-        // ── Dom Settings (announce) — floated into setsCard header below ─────
+        // ── Dom Settings (announce) - floated into setsCard header below ─────
         const dsSel = document.createElement("select");
         dsSel.className = "ebc-form-input";
         dsSel.style.cssText = "font-size:11px;padding:2px 5px;";
@@ -22200,7 +22208,7 @@ export class EBCDrawer {
         qtSel.className = "ebc-form-input";
         qtSel.style.cssText = "flex:1;font-size:11px;";
         const qtPh = document.createElement("option");
-        qtPh.value = ""; qtPh.textContent = "— choose person —";
+        qtPh.value = ""; qtPh.textContent = "- choose person -";
         qtPh.disabled = true; qtPh.selected = true;
         qtSel.appendChild(qtPh);
         const qtRefresh = document.createElement("button");
@@ -22219,7 +22227,7 @@ export class EBCDrawer {
                 opt.textContent = `${m.name} (#${m.id})`;
                 qtSel.appendChild(opt);
             }
-            qtPh.textContent = qtSel.children.length <= 1 ? "— no one in room —" : "— choose person —";
+            qtPh.textContent = qtSel.children.length <= 1 ? "- no one in room -" : "- choose person -";
             if (savedId && [...qtSel.options].some(o => o.value === savedId)) qtSel.value = savedId;
         };
         populateQtSel();
@@ -22522,7 +22530,7 @@ export class EBCDrawer {
                 } catch { return []; }
             };
 
-            // Item list section — rebuilt when source changes
+            // Item list section - rebuilt when source changes
             const itemsSection = document.createElement("div");
             itemsSection.style.cssText = "display:flex;flex-direction:column;gap:5px;";
             fromCurPanel.appendChild(itemsSection);
@@ -22699,7 +22707,7 @@ export class EBCDrawer {
                     const targetBadge = document.createElement("span");
                     targetBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf9040;background:rgba(50,30,10,0.7);border:1px solid #7a4a1a;border-radius:4px;padding:1px 6px;flex-shrink:0;white-space:nowrap;";
                     targetBadge.textContent = "→ " + (set.targetName || "#" + set.targetId);
-                    targetBadge.title = "Bound target — this set always applies to this person";
+                    targetBadge.title = "Bound target - this set always applies to this person";
                     setRow.appendChild(targetBadge);
                 }
                 setRow.appendChild(applyBtn);
@@ -22759,7 +22767,7 @@ export class EBCDrawer {
                 tbSel.className = "ebc-form-input";
                 tbSel.style.cssText = "width:100%;font-size:11px;";
                 const tbPh = document.createElement("option");
-                tbPh.value = ""; tbPh.textContent = "— use current TARGET dropdown —";
+                tbPh.value = ""; tbPh.textContent = "- use current TARGET dropdown -";
                 tbSel.appendChild(tbPh);
                 // Populate with room members
                 for (const m of getRoomMembers()) {
@@ -22940,7 +22948,7 @@ export class EBCDrawer {
                 useSelectedBtn.textContent = "Use Selected";
                 useSelectedBtn.addEventListener("click", () => {
                     const checks = checklistEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]");
-                    // Map checkboxes back to parsedItems — order matches DOM insertion order:
+                    // Map checkboxes back to parsedItems - order matches DOM insertion order:
                     // restraints first, then clothing (same as rendering above).
                     const ordered = [
                         ...parsedItems.filter(p => p.isRestraint),
@@ -23042,7 +23050,7 @@ export class EBCDrawer {
             body.scrollTop = body.scrollHeight;
         });
 
-        // ── Actions card — Quick Actions + Poses + Toy Control ──────────────────
+        // ── Actions card - Quick Actions + Poses + Toy Control ──────────────────
         const actionsCard = document.createElement("div");
         actionsCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
@@ -23356,7 +23364,7 @@ export class EBCDrawer {
         const applyCurseBtn = document.createElement("button");
         applyCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #91405f;background:#3a0e28;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
         applyCurseBtn.textContent = "⛓ Curse Selected";
-        applyCurseBtn.title = "Send curse to target — they cannot remove these items while EBC is active";
+        applyCurseBtn.title = "Send curse to target - they cannot remove these items while EBC is active";
         applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#5a1238"; });
         applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#3a0e28"; });
 
@@ -23367,7 +23375,7 @@ export class EBCDrawer {
         liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
         liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
 
-        // Curse record helpers — persisted to settings so they survive page refreshes
+        // Curse record helpers - persisted to settings so they survive page refreshes
         const getCurseRecord = (memberId: number): string[] => {
             const dc = (getSettings().domCurses ?? {}) as Record<string, string[]>;
             return [...(dc[String(memberId)] ?? [])];
@@ -23504,7 +23512,7 @@ export class EBCDrawer {
             btn.addEventListener("click", () => {
                 const id = parseInt(qtSel.value, 10);
                 if (!id) { posStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { posStatus.textContent = ""; }, 2500); return; }
-                // Apply position locally immediately — moves target next to player on DOM's screen.
+                // Apply position locally immediately - moves target next to player on DOM's screen.
                 // setPositionSilent skips the room action (ECHO activity below handles the message).
                 setPositionSilent(id, posMode);
                 try {
@@ -23576,7 +23584,7 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = true;
 
-        // Panel is opening — restore full tab hit area
+        // Panel is opening - restore full tab hit area
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
         if (tabEl) tabEl.classList.remove("ebc-tab-closed");
 
@@ -23588,7 +23596,7 @@ export class EBCDrawer {
                 this.enterFreeMode(saved);
             } else if (isTouchModeActive()) {
                 // Touch devices (tablet/phone): anchor mode relies on BC's desktop chat-log
-                // layout which is completely different on mobile — auto-center the panel
+                // layout which is completely different on mobile - auto-center the panel
                 // in free-float mode so it's always reachable and positioned sensibly.
                 const pW = this.panelEl.offsetWidth  || Math.min(390, window.innerWidth - 16);
                 const pH = this.panelEl.offsetHeight || Math.min(520, window.innerHeight - 20);
@@ -23623,7 +23631,7 @@ export class EBCDrawer {
         const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
         if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
-        if (toysTabEl) toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER || Player.MemberNumber === JULIA_MEMBER || Player.MemberNumber === 215013) ? "" : "none";
+        if (toysTabEl) toysTabEl.style.display = "";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();
@@ -23635,7 +23643,7 @@ export class EBCDrawer {
         this.stopDevLogPoller();
         this.isOpen = false;
 
-        // Panel is closing — clip tab so it no longer blocks the BC canvas
+        // Panel is closing - clip tab so it no longer blocks the BC canvas
         const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
         if (tabEl) tabEl.classList.add("ebc-tab-closed");
 

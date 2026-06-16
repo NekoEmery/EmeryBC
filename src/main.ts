@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.61";
+const MOD_VERSION = "6.9.62";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.62",
+        changes: [
+            "TOYS tab is now visible to all users (removed hardcoded member restriction).",
+            "IRL TOYS section renamed to 'IRL TOYS (lovense)'.",
+            "GAME TOYS: added same-room note, improved privacy/whitelist descriptions, fixed 'No friends' text.",
+            "All em-dashes (--) replaced with hyphens (-) throughout the UI.",
+            "Guide: added Toys step covering GAME TOYS and IRL TOYS.",
+            "Fix: removed overflow:hidden from ebc-panel so native select dropdowns are no longer clipped.",
+        ],
+    },
     {
         version: "6.9.61",
         changes: [
