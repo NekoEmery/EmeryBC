@@ -21747,11 +21747,14 @@ export class EBCDrawer {
             return "⚠ Lovense: no toys connected (BLE or HTTP)";
         }
         const enc = new TextEncoder();
-        const doWrite = (char: WriteChar, cmd: string): Promise<void> => {
+        const doWrite = async (char: WriteChar, cmd: string): Promise<void> => {
             const d = enc.encode(cmd);
-            return (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                ? char.writeValueWithoutResponse(d)
-                : char.writeValue(d);
+            // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
+            // but throws "Access is denied" when it's called — fall back to writeValue.
+            if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                try { return await char.writeValueWithoutResponse(d); } catch { /* fall through */ }
+            }
+            return await char.writeValue(d);
         };
         const errors: string[] = [];
         const summaries: string[] = [];
@@ -21827,9 +21830,10 @@ export class EBCDrawer {
         await Promise.all(active.map(async conn => {
             const char = conn.char as WriteChar;
             try {
-                await ((char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                    ? char.writeValueWithoutResponse(cmd)
-                    : char.writeValue(cmd));
+                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                    try { await char.writeValueWithoutResponse(cmd); return; } catch { /* fall through */ }
+                }
+                await char.writeValue(cmd);
             } catch { /* ignore BLE errors */ }
         }));
     }
