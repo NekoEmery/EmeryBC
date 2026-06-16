@@ -29537,11 +29537,17 @@
                 return "⚠ Lovense: no toys connected (BLE or HTTP)";
             }
             const enc = new TextEncoder();
-            const doWrite = (char, cmd) => {
+            const doWrite = async (char, cmd) => {
                 const d = enc.encode(cmd);
-                return (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                    ? char.writeValueWithoutResponse(d)
-                    : char.writeValue(d);
+                // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
+                // but throws "Access is denied" when it's called — fall back to writeValue.
+                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                    try {
+                        return await char.writeValueWithoutResponse(d);
+                    }
+                    catch ( /* fall through */_a) { /* fall through */ }
+                }
+                return await char.writeValue(d);
             };
             const errors = [];
             const summaries = [];
@@ -29617,11 +29623,16 @@
             await Promise.all(active.map(async (conn) => {
                 const char = conn.char;
                 try {
-                    await ((char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                        ? char.writeValueWithoutResponse(cmd)
-                        : char.writeValue(cmd));
+                    if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                        try {
+                            await char.writeValueWithoutResponse(cmd);
+                            return;
+                        }
+                        catch ( /* fall through */_a) { /* fall through */ }
+                    }
+                    await char.writeValue(cmd);
                 }
-                catch ( /* ignore BLE errors */_a) { /* ignore BLE errors */ }
+                catch ( /* ignore BLE errors */_b) { /* ignore BLE errors */ }
             }));
         }
         async _lovHttpPing() {
@@ -31955,7 +31966,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 2; // internal sub-version — only shown to Emery
+    const SAL_VERSION = 3; // internal sub-version — only shown to Emery
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31971,6 +31982,7 @@
             changes: [
                 "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
                 "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
+                "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
             ],
         },
         {
