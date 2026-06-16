@@ -29871,43 +29871,78 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore BLE errors */_b) { /* ignore BLE errors */ }
             }));
         }
+        // Try fetching a URL and returning the parsed JSON + raw text.
+        // Returns null if the request fails (network error, timeout, or non-200 HTTP).
+        async _lovFetch(endpoint) {
+            if (!this._lovHttpUrl)
+                return null;
+            try {
+                const resp = await fetch(this._lovHttpUrl + endpoint, { signal: AbortSignal.timeout(4000) });
+                if (!resp.ok)
+                    return null;
+                const raw = await resp.text();
+                let json = null;
+                try {
+                    json = JSON.parse(raw);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                return { raw, json };
+            }
+            catch (_b) {
+                return null;
+            }
+        }
+        // Check if a Lovense JSON response is an application-level error
+        // (the app returns HTTP 200 with {"type":"error","code":...} for unknown routes).
+        static _lovIsError(json) {
+            return (json === null || json === void 0 ? void 0 : json.type) === "error";
+        }
+        // Extract toy count from a /GetToys response (handles stringified and plain data).
+        static _lovParseToyCount(json) {
+            if (!json)
+                return 0;
+            let toyData = null;
+            if (typeof json.data === "string") {
+                try {
+                    toyData = JSON.parse(json.data);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            else if (json.data && typeof json.data === "object" && !Array.isArray(json.data)) {
+                toyData = json.data;
+            }
+            return toyData ? Object.keys(toyData).length : 0;
+        }
         async _lovHttpPing() {
             if (!this._lovHttpUrl)
                 return false;
-            try {
-                const resp = await fetch(this._lovHttpUrl + "/GetToys", {
-                    signal: AbortSignal.timeout(4000),
-                });
-                if (!resp.ok) {
-                    this._lovHttpConnected = false;
-                    return false;
+            // Try known GetToys endpoint variants in order. Lovense returns HTTP 200
+            // with {"type":"error","code":404} for unknown routes, so we also check
+            // the response body to detect application-level 404s.
+            const candidates = ["/GetToys", "/toys", "/v1/toys"];
+            for (const path of candidates) {
+                const res = await this._lovFetch(path);
+                if (!res)
+                    continue; // network/HTTP failure
+                if (EBCDrawer._lovIsError(res.json)) {
+                    this._lovHttpLastRaw = res.raw.slice(0, 400);
+                    continue; // app-level 404, try next
                 }
-                const rawText = await resp.text();
-                this._lovHttpLastRaw = rawText.slice(0, 400);
-                let json = null;
-                try {
-                    json = JSON.parse(rawText);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                // Lovense Connect v1 API returns data as a JSON-encoded string, not an object.
-                let toyData = null;
-                if (typeof (json === null || json === void 0 ? void 0 : json.data) === "string") {
-                    try {
-                        toyData = JSON.parse(json.data);
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                }
-                else if ((json === null || json === void 0 ? void 0 : json.data) && typeof json.data === "object") {
-                    toyData = json.data;
-                }
-                this._lovHttpToyCount = toyData ? Object.keys(toyData).length : 0;
+                this._lovHttpLastRaw = res.raw.slice(0, 400);
+                this._lovHttpToyCount = EBCDrawer._lovParseToyCount(res.json);
                 this._lovHttpConnected = true;
                 return true;
             }
-            catch (_c) {
-                this._lovHttpConnected = false;
-                return false;
+            // All GetToys paths failed — server is reachable but no working toy-list endpoint.
+            // Still mark as connected so vibrate commands can be attempted.
+            this._lovHttpToyCount = 0;
+            const anyReachable = await this._lovFetch("/GetToys");
+            if (anyReachable !== null) {
+                this._lovHttpConnected = true;
+                return true;
             }
+            this._lovHttpConnected = false;
+            return false;
         }
         async _lovHttpVibrate(intensity, durationSec) {
             const url = this._lovHttpUrl;
@@ -29923,6 +29958,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!resp.ok) {
                     this._lovHttpConnected = false;
                     return `⚠ Lovense HTTP: server error ${resp.status}`;
+                }
+                const body = await resp.text();
+                let bodyJson = null;
+                try {
+                    bodyJson = JSON.parse(body);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                if (EBCDrawer._lovIsError(bodyJson)) {
+                    return `⚠ Lovense HTTP: vibrate endpoint error — ${body.slice(0, 100)}`;
                 }
                 if (v === 0)
                     return "";
@@ -32214,7 +32258,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 15; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 16; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
