@@ -137,7 +137,7 @@ import {
     getPositionSlots,
 } from "./domTools";
 import {
-    LUCY_MEMBER, EMERY_MEMBER,
+    LUCY_MEMBER, EMERY_MEMBER, JULIA_MEMBER,
     getKittyEmotes, saveKittyEmotes,
     getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
@@ -23496,7 +23496,7 @@ export class EBCDrawer {
         const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
         if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
-        if (toysTabEl) toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER) ? "" : "none";
+        if (toysTabEl) toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER || Player.MemberNumber === JULIA_MEMBER) ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();
