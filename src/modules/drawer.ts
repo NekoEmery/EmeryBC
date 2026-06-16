@@ -5504,8 +5504,12 @@ export class EBCDrawer {
             // fully visible (overrides the in-room left:-10px collapsed state).
             // Centre the panel vertically in the viewport.
             this.rootEl.classList.add("ebc-roaming");
-            const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
-            const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
+            const defaultH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            // If user resized the panel, honour that exact size (only cap at viewport).
+            // Previously baseH was capped at 520 and used as an upper bound too, which
+            // silently truncated any saved height over 520 px in roaming mode.
+            const maxH = Math.max(100, window.innerHeight - 40);
+            const h = this.userPanelHeight !== null ? Math.min(this.userPanelHeight, maxH) : defaultH;
             const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
             this.rootEl.style.top    = `${top}px`;
             this.rootEl.style.right  = "0px";
@@ -12978,6 +12982,7 @@ export class EBCDrawer {
 
         sendBtn.addEventListener("click", doSend);
         input.addEventListener("keydown", (e: KeyboardEvent) => {
+            e.stopPropagation(); // stop WASD/arrow keys from reaching BC's map movement handler
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); }
         });
 
@@ -13545,7 +13550,7 @@ export class EBCDrawer {
             renderGroupHistory();
         };
         sendBtn.addEventListener("click", doSend);
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });
+        input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });
         input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 80)}px`; });
 
         inputRow.appendChild(input);
@@ -20075,6 +20080,51 @@ export class EBCDrawer {
         exprCBody.appendChild(exprWrap);
         exprCBody.appendChild(exprHint);
         body.appendChild(exprWrap2);
+
+        // ── CURSE ─────────────────────────────────────────────────────────────────
+        const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
+        const CURSE_GROUPS: [string, string][] = [
+            ["Arms",    "ItemArms"],
+            ["Hands",   "ItemHands"],
+            ["Legs",    "ItemLegs"],
+            ["Feet",    "ItemFeet"],
+            ["Neck",    "ItemNeck"],
+            ["Mouth",   "ItemMouth"],
+            ["Head",    "ItemHead"],
+            ["Torso",   "ItemTorso"],
+            ["Pelvis",  "ItemPelvis"],
+            ["Breasts", "ItemBreast"],
+            ["Boots",   "ItemBoots"],
+        ];
+        const selectedCurseGroups = new Set<string>();
+        const chipRow = document.createElement("div");
+        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
+        const setChipStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+        };
+        for (const [label, group] of CURSE_GROUPS) {
+            const chip = document.createElement("button");
+            chip.textContent = label;
+            setChipStyle(chip, false);
+            chip.addEventListener("click", () => {
+                const sel = selectedCurseGroups.has(group);
+                if (sel) selectedCurseGroups.delete(group); else selectedCurseGroups.add(group);
+                setChipStyle(chip, !sel);
+            });
+            chipRow.appendChild(chip);
+        }
+        const curseActionRow = document.createElement("div");
+        curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+        curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
+            if (selectedCurseGroups.size === 0) return;
+            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+        }, 2000));
+        curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+            sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+        }, 2000));
+        curseCBody.appendChild(chipRow);
+        curseCBody.appendChild(curseActionRow);
+        body.appendChild(curseWrap2);
     }
 
     private renderExpressions(container?: HTMLElement): void {

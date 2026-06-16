@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.68";
+const MOD_VERSION = "6.9.69";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.69",
+        changes: [
+            "Kitty tab: added ⛓ Curse section — group chips + Apply/Clear buttons, targets Emery only.",
+            "Fix: typing in a beep window no longer triggers WASD movement in map rooms.",
+            "Fix: panel height is now correctly restored in roaming mode (main menu) instead of being capped at 520 px.",
+        ],
+    },
     {
         version: "6.9.68",
         changes: [
@@ -7946,6 +7954,11 @@ function init(): void {
             // This can happen when a hook in the chain passes a synthetic/plain object
             // instead of a real KeyboardEvent.  Guard here to prevent the crash.
             if (!ev || typeof ev.key !== "string") return false;
+            // Don't let BC process movement keys (WASD / arrows) while the user is
+            // typing inside an EBC beep window — stopPropagation() on the textarea
+            // handles DOM-level listeners; this hook handles BC's function-call path.
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl as HTMLElement).closest?.(".ebc-beep-win")) return false;
             if (ev.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();
