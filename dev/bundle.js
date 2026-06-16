@@ -28596,11 +28596,11 @@
                                         wrap.appendChild(vl);
                                         return wrap;
                                     };
-                                    sRow.appendChild(mkTinySlider("I:", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                    sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
                                     const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`);
                                     divider.textContent = "│";
                                     sRow.appendChild(divider);
-                                    sRow.appendChild(mkTinySlider("D:", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                    sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
                                     tCard.appendChild(sRow);
                                 }
                                 toyListEl.appendChild(tCard);
@@ -28757,8 +28757,14 @@
                         this._lovHttpPing().then(ok => {
                             httpTestBtn.disabled = false;
                             if (ok) {
-                                httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
-                                httpStatus.style.color = "#80c080";
+                                if (this._lovHttpToyCount === 0) {
+                                    httpStatus.textContent = "⚠ Connected but 0 toys — enable Allow Control in Lovense Connect";
+                                    httpStatus.style.color = "#e0b060";
+                                }
+                                else {
+                                    httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                                    httpStatus.style.color = "#80c080";
+                                }
                             }
                             else {
                                 httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
@@ -28767,7 +28773,7 @@
                         });
                     });
                     const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
-                    httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
+                    httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Setup: click the <b>Lovense Connect icon</b> in your system tray → <b>Connect Toys</b> → <b>External Control</b> → enable <b>Allow Control</b>.";
                     httpBody.appendChild(httpNote);
                     const httpAppLink = document.createElement("a");
                     httpAppLink.href = "https://www.lovense.com/app/remote";
@@ -32156,7 +32162,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 12; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 13; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32173,6 +32179,7 @@
         {
             version: "8.1.2",
             changes: [
+                "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
                 "UI: brightened --ebc-text-sub across all themes (was too low-contrast on dark backgrounds); affects secondary labels, hints, and notes throughout the panel.",
                 "Fix: Lovense HTTP /GetToys now correctly parses toy count — Lovense Connect v1 API returns data as a JSON-encoded string, not an object; count was always 0 before this fix.",
                 "Settings: added 'LianChat compatibility' toggle in Chat & Notifications — OFF by default (beeps suppressed from BC chat); ON lets BC native run so LianChat/WCE get full passthrough at the cost of beeps appearing in BC's default chat.",
