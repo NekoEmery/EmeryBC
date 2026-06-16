@@ -4807,28 +4807,44 @@ export class EBCDrawer {
         const swInner = document.createElement("div");
         swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
 
-        const buildSwInner = (): void => {
-            while (swInner.firstChild) swInner.removeChild(swInner.firstChild);
-            const cfg = getSafewordConfig();
+        // Grace row lives outside buildSwInner so it can appear/update while the panel stays open.
+        let swGraceRow: HTMLDivElement | null = null;
+        let swGraceLbl: HTMLSpanElement | null = null;
+        let swGraceTicker: number | null = null;
 
-            // -- Grace active row --
-            if (isGraceActive()) {
-                const graceRow = document.createElement("div");
-                graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
-                const graceLbl = document.createElement("span");
-                graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
-                const rem = getGraceRemaining();
-                graceLbl.textContent = rem === Infinity
-                    ? "🛡 Grace active (indefinite)"
-                    : `🛡 Grace active - ${Math.ceil((rem as number) / 60_000)} min remaining`;
+        const refreshGraceRow = (): void => {
+            const active = isGraceActive();
+            swGraceTag.style.display = active ? "" : "none";
+            if (!active) {
+                if (swGraceRow && swGraceRow.parentNode) swGraceRow.parentNode.removeChild(swGraceRow);
+                swGraceRow = null;
+                swGraceLbl = null;
+                return;
+            }
+            if (!swGraceRow) {
+                swGraceRow = document.createElement("div");
+                swGraceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+                swGraceLbl = document.createElement("span");
+                swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
                 const cancelBtn = document.createElement("button");
                 cancelBtn.textContent = t("sw.endGrace");
                 cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
-                graceRow.appendChild(graceLbl);
-                graceRow.appendChild(cancelBtn);
-                swInner.appendChild(graceRow);
+                cancelBtn.addEventListener("click", () => { endGrace(); refreshGraceRow(); });
+                swGraceRow.appendChild(swGraceLbl);
+                swGraceRow.appendChild(cancelBtn);
+                swInner.insertBefore(swGraceRow, swInner.firstChild);
             }
+            const rem = getGraceRemaining();
+            if (swGraceLbl) {
+                swGraceLbl.textContent = rem === Infinity
+                    ? "🛡 Grace active (indefinite)"
+                    : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
+            }
+        };
+
+        const buildSwInner = (): void => {
+            while (swInner.firstChild) swInner.removeChild(swInner.firstChild);
+            const cfg = getSafewordConfig();
 
             // -- Row helper: text input --
             const makeTextRow = (label: string, value: string, placeholder: string, onSave: (v: string) => void): void => {
@@ -4992,9 +5008,17 @@ export class EBCDrawer {
             const open = swInner.style.display !== "flex";
             swInner.style.display = open ? "flex" : "none";
             swArrow.textContent = open ? "▲" : "▼";
-            if (open) { try { buildSwInner(); } catch { /* ignore */ } }
-            // Update grace tag on header
-            swGraceTag.style.display = isGraceActive() ? "" : "none";
+            if (open) {
+                try { buildSwInner(); } catch { /* ignore */ }
+                // buildSwInner wiped the DOM — reset refs then paint the grace row
+                swGraceRow = null; swGraceLbl = null;
+                refreshGraceRow();
+                // Keep grace status live while the panel stays open
+                swGraceTicker = window.setInterval(() => { try { refreshGraceRow(); } catch { /* ignore */ } }, 5_000);
+            } else {
+                if (swGraceTicker !== null) { clearInterval(swGraceTicker); swGraceTicker = null; }
+                swGraceRow = null; swGraceLbl = null;
+            }
         });
 
         safewordRow.appendChild(swInner);
