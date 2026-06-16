@@ -4037,7 +4037,7 @@ export class EBCDrawer {
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
 
-    private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string }>();
+    private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string; intensity: number; duration: number }>();
     private _bcLiveSyncPoller: ReturnType<typeof setInterval> | null = null;
     private _bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
     private _lovHttpUrl: string | null = null;
@@ -20777,7 +20777,9 @@ export class EBCDrawer {
                         for (const [key, conn] of this._lovConnections) {
                             const dev = conn.device as { gatt?: { connected?: boolean } };
                             const isConn = dev?.gatt?.connected === true;
-                            const tRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;");
+                            const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                            // Top row: status dot + name + disconnect button
+                            const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
                             const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = isConn ? "🟢" : "⚫";
                             const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;`);
                             tName.style.color = isConn ? "#c8e0c8" : "var(--ebc-text-muted)";
@@ -20791,7 +20793,27 @@ export class EBCDrawer {
                                 renderToyList();
                             });
                             tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(discBtn);
-                            toyListEl.appendChild(tRow);
+                            tCard.appendChild(tRow);
+                            // Per-toy intensity + duration sliders (only when actively connected)
+                            if (isConn) {
+                                const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                                const mkTinySlider = (label: string, min: number, max: number, val: number, unit: string, onChange: (v: number) => void): HTMLElement => {
+                                    const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`); lbl.textContent = label;
+                                    const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(val);
+                                    sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                                    const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text);min-width:22px;`); vl.textContent = val + unit;
+                                    sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                                    wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
+                                    return wrap;
+                                };
+                                sRow.appendChild(mkTinySlider("I:", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
+                                sRow.appendChild(divider);
+                                sRow.appendChild(mkTinySlider("D:", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                tCard.appendChild(sRow);
+                            }
+                            toyListEl.appendChild(tCard);
                         }
                     }
                 };
@@ -20820,14 +20842,29 @@ export class EBCDrawer {
                                 renderToyList();
                             });
                             lovConnBtn.textContent = "🔄 Connecting…";
-                            const server = await device.gatt!.connect() as { getPrimaryServices: () => Promise<Svc[]> };
+                            type GattServer = { getPrimaryServices: () => Promise<Svc[]>; getPrimaryService: (uuid: string) => Promise<Svc> };
+                            const server = await device.gatt!.connect() as GattServer;
                             let services: Svc[] = [];
-                            for (let attempt = 0; attempt < 3; attempt++) {
-                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                            // Retry with increasing delays — some toys (Domi, Nora) need GATT
+                            // discovery to complete before services are enumerable
+                            const svcDelays = [600, 1000, 1500, 2000, 2500];
+                            for (let attempt = 0; attempt < svcDelays.length; attempt++) {
+                                await new Promise(r => setTimeout(r, svcDelays[attempt]));
                                 try { services = await server.getPrimaryServices(); } catch { /* try again */ }
                                 if (services.length > 0) break;
                             }
-                            if (!services.length) throw new Error("No services found - ensure Lovense Connect app is closed and toy is not connected elsewhere.");
+                            // Fallback: try each known Lovense service UUID individually.
+                            // Chrome may return empty from getPrimaryServices() while still
+                            // servicing individual lookups (depends on BLE chip + driver timing).
+                            if (!services.length) {
+                                for (const svcUuid of LVS_SERVICES) {
+                                    try {
+                                        const svc = await server.getPrimaryService(svcUuid);
+                                        if (svc) { services = [svc]; break; }
+                                    } catch { /* not this UUID */ }
+                                }
+                            }
+                            if (!services.length) throw new Error("No services found — close Lovense Connect app if running, and ensure the toy is not paired to another device.");
                             let char: WriteChar | null = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -20835,7 +20872,10 @@ export class EBCDrawer {
                                 if (char) break;
                             }
                             if (!char) throw new Error("No writable characteristic found");
-                            this._lovConnections.set(connKey, { device, char, name: devName });
+                            const connS = getSettings();
+                            const toyDefI = typeof connS.lovenseIntensity === "number" ? (connS.lovenseIntensity as number) : 10;
+                            const toyDefD = typeof connS.lovenseDuration  === "number" ? (connS.lovenseDuration  as number) : 5;
+                            this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
                             lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
                             renderToyList();
                         })
@@ -21714,11 +21754,16 @@ export class EBCDrawer {
                 : char.writeValue(d);
         };
         const errors: string[] = [];
+        const summaries: string[] = [];
         await Promise.all(active.map(async conn => {
             const char = conn.char as WriteChar;
+            // Trigger's explicit intensity overrides per-toy setting; otherwise use the toy's own default
+            const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
+            const toyD = Math.max(1, Math.min(duration  !== undefined ? duration  : conn.duration,  60));
             try {
-                await doWrite(char, `Vibrate:${finalI};`);
-                setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => {}); }, finalD * 1000);
+                await doWrite(char, `Vibrate:${toyI};`);
+                setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => {}); }, toyD * 1000);
+                summaries.push(`${conn.name} ${toyI}/20`);
             } catch (err) {
                 errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
             }
@@ -21727,7 +21772,7 @@ export class EBCDrawer {
             console.warn("[EBC Lovense] BLE write errors:", errors);
             return `⚠ Lovense BLE error: ${errors.join("; ")}`;
         }
-        return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
+        return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
     }
 
     public startBCLiveSync(): void {
