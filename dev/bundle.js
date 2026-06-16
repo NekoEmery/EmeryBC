@@ -29246,21 +29246,14 @@
                     friendSel.appendChild(opt);
                 }
                 const charHasVibs = (memberNum) => {
-                    var _a;
                     try {
-                        const lookup = (_a = window.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
                         const roomChars = window.ChatRoomCharacter;
                         const ch = (roomChars !== null && roomChars !== void 0 ? roomChars : []).find(c => c.MemberNumber === memberNum);
                         if (!(ch === null || ch === void 0 ? void 0 : ch.Appearance))
                             return false;
-                        return ch.Appearance.some(item => {
-                            var _a, _b, _c;
-                            if (!((_b = (_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) || !((_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Name))
-                                return false;
-                            return (item.Asset.Group.Name + item.Asset.Name) in lookup;
-                        });
+                        return ch.Appearance.some(item => { var _a; return ((_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Archetype) === "vibrating"; });
                     }
-                    catch (_b) {
+                    catch (_a) {
                         return false;
                     }
                 };
@@ -31752,7 +31745,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.56";
+    const MOD_VERSION = "6.9.57";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31763,6 +31756,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.57",
+            changes: [
+                "Fix: GAME TOYS vib check now uses Asset.Archetype instead of VibratorModeDataLookup (lookup was unreliable at render time).",
+            ],
+        },
         {
             version: "6.9.56",
             changes: [
