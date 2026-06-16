@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.63
+// @version      6.9.64
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11802,9 +11802,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 });
             });
+            const guideCornerBtn = document.createElement("button");
+            guideCornerBtn.textContent = "?";
+            guideCornerBtn.title = "Interactive guide";
+            guideCornerBtn.style.cssText = "position:absolute;right:4px;bottom:14px;z-index:202;width:30px;height:30px;border-radius:7px;cursor:pointer;border:1.5px solid #cf6f98;background:rgba(42,20,33,0.95);color:#cf6f98;font-family:'Trebuchet MS',serif;font-size:16px;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:0;transition:background 0.15s,border-color 0.15s;pointer-events:all;";
+            guideCornerBtn.addEventListener("mouseenter", () => { guideCornerBtn.style.background = "rgba(207,111,152,0.2)"; });
+            guideCornerBtn.addEventListener("mouseleave", () => { guideCornerBtn.style.background = "rgba(42,20,33,0.95)"; });
+            guideCornerBtn.addEventListener("click", () => this.startGuide());
             slideContainer.appendChild(resizeW);
             slideContainer.appendChild(resizeS);
             slideContainer.appendChild(resizeCorner);
+            slideContainer.appendChild(guideCornerBtn);
             root.appendChild(slideContainer);
             document.body.appendChild(root);
             this.rootEl = root;
@@ -12479,21 +12487,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Footer: version credit + live timer only - no controls here.
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
-            const footerTopRow = document.createElement("div");
-            footerTopRow.style.cssText = "display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;";
             const footerVerEl = document.createElement("span");
             footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
-            footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;flex:1;min-width:0;";
-            const footerGuideBtn = document.createElement("button");
-            footerGuideBtn.textContent = "?";
-            footerGuideBtn.title = "Interactive guide - walks you through every feature";
-            footerGuideBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:16px;font-weight:bold;width:30px;height:30px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:rgba(207,111,152,0.1);color:#cf6f98;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;transition:background 0.15s;";
-            footerGuideBtn.addEventListener("mouseenter", () => { footerGuideBtn.style.background = "rgba(207,111,152,0.25)"; });
-            footerGuideBtn.addEventListener("mouseleave", () => { footerGuideBtn.style.background = "rgba(207,111,152,0.1)"; });
-            footerGuideBtn.addEventListener("click", () => this.startGuide());
-            footerTopRow.appendChild(footerVerEl);
-            footerTopRow.appendChild(footerGuideBtn);
-            footer.appendChild(footerTopRow);
+            footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
+            footer.appendChild(footerVerEl);
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
@@ -31858,7 +31855,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.63";
+    const MOD_VERSION = "6.9.64";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31869,6 +31866,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.64",
+            changes: [
+                "Guide '?' button repositioned: now a 30x30 pink square fixed at the bottom-right corner of the panel (above resize handle). Footer text restored to centered.",
+            ],
+        },
         {
             version: "6.9.63",
             changes: [
