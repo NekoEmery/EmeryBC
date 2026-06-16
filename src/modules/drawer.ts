@@ -21241,40 +21241,33 @@ export class EBCDrawer {
                     wlListEl.appendChild(wlRow);
                 });
             }
+            // Add from room dropdown — rebuilt every time so removals reappear
+            const wlRoomChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
+            const wlMyMN2 = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber;
+            const wlPeers = (wlRoomChs ?? []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN2 && !gtWl.includes(c.MemberNumber as number));
+            if (wlPeers.length > 0) {
+                const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                const roomSel = document.createElement("select"); roomSel.style.cssText = GTSel;
+                const defOpt = document.createElement("option"); defOpt.value = ""; defOpt.textContent = "Add from room…"; defOpt.disabled = true; defOpt.selected = true;
+                roomSel.appendChild(defOpt);
+                for (const c of wlPeers) {
+                    const opt = document.createElement("option"); opt.value = String(c.MemberNumber);
+                    opt.textContent = `${(c.Nickname ?? "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    roomSel.appendChild(opt);
+                }
+                const roomAddBtn = document.createElement("button"); roomAddBtn.textContent = "+ Add";
+                roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                roomAddBtn.addEventListener("click", () => {
+                    const num = parseInt(roomSel.value, 10);
+                    if (!num || isNaN(num) || gtWl.includes(num)) return;
+                    gtWl.push(num); EBCDrawer.saveGameToyWhitelist(gtWl); renderWl();
+                });
+                fromRoomRow.appendChild(roomSel); fromRoomRow.appendChild(roomAddBtn);
+                wlListEl.appendChild(fromRoomRow);
+            }
         };
         renderWl();
         privCard.appendChild(wlListEl);
-
-        // Add from current room
-        const wlRoomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
-        const wlPlayerW = (window as unknown as { Player?: { MemberNumber?: number } }).Player;
-        const wlMyMN = wlPlayerW?.MemberNumber;
-        const wlRoomPeers = (wlRoomChars ?? []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN && !gtWl.includes(c.MemberNumber as number));
-        if (wlRoomPeers.length > 0) {
-            const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
-            const roomSel = document.createElement("select");
-            roomSel.style.cssText = GTSel;
-            const defOpt = document.createElement("option"); defOpt.value = ""; defOpt.textContent = "Add from room…"; defOpt.disabled = true; defOpt.selected = true;
-            roomSel.appendChild(defOpt);
-            for (const c of wlRoomPeers) {
-                const opt = document.createElement("option"); opt.value = String(c.MemberNumber);
-                opt.textContent = `${(c.Nickname ?? "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
-                roomSel.appendChild(opt);
-            }
-            const roomAddBtn = document.createElement("button"); roomAddBtn.textContent = "+ Add";
-            roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
-            roomAddBtn.addEventListener("click", () => {
-                const num = parseInt(roomSel.value, 10);
-                if (!num || isNaN(num) || gtWl.includes(num)) return;
-                gtWl.push(num); EBCDrawer.saveGameToyWhitelist(gtWl);
-                const opt = roomSel.querySelector(`option[value="${num}"]`);
-                if (opt) opt.remove();
-                roomSel.value = "";
-                renderWl();
-            });
-            fromRoomRow.appendChild(roomSel); fromRoomRow.appendChild(roomAddBtn);
-            privCard.appendChild(fromRoomRow);
-        }
 
         // Manual member # entry
         const wlAddRow = mk("div", "display:flex;align-items:center;gap:6px;");
@@ -21344,18 +21337,31 @@ export class EBCDrawer {
                     sessTop.appendChild(sDot); sessTop.appendChild(sName); sessTop.appendChild(endBtn);
                     sessCard.appendChild(sessTop);
 
-                    const TOY_MODE_ROWS = [
-                        [{ label: "Off", mode: "Off" }, { label: "Low", mode: "Low" }, { label: "Medium", mode: "Medium" }, { label: "High", mode: "High" }, { label: "Max", mode: "Maximum" }],
-                        [{ label: "Tease", mode: "Tease" }, { label: "Random", mode: "Random" }, { label: "Escalate", mode: "Escalate" }, { label: "Deny", mode: "Deny" }, { label: "Edge", mode: "Edge" }],
+                    const TOY_MODE_ROWS: Array<Array<{ label: string; mode: string; color: string }>> = [
+                        [
+                            { label: "Off",    mode: "Off",     color: "#7a7a9a" },
+                            { label: "Low",    mode: "Low",     color: "#50b870" },
+                            { label: "Medium", mode: "Medium",  color: "#c8a030" },
+                            { label: "High",   mode: "High",    color: "#d06820" },
+                            { label: "Max",    mode: "Maximum", color: "#d03060" },
+                        ],
+                        [
+                            { label: "Tease",    mode: "Tease",    color: "#9060d0" },
+                            { label: "Random",   mode: "Random",   color: "#3888d0" },
+                            { label: "Escalate", mode: "Escalate", color: "#c05028" },
+                            { label: "Deny",     mode: "Deny",     color: "#a02040" },
+                            { label: "Edge",     mode: "Edge",     color: "#c03898" },
+                        ],
                     ];
                     for (const mRow of TOY_MODE_ROWS) {
-                        const rowEl = mk("div", "display:flex;gap:5px;margin-bottom:5px;");
+                        const rowEl = mk("div", "display:flex;gap:4px;margin-bottom:5px;");
                         for (const m of mRow) {
                             const mBtn = document.createElement("button");
                             mBtn.textContent = m.label;
-                            mBtn.style.cssText = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:5px 2px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text-bright);transition:background 0.1s,border-color 0.1s,color 0.1s;`;
-                            mBtn.addEventListener("mouseenter", () => { mBtn.style.background = "var(--ebc-bg-mid)"; mBtn.style.borderColor = "var(--ebc-accent)"; mBtn.style.color = "var(--ebc-accent)"; });
-                            mBtn.addEventListener("mouseleave", () => { mBtn.style.background = "var(--ebc-bg)"; mBtn.style.borderColor = "var(--ebc-border)"; mBtn.style.color = "var(--ebc-text-bright)"; });
+                            const baseCSS = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:6px 2px;border-radius:5px;cursor:pointer;border:1px solid ${m.color}44;background:${m.color}18;color:${m.color};transition:background 0.1s,border-color 0.1s;`;
+                            mBtn.style.cssText = baseCSS;
+                            mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
+                            mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
                             mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
                             rowEl.appendChild(mBtn);
                         }
@@ -21561,36 +21567,20 @@ export class EBCDrawer {
 
     private _applyBCVibratorMode(modeName: string): void {
         try {
-            type BCItem = { Asset: { Group: { Name: string }; Name: string }; Property?: Record<string, unknown> };
             type Win = {
-                Player?: { Appearance?: BCItem[] };
+                Player?: unknown;
                 VibratorModeDataLookup?: Record<string, unknown>;
-                CharacterRefresh?: (c: unknown, push: boolean, load: boolean) => void;
-                ChatRoomCharacterItemUpdate?: (c: unknown, group: string) => void;
+                VibratorModeSetOptionByName?: (C: unknown, item: unknown, mode: string, push?: boolean) => void;
             };
             const win = window as unknown as Win;
-            const player = win.Player;
+            const player = win.Player as { Appearance?: Array<{ Asset: { Group: { Name: string }; Name: string } }> } | undefined;
             if (!player?.Appearance) return;
             const lookup = win.VibratorModeDataLookup ?? {};
-            const wantsVibrating = modeName !== "Off";
-            const intensityMap: Record<string, number> = { Off: -1, Low: 0, Medium: 1, High: 2, Maximum: 3 };
-            const finalIntensity = intensityMap[modeName] ?? 0;
-            const changed: string[] = [];
             for (const item of player.Appearance) {
                 const key = item.Asset.Group.Name + item.Asset.Name;
                 if (!(key in lookup)) continue;
-                if (!item.Property) item.Property = {};
-                item.Property["Mode"] = modeName;
-                item.Property["Intensity"] = finalIntensity;
-                const eff = Array.isArray(item.Property["Effect"]) ? [...(item.Property["Effect"] as string[])] : [];
-                if (wantsVibrating && !eff.includes("Vibrating")) eff.push("Vibrating");
-                if (!wantsVibrating) item.Property["Effect"] = eff.filter((e: string) => e !== "Vibrating");
-                else item.Property["Effect"] = eff;
-                changed.push(item.Asset.Group.Name);
+                win.VibratorModeSetOptionByName?.(player, item, modeName, true);
             }
-            if (changed.length === 0) return;
-            win.CharacterRefresh?.(player, false, false);
-            for (const group of changed) win.ChatRoomCharacterItemUpdate?.(player, group);
         } catch { /* ignore */ }
     }
 
