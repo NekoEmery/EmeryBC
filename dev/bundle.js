@@ -2241,6 +2241,26 @@
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+    // -- Emery Versioning (SAL sub-version display) --------------------------------
+    // When on, shows the internal build counter "(s3)" next to the EBC version in
+    // the panel header and startup log. Off by default; toggled in the DEV tab.
+    function getShowSalVersion() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowSalVersion(value) {
+        try {
+            const store = getSettings();
+            store.showSalVersion = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Badge visibility (local/client-side only) --------------------------------
     // Controls whether YOUR OWN EBC tag is drawn above your head on YOUR screen.
     // Purely a local display toggle — does NOT affect broadcasting. Others always
@@ -11455,6 +11475,7 @@
             this.version = "";
             this.isDev = false;
             this.salVersion = 0;
+            this._versionTitleEl = null;
             this.refreshConfirmToggle = null;
             this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
@@ -11550,7 +11571,6 @@
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
-            var _a;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -11703,9 +11723,8 @@
             title.style.alignItems = "baseline";
             title.style.gap = "5px";
             const titleMain = document.createElement("span");
-            const _isEmeryHdr = ((_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber) === EMERY_MEMBER;
-            const _salSuffix = _isEmeryHdr && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
-            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + _salSuffix;
+            this._versionTitleEl = titleMain;
+            this._updateVersionTitle();
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
@@ -23105,6 +23124,37 @@
                 hookRefreshBtn.textContent = t("dev.refresh");
                 hookRefreshBtn.addEventListener("click", renderHooks);
                 cnt.appendChild(hookRefreshBtn);
+                // ── Emery Versioning toggle ────────────────────────────────────────
+                const evDivider = document.createElement("div");
+                evDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
+                cnt.appendChild(evDivider);
+                const evRow = document.createElement("div");
+                evRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:5px;";
+                const evTextWrap = document.createElement("div");
+                evTextWrap.style.cssText = "flex:1;min-width:0;";
+                const evLabel = document.createElement("div");
+                evLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;";
+                evLabel.textContent = "Emery Versioning";
+                const evHint = document.createElement("div");
+                evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
+                evHint.textContent = `Shows internal build counter (s${this.salVersion}) in the panel header`;
+                evTextWrap.appendChild(evLabel);
+                evTextWrap.appendChild(evHint);
+                const evBtn = document.createElement("button");
+                const refreshEvBtn = () => {
+                    const on = getShowSalVersion();
+                    evBtn.textContent = on ? "ON" : "OFF";
+                    evBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "#8b4060" : "#4c2537"};background:${on ? "rgba(139,64,96,0.25)" : "transparent"};color:${on ? "#cf6f98" : "#7a5a6a"};`;
+                };
+                refreshEvBtn();
+                evBtn.addEventListener("click", () => {
+                    setShowSalVersion(!getShowSalVersion());
+                    refreshEvBtn();
+                    this._updateVersionTitle();
+                });
+                evRow.appendChild(evTextWrap);
+                evRow.appendChild(evBtn);
+                cnt.appendChild(evRow);
             });
             // ── Copy Restraints from Room Member (credited members only) ─────────
             if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
@@ -29571,6 +29621,12 @@
             }
             return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
         }
+        _updateVersionTitle() {
+            if (!this._versionTitleEl)
+                return;
+            const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+            this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
+        }
         startBCLiveSync() {
             const s = getSettings();
             if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true)
@@ -31966,7 +32022,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 3; // internal sub-version — only shown to Emery
+    const SAL_VERSION = 4; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31983,6 +32039,7 @@
                 "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
                 "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
                 "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
+                "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
             ],
         },
         {
@@ -37669,9 +37726,7 @@
             window.setTimeout(() => doAppend(), 300);
     }
     function showVersionInfo() {
-        var _a;
-        const isEmery = ((_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber) === EMERY_MEMBER;
-        const salStr = isEmery ? ` (s${SAL_VERSION})` : "";
+        const salStr = getShowSalVersion() ? ` (s${SAL_VERSION})` : "";
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
     }
     function showChangelog() {
