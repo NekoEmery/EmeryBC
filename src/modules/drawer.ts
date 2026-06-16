@@ -3702,7 +3702,7 @@ const DEFAULT_COLORS: CoreColors = {
     border:     "#3a1928",  // all dividing lines & outlines
     accent:     "#cf6f98",  // tabs, buttons, highlights
     textBright: "#f7e6ee",  // primary readable text
-    textSub:    "#967281",  // secondary labels & soft text
+    textSub:    "#c090a8",  // secondary labels & soft text
     textMuted:  "#7a5a6a",  // placeholders / inactive items
     gold:       "#c9ab72",  // gold / special accents
 };
@@ -3712,13 +3712,13 @@ const EBC_THEME_PRESETS: Record<string, ThemePreset> = {
     // Each preset is fully cohesive - backgrounds tinted with the theme hue,
     // accent is the primary colour, text & border complement it naturally.
     rose:     { name: "Rose (Default)",  colors: DEFAULT_COLORS },
-    sakura:   { name: "Sakura",          colors: { bg:"#200e14", card:"#2e1520", cardMuted:"#190a0f", border:"#481a24", accent:"#e8608a", textBright:"#ffecf2", textSub:"#b87890", textMuted:"#906070", gold:"#e0b060" } },
-    lavender: { name: "Lavender",        colors: { bg:"#120d1e", card:"#1e1532", cardMuted:"#0d0918", border:"#281a42", accent:"#9b6fcf", textBright:"#ece6f8", textSub:"#7868a0", textMuted:"#5a5278", gold:"#c8b46a" } },
-    ocean:    { name: "Ocean",           colors: { bg:"#0c1828", card:"#122034", cardMuted:"#081018", border:"#162e4c", accent:"#5a98c8", textBright:"#e0eef8", textSub:"#587898", textMuted:"#3e5870", gold:"#c0a860" } },
-    forest:   { name: "Forest",          colors: { bg:"#0c1a10", card:"#122018", cardMuted:"#080e0a", border:"#163422", accent:"#52b870", textBright:"#daf0e2", textSub:"#507860", textMuted:"#3e5e48", gold:"#aab840" } },
-    crimson:  { name: "Crimson",         colors: { bg:"#1c0c0c", card:"#2a1212", cardMuted:"#120808", border:"#3c1414", accent:"#c84848", textBright:"#f8e0e0", textSub:"#906060", textMuted:"#704848", gold:"#c89050" } },
-    amber:    { name: "Amber",           colors: { bg:"#1c1208", card:"#281808", cardMuted:"#120c04", border:"#3a2412", accent:"#d08030", textBright:"#f8ecd8", textSub:"#987050", textMuted:"#806848", gold:"#e8c040" } },
-    obsidian: { name: "Obsidian",        colors: { bg:"#141618", card:"#1e2028", cardMuted:"#0e1014", border:"#28293a", accent:"#8090b8", textBright:"#e8eaf0", textSub:"#687080", textMuted:"#545a68", gold:"#a89058" } },
+    sakura:   { name: "Sakura",          colors: { bg:"#200e14", card:"#2e1520", cardMuted:"#190a0f", border:"#481a24", accent:"#e8608a", textBright:"#ffecf2", textSub:"#cc9caa", textMuted:"#906070", gold:"#e0b060" } },
+    lavender: { name: "Lavender",        colors: { bg:"#120d1e", card:"#1e1532", cardMuted:"#0d0918", border:"#281a42", accent:"#9b6fcf", textBright:"#ece6f8", textSub:"#a090c8", textMuted:"#5a5278", gold:"#c8b46a" } },
+    ocean:    { name: "Ocean",           colors: { bg:"#0c1828", card:"#122034", cardMuted:"#081018", border:"#162e4c", accent:"#5a98c8", textBright:"#e0eef8", textSub:"#84a8c8", textMuted:"#3e5870", gold:"#c0a860" } },
+    forest:   { name: "Forest",          colors: { bg:"#0c1a10", card:"#122018", cardMuted:"#080e0a", border:"#163422", accent:"#52b870", textBright:"#daf0e2", textSub:"#7aa890", textMuted:"#3e5e48", gold:"#aab840" } },
+    crimson:  { name: "Crimson",         colors: { bg:"#1c0c0c", card:"#2a1212", cardMuted:"#120808", border:"#3c1414", accent:"#c84848", textBright:"#f8e0e0", textSub:"#b88888", textMuted:"#704848", gold:"#c89050" } },
+    amber:    { name: "Amber",           colors: { bg:"#1c1208", card:"#281808", cardMuted:"#120c04", border:"#3a2412", accent:"#d08030", textBright:"#f8ecd8", textSub:"#c09870", textMuted:"#806848", gold:"#e8c040" } },
+    obsidian: { name: "Obsidian",        colors: { bg:"#141618", card:"#1e2028", cardMuted:"#0e1014", border:"#28293a", accent:"#8090b8", textBright:"#e8eaf0", textSub:"#98a8b8", textMuted:"#545a68", gold:"#a89058" } },
 };
 
 // ── Colour math helpers ───────────────────────────────────────────────────
