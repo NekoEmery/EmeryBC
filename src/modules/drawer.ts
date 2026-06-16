@@ -21998,31 +21998,66 @@ export class EBCDrawer {
         }));
     }
 
+    // Try fetching a URL and returning the parsed JSON + raw text.
+    // Returns null if the request fails (network error, timeout, or non-200 HTTP).
+    private async _lovFetch(endpoint: string): Promise<{ raw: string; json: Record<string, unknown> | null }  | null> {
+        if (!this._lovHttpUrl) return null;
+        try {
+            const resp = await fetch(this._lovHttpUrl + endpoint, { signal: AbortSignal.timeout(4000) });
+            if (!resp.ok) return null;
+            const raw = await resp.text();
+            let json: Record<string, unknown> | null = null;
+            try { json = JSON.parse(raw) as Record<string, unknown>; } catch { /* ignore */ }
+            return { raw, json };
+        } catch { return null; }
+    }
+
+    // Check if a Lovense JSON response is an application-level error
+    // (the app returns HTTP 200 with {"type":"error","code":...} for unknown routes).
+    private static _lovIsError(json: Record<string, unknown> | null): boolean {
+        return json?.type === "error";
+    }
+
+    // Extract toy count from a /GetToys response (handles stringified and plain data).
+    private static _lovParseToyCount(json: Record<string, unknown> | null): number {
+        if (!json) return 0;
+        let toyData: Record<string, unknown> | null = null;
+        if (typeof json.data === "string") {
+            try { toyData = JSON.parse(json.data) as Record<string, unknown>; } catch { /* ignore */ }
+        } else if (json.data && typeof json.data === "object" && !Array.isArray(json.data)) {
+            toyData = json.data as Record<string, unknown>;
+        }
+        return toyData ? Object.keys(toyData).length : 0;
+    }
+
     private async _lovHttpPing(): Promise<boolean> {
         if (!this._lovHttpUrl) return false;
-        try {
-            const resp = await fetch(this._lovHttpUrl + "/GetToys", {
-                signal: AbortSignal.timeout(4000),
-            });
-            if (!resp.ok) { this._lovHttpConnected = false; return false; }
-            const rawText = await resp.text();
-            this._lovHttpLastRaw = rawText.slice(0, 400);
-            let json: { data?: Record<string, unknown> | string } | null = null;
-            try { json = JSON.parse(rawText) as typeof json; } catch { /* ignore */ }
-            // Lovense Connect v1 API returns data as a JSON-encoded string, not an object.
-            let toyData: Record<string, unknown> | null = null;
-            if (typeof json?.data === "string") {
-                try { toyData = JSON.parse(json.data) as Record<string, unknown>; } catch { /* ignore */ }
-            } else if (json?.data && typeof json.data === "object") {
-                toyData = json.data as Record<string, unknown>;
+        // Try known GetToys endpoint variants in order. Lovense returns HTTP 200
+        // with {"type":"error","code":404} for unknown routes, so we also check
+        // the response body to detect application-level 404s.
+        const candidates = ["/GetToys", "/toys", "/v1/toys"];
+        for (const path of candidates) {
+            const res = await this._lovFetch(path);
+            if (!res) continue;                            // network/HTTP failure
+            if (EBCDrawer._lovIsError(res.json)) {
+                this._lovHttpLastRaw = res.raw.slice(0, 400);
+                continue;                                  // app-level 404, try next
             }
-            this._lovHttpToyCount = toyData ? Object.keys(toyData).length : 0;
+            this._lovHttpLastRaw = res.raw.slice(0, 400);
+            this._lovHttpToyCount = EBCDrawer._lovParseToyCount(res.json);
             this._lovHttpConnected = true;
             return true;
-        } catch {
-            this._lovHttpConnected = false;
-            return false;
         }
+        // All GetToys paths failed — server is reachable but no working toy-list endpoint.
+        // Still mark as connected so vibrate commands can be attempted.
+        this._lovHttpToyCount = 0;
+        const anyReachable = await this._lovFetch("/GetToys");
+        if (anyReachable !== null) {
+            this._lovHttpConnected = true;
+            return true;
+        }
+        this._lovHttpConnected = false;
+        return false;
     }
 
     private async _lovHttpVibrate(intensity: number, durationSec: number): Promise<string> {
@@ -22038,6 +22073,12 @@ export class EBCDrawer {
             if (!resp.ok) {
                 this._lovHttpConnected = false;
                 return `⚠ Lovense HTTP: server error ${resp.status}`;
+            }
+            const body = await resp.text();
+            let bodyJson: Record<string, unknown> | null = null;
+            try { bodyJson = JSON.parse(body) as Record<string, unknown>; } catch { /* ignore */ }
+            if (EBCDrawer._lovIsError(bodyJson)) {
+                return `⚠ Lovense HTTP: vibrate endpoint error — ${body.slice(0, 100)}`;
             }
             if (v === 0) return "";
             return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
