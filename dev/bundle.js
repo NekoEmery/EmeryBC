@@ -31585,7 +31585,7 @@
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
             if (toysTabEl)
-                toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER || Player.MemberNumber === JULIA_MEMBER) ? "" : "none";
+                toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER || Player.MemberNumber === JULIA_MEMBER || Player.MemberNumber === 215013) ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
@@ -31800,7 +31800,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.60";
+    const MOD_VERSION = "6.9.61";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31811,6 +31811,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.61",
+            changes: [
+                "TOYS tab is now visible for member #215013.",
+            ],
+        },
         {
             version: "6.9.60",
             changes: [
