@@ -20857,7 +20857,7 @@
                     ].join(";");
                 };
                 refresh();
-                btn.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+                btn.addEventListener("click", () => { setVal(!getVal()); refresh(); onAfterToggle === null || onAfterToggle === void 0 ? void 0 : onAfterToggle(); });
                 row.appendChild(lbl);
                 row.appendChild(btn);
                 return row;
@@ -20865,7 +20865,7 @@
             // Mute beep sounds
             chatSettingsBody.appendChild(mkToggleRow("Mute beep sounds", getBeepMuted, (v) => setBeepMuted(v)));
             // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
-            chatSettingsBody.appendChild(mkToggleRow("Show beeps in BC chat", () => !getSuppressNativeBeep(), (v) => {
+            const showBeepInChatRow = mkToggleRow("Show beeps in BC chat", () => !getSuppressNativeBeep(), (v) => {
                 setSuppressNativeBeep(!v);
                 // keep the icon in any open beep windows in sync
                 for (const { el } of this.beepWins.values()) {
@@ -20875,10 +20875,17 @@
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                 }
-            }));
+            });
+            chatSettingsBody.appendChild(showBeepInChatRow);
             chatSettingsBody.appendChild(mkToggleRow("Use BC native beep sound", getUseNativeBeepSound, (v) => setUseNativeBeepSound(v)));
             chatSettingsBody.appendChild(mkToggleRow("Sound when friend comes online", getOnlineSoundEnabled, (v) => setOnlineSoundEnabled(v)));
-            chatSettingsBody.appendChild(mkToggleRow("LianChat compatibility", getLianChatCompat, (v) => setLianChatCompat(v)));
+            chatSettingsBody.appendChild(mkToggleRow("LianChat compatibility", getLianChatCompat, (v) => setLianChatCompat(v), () => {
+                var _a;
+                // When enabling LianChat compat, auto-enable "Show beeps in BC chat" too
+                if (getLianChatCompat() && getSuppressNativeBeep()) {
+                    (_a = showBeepInChatRow.querySelector("button")) === null || _a === void 0 ? void 0 : _a.click();
+                }
+            }));
             const lianHint = document.createElement("div");
             lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
             lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
@@ -32149,7 +32156,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 11; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 12; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
