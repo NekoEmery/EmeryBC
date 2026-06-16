@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.72
+// @version      6.9.73
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -8053,7 +8053,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
  */
 #emerybc-root {
     position: fixed;
-    z-index: 99;
+    z-index: 101;
     width: 0;
     pointer-events: none;
 }
@@ -11508,6 +11508,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
+            this._positionVerifyTick = 0;
             // Kitty page: whether Lucy is currently holding Emery's leash.
             // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
             // our own authoritative copy here; it survives panel re-renders.
@@ -12792,15 +12793,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         updateCrabsPosition() {
             if (!this.rootEl)
                 return;
-            // Heartbeat guard: BC's screen-transition code can set display:none on unknown
-            // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-            // This intentionally runs regardless of this.positioned so it also protects EBC
-            // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+            // Heartbeat guard: restores root visibility within 200 ms if anything hides it.
+            // Covers both inline display:none (set by BC screen-transition code) and the
+            // HTML hidden attribute (which overrides inline display and is NOT caught by the
+            // display check alone).
             if (this.rootEl.style.display !== "block") {
                 this.rootEl.style.display = "block";
             }
+            if (this.rootEl.hidden) {
+                this.rootEl.hidden = false;
+            }
             if (!this.positioned) {
                 // Haven't anchored to the chat log yet - keep retrying until we succeed.
+                this.syncToChat();
+                return;
+            }
+            // Periodic position re-verify: even when positioned=true, re-run syncToChat()
+            // every ~5 s to catch layout shifts (e.g. beep notifications resizing BC's chat
+            // area) that the ResizeObserver may not have fired for.
+            if (++this._positionVerifyTick >= 25) {
+                this._positionVerifyTick = 0;
                 this.syncToChat();
                 return;
             }
@@ -19234,7 +19246,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this.open();
                     this.switchTab("notes");
                 });
-                tab.style.position = "relative";
                 tab.appendChild(dot);
             }
             else if (!hasUnread && dot) {
@@ -31790,7 +31801,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.72";
+    const MOD_VERSION = "6.9.73";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31801,6 +31812,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.73",
+            changes: [
+                "Fix: EBC drawer tab no longer disappears when a beep notification arrives — removed erroneous tab.style.position='relative' mutation in the unread-dot code (was overriding CSS position:absolute, causing tab offset to shift); raised root z-index from 99 to 101 (above BC's toast container at 100); heartbeat guard now also removes the HTML hidden attribute; added a periodic 5-second position re-sync.",
+            ],
+        },
         {
             version: "6.9.72",
             changes: [
