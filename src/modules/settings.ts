@@ -3,6 +3,22 @@
 import { callBC, getSettings, syncSettings } from "./bcUtils";
 
 
+// -- Emery Versioning (SAL sub-version display) --------------------------------
+// When on, shows the internal build counter "(s3)" next to the EBC version in
+// the panel header and startup log. Off by default; toggled in the DEV tab.
+
+export function getShowSalVersion(): boolean {
+    try { return getSettings()?.showSalVersion === true; } catch { return false; }
+}
+
+export function setShowSalVersion(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.showSalVersion = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Badge visibility (local/client-side only) --------------------------------
 // Controls whether YOUR OWN EBC tag is drawn above your head on YOUR screen.
 // Purely a local display toggle — does NOT affect broadcasting. Others always

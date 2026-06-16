@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -3987,6 +3987,7 @@ export class EBCDrawer {
     private version    = "";
     private isDev      = false;
     private salVersion = 0;
+    private _versionTitleEl: HTMLElement | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins  = new Map<number, { el: HTMLElement; minimized: boolean }>();
@@ -4286,9 +4287,8 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
-        const _isEmeryHdr = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber === EMERY_MEMBER;
-        const _salSuffix  = _isEmeryHdr && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
-        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + _salSuffix;
+        this._versionTitleEl = titleMain;
+        this._updateVersionTitle();
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
@@ -16003,6 +16003,36 @@ export class EBCDrawer {
             hookRefreshBtn.textContent = t("dev.refresh");
             hookRefreshBtn.addEventListener("click", renderHooks);
             cnt.appendChild(hookRefreshBtn);
+
+            // ── Emery Versioning toggle ────────────────────────────────────────
+            const evDivider = document.createElement("div");
+            evDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
+            cnt.appendChild(evDivider);
+            const evRow = document.createElement("div");
+            evRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:5px;";
+            const evTextWrap = document.createElement("div");
+            evTextWrap.style.cssText = "flex:1;min-width:0;";
+            const evLabel = document.createElement("div");
+            evLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;";
+            evLabel.textContent = "Emery Versioning";
+            const evHint = document.createElement("div");
+            evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
+            evHint.textContent = `Shows internal build counter (s${this.salVersion}) in the panel header`;
+            evTextWrap.appendChild(evLabel); evTextWrap.appendChild(evHint);
+            const evBtn = document.createElement("button");
+            const refreshEvBtn = (): void => {
+                const on = getShowSalVersion();
+                evBtn.textContent = on ? "ON" : "OFF";
+                evBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "#8b4060" : "#4c2537"};background:${on ? "rgba(139,64,96,0.25)" : "transparent"};color:${on ? "#cf6f98" : "#7a5a6a"};`;
+            };
+            refreshEvBtn();
+            evBtn.addEventListener("click", () => {
+                setShowSalVersion(!getShowSalVersion());
+                refreshEvBtn();
+                this._updateVersionTitle();
+            });
+            evRow.appendChild(evTextWrap); evRow.appendChild(evBtn);
+            cnt.appendChild(evRow);
         });
 
         // ── Copy Restraints from Room Member (credited members only) ─────────
@@ -21776,6 +21806,12 @@ export class EBCDrawer {
             return `⚠ Lovense BLE error: ${errors.join("; ")}`;
         }
         return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
+    }
+
+    public _updateVersionTitle(): void {
+        if (!this._versionTitleEl) return;
+        const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+        this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
     }
 
     public startBCLiveSync(): void {

@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 3;    // internal sub-version — only shown to Emery
+const SAL_VERSION  = 4;    // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -45,6 +45,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
             "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
             "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
+            "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
         ],
     },
     {
@@ -5730,8 +5731,7 @@ function appendClickableCmd(cmd: string, desc: string): void {
 }
 
 function showVersionInfo(): void {
-    const isEmery = (window as unknown as { Player?: { MemberNumber?: number } }).Player?.MemberNumber === EMERY_MEMBER;
-    const salStr  = isEmery ? ` (s${SAL_VERSION})` : "";
+    const salStr = getShowSalVersion() ? ` (s${SAL_VERSION})` : "";
     appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
 }
 
