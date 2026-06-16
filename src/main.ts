@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.40";
+const MOD_VERSION = "6.9.41";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -39,13 +39,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "6.9.40",
+        version: "6.9.41",
         changes: [
             "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
             "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
             "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
             "LOVENSE: Duration slider extended to 60s (was 30s).",
             "LOVENSE: Chat phrase trigger UI polished with 'blank = default' hints on I/D inputs.",
+            "TOYS TAB: IRL TOYS and GAME TOYS collapsible sections added.",
+            "GAME TOYS: Friends-only remote toy control — send/accept vibrate commands via hidden EBC whispers, with request popup, whitelist, accept toggle, and revoke support.",
         ],
     },
     {
@@ -5838,6 +5840,15 @@ function patchKittyExpressions(): void {
     }
 }
 
+function parseEBCToyMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
+    const m = content.match(/^\[EBC-TOY:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+    if (!m) return null;
+    const type = m[1];
+    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+    return { type, intensity, duration };
+}
+
 function handleKittyCommand(msg: string): void {
     const parsed = parseKittyCmd(msg);
     if (!parsed) return;
@@ -7354,6 +7365,21 @@ function init(): void {
     tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
         try {
             const [data] = args as [Record<string, unknown>];
+            // EBC-TOY whisper intercept — suppress from BC chat display
+            if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                (data.Content as string).startsWith("[EBC-TOY:")) {
+                const parsed = parseEBCToyMsg(data.Content as string);
+                if (parsed) {
+                    const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                    if (senderNum && senderNum !== Player.MemberNumber) {
+                        const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
+                        const found = roomChars?.find(c => c.MemberNumber === senderNum);
+                        const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                        drawer?.handleGameToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                    }
+                    return; // suppress — do not call next(args)
+                }
+            }
             if (data.Type === "Chat" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                 drawer?.checkLovenseTriggers(data.Content as string);
