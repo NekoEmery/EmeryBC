@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.50";
+const MOD_VERSION = "6.9.51";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.51",
+        changes: [
+            "Fix: BODY TOUCH triggers now actually fire — BC activity Content is 'ChatOther-Group-Activity' not just the activity name, and group was read from wrong dictionary key (FocusGroupName not AssetGroupName).",
+        ],
+    },
     {
         version: "6.9.50",
         changes: [
@@ -7468,14 +7474,20 @@ function init(): void {
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                 drawer?.checkLovenseTriggers(data.Content as string);
             }
-            if (data.Type === "Activity" && typeof data.Content === "string") {
+            if (data.Type === "Activity" && typeof data.Content === "string" &&
+                typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                 const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
-                const targetEntry = dict?.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                const targetNum = targetEntry?.["MemberNumber"] ?? targetEntry?.["TargetCharacter"];
+                const targetEntry = dict?.find(e => "TargetCharacter" in e);
+                const targetNum = targetEntry?.["TargetCharacter"] as number | undefined;
                 if (targetNum === Player.MemberNumber) {
-                    const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup");
-                    const assetGroup = groupEntry?.["AssetGroupName"] as string | undefined;
-                    drawer?.checkLovenseActivityTrigger(data.Content as string, assetGroup);
+                    // Content is "ChatOther-GroupName-ActivityName" — extract the activity name
+                    const actEntry = dict?.find(e => "ActivityName" in e);
+                    const activityName = (actEntry?.["ActivityName"] as string | undefined)
+                        ?? (data.Content as string).split("-").pop() ?? "";
+                    // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
+                    const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                    const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
+                    if (activityName) drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
                 }
             }
         } catch { /* ignore */ }
