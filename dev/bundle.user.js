@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.43
+// @version      6.9.44
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28418,7 +28418,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const inp = document.createElement("input");
                     inp.type = "number";
                     inp.min = "1";
-                    inp.style.cssText = `${FONT}width:48px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:4px;text-align:center;box-sizing:border-box;`;
+                    inp.style.cssText = `${FONT}width:48px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;box-sizing:border-box;`;
                     inp.placeholder = placeholder;
                     inp.value = value;
                     return inp;
@@ -28608,7 +28608,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         phraseInp.type = "text";
                         phraseInp.value = tr.phrase;
                         phraseInp.placeholder = "Trigger phrase";
-                        phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text);border:1px solid var(--ebc-border);border-radius:4px;padding:4px 7px;box-sizing:border-box;`;
+                        phraseInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;background:var(--ebc-bg);color:var(--ebc-text-bright);border:1px solid var(--ebc-border);border-radius:4px;padding:4px 7px;box-sizing:border-box;`;
                         phraseInp.addEventListener("input", () => { lovTriggers[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.saveLovenseTriggers(lovTriggers); });
                         const removeBtn = document.createElement("button");
                         removeBtn.textContent = "×";
@@ -28661,7 +28661,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     chk.type = "checkbox";
                     chk.checked = enNow;
                     chk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;flex-shrink:0;margin:0;`;
-                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
+                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
                     tlbl.textContent = def.label;
                     tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
                     r1.appendChild(chk);
@@ -28696,7 +28696,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     };
                     chk.addEventListener("change", () => {
                         const en = chk.checked;
-                        tlbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                        tlbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                         tlbl.style.fontWeight = en ? "bold" : "normal";
                         r2.style.opacity = en ? "" : "0.4";
                         saveTouchCell();
@@ -28719,7 +28719,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 syncChk.type = "checkbox";
                 syncChk.checked = syncEnabled;
                 syncChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
-                const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
+                const syncLbl = mk("span", `${FONT}font-size:11px;color:${syncEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${syncEnabled ? "bold" : "normal"};`);
                 syncLbl.textContent = "Mirror BC toy activations to Lovense";
                 syncLbl.addEventListener("click", () => { syncChk.checked = !syncChk.checked; syncChk.dispatchEvent(new Event("change")); });
                 syncToggleRow.appendChild(syncChk);
@@ -28753,7 +28753,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 syncCard.appendChild(syncSliders);
                 syncChk.addEventListener("change", () => {
                     const en = syncChk.checked;
-                    syncLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                    syncLbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                     syncLbl.style.fontWeight = en ? "bold" : "normal";
                     syncSliders.style.opacity = en ? "" : "0.4";
                     syncSliders.style.pointerEvents = en ? "" : "none";
@@ -28790,7 +28790,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 d.textContent = txt;
                 return d;
             };
-            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
+            const GTSel = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 28px 5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;cursor:pointer;appearance:none;-webkit-appearance:none;color-scheme:dark;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a080d0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;outline:none;`;
             // ── MY PRIVACY ──────────────────────────────────────────────────────
             gtContent.appendChild(gtHdr("MY PRIVACY"));
             const privCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
@@ -28800,12 +28800,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             acceptChk.type = "checkbox";
             acceptChk.checked = acceptEnabled;
             acceptChk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;margin:0;`;
-            const acceptLbl = mk("span", `${FONT}font-size:11px;color:${acceptEnabled ? "var(--ebc-text)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${acceptEnabled ? "bold" : "normal"};`);
+            const acceptLbl = mk("span", `${FONT}font-size:11px;color:${acceptEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;font-weight:${acceptEnabled ? "bold" : "normal"};`);
             acceptLbl.textContent = "Accept control requests from friends";
             acceptLbl.addEventListener("click", () => { acceptChk.checked = !acceptChk.checked; acceptChk.dispatchEvent(new Event("change")); });
             acceptChk.addEventListener("change", () => {
                 const en = acceptChk.checked;
-                acceptLbl.style.color = en ? "var(--ebc-text)" : "var(--ebc-text-muted)";
+                acceptLbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
                 acceptLbl.style.fontWeight = en ? "bold" : "normal";
                 s["gameToyAcceptRequests"] = en;
                 syncSettings();
@@ -28841,7 +28841,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const found = roomChar === null || roomChar === void 0 ? void 0 : roomChar.find(c => c.MemberNumber === num);
                         const displayName = found ? (((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || String(num)) : String(num);
                         const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:5px 8px;");
-                        const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                        const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                         wlName.textContent = `${displayName} (#${num})`;
                         const wlRem = document.createElement("button");
                         wlRem.textContent = "×";
@@ -28900,7 +28900,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const wlInp = document.createElement("input");
             wlInp.type = "number";
             wlInp.placeholder = "Member # (manual)";
-            wlInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text);border-radius:6px;outline:none;`;
+            wlInp.style.cssText = `${FONT}font-size:11px;flex:1;min-width:0;padding:5px 9px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;outline:none;`;
             const wlAddBtn = document.createElement("button");
             wlAddBtn.textContent = "+ Add";
             wlAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
@@ -28961,7 +28961,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const sessTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
                         const sDot = mk("span", "font-size:12px;");
                         sDot.textContent = "🟢";
-                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text);font-weight:bold;flex:1;`);
+                        const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`);
                         sName.textContent = sess.name;
                         const endBtn = document.createElement("button");
                         endBtn.textContent = "✗ End";
@@ -29065,7 +29065,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const grantRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 10px;");
                     const gDot = mk("span", "font-size:12px;");
                     gDot.textContent = "🟢";
-                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text);flex:1;`);
+                    const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                     gName.textContent = grant.name;
                     const revokeBtn = document.createElement("button");
                     revokeBtn.textContent = "✗ Revoke";
@@ -31252,7 +31252,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.43";
+    const MOD_VERSION = "6.9.44";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31263,6 +31263,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.44",
+            changes: [
+                "Fix: All var(--ebc-text) references replaced with var(--ebc-text-bright) — that variable didn't exist so form elements (input, select) fell back to browser-default black text. Inputs/selects now show correct light text on dark background.",
+                "Fix: Added color-scheme:dark to styled select dropdowns so native option list also renders dark instead of white.",
+            ],
+        },
         {
             version: "6.9.43",
             changes: [
