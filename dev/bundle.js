@@ -28398,7 +28398,9 @@
                             for (const [key, conn] of this._lovConnections) {
                                 const dev = conn.device;
                                 const isConn = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
-                                const tRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;");
+                                const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                                // Top row: status dot + name + disconnect button
+                                const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
                                 const dot = mk("span", "font-size:14px;flex-shrink:0;");
                                 dot.textContent = isConn ? "🟢" : "⚫";
                                 const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;`);
@@ -28417,7 +28419,36 @@
                                 tRow.appendChild(dot);
                                 tRow.appendChild(tName);
                                 tRow.appendChild(discBtn);
-                                toyListEl.appendChild(tRow);
+                                tCard.appendChild(tRow);
+                                // Per-toy intensity + duration sliders (only when actively connected)
+                                if (isConn) {
+                                    const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                                    const mkTinySlider = (label, min, max, val, unit, onChange) => {
+                                        const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                                        lbl.textContent = label;
+                                        const sl = document.createElement("input");
+                                        sl.type = "range";
+                                        sl.min = String(min);
+                                        sl.max = String(max);
+                                        sl.value = String(val);
+                                        sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text);min-width:22px;`);
+                                        vl.textContent = val + unit;
+                                        sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                                        wrap.appendChild(lbl);
+                                        wrap.appendChild(sl);
+                                        wrap.appendChild(vl);
+                                        return wrap;
+                                    };
+                                    sRow.appendChild(mkTinySlider("I:", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                    const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`);
+                                    divider.textContent = "│";
+                                    sRow.appendChild(divider);
+                                    sRow.appendChild(mkTinySlider("D:", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                    tCard.appendChild(sRow);
+                                }
+                                toyListEl.appendChild(tCard);
                             }
                         }
                     };
@@ -28448,8 +28479,11 @@
                             lovConnBtn.textContent = "🔄 Connecting…";
                             const server = await device.gatt.connect();
                             let services = [];
-                            for (let attempt = 0; attempt < 3; attempt++) {
-                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                            // Retry with increasing delays — some toys (Domi, Nora) need GATT
+                            // discovery to complete before services are enumerable
+                            const svcDelays = [600, 1000, 1500, 2000, 2500];
+                            for (let attempt = 0; attempt < svcDelays.length; attempt++) {
+                                await new Promise(r => setTimeout(r, svcDelays[attempt]));
                                 try {
                                     services = await server.getPrimaryServices();
                                 }
@@ -28457,8 +28491,23 @@
                                 if (services.length > 0)
                                     break;
                             }
+                            // Fallback: try each known Lovense service UUID individually.
+                            // Chrome may return empty from getPrimaryServices() while still
+                            // servicing individual lookups (depends on BLE chip + driver timing).
+                            if (!services.length) {
+                                for (const svcUuid of LVS_SERVICES) {
+                                    try {
+                                        const svc = await server.getPrimaryService(svcUuid);
+                                        if (svc) {
+                                            services = [svc];
+                                            break;
+                                        }
+                                    }
+                                    catch ( /* not this UUID */_d) { /* not this UUID */ }
+                                }
+                            }
                             if (!services.length)
-                                throw new Error("No services found - ensure Lovense Connect app is closed and toy is not connected elsewhere.");
+                                throw new Error("No services found — close Lovense Connect app if running, and ensure the toy is not paired to another device.");
                             let char = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -28468,7 +28517,10 @@
                             }
                             if (!char)
                                 throw new Error("No writable characteristic found");
-                            this._lovConnections.set(connKey, { device, char, name: devName });
+                            const connS = getSettings();
+                            const toyDefI = typeof connS.lovenseIntensity === "number" ? connS.lovenseIntensity : 10;
+                            const toyDefD = typeof connS.lovenseDuration === "number" ? connS.lovenseDuration : 5;
+                            this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
                             lovConnBtn.textContent = "＋ Connect Toy";
                             lovConnBtn.disabled = false;
                             renderToyList();
@@ -29492,11 +29544,16 @@
                     : char.writeValue(d);
             };
             const errors = [];
+            const summaries = [];
             await Promise.all(active.map(async (conn) => {
                 const char = conn.char;
+                // Trigger's explicit intensity overrides per-toy setting; otherwise use the toy's own default
+                const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
+                const toyD = Math.max(1, Math.min(duration !== undefined ? duration : conn.duration, 60));
                 try {
-                    await doWrite(char, `Vibrate:${finalI};`);
-                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, finalD * 1000);
+                    await doWrite(char, `Vibrate:${toyI};`);
+                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, toyD * 1000);
+                    summaries.push(`${conn.name} ${toyI}/20`);
                 }
                 catch (err) {
                     errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
@@ -29506,7 +29563,7 @@
                 console.warn("[EBC Lovense] BLE write errors:", errors);
                 return `⚠ Lovense BLE error: ${errors.join("; ")}`;
             }
-            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
+            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
         }
         startBCLiveSync() {
             const s = getSettings();
@@ -31897,8 +31954,8 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.1.1";
-    const SAL_VERSION = 1; // internal sub-version — only shown to Emery
+    const MOD_VERSION = "8.1.2";
+    const SAL_VERSION = 2; // internal sub-version — only shown to Emery
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31909,6 +31966,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.1.2",
+            changes: [
+                "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
+                "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
+            ],
+        },
         {
             version: "8.1.1",
             changes: [
