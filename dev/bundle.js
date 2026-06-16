@@ -11244,7 +11244,7 @@
         border: "#3a1928", // all dividing lines & outlines
         accent: "#cf6f98", // tabs, buttons, highlights
         textBright: "#f7e6ee", // primary readable text
-        textSub: "#967281", // secondary labels & soft text
+        textSub: "#c090a8", // secondary labels & soft text
         textMuted: "#7a5a6a", // placeholders / inactive items
         gold: "#c9ab72", // gold / special accents
     };
@@ -32149,7 +32149,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 10; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 11; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32166,6 +32166,7 @@
         {
             version: "8.1.2",
             changes: [
+                "UI: brightened --ebc-text-sub across all themes (was too low-contrast on dark backgrounds); affects secondary labels, hints, and notes throughout the panel.",
                 "Fix: Lovense HTTP /GetToys now correctly parses toy count — Lovense Connect v1 API returns data as a JSON-encoded string, not an object; count was always 0 before this fix.",
                 "Settings: added 'LianChat compatibility' toggle in Chat & Notifications — OFF by default (beeps suppressed from BC chat); ON lets BC native run so LianChat/WCE get full passthrough at the cost of beeps appearing in BC's default chat.",
                 "Fix: beep suppression now uses a sentinel hook so LianChat/WCE still see friend beeps through the mod chain, but BC's native chat notification is blocked as intended.",
