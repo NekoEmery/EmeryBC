@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 13;   // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 14;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -5741,7 +5741,7 @@ function appendClickableCmd(cmd: string, desc: string): void {
 }
 
 function showVersionInfo(): void {
-    const salStr = getShowSalVersion() ? ` (s${SAL_VERSION})` : "";
+    const salStr = getShowSalVersion() ? ` (${SAL_VERSION})` : "";
     appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
 }
 
@@ -7007,6 +7007,10 @@ function init(): void {
             const serverES = serverData?.ExtensionSettings as Record<string, unknown> | undefined;
             const ebcData = (serverES?.["EmeryBC"] ?? {}) as Record<string, unknown>;
             reinitFromExtensionSettings(ebcData);
+            // Refresh the header title now that persisted settings are loaded —
+            // the drawer was built before server settings arrived, so the SAL
+            // version suffix would be missing if it was saved as enabled.
+            try { drawer?._updateVersionTitle(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });

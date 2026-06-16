@@ -16034,7 +16034,7 @@ export class EBCDrawer {
             evLabel.textContent = "Emery Versioning";
             const evHint = document.createElement("div");
             evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
-            evHint.textContent = `Shows internal build counter (s${this.salVersion}) in the panel header`;
+            evHint.textContent = `Shows internal build counter (${this.salVersion}) in the panel header`;
             evTextWrap.appendChild(evLabel); evTextWrap.appendChild(evHint);
             const evBtn = document.createElement("button");
             const refreshEvBtn = (): void => {
@@ -21922,7 +21922,7 @@ export class EBCDrawer {
 
     public _updateVersionTitle(): void {
         if (!this._versionTitleEl) return;
-        const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+        const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (${this.salVersion})` : "";
         this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
     }
 
