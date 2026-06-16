@@ -23204,7 +23204,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 evLabel.textContent = "Emery Versioning";
                 const evHint = document.createElement("div");
                 evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
-                evHint.textContent = `Shows internal build counter (s${this.salVersion}) in the panel header`;
+                evHint.textContent = `Shows internal build counter (${this.salVersion}) in the panel header`;
                 evTextWrap.appendChild(evLabel);
                 evTextWrap.appendChild(evHint);
                 const evBtn = document.createElement("button");
@@ -29793,7 +29793,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         _updateVersionTitle() {
             if (!this._versionTitleEl)
                 return;
-            const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+            const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (${this.salVersion})` : "";
             this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
         }
         startBCLiveSync() {
@@ -32197,7 +32197,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 13; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 14; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37911,7 +37911,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => doAppend(), 300);
     }
     function showVersionInfo() {
-        const salStr = getShowSalVersion() ? ` (s${SAL_VERSION})` : "";
+        const salStr = getShowSalVersion() ? ` (${SAL_VERSION})` : "";
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
     }
     function showChangelog() {
@@ -39152,8 +39152,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const serverES = serverData === null || serverData === void 0 ? void 0 : serverData.ExtensionSettings;
                 const ebcData = ((_a = serverES === null || serverES === void 0 ? void 0 : serverES["EmeryBC"]) !== null && _a !== void 0 ? _a : {});
                 reinitFromExtensionSettings(ebcData);
+                // Refresh the header title now that persisted settings are loaded —
+                // the drawer was built before server settings arrived, so the SAL
+                // version suffix would be missing if it was saved as enabled.
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer._updateVersionTitle();
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
