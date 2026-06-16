@@ -31659,7 +31659,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.50";
+    const MOD_VERSION = "6.9.51";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31670,6 +31670,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.51",
+            changes: [
+                "Fix: BODY TOUCH triggers now actually fire — BC activity Content is 'ChatOther-Group-Activity' not just the activity name, and group was read from wrong dictionary key (FocusGroupName not AssetGroupName).",
+            ],
+        },
         {
             version: "6.9.50",
             changes: [
@@ -39190,7 +39196,7 @@
         });
         // Lovense triggers: chat phrases + body touch activities + BC toy sync
         tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             try {
                 const [data] = args;
                 // EBC-TOY whisper intercept — suppress from BC chat display
@@ -39227,18 +39233,24 @@
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
                 }
-                if (data.Type === "Activity" && typeof data.Content === "string") {
+                if (data.Type === "Activity" && typeof data.Content === "string" &&
+                    typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     const dict = data.Dictionary;
-                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                    const targetNum = (_c = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _c !== void 0 ? _c : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
+                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => "TargetCharacter" in e);
+                    const targetNum = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
                     if (targetNum === Player.MemberNumber) {
-                        const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
-                        const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["AssetGroupName"];
-                        drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(data.Content, assetGroup);
+                        // Content is "ChatOther-GroupName-ActivityName" — extract the activity name
+                        const actEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => "ActivityName" in e);
+                        const activityName = (_d = (_c = actEntry === null || actEntry === void 0 ? void 0 : actEntry["ActivityName"]) !== null && _c !== void 0 ? _c : data.Content.split("-").pop()) !== null && _d !== void 0 ? _d : "";
+                        // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
+                        const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                        const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
+                        if (activityName)
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(activityName, assetGroup);
                     }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
