@@ -236,6 +236,22 @@ export function setSuppressNativeBeep(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- LianChat compatibility ----------------------------------------------------
+// When ON, lets BC's native beep handler run after EBC so mods like LianChat
+// can piggyback on it — but this also shows beeps in BC's default chat window.
+
+export function getLianChatCompat(): boolean {
+    try { return getSettings()?.lianChatCompat === true; } catch { return false; }
+}
+
+export function setLianChatCompat(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.lianChatCompat = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Show member numbers -------------------------------------------------------
 // Draws a small #number pill on every character in the chat room.
 
