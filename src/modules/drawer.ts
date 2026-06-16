@@ -4979,6 +4979,27 @@ export class EBCDrawer {
             graceDurRow.appendChild(graceDurUnit);
             swInner.appendChild(graceDurRow);
 
+            // -- Exclude owner locks toggle --
+            const exclRow = document.createElement("div");
+            exclRow.style.cssText = "display:flex;align-items:center;gap:6px;padding-left:66px;";
+            const exclBtn = document.createElement("button");
+            const exclAcc = "#9a70b0";
+            const setExclStyle = (on: boolean): void => {
+                exclBtn.style.background = on ? exclAcc + "44" : "transparent";
+                exclBtn.style.color       = on ? exclAcc        : "#6a4858";
+                exclBtn.textContent       = (on ? "✓ " : "○ ") + "Exclude owner locks";
+            };
+            exclBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${exclAcc}66;transition:background 0.12s,color 0.12s;`;
+            let exclState = cfg.excludeOwnerLocks;
+            setExclStyle(exclState);
+            exclBtn.addEventListener("click", () => {
+                exclState = !exclState;
+                setExclStyle(exclState);
+                setSafewordConfig({ ...getSafewordConfig(), excludeOwnerLocks: exclState });
+            });
+            exclRow.appendChild(exclBtn);
+            swInner.appendChild(exclRow);
+
             // -- Hint --
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";

@@ -24,6 +24,8 @@ export interface SafewordConfig {
     redGrace:       boolean;   // start grace period on red
     redAnnounce:    boolean;   // send chat announcement on red
     redLeave:       boolean;   // leave the room on red
+    // Global options
+    excludeOwnerLocks: boolean;  // skip owner/exclusive-locked items during release & grace enforcement
 }
 
 const DEFAULTS: SafewordConfig = {
@@ -41,6 +43,7 @@ const DEFAULTS: SafewordConfig = {
     redGrace:       true,
     redAnnounce:    true,
     redLeave:       true,
+    excludeOwnerLocks: false,
 };
 
 export function getSafewordConfig(): SafewordConfig {
@@ -64,6 +67,7 @@ export function getSafewordConfig(): SafewordConfig {
         redGrace:        b("redGrace",       DEFAULTS.redGrace),
         redAnnounce:     b("redAnnounce",    DEFAULTS.redAnnounce),
         redLeave:        b("redLeave",       DEFAULTS.redLeave),
+        excludeOwnerLocks: b("excludeOwnerLocks", DEFAULTS.excludeOwnerLocks),
     };
 }
 
@@ -98,6 +102,13 @@ const GRACE_SYNC_INTERVAL_MS = 2000;
 // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
 let gracePeriodEnd: number | null = null;
 
+// Snapshot of binding-restraint groups present when grace STARTED.
+// enforceGracePeriod() only strips groups that appeared AFTER this snapshot,
+// so Release=OFF + Grace=ON doesn't remove existing restraints.
+let graceStartGroups: Set<string> = new Set();
+// Whether to skip owner/exclusive-locked items during this grace window.
+let graceExcludeOwnerLocks = false;
+
 export function isGraceActive(): boolean {
     if (gracePeriodEnd === null) return false;
     if (gracePeriodEnd === Infinity) return true;
@@ -112,12 +123,22 @@ export function getGraceRemaining(): number | null {
     return rem > 0 ? rem : null;
 }
 
-export function startGrace(durationMs: number): void {
+export function startGrace(durationMs: number, excludeOwnerLocks = false): void {
+    graceExcludeOwnerLocks = excludeOwnerLocks;
+    // Snapshot current restraint groups so grace enforcement only strips
+    // items added DURING the grace window, not items that were already on.
+    graceStartGroups = new Set(
+        Player.Appearance
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i: Item) => i.Asset.Group.Name),
+    );
     gracePeriodEnd = durationMs <= 0 ? Infinity : Date.now() + durationMs;
 }
 
 export function endGrace(): void {
     gracePeriodEnd = null;
+    graceStartGroups = new Set();
+    graceExcludeOwnerLocks = false;
 }
 
 export function checkGraceExpiry(): void {
@@ -133,11 +154,31 @@ const NECK_GROUPS = new Set([
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
 ]);
 
+// Lock asset names considered "owner locks" for the excludeOwnerLocks option.
+const OWNER_LOCK_NAMES = new Set([
+    "OwnerPadlock",
+    "OwnerTimedPadlock",
+    "ExclusivePadlock",
+]);
 
-function releaseBindingRestraints(): void {
+// Check if an item is secured with an owner or exclusive padlock.
+// Reads Item.Property.LockedBy directly rather than calling InventoryGetLock
+// to avoid depending on a BC global that isn't in our type declarations.
+function isOwnerLocked(item: Item): boolean {
+    try {
+        const prop = (item as unknown as { Property?: { LockedBy?: string } }).Property;
+        return !!prop?.LockedBy && OWNER_LOCK_NAMES.has(prop.LockedBy);
+    } catch { return false; }
+}
+
+function releaseBindingRestraints(excludeOwnerLocks: boolean): void {
     const removeGroups = new Set(
         Player.Appearance
-            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i: Item) =>
+                RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+                !NECK_GROUPS.has(i.Asset.Group.Name) &&
+                !(excludeOwnerLocks && isOwnerLocked(i)),
+            )
             .map((i: Item) => i.Asset.Group.Name),
     );
     if (removeGroups.size === 0) return;
@@ -169,9 +210,16 @@ export function enforceGracePeriod(): void {
     checkGraceExpiry();
     if (!isGraceActive()) return;
 
+    // Only strip groups added AFTER grace started (graceStartGroups = snapshot at trigger time).
+    // This fixes the bug where Grace=ON without Release=ON still removed existing restraints.
     const removeGroups = new Set(
         Player.Appearance
-            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i: Item) =>
+                RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+                !NECK_GROUPS.has(i.Asset.Group.Name) &&
+                !graceStartGroups.has(i.Asset.Group.Name) &&
+                !(graceExcludeOwnerLocks && isOwnerLocked(i)),
+            )
             .map((i: Item) => i.Asset.Group.Name),
     );
     if (removeGroups.size === 0) return;
@@ -202,8 +250,8 @@ export function enforceGracePeriod(): void {
 export function triggerYellow(): void {
     const cfg = getSafewordConfig();
     if (!cfg.enabled) return;
-    if (cfg.yellowRelease)  releaseBindingRestraints();
-    if (cfg.yellowGrace)    startGrace(cfg.graceDurationMs);
+    if (cfg.yellowRelease)  releaseBindingRestraints(cfg.excludeOwnerLocks);
+    if (cfg.yellowGrace)    startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
     if (cfg.yellowAnnounce) {
         try {
             const graceDesc = cfg.graceDurationMs <= 0
@@ -243,8 +291,8 @@ export function triggerYellow(): void {
 export function triggerRed(): void {
     const cfg = getSafewordConfig();
     if (!cfg.enabled) return;
-    if (cfg.redRelease)  releaseBindingRestraints();
-    if (cfg.redGrace)    startGrace(cfg.graceDurationMs);
+    if (cfg.redRelease)  releaseBindingRestraints(cfg.excludeOwnerLocks);
+    if (cfg.redGrace)    startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
     if (cfg.redAnnounce) {
         try {
             ServerSend("ChatRoomChat", {

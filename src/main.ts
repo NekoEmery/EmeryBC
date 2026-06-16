@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.69";
+const MOD_VERSION = "6.9.70";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.70",
+        changes: [
+            "Fix: Grace=ON without Release=ON no longer removes existing restraints — grace now only strips items added AFTER the safeword was triggered.",
+            "Safewords: added 'Exclude owner locks' toggle — skips OwnerPadlock / ExclusivePadlock items during both release and grace enforcement.",
+        ],
+    },
     {
         version: "6.9.69",
         changes: [
