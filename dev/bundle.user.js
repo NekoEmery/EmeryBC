@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.68
+// @version      6.9.69
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12841,8 +12841,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // fully visible (overrides the in-room left:-10px collapsed state).
                 // Centre the panel vertically in the viewport.
                 this.rootEl.classList.add("ebc-roaming");
-                const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
-                const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
+                const defaultH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+                // If user resized the panel, honour that exact size (only cap at viewport).
+                // Previously baseH was capped at 520 and used as an upper bound too, which
+                // silently truncated any saved height over 520 px in roaming mode.
+                const maxH = Math.max(100, window.innerHeight - 40);
+                const h = this.userPanelHeight !== null ? Math.min(this.userPanelHeight, maxH) : defaultH;
                 const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
                 this.rootEl.style.top = `${top}px`;
                 this.rootEl.style.right = "0px";
@@ -20067,6 +20071,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             input.addEventListener("input", autoGrow);
             sendBtn.addEventListener("click", doSend);
             input.addEventListener("keydown", (e) => {
+                e.stopPropagation(); // stop WASD/arrow keys from reaching BC's map movement handler
                 if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     doSend();
@@ -20612,7 +20617,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 renderGroupHistory();
             };
             sendBtn.addEventListener("click", doSend);
-            input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) {
+            input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 doSend();
             } });
@@ -27674,6 +27679,54 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             exprCBody.appendChild(exprWrap);
             exprCBody.appendChild(exprHint);
             body.appendChild(exprWrap2);
+            // ── CURSE ─────────────────────────────────────────────────────────────────
+            const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
+            const CURSE_GROUPS = [
+                ["Arms", "ItemArms"],
+                ["Hands", "ItemHands"],
+                ["Legs", "ItemLegs"],
+                ["Feet", "ItemFeet"],
+                ["Neck", "ItemNeck"],
+                ["Mouth", "ItemMouth"],
+                ["Head", "ItemHead"],
+                ["Torso", "ItemTorso"],
+                ["Pelvis", "ItemPelvis"],
+                ["Breasts", "ItemBreast"],
+                ["Boots", "ItemBoots"],
+            ];
+            const selectedCurseGroups = new Set();
+            const chipRow = document.createElement("div");
+            chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
+            const setChipStyle = (btn, sel) => {
+                btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+            };
+            for (const [label, group] of CURSE_GROUPS) {
+                const chip = document.createElement("button");
+                chip.textContent = label;
+                setChipStyle(chip, false);
+                chip.addEventListener("click", () => {
+                    const sel = selectedCurseGroups.has(group);
+                    if (sel)
+                        selectedCurseGroups.delete(group);
+                    else
+                        selectedCurseGroups.add(group);
+                    setChipStyle(chip, !sel);
+                });
+                chipRow.appendChild(chip);
+            }
+            const curseActionRow = document.createElement("div");
+            curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+            curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
+                if (selectedCurseGroups.size === 0)
+                    return;
+                sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+            }, 2000));
+            curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+                sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+            }, 2000));
+            curseCBody.appendChild(chipRow);
+            curseCBody.appendChild(curseActionRow);
+            body.appendChild(curseWrap2);
         }
         renderExpressions(container) {
             var _a, _b;
@@ -31671,7 +31724,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.68";
+    const MOD_VERSION = "6.9.69";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31682,6 +31735,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.69",
+            changes: [
+                "Kitty tab: added ⛓ Curse section — group chips + Apply/Clear buttons, targets Emery only.",
+                "Fix: typing in a beep window no longer triggers WASD movement in map rooms.",
+                "Fix: panel height is now correctly restored in roaming mode (main menu) instead of being capped at 520 px.",
+            ],
+        },
         {
             version: "6.9.68",
             changes: [
@@ -39771,12 +39832,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         document.addEventListener("keydown", onChatKeydownCapture, true);
         // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
+            var _a, _b;
             try {
                 const ev = args[0];
                 // BC's InputKeyDown crashes at ev.key.length when ev.key is undefined.
                 // This can happen when a hook in the chain passes a synthetic/plain object
                 // instead of a real KeyboardEvent.  Guard here to prevent the crash.
                 if (!ev || typeof ev.key !== "string")
+                    return false;
+                // Don't let BC process movement keys (WASD / arrows) while the user is
+                // typing inside an EBC beep window — stopPropagation() on the textarea
+                // handles DOM-level listeners; this hook handles BC's function-call path.
+                const activeEl = document.activeElement;
+                if (activeEl && ((_b = (_a = activeEl).closest) === null || _b === void 0 ? void 0 : _b.call(_a, ".ebc-beep-win")))
                     return false;
                 if (ev.shiftKey)
                     return next(args);
@@ -39796,7 +39864,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
