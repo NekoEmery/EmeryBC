@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 4;    // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 5;    // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -46,6 +46,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
             "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
             "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
+            "Lovense: HTTP card is now a collapsible dropdown (click header to expand/collapse, state saved). Fixed all low-contrast text-muted colors in Lovense section to text-bright/text-sub.",
         ],
     },
     {
