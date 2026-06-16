@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.70";
+const MOD_VERSION = "6.9.71";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.71",
+        changes: [
+            "Safewords: owner, lover (LoversPadlock/LoversTimerPadlock), and family (FamilyPadlock) locks are now always protected — safeword release and grace period enforcement never remove them. Removed the now-redundant 'Exclude owner locks' toggle.",
+            "Fix: quick-reply toggle button in beep window footer no longer shows ▶/▼ arrow characters — uses a clean lines icon instead.",
+        ],
+    },
     {
         version: "6.9.70",
         changes: [

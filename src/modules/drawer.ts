@@ -4979,27 +4979,6 @@ export class EBCDrawer {
             graceDurRow.appendChild(graceDurUnit);
             swInner.appendChild(graceDurRow);
 
-            // -- Exclude owner locks toggle --
-            const exclRow = document.createElement("div");
-            exclRow.style.cssText = "display:flex;align-items:center;gap:6px;padding-left:66px;";
-            const exclBtn = document.createElement("button");
-            const exclAcc = "#9a70b0";
-            const setExclStyle = (on: boolean): void => {
-                exclBtn.style.background = on ? exclAcc + "44" : "transparent";
-                exclBtn.style.color       = on ? exclAcc        : "#6a4858";
-                exclBtn.textContent       = (on ? "✓ " : "○ ") + "Exclude owner locks";
-            };
-            exclBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${exclAcc}66;transition:background 0.12s,color 0.12s;`;
-            let exclState = cfg.excludeOwnerLocks;
-            setExclStyle(exclState);
-            exclBtn.addEventListener("click", () => {
-                exclState = !exclState;
-                setExclStyle(exclState);
-                setSafewordConfig({ ...getSafewordConfig(), excludeOwnerLocks: exclState });
-            });
-            exclRow.appendChild(exclBtn);
-            swInner.appendChild(exclRow);
-
             // -- Hint --
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";
@@ -12817,11 +12796,11 @@ export class EBCDrawer {
         footer.className = "ebc-beep-win-footer";
         footer.style.position = "relative";
 
-        // Small ▶/▼ toggle - collapses/expands the quick-reply bar above the footer
+        // Toggle button for the quick-reply bar above the footer
         const qrToggle = document.createElement("button");
         qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+        qrToggle.innerHTML = _mkIconSvg(`<path d="M2 4h12M2 8h8M2 12h10"/>`);
         const syncQrToggle = (): void => {
-            qrToggle.textContent = qrOpen ? "▼" : "▶";
             qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
             qrBar.style.display = qrOpen ? "" : "none";
         };
