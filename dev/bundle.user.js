@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.41
+// @version      6.9.42
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -5717,17 +5717,63 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // (string `ID` field, raw Appearance array) that CharacterLoadOnline expects.
     //
     // Large / privacy-sensitive fields are stripped before storage.
+    // localStorage cap: 100 entries (oldest evicted), tracked by EBC_bundle_idx.
     const BUNDLE_STRIP_FIELDS = [
         "Inventory", "BlockItems", "LimitedItems", "FavoriteItems",
         "ActivePose", "ArousalSettings", "OnlineSharedSettings",
         "WhiteList", "BlackList", "Crafting",
     ];
+    const BUNDLE_LS_MAX = 100;
+    const BUNDLE_IDX_KEY = "EBC_bundle_idx";
     // Tier 1: fast in-memory cache for the current session.
     const sessionCharacterBundles = new Map();
+    function readBundleIndex() {
+        try {
+            const raw = localStorage.getItem(BUNDLE_IDX_KEY);
+            if (!raw)
+                return [];
+            return JSON.parse(raw);
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function writeBundleIndex(idx) {
+        try {
+            localStorage.setItem(BUNDLE_IDX_KEY, JSON.stringify(idx));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function writeBundleToLS(num, bundle) {
+        try {
+            localStorage.setItem(`EBC_bundle_${num}`, JSON.stringify(bundle));
+            const idx = readBundleIndex().filter(n => n !== num);
+            idx.push(num);
+            if (idx.length > BUNDLE_LS_MAX) {
+                const evicted = idx.splice(0, idx.length - BUNDLE_LS_MAX);
+                for (const old of evicted) {
+                    try {
+                        localStorage.removeItem(`EBC_bundle_${old}`);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }
+            writeBundleIndex(idx);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    function readBundleFromLS(num) {
+        try {
+            const raw = localStorage.getItem(`EBC_bundle_${num}`);
+            return raw ? JSON.parse(raw) : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
     /**
      * Store the raw server bundle for an online character.
-     * Session cache only — IndexedDB was removed (caused persistent
-     * "[object Event]" unhandled rejections in Chrome that couldn't be suppressed).
+     * Writes to both the in-memory session cache and localStorage.
      */
     function storeRawBundle(data) {
         try {
@@ -5739,15 +5785,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             for (const f of BUNDLE_STRIP_FIELDS)
                 delete bundle[f];
             sessionCharacterBundles.set(num, bundle);
+            writeBundleToLS(num, bundle);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
     /**
-     * Retrieve a stored bundle — session cache only.
+     * Retrieve a stored bundle — session cache first, then localStorage fallback.
      */
     async function getCharacterBundle(memberNumber) {
-        var _a;
-        return (_a = sessionCharacterBundles.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
+        const session = sessionCharacterBundles.get(memberNumber);
+        if (session !== undefined)
+            return session;
+        return readBundleFromLS(memberNumber);
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
@@ -31125,7 +31174,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.41";
+    const MOD_VERSION = "6.9.42";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31137,8 +31186,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "6.9.41",
+            version: "6.9.42",
             changes: [
+                "Fix: Profile button now shows characters with their outfit and bio even across sessions. Character bundles (appearance, name, bio, etc.) are now persisted to localStorage (capped at 100 entries, oldest evicted) so profiles stay viewable after reloading the page. Previously bundles were session-memory only — reloading reset them and every offline profile showed a blank character.",
                 "LOVENSE UI: Full Toys tab redesign — connected toy name shown with green dot, purple-themed Connect/Disconnect buttons.",
                 "LOVENSE TRIGGERS: Added BODY TOUCH — 13 predefined actions (Headpat, Caress, Kiss, Lick, Bite, Spank, Slap, Tickle, Pinch, Squeeze, Rub, Choke, Grab) each with on/off toggle and per-trigger intensity/duration override.",
                 "LOVENSE TRIGGERS: Added BC TOY SYNC — mirror BC toy activations on ItemVulva/ItemVulvaPiercings/ItemButt/ItemNipples to Lovense at configurable intensity/duration.",
