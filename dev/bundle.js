@@ -28998,6 +28998,11 @@
                 lovContent.appendChild(sep());
                 const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
                 const touchData = EBCDrawer.getTouchTriggers();
+                // Collect all toy names known at render time (BLE + HTTP)
+                const allToyNames = [
+                    ...[...this._lovConnections.values()].map(c => c.name),
+                    ...this._lovHttpToys.map(t => t.name),
+                ].filter((n, i, a) => n && a.indexOf(n) === i);
                 const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
                 for (const def of TOUCH_DEFS) {
                     const stored = touchData[def.key];
@@ -29030,6 +29035,52 @@
                     r2.appendChild(dInp2);
                     r2.appendChild(sUnit);
                     cellWrap.appendChild(r2);
+                    // ── Toy selection chips (only shown when toys are known) ──────────
+                    let activeToyNames = stored === null || stored === void 0 ? void 0 : stored.toyNames;
+                    if (allToyNames.length > 0) {
+                        const r3 = mk("div", `display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-top:4px;${enNow ? "" : "opacity:0.4;"}`);
+                        const toyLbl = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        toyLbl.textContent = "Toy:";
+                        r3.appendChild(toyLbl);
+                        const chipStyle = (active) => `${FONT}font-size:9px;padding:1px 6px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "rgba(180,100,160,0.25)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};white-space:nowrap;`;
+                        // "All" chip — active when toyNames is undefined
+                        const allChip = document.createElement("button");
+                        allChip.textContent = "All";
+                        allChip.style.cssText = chipStyle(activeToyNames === undefined);
+                        const toyChips = allToyNames.map(name => {
+                            const chip = document.createElement("button");
+                            chip.textContent = name.replace(/^Lovense\s+/i, "");
+                            chip.style.cssText = chipStyle(activeToyNames !== undefined && activeToyNames.includes(name));
+                            return { name, el: chip };
+                        });
+                        const refreshChips = () => {
+                            allChip.style.cssText = chipStyle(activeToyNames === undefined);
+                            for (const { name, el } of toyChips)
+                                el.style.cssText = chipStyle(activeToyNames !== undefined && activeToyNames.includes(name));
+                        };
+                        allChip.addEventListener("click", () => {
+                            activeToyNames = undefined;
+                            refreshChips();
+                            saveTouchCell();
+                        });
+                        for (const { name, el } of toyChips) {
+                            el.addEventListener("click", () => {
+                                const cur = activeToyNames !== undefined ? [...activeToyNames] : [...allToyNames];
+                                const idx = cur.indexOf(name);
+                                if (idx >= 0)
+                                    cur.splice(idx, 1);
+                                else
+                                    cur.push(name);
+                                activeToyNames = cur.length === 0 || cur.length === allToyNames.length ? undefined : cur;
+                                refreshChips();
+                                saveTouchCell();
+                            });
+                        }
+                        r3.appendChild(allChip);
+                        for (const { el } of toyChips)
+                            r3.appendChild(el);
+                        cellWrap.appendChild(r3);
+                    }
                     const saveTouchCell = () => {
                         const iv = iInp2.value.trim();
                         const dv = dInp2.value.trim();
@@ -29037,6 +29088,7 @@
                             enabled: togEnabled,
                             intensity: iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined,
                             duration: dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined,
+                            toyNames: activeToyNames,
                         };
                         EBCDrawer.saveTouchTriggers(touchData);
                     };
@@ -29059,7 +29111,7 @@
                 }
                 touchBody.appendChild(touchGrid);
                 const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:2px 0 4px;`);
-                touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional - leave blank for defaults.";
+                touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional — leave blank for defaults.";
                 touchBody.appendChild(touchHint);
                 lovContent.appendChild(touchSec);
                 // ── BC TOY SYNC ──────────────────────────────────────────────────────
@@ -29776,7 +29828,7 @@
             card.appendChild(lovWrap);
             body.appendChild(card);
         }
-        async fireLovense(intensity, duration) {
+        async fireLovense(intensity, duration, allowedNames) {
             const s = getSettings();
             if (s.lovenseEnabled !== true)
                 return "";
@@ -29784,48 +29836,68 @@
             const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
             const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
             const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 60));
-            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
-            if (active.length === 0) {
-                // No BLE toys — fall through to HTTP path if configured
-                if (this._lovHttpUrl && this._lovHttpConnected) {
-                    return await this._lovHttpVibrate(finalI, finalD);
+            // Filter BLE connections — if allowedNames is set, only fire those toys by name
+            const active = [...this._lovConnections.values()].filter(c => {
+                var _a, _b;
+                return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null &&
+                    (allowedNames === undefined || allowedNames.includes(c.name));
+            });
+            // HTTP path: fire specific toys if allowedNames is set, or fall back to all HTTP if no BLE active
+            const httpToys = this._lovHttpUrl && this._lovHttpConnected
+                ? (allowedNames !== undefined
+                    ? this._lovHttpToys.filter(t => allowedNames.includes(t.name))
+                    : active.length === 0 ? this._lovHttpToys : []) // fallback to all HTTP only when no BLE
+                : [];
+            const results = [];
+            // BLE vibration
+            if (active.length > 0) {
+                const enc = new TextEncoder();
+                const doWrite = async (char, cmd) => {
+                    const d = enc.encode(cmd);
+                    // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
+                    // but throws "Access is denied" when it's called — fall back to writeValue.
+                    if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                        try {
+                            return await char.writeValueWithoutResponse(d);
+                        }
+                        catch ( /* fall through */_a) { /* fall through */ }
+                    }
+                    return await char.writeValue(d);
+                };
+                const errors = [];
+                const summaries = [];
+                await Promise.all(active.map(async (conn) => {
+                    const char = conn.char;
+                    const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
+                    const toyD = Math.max(1, Math.min(duration !== undefined ? duration : conn.duration, 60));
+                    try {
+                        await doWrite(char, `Vibrate:${toyI};`);
+                        setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, toyD * 1000);
+                        summaries.push(`${conn.name} ${toyI}/20`);
+                    }
+                    catch (err) {
+                        errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
+                    }
+                }));
+                if (errors.length > 0) {
+                    console.warn("[EBC Lovense] BLE write errors:", errors);
+                    results.push(`⚠ BLE error: ${errors.join("; ")}`);
                 }
+                else {
+                    results.push(`〜 BLE (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`);
+                }
+            }
+            // HTTP vibration
+            for (const toy of httpToys) {
+                const toyId = toy.id !== "http0" ? toy.id : undefined;
+                const r = await this._lovHttpVibrate(finalI, finalD, toyId);
+                if (r)
+                    results.push(r);
+            }
+            if (results.length === 0) {
                 return "⚠ Lovense: no toys connected (BLE or HTTP)";
             }
-            const enc = new TextEncoder();
-            const doWrite = async (char, cmd) => {
-                const d = enc.encode(cmd);
-                // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
-                // but throws "Access is denied" when it's called — fall back to writeValue.
-                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
-                    try {
-                        return await char.writeValueWithoutResponse(d);
-                    }
-                    catch ( /* fall through */_a) { /* fall through */ }
-                }
-                return await char.writeValue(d);
-            };
-            const errors = [];
-            const summaries = [];
-            await Promise.all(active.map(async (conn) => {
-                const char = conn.char;
-                // Trigger's explicit intensity overrides per-toy setting; otherwise use the toy's own default
-                const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
-                const toyD = Math.max(1, Math.min(duration !== undefined ? duration : conn.duration, 60));
-                try {
-                    await doWrite(char, `Vibrate:${toyI};`);
-                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, toyD * 1000);
-                    summaries.push(`${conn.name} ${toyI}/20`);
-                }
-                catch (err) {
-                    errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
-                }
-            }));
-            if (errors.length > 0) {
-                console.warn("[EBC Lovense] BLE write errors:", errors);
-                return `⚠ Lovense BLE error: ${errors.join("; ")}`;
-            }
-            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
+            return results.join(" | ");
         }
         _updateVersionTitle() {
             if (!this._versionTitleEl)
@@ -30028,7 +30100,7 @@
             this._lovHttpToys = [];
             return false;
         }
-        async _lovHttpVibrate(intensity, durationSec) {
+        async _lovHttpVibrate(intensity, durationSec, toyId) {
             const url = this._lovHttpUrl;
             if (!url)
                 return "⚠ Lovense HTTP: not configured";
@@ -30036,11 +30108,15 @@
             const t = Math.max(0, Math.min(Math.round(durationSec), 60));
             // Try POST /command first (current Lovense Connect API).
             try {
-                const res = await this._lovPostCommand({ command: "Function", action: `Vibrate:${v}`, timeSec: t, apiVer: 1 });
+                const cmd = { command: "Function", action: `Vibrate:${v}`, timeSec: t, apiVer: 1 };
+                if (toyId)
+                    cmd["toy"] = toyId;
+                const res = await this._lovPostCommand(cmd);
                 if (res && !EBCDrawer._lovIsError(res.json)) {
                     if (v === 0)
                         return "";
-                    return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+                    const toyLabel = toyId ? ` (${toyId.slice(-4)})` : "";
+                    return `〜 Lovense HTTP${toyLabel}: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
                 }
             }
             catch ( /* fall through */_a) { /* fall through */ }
@@ -30100,7 +30176,7 @@
                     const enabled = stored ? stored.enabled : def.dflt;
                     if (!enabled)
                         continue;
-                    this.fireLovense(stored === null || stored === void 0 ? void 0 : stored.intensity, stored === null || stored === void 0 ? void 0 : stored.duration).catch(() => { });
+                    this.fireLovense(stored === null || stored === void 0 ? void 0 : stored.intensity, stored === null || stored === void 0 ? void 0 : stored.duration, stored === null || stored === void 0 ? void 0 : stored.toyNames).catch(() => { });
                     return;
                 }
                 // BC toy sync - live poller handles the intensity; just ensure it's started
@@ -32349,7 +32425,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 18; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 19; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32366,6 +32442,7 @@
         {
             version: "8.1.2",
             changes: [
+                "Lovense: per-action toy routing — each body-touch trigger (headpat, spank, etc.) now has toy chips showing all connected toys. Click a chip to restrict that trigger to a specific toy; 'All' resets to firing everything. Works across both BLE and HTTP toys simultaneously.",
                 "Lovense HTTP: connected toys now appear as cards (matching BLE style) with a Test button and per-toy Intensity/Seconds sliders. Attempts to fetch real toy names via GetToys command; falls back to 'Lovense Connect' placeholder if unavailable.",
                 "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
                 "UI: brightened --ebc-text-sub across all themes (was too low-contrast on dark backgrounds); affects secondary labels, hints, and notes throughout the panel.",
