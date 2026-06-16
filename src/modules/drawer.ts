@@ -21374,14 +21374,10 @@ export class EBCDrawer {
 
             const charHasVibs = (memberNum: number): boolean => {
                 try {
-                    const lookup = (window as unknown as { VibratorModeDataLookup?: Record<string, unknown> }).VibratorModeDataLookup ?? {};
-                    const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Appearance?: Array<{ Asset?: { Name?: string; Group?: { Name?: string } } }> }> }).ChatRoomCharacter;
+                    const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Appearance?: Array<{ Asset?: { Archetype?: string } }> }> }).ChatRoomCharacter;
                     const ch = (roomChars ?? []).find(c => c.MemberNumber === memberNum);
                     if (!ch?.Appearance) return false;
-                    return ch.Appearance.some(item => {
-                        if (!item.Asset?.Group?.Name || !item.Asset?.Name) return false;
-                        return (item.Asset.Group.Name + item.Asset.Name) in lookup;
-                    });
+                    return ch.Appearance.some(item => item.Asset?.Archetype === "vibrating");
                 } catch { return false; }
             };
 
