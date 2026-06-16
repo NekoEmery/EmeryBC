@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.73
+// @version      8.1.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11478,7 +11478,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        constructor(version = "", isDev = false) {
+        constructor(version = "", isDev = false, salVersion = 0) {
             this.rootEl = null; // zero-width anchor (positioned)
             this.panelEl = null; // sliding panel (transforms)
             this.isOpen = false;
@@ -11489,6 +11489,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.hasBeenShown = false;
             this.version = "";
             this.isDev = false;
+            this.salVersion = 0;
             this.refreshConfirmToggle = null;
             this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
@@ -11541,6 +11542,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._lovConnections = new Map();
             this._bcLiveSyncPoller = null;
             this._bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+            this._lovHttpUrl = null;
+            this._lovHttpConnected = false;
+            this._lovHttpToyCount = 0;
             this._toyCtrlSessions = new Map();
             this._toyPendingOut = new Map();
             this._toyGrantedTo = new Map();
@@ -11559,6 +11563,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
+            this.salVersion = salVersion;
             // Live-update the DEV tab whisper log section when new messages arrive
             setWhisperUpdateCallback(() => {
                 if (this.isOpen && this.currentTab === "dev") {
@@ -11580,6 +11585,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
+            var _a;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -11732,7 +11738,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             title.style.alignItems = "baseline";
             title.style.gap = "5px";
             const titleMain = document.createElement("span");
-            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+            const _isEmeryHdr = ((_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber) === EMERY_MEMBER;
+            const _salSuffix = _isEmeryHdr && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + _salSuffix;
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
@@ -28397,13 +28405,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lovContent.appendChild(lvsHdr("CONNECTION"));
                 const nav = navigator;
                 const btApi = nav["bluetooth"];
-                if (!btApi) {
-                    const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:6px;padding:8px 10px;margin:4px 0 10px;line-height:1.6;`);
-                    noBlue.innerHTML = "<b>Web Bluetooth not available</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys.";
-                    lovContent.appendChild(noBlue);
-                }
-                else {
+                // ── BLE (Web Bluetooth) ─────────────────────────────────────────────
+                if (btApi) {
                     const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                    bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                    connCard.appendChild(bleHdrRow);
                     const toyListEl = mk("div", "margin-bottom:8px;");
                     const LVS_SERVICES = [
                         "0000fff0-0000-1000-8000-00805f9b34fb",
@@ -28512,9 +28519,72 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     connBtnRow.appendChild(lovConnBtn);
                     connCard.appendChild(connBtnRow);
                     const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
-                    connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                    connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
                     connCard.appendChild(connNote);
                     lovContent.appendChild(connCard);
+                }
+                // ── HTTP (Lovense Connect app) ───────────────────────────────────────
+                // Works in all browsers (Firefox, Safari, Chrome, etc.).
+                // Requires the Lovense Connect app running locally.
+                {
+                    const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    const httpHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                    httpHdrRow.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                    httpCard.appendChild(httpHdrRow);
+                    // Load saved URL
+                    const savedHttpUrl = typeof s["lovenseHttpUrl"] === "string" ? s["lovenseHttpUrl"] : "";
+                    if (savedHttpUrl) {
+                        this._lovHttpUrl = savedHttpUrl || null;
+                    }
+                    const urlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                    const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    urlLbl.textContent = "URL:";
+                    const urlInp = document.createElement("input");
+                    urlInp.type = "text";
+                    urlInp.value = savedHttpUrl || "http://127.0.0.1:20010";
+                    urlInp.placeholder = "http://127.0.0.1:20010";
+                    urlInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;min-width:0;box-sizing:border-box;`;
+                    urlRow.appendChild(urlLbl);
+                    urlRow.appendChild(urlInp);
+                    httpCard.appendChild(urlRow);
+                    const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                    const httpTestBtn = document.createElement("button");
+                    httpTestBtn.textContent = "Test Connection";
+                    httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
+                    const httpStatus = mk("span", `${FONT}font-size:11px;`);
+                    httpStatus.textContent = this._lovHttpConnected
+                        ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
+                        : "⚫ Not tested";
+                    httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-muted)";
+                    httpBtnRow.appendChild(httpTestBtn);
+                    httpBtnRow.appendChild(httpStatus);
+                    httpCard.appendChild(httpBtnRow);
+                    httpTestBtn.addEventListener("click", () => {
+                        const rawUrl = urlInp.value.trim().replace(/\/$/, "");
+                        if (!rawUrl)
+                            return;
+                        s["lovenseHttpUrl"] = rawUrl;
+                        syncSettings();
+                        this._lovHttpUrl = rawUrl;
+                        httpTestBtn.disabled = true;
+                        httpStatus.textContent = "🔄 Testing…";
+                        httpStatus.style.color = "var(--ebc-text-muted)";
+                        this._lovHttpPing().then(ok => {
+                            httpTestBtn.disabled = false;
+                            if (ok) {
+                                httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                                httpStatus.style.color = "#80c080";
+                            }
+                            else {
+                                httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
+                                httpStatus.style.color = "#e07070";
+                            }
+                        });
+                    });
+                    const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.6;`);
+                    httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
+                    httpCard.appendChild(httpNote);
+                    lovContent.appendChild(httpCard);
                 }
                 // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
                 lovContent.appendChild(sep());
@@ -29437,13 +29507,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getSettings();
             if (s.lovenseEnabled !== true)
                 return "";
-            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
-            if (active.length === 0)
-                return "⚠ Lovense: no toys connected via Bluetooth";
             const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
             const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
             const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
             const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 60));
+            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
+            if (active.length === 0) {
+                // No BLE toys — fall through to HTTP path if configured
+                if (this._lovHttpUrl && this._lovHttpConnected) {
+                    return await this._lovHttpVibrate(finalI, finalD);
+                }
+                return "⚠ Lovense: no toys connected (BLE or HTTP)";
+            }
             const enc = new TextEncoder();
             const doWrite = (char, cmd) => {
                 const d = enc.encode(cmd);
@@ -29508,8 +29583,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         async _lovWriteLevel(intensity) {
             const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
-            if (active.length === 0)
+            if (active.length === 0) {
+                // HTTP path for BC live sync (t=0 = continuous until next command)
+                if (this._lovHttpUrl && this._lovHttpConnected) {
+                    await this._lovHttpVibrate(intensity, 0);
+                }
                 return;
+            }
             const enc = new TextEncoder();
             const cmd = enc.encode(`Vibrate:${intensity};`);
             await Promise.all(active.map(async (conn) => {
@@ -29521,6 +29601,57 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 catch ( /* ignore BLE errors */_a) { /* ignore BLE errors */ }
             }));
+        }
+        async _lovHttpPing() {
+            if (!this._lovHttpUrl)
+                return false;
+            try {
+                const resp = await fetch(this._lovHttpUrl + "/GetToys", {
+                    signal: AbortSignal.timeout(4000),
+                });
+                if (!resp.ok) {
+                    this._lovHttpConnected = false;
+                    return false;
+                }
+                const json = await resp.json();
+                if ((json === null || json === void 0 ? void 0 : json.data) && typeof json.data === "object") {
+                    this._lovHttpToyCount = Object.keys(json.data).length;
+                }
+                else {
+                    this._lovHttpToyCount = 0;
+                }
+                this._lovHttpConnected = true;
+                return true;
+            }
+            catch (_a) {
+                this._lovHttpConnected = false;
+                return false;
+            }
+        }
+        async _lovHttpVibrate(intensity, durationSec) {
+            const url = this._lovHttpUrl;
+            if (!url)
+                return "⚠ Lovense HTTP: not configured";
+            try {
+                const v = Math.max(0, Math.min(Math.round(intensity), 20));
+                // t=0 means continuous (stop only via next command); t>0 means auto-stop
+                const t = Math.max(0, Math.min(Math.round(durationSec), 60));
+                const resp = await fetch(`${url}/Vibrate?v=${v}&t=${t}`, {
+                    signal: AbortSignal.timeout(3000),
+                });
+                if (!resp.ok) {
+                    this._lovHttpConnected = false;
+                    return `⚠ Lovense HTTP: server error ${resp.status}`;
+                }
+                if (v === 0)
+                    return "";
+                return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+            }
+            catch (err) {
+                this._lovHttpConnected = false;
+                const msg = err instanceof Error ? err.message : String(err);
+                return `⚠ Lovense HTTP error: ${msg}`;
+            }
         }
         checkLovenseTriggers(content) {
             try {
@@ -31801,7 +31932,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.73";
+    const MOD_VERSION = "8.1.1";
+    const SAL_VERSION = 1; // internal sub-version — only shown to Emery
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31812,6 +31944,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.1.1",
+            changes: [
+                "Lovense: added HTTP connection path via Lovense Connect app — works on Firefox and other non-BLE browsers. Configure the local API URL (default http://127.0.0.1:20010) in the IRL Toys section.",
+                "LianChat compat: EBC beep hook now always passes events through the mod chain so mods like LianChat running on the same client also see incoming friend beeps.",
+                "Version jump to 8.1.1. Internal sal sub-version counter added (only visible to Emery).",
+            ],
+        },
         {
             version: "6.9.73",
             changes: [
@@ -37488,7 +37628,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => doAppend(), 300);
     }
     function showVersionInfo() {
-        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
+        var _a;
+        const isEmery = ((_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber) === EMERY_MEMBER;
+        const salStr = isEmery ? ` (s${SAL_VERSION})` : "";
+        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
     }
     function showChangelog() {
         const latest = CHANGELOG[0];
@@ -38845,7 +38988,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         let drawer = null;
         try {
             EBCDrawer.pawDataUri = EBC_PAW_DATA;
-            drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
+            drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).
             window.setTimeout(() => { try {
@@ -39680,11 +39823,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
                 catch ( /* ignore */_m) { /* ignore */ }
-                // Suppress BC's native chat-log notification for ALL friend beeps when
-                // the toggle is on. document.hidden is intentionally NOT checked here —
-                // OS-level notifications come through FriendListBeep, not this path.
+                // Suppress EBC's own sound already ran above. Always call next() here so
+                // other mods in the chain (LianChat, WCE, etc.) also see this beep —
+                // returning without next() would block their hooks silently.
                 if (!getUseNativeBeepSound() && getSuppressNativeBeep())
-                    return;
+                    return next(args);
             }
             catch ( /* ignore */_o) { /* ignore */ }
             return next(args);
