@@ -21981,12 +21981,15 @@ export class EBCDrawer {
                 signal: AbortSignal.timeout(4000),
             });
             if (!resp.ok) { this._lovHttpConnected = false; return false; }
-            const json = await resp.json() as { data?: Record<string, unknown> } | null;
-            if (json?.data && typeof json.data === "object") {
-                this._lovHttpToyCount = Object.keys(json.data).length;
-            } else {
-                this._lovHttpToyCount = 0;
+            const json = await resp.json() as { data?: Record<string, unknown> | string } | null;
+            // Lovense Connect v1 API returns data as a JSON-encoded string, not an object.
+            let toyData: Record<string, unknown> | null = null;
+            if (typeof json?.data === "string") {
+                try { toyData = JSON.parse(json.data) as Record<string, unknown>; } catch { /* ignore */ }
+            } else if (json?.data && typeof json.data === "object") {
+                toyData = json.data;
             }
+            this._lovHttpToyCount = toyData ? Object.keys(toyData).length : 0;
             this._lovHttpConnected = true;
             return true;
         } catch {
