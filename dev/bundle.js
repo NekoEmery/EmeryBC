@@ -12178,28 +12178,44 @@
             // Collapsible settings panel - rebuilt on every open so values + outfit list are always fresh
             const swInner = document.createElement("div");
             swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
+            // Grace row lives outside buildSwInner so it can appear/update while the panel stays open.
+            let swGraceRow = null;
+            let swGraceLbl = null;
+            let swGraceTicker = null;
+            const refreshGraceRow = () => {
+                const active = isGraceActive();
+                swGraceTag.style.display = active ? "" : "none";
+                if (!active) {
+                    if (swGraceRow && swGraceRow.parentNode)
+                        swGraceRow.parentNode.removeChild(swGraceRow);
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                    return;
+                }
+                if (!swGraceRow) {
+                    swGraceRow = document.createElement("div");
+                    swGraceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+                    swGraceLbl = document.createElement("span");
+                    swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
+                    const cancelBtn = document.createElement("button");
+                    cancelBtn.textContent = t("sw.endGrace");
+                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    cancelBtn.addEventListener("click", () => { endGrace(); refreshGraceRow(); });
+                    swGraceRow.appendChild(swGraceLbl);
+                    swGraceRow.appendChild(cancelBtn);
+                    swInner.insertBefore(swGraceRow, swInner.firstChild);
+                }
+                const rem = getGraceRemaining();
+                if (swGraceLbl) {
+                    swGraceLbl.textContent = rem === Infinity
+                        ? "🛡 Grace active (indefinite)"
+                        : `🛡 Grace active — ${Math.ceil(rem / 60000)} min remaining`;
+                }
+            };
             const buildSwInner = () => {
                 while (swInner.firstChild)
                     swInner.removeChild(swInner.firstChild);
                 const cfg = getSafewordConfig();
-                // -- Grace active row --
-                if (isGraceActive()) {
-                    const graceRow = document.createElement("div");
-                    graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
-                    const graceLbl = document.createElement("span");
-                    graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
-                    const rem = getGraceRemaining();
-                    graceLbl.textContent = rem === Infinity
-                        ? "🛡 Grace active (indefinite)"
-                        : `🛡 Grace active - ${Math.ceil(rem / 60000)} min remaining`;
-                    const cancelBtn = document.createElement("button");
-                    cancelBtn.textContent = t("sw.endGrace");
-                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                    cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
-                    graceRow.appendChild(graceLbl);
-                    graceRow.appendChild(cancelBtn);
-                    swInner.appendChild(graceRow);
-                }
                 // -- Per-word section builder --
                 const makeWordSection = (accentColor, wordLabel, wordValue, onWordSave, actions, outfitLabel, outfitId, onOutfitPick) => {
                     const section = document.createElement("div");
@@ -12328,9 +12344,24 @@
                         buildSwInner();
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    // buildSwInner wiped the DOM — reset refs then paint the grace row
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                    refreshGraceRow();
+                    // Keep grace status live while the panel stays open
+                    swGraceTicker = window.setInterval(() => { try {
+                        refreshGraceRow();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, 5000);
                 }
-                // Update grace tag on header
-                swGraceTag.style.display = isGraceActive() ? "" : "none";
+                else {
+                    if (swGraceTicker !== null) {
+                        clearInterval(swGraceTicker);
+                        swGraceTicker = null;
+                    }
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                }
             });
             safewordRow.appendChild(swInner);
             // Body
@@ -31724,7 +31755,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.71";
+    const MOD_VERSION = "6.9.72";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31735,6 +31766,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.72",
+            changes: [
+                "Fix: grace period banner in the Safewords tab now appears and stays live while the tab is open — no longer requires closing and reopening the tab to see it after a safeword triggers.",
+            ],
+        },
         {
             version: "6.9.71",
             changes: [
