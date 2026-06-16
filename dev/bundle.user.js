@@ -2545,6 +2545,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- LianChat compatibility ----------------------------------------------------
+    // When ON, lets BC's native beep handler run after EBC so mods like LianChat
+    // can piggyback on it — but this also shows beeps in BC's default chat window.
+    function getLianChatCompat() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.lianChatCompat) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setLianChatCompat(value) {
+        try {
+            const store = getSettings();
+            store.lianChatCompat = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Online friend notification sound -----------------------------------------
     function getOnlineSoundEnabled() {
         var _a;
@@ -20893,6 +20913,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }));
             chatSettingsBody.appendChild(mkToggleRow("Use BC native beep sound", getUseNativeBeepSound, (v) => setUseNativeBeepSound(v)));
             chatSettingsBody.appendChild(mkToggleRow("Sound when friend comes online", getOnlineSoundEnabled, (v) => setOnlineSoundEnabled(v)));
+            chatSettingsBody.appendChild(mkToggleRow("LianChat compatibility", getLianChatCompat, (v) => setLianChatCompat(v)));
+            const lianHint = document.createElement("div");
+            lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
+            lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
+            chatSettingsBody.appendChild(lianHint);
             // ── AFK sub-section (nested collapsible) ──────────────────────────────
             const afkSubDiv = document.createElement("div");
             afkSubDiv.className = "ebc-divider";
@@ -32153,7 +32178,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 8; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 9; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32170,6 +32195,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Settings: added 'LianChat compatibility' toggle in Chat & Notifications — OFF by default (beeps suppressed from BC chat); ON lets BC native run so LianChat/WCE get full passthrough at the cost of beeps appearing in BC's default chat.",
                 "Fix: beep suppression now uses a sentinel hook so LianChat/WCE still see friend beeps through the mod chain, but BC's native chat notification is blocked as intended.",
                 "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
                 "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
@@ -40076,12 +40102,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Sentinel hook at priority 0 (runs just before BC native). When _ebcBlockBeepNative
         // is set by the priority-3 hook above, we swallow the call here so BC's native
         // notification never fires — while LianChat/WCE hooks at intermediate priorities
-        // have already seen the beep normally.
+        // have already seen the beep normally. If LianChat compat is ON the user has opted
+        // in to BC's native handling (which shows beeps in chat), so we skip the block.
         tryHookFunction(modAPI, "ServerAccountBeep", 0, (args, next) => {
-            if (_ebcBlockBeepNative) {
+            if (_ebcBlockBeepNative && !getLianChatCompat()) {
                 _ebcBlockBeepNative = false;
                 return;
             }
+            _ebcBlockBeepNative = false;
             return next(args);
         });
         // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
