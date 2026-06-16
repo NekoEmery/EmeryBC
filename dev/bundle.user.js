@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.51
+// @version      6.9.52
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28366,7 +28366,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         renderToys() {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -29098,6 +29098,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const gtWl = EBCDrawer.getGameToyWhitelist();
             const wlListEl = mk("div", "margin-bottom:8px;");
             const renderWl = () => {
+                var _a, _b;
                 while (wlListEl.firstChild)
                     wlListEl.removeChild(wlListEl.firstChild);
                 if (!gtWl.length) {
@@ -29123,49 +29124,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         wlListEl.appendChild(wlRow);
                     });
                 }
+                // Add from room dropdown — rebuilt every time so removals reappear
+                const wlRoomChs = window.ChatRoomCharacter;
+                const wlMyMN2 = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber;
+                const wlPeers = (wlRoomChs !== null && wlRoomChs !== void 0 ? wlRoomChs : []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN2 && !gtWl.includes(c.MemberNumber));
+                if (wlPeers.length > 0) {
+                    const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                    const roomSel = document.createElement("select");
+                    roomSel.style.cssText = GTSel;
+                    const defOpt = document.createElement("option");
+                    defOpt.value = "";
+                    defOpt.textContent = "Add from room…";
+                    defOpt.disabled = true;
+                    defOpt.selected = true;
+                    roomSel.appendChild(defOpt);
+                    for (const c of wlPeers) {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.MemberNumber);
+                        opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                        roomSel.appendChild(opt);
+                    }
+                    const roomAddBtn = document.createElement("button");
+                    roomAddBtn.textContent = "+ Add";
+                    roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                    roomAddBtn.addEventListener("click", () => {
+                        const num = parseInt(roomSel.value, 10);
+                        if (!num || isNaN(num) || gtWl.includes(num))
+                            return;
+                        gtWl.push(num);
+                        EBCDrawer.saveGameToyWhitelist(gtWl);
+                        renderWl();
+                    });
+                    fromRoomRow.appendChild(roomSel);
+                    fromRoomRow.appendChild(roomAddBtn);
+                    wlListEl.appendChild(fromRoomRow);
+                }
             };
             renderWl();
             privCard.appendChild(wlListEl);
-            // Add from current room
-            const wlRoomChars = window.ChatRoomCharacter;
-            const wlPlayerW = window.Player;
-            const wlMyMN = wlPlayerW === null || wlPlayerW === void 0 ? void 0 : wlPlayerW.MemberNumber;
-            const wlRoomPeers = (wlRoomChars !== null && wlRoomChars !== void 0 ? wlRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== wlMyMN && !gtWl.includes(c.MemberNumber));
-            if (wlRoomPeers.length > 0) {
-                const fromRoomRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;");
-                const roomSel = document.createElement("select");
-                roomSel.style.cssText = GTSel;
-                const defOpt = document.createElement("option");
-                defOpt.value = "";
-                defOpt.textContent = "Add from room…";
-                defOpt.disabled = true;
-                defOpt.selected = true;
-                roomSel.appendChild(defOpt);
-                for (const c of wlRoomPeers) {
-                    const opt = document.createElement("option");
-                    opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
-                    roomSel.appendChild(opt);
-                }
-                const roomAddBtn = document.createElement("button");
-                roomAddBtn.textContent = "+ Add";
-                roomAddBtn.style.cssText = `${FONT}font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
-                roomAddBtn.addEventListener("click", () => {
-                    const num = parseInt(roomSel.value, 10);
-                    if (!num || isNaN(num) || gtWl.includes(num))
-                        return;
-                    gtWl.push(num);
-                    EBCDrawer.saveGameToyWhitelist(gtWl);
-                    const opt = roomSel.querySelector(`option[value="${num}"]`);
-                    if (opt)
-                        opt.remove();
-                    roomSel.value = "";
-                    renderWl();
-                });
-                fromRoomRow.appendChild(roomSel);
-                fromRoomRow.appendChild(roomAddBtn);
-                privCard.appendChild(fromRoomRow);
-            }
             // Manual member # entry
             const wlAddRow = mk("div", "display:flex;align-items:center;gap:6px;");
             const wlInp = document.createElement("input");
@@ -29196,7 +29192,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const gtRoomChars = window.ChatRoomCharacter;
             const gtPlayerW = window.Player;
             const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
-            const gtFriendNums = (_e = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _e !== void 0 ? _e : [];
+            const gtFriendNums = (_d = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _d !== void 0 ? _d : [];
             const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
             const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
             if (gtFriendsInRoom.length === 0) {
@@ -29211,7 +29207,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const c of gtFriendsInRoom) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_f = c.Nickname) !== null && _f !== void 0 ? _f : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_e = c.Nickname) !== null && _e !== void 0 ? _e : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     friendSel.appendChild(opt);
                 }
                 const reqBtn = document.createElement("button");
@@ -29247,17 +29243,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         sessTop.appendChild(endBtn);
                         sessCard.appendChild(sessTop);
                         const TOY_MODE_ROWS = [
-                            [{ label: "Off", mode: "Off" }, { label: "Low", mode: "Low" }, { label: "Medium", mode: "Medium" }, { label: "High", mode: "High" }, { label: "Max", mode: "Maximum" }],
-                            [{ label: "Tease", mode: "Tease" }, { label: "Random", mode: "Random" }, { label: "Escalate", mode: "Escalate" }, { label: "Deny", mode: "Deny" }, { label: "Edge", mode: "Edge" }],
+                            [
+                                { label: "Off", mode: "Off", color: "#7a7a9a" },
+                                { label: "Low", mode: "Low", color: "#50b870" },
+                                { label: "Medium", mode: "Medium", color: "#c8a030" },
+                                { label: "High", mode: "High", color: "#d06820" },
+                                { label: "Max", mode: "Maximum", color: "#d03060" },
+                            ],
+                            [
+                                { label: "Tease", mode: "Tease", color: "#9060d0" },
+                                { label: "Random", mode: "Random", color: "#3888d0" },
+                                { label: "Escalate", mode: "Escalate", color: "#c05028" },
+                                { label: "Deny", mode: "Deny", color: "#a02040" },
+                                { label: "Edge", mode: "Edge", color: "#c03898" },
+                            ],
                         ];
                         for (const mRow of TOY_MODE_ROWS) {
-                            const rowEl = mk("div", "display:flex;gap:5px;margin-bottom:5px;");
+                            const rowEl = mk("div", "display:flex;gap:4px;margin-bottom:5px;");
                             for (const m of mRow) {
                                 const mBtn = document.createElement("button");
                                 mBtn.textContent = m.label;
-                                mBtn.style.cssText = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:5px 2px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:var(--ebc-bg);color:var(--ebc-text-bright);transition:background 0.1s,border-color 0.1s,color 0.1s;`;
-                                mBtn.addEventListener("mouseenter", () => { mBtn.style.background = "var(--ebc-bg-mid)"; mBtn.style.borderColor = "var(--ebc-accent)"; mBtn.style.color = "var(--ebc-accent)"; });
-                                mBtn.addEventListener("mouseleave", () => { mBtn.style.background = "var(--ebc-bg)"; mBtn.style.borderColor = "var(--ebc-border)"; mBtn.style.color = "var(--ebc-text-bright)"; });
+                                const baseCSS = `${FONT}flex:1;font-size:10px;font-weight:bold;padding:6px 2px;border-radius:5px;cursor:pointer;border:1px solid ${m.color}44;background:${m.color}18;color:${m.color};transition:background 0.1s,border-color 0.1s;`;
+                                mBtn.style.cssText = baseCSS;
+                                mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
+                                mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
                                 mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
                                 rowEl.appendChild(mBtn);
                             }
@@ -29474,41 +29483,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         _applyBCVibratorMode(modeName) {
-            var _a, _b, _c, _d;
+            var _a, _b;
             try {
                 const win = window;
                 const player = win.Player;
                 if (!(player === null || player === void 0 ? void 0 : player.Appearance))
                     return;
                 const lookup = (_a = win.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
-                const wantsVibrating = modeName !== "Off";
-                const intensityMap = { Off: -1, Low: 0, Medium: 1, High: 2, Maximum: 3 };
-                const finalIntensity = (_b = intensityMap[modeName]) !== null && _b !== void 0 ? _b : 0;
-                const changed = [];
                 for (const item of player.Appearance) {
                     const key = item.Asset.Group.Name + item.Asset.Name;
                     if (!(key in lookup))
                         continue;
-                    if (!item.Property)
-                        item.Property = {};
-                    item.Property["Mode"] = modeName;
-                    item.Property["Intensity"] = finalIntensity;
-                    const eff = Array.isArray(item.Property["Effect"]) ? [...item.Property["Effect"]] : [];
-                    if (wantsVibrating && !eff.includes("Vibrating"))
-                        eff.push("Vibrating");
-                    if (!wantsVibrating)
-                        item.Property["Effect"] = eff.filter((e) => e !== "Vibrating");
-                    else
-                        item.Property["Effect"] = eff;
-                    changed.push(item.Asset.Group.Name);
+                    (_b = win.VibratorModeSetOptionByName) === null || _b === void 0 ? void 0 : _b.call(win, player, item, modeName, true);
                 }
-                if (changed.length === 0)
-                    return;
-                (_c = win.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(win, player, false, false);
-                for (const group of changed)
-                    (_d = win.ChatRoomCharacterItemUpdate) === null || _d === void 0 ? void 0 : _d.call(win, player, group);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         sendIrlToyMsg(targetNum, type, intensity, duration) {
             try {
@@ -31694,7 +31683,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.51";
+    const MOD_VERSION = "6.9.52";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31705,6 +31694,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.52",
+            changes: [
+                "Fix: GAME TOYS vibrator control now works — uses BC's VibratorModeSetOptionByName() instead of manual property manipulation.",
+                "Fix: Whitelist room dropdown now reappears after removing an entry (rebuilt on every renderWl call).",
+                "GAME TOYS: Mode buttons now color-coded (Off=grey, Low=green, Medium=gold, High=orange, Max=pink, Tease=purple, Random=blue, Escalate=burnt-orange, Deny=red, Edge=magenta).",
+            ],
+        },
         {
             version: "6.9.51",
             changes: [
