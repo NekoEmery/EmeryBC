@@ -20922,10 +20922,10 @@ export class EBCDrawer {
                                     wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
                                     return wrap;
                                 };
-                                sRow.appendChild(mkTinySlider("I:", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
                                 const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
                                 sRow.appendChild(divider);
-                                sRow.appendChild(mkTinySlider("D:", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
                                 tCard.appendChild(sRow);
                             }
                             toyListEl.appendChild(tCard);
@@ -21072,8 +21072,13 @@ export class EBCDrawer {
                     this._lovHttpPing().then(ok => {
                         httpTestBtn.disabled = false;
                         if (ok) {
-                            httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
-                            httpStatus.style.color = "#80c080";
+                            if (this._lovHttpToyCount === 0) {
+                                httpStatus.textContent = "⚠ Connected but 0 toys — enable Allow Control in Lovense Connect";
+                                httpStatus.style.color = "#e0b060";
+                            } else {
+                                httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                                httpStatus.style.color = "#80c080";
+                            }
                         } else {
                             httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
                             httpStatus.style.color = "#e07070";
@@ -21082,7 +21087,7 @@ export class EBCDrawer {
                 });
 
                 const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
-                httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
+                httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Setup: click the <b>Lovense Connect icon</b> in your system tray → <b>Connect Toys</b> → <b>External Control</b> → enable <b>Allow Control</b>.";
                 httpBody.appendChild(httpNote);
                 const httpAppLink = document.createElement("a");
                 httpAppLink.href = "https://www.lovense.com/app/remote";
