@@ -28813,11 +28813,6 @@
             wlHdrEl.textContent = "WHITELIST — always allowed:";
             privCard.appendChild(wlHdrEl);
             const gtWl = EBCDrawer.getGameToyWhitelist();
-            // Member 230466 is always allowed
-            if (!gtWl.includes(230466)) {
-                gtWl.push(230466);
-                EBCDrawer.saveGameToyWhitelist(gtWl);
-            }
             const wlListEl = mk("div", "margin-bottom:8px;");
             const renderWl = () => {
                 while (wlListEl.firstChild)
@@ -31079,10 +31074,9 @@
             const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
             if (kittyTabEl)
                 kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
-            // Show the Toys tab only for Emery (#130267) while it's in development
             const toysTabEl = (_f = this.rootEl) === null || _f === void 0 ? void 0 : _f.querySelector("#ebc-tab-toys");
             if (toysTabEl)
-                toysTabEl.style.display = Player.MemberNumber === EMERY_MEMBER ? "" : "none";
+                toysTabEl.style.display = (Player.MemberNumber === EMERY_MEMBER || Player.MemberNumber === LUCY_MEMBER) ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
@@ -31297,7 +31291,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.45";
+    const MOD_VERSION = "6.9.46";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31308,6 +31302,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.46",
+            changes: [
+                "Toys tab now visible for Lucy (#230466) in addition to Emery.",
+                "Fix: removed auto-injection of #230466 into every user's game toy whitelist (was a mistake from v6.9.43).",
+            ],
+        },
         {
             version: "6.9.45",
             changes: [
