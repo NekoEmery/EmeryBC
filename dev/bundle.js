@@ -5897,6 +5897,7 @@
         redGrace: true,
         redAnnounce: true,
         redLeave: true,
+        excludeOwnerLocks: false,
     };
     function getSafewordConfig() {
         const raw = getSettings().safeword;
@@ -5919,6 +5920,7 @@
             redGrace: b("redGrace", DEFAULTS.redGrace),
             redAnnounce: b("redAnnounce", DEFAULTS.redAnnounce),
             redLeave: b("redLeave", DEFAULTS.redLeave),
+            excludeOwnerLocks: b("excludeOwnerLocks", DEFAULTS.excludeOwnerLocks),
         };
     }
     function setSafewordConfig(cfg) {
@@ -5949,6 +5951,12 @@
     const GRACE_SYNC_INTERVAL_MS = 2000;
     // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
     let gracePeriodEnd = null;
+    // Snapshot of binding-restraint groups present when grace STARTED.
+    // enforceGracePeriod() only strips groups that appeared AFTER this snapshot,
+    // so Release=OFF + Grace=ON doesn't remove existing restraints.
+    let graceStartGroups = new Set();
+    // Whether to skip owner/exclusive-locked items during this grace window.
+    let graceExcludeOwnerLocks = false;
     function isGraceActive() {
         if (gracePeriodEnd === null)
             return false;
@@ -5965,11 +5973,19 @@
         const rem = gracePeriodEnd - Date.now();
         return rem > 0 ? rem : null;
     }
-    function startGrace(durationMs) {
+    function startGrace(durationMs, excludeOwnerLocks = false) {
+        graceExcludeOwnerLocks = excludeOwnerLocks;
+        // Snapshot current restraint groups so grace enforcement only strips
+        // items added DURING the grace window, not items that were already on.
+        graceStartGroups = new Set(Player.Appearance
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i) => i.Asset.Group.Name));
         gracePeriodEnd = durationMs <= 0 ? Infinity : Date.now() + durationMs;
     }
     function endGrace() {
         gracePeriodEnd = null;
+        graceStartGroups = new Set();
+        graceExcludeOwnerLocks = false;
     }
     function checkGraceExpiry() {
         if (gracePeriodEnd !== null && gracePeriodEnd !== Infinity && Date.now() >= gracePeriodEnd) {
@@ -5981,9 +5997,29 @@
     const NECK_GROUPS = new Set([
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
-    function releaseBindingRestraints() {
+    // Lock asset names considered "owner locks" for the excludeOwnerLocks option.
+    const OWNER_LOCK_NAMES = new Set([
+        "OwnerPadlock",
+        "OwnerTimedPadlock",
+        "ExclusivePadlock",
+    ]);
+    // Check if an item is secured with an owner or exclusive padlock.
+    // Reads Item.Property.LockedBy directly rather than calling InventoryGetLock
+    // to avoid depending on a BC global that isn't in our type declarations.
+    function isOwnerLocked(item) {
+        try {
+            const prop = item.Property;
+            return !!(prop === null || prop === void 0 ? void 0 : prop.LockedBy) && OWNER_LOCK_NAMES.has(prop.LockedBy);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    function releaseBindingRestraints(excludeOwnerLocks) {
         const removeGroups = new Set(Player.Appearance
-            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+            !NECK_GROUPS.has(i.Asset.Group.Name) &&
+            !(excludeOwnerLocks && isOwnerLocked(i)))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -6009,8 +6045,13 @@
         checkGraceExpiry();
         if (!isGraceActive())
             return;
+        // Only strip groups added AFTER grace started (graceStartGroups = snapshot at trigger time).
+        // This fixes the bug where Grace=ON without Release=ON still removed existing restraints.
         const removeGroups = new Set(Player.Appearance
-            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+            !NECK_GROUPS.has(i.Asset.Group.Name) &&
+            !graceStartGroups.has(i.Asset.Group.Name) &&
+            !(graceExcludeOwnerLocks && isOwnerLocked(i)))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -6039,9 +6080,9 @@
         if (!cfg.enabled)
             return;
         if (cfg.yellowRelease)
-            releaseBindingRestraints();
+            releaseBindingRestraints(cfg.excludeOwnerLocks);
         if (cfg.yellowGrace)
-            startGrace(cfg.graceDurationMs);
+            startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
         if (cfg.yellowAnnounce) {
             try {
                 const graceDesc = cfg.graceDurationMs <= 0
@@ -6085,9 +6126,9 @@
         if (!cfg.enabled)
             return;
         if (cfg.redRelease)
-            releaseBindingRestraints();
+            releaseBindingRestraints(cfg.excludeOwnerLocks);
         if (cfg.redGrace)
-            startGrace(cfg.graceDurationMs);
+            startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
         if (cfg.redAnnounce) {
             try {
                 ServerSend("ChatRoomChat", {
@@ -12277,6 +12318,26 @@
                 graceDurRow.appendChild(graceDurInp);
                 graceDurRow.appendChild(graceDurUnit);
                 swInner.appendChild(graceDurRow);
+                // -- Exclude owner locks toggle --
+                const exclRow = document.createElement("div");
+                exclRow.style.cssText = "display:flex;align-items:center;gap:6px;padding-left:66px;";
+                const exclBtn = document.createElement("button");
+                const exclAcc = "#9a70b0";
+                const setExclStyle = (on) => {
+                    exclBtn.style.background = on ? exclAcc + "44" : "transparent";
+                    exclBtn.style.color = on ? exclAcc : "#6a4858";
+                    exclBtn.textContent = (on ? "✓ " : "○ ") + "Exclude owner locks";
+                };
+                exclBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${exclAcc}66;transition:background 0.12s,color 0.12s;`;
+                let exclState = cfg.excludeOwnerLocks;
+                setExclStyle(exclState);
+                exclBtn.addEventListener("click", () => {
+                    exclState = !exclState;
+                    setExclStyle(exclState);
+                    setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { excludeOwnerLocks: exclState }));
+                });
+                exclRow.appendChild(exclBtn);
+                swInner.appendChild(exclRow);
                 // -- Hint --
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";
@@ -31689,7 +31750,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.69";
+    const MOD_VERSION = "6.9.70";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31700,6 +31761,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.70",
+            changes: [
+                "Fix: Grace=ON without Release=ON no longer removes existing restraints — grace now only strips items added AFTER the safeword was triggered.",
+                "Safewords: added 'Exclude owner locks' toggle — skips OwnerPadlock / ExclusivePadlock items during both release and grace enforcement.",
+            ],
+        },
         {
             version: "6.9.69",
             changes: [
