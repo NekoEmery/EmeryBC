@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 6;    // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 7;    // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.1.2",
         changes: [
+            "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
             "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
             "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
             "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",

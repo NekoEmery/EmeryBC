@@ -2241,6 +2241,26 @@
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+    // -- Emery Versioning (SAL sub-version display) --------------------------------
+    // When on, shows the internal build counter "(s3)" next to the EBC version in
+    // the panel header and startup log. Off by default; toggled in the DEV tab.
+    function getShowSalVersion() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowSalVersion(value) {
+        try {
+            const store = getSettings();
+            store.showSalVersion = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Badge visibility (local/client-side only) --------------------------------
     // Controls whether YOUR OWN EBC tag is drawn above your head on YOUR screen.
     // Purely a local display toggle — does NOT affect broadcasting. Others always
@@ -5949,6 +5969,10 @@
     const GRACE_SYNC_INTERVAL_MS = 2000;
     // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
     let gracePeriodEnd = null;
+    // Snapshot of binding-restraint groups present when grace STARTED.
+    // enforceGracePeriod() only strips groups that appeared AFTER this snapshot,
+    // so Release=OFF + Grace=ON doesn't remove existing restraints.
+    let graceStartGroups = new Set();
     function isGraceActive() {
         if (gracePeriodEnd === null)
             return false;
@@ -5966,10 +5990,16 @@
         return rem > 0 ? rem : null;
     }
     function startGrace(durationMs) {
+        // Snapshot current restraint groups so grace enforcement only strips
+        // items added DURING the grace window, not items that were already on.
+        graceStartGroups = new Set(Player.Appearance
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i) => i.Asset.Group.Name));
         gracePeriodEnd = durationMs <= 0 ? Infinity : Date.now() + durationMs;
     }
     function endGrace() {
         gracePeriodEnd = null;
+        graceStartGroups = new Set();
     }
     function checkGraceExpiry() {
         if (gracePeriodEnd !== null && gracePeriodEnd !== Infinity && Date.now() >= gracePeriodEnd) {
@@ -5981,9 +6011,29 @@
     const NECK_GROUPS = new Set([
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
+    // Lock asset names that are never removed by safeword (owner / lover / family padlocks).
+    const PROTECTED_LOCK_NAMES = new Set([
+        "OwnerPadlock",
+        "OwnerTimedPadlock",
+        "ExclusivePadlock",
+        "LoversPadlock",
+        "LoversTimerPadlock",
+        "FamilyPadlock",
+    ]);
+    function isProtectedLocked(item) {
+        try {
+            const prop = item.Property;
+            return !!(prop === null || prop === void 0 ? void 0 : prop.LockedBy) && PROTECTED_LOCK_NAMES.has(prop.LockedBy);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
     function releaseBindingRestraints() {
         const removeGroups = new Set(Player.Appearance
-            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+            !NECK_GROUPS.has(i.Asset.Group.Name) &&
+            !isProtectedLocked(i))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -6009,8 +6059,13 @@
         checkGraceExpiry();
         if (!isGraceActive())
             return;
+        // Only strip groups added AFTER grace started (graceStartGroups = snapshot at trigger time).
+        // This fixes the bug where Grace=ON without Release=ON still removed existing restraints.
         const removeGroups = new Set(Player.Appearance
-            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+            !NECK_GROUPS.has(i.Asset.Group.Name) &&
+            !graceStartGroups.has(i.Asset.Group.Name) &&
+            !isProtectedLocked(i))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -7983,7 +8038,7 @@
  */
 #emerybc-root {
     position: fixed;
-    z-index: 99;
+    z-index: 101;
     width: 0;
     pointer-events: none;
 }
@@ -11408,7 +11463,7 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        constructor(version = "", isDev = false) {
+        constructor(version = "", isDev = false, salVersion = 0) {
             this.rootEl = null; // zero-width anchor (positioned)
             this.panelEl = null; // sliding panel (transforms)
             this.isOpen = false;
@@ -11419,6 +11474,8 @@
             this.hasBeenShown = false;
             this.version = "";
             this.isDev = false;
+            this.salVersion = 0;
+            this._versionTitleEl = null;
             this.refreshConfirmToggle = null;
             this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
@@ -11438,6 +11495,7 @@
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
+            this._positionVerifyTick = 0;
             // Kitty page: whether Lucy is currently holding Emery's leash.
             // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
             // our own authoritative copy here; it survives panel re-renders.
@@ -11470,6 +11528,9 @@
             this._lovConnections = new Map();
             this._bcLiveSyncPoller = null;
             this._bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+            this._lovHttpUrl = null;
+            this._lovHttpConnected = false;
+            this._lovHttpToyCount = 0;
             this._toyCtrlSessions = new Map();
             this._toyPendingOut = new Map();
             this._toyGrantedTo = new Map();
@@ -11488,6 +11549,7 @@
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
+            this.salVersion = salVersion;
             // Live-update the DEV tab whisper log section when new messages arrive
             setWhisperUpdateCallback(() => {
                 if (this.isOpen && this.currentTab === "dev") {
@@ -11661,7 +11723,8 @@
             title.style.alignItems = "baseline";
             title.style.gap = "5px";
             const titleMain = document.createElement("span");
-            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+            this._versionTitleEl = titleMain;
+            this._updateVersionTitle();
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
@@ -12143,28 +12206,44 @@
             // Collapsible settings panel - rebuilt on every open so values + outfit list are always fresh
             const swInner = document.createElement("div");
             swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
+            // Grace row lives outside buildSwInner so it can appear/update while the panel stays open.
+            let swGraceRow = null;
+            let swGraceLbl = null;
+            let swGraceTicker = null;
+            const refreshGraceRow = () => {
+                const active = isGraceActive();
+                swGraceTag.style.display = active ? "" : "none";
+                if (!active) {
+                    if (swGraceRow && swGraceRow.parentNode)
+                        swGraceRow.parentNode.removeChild(swGraceRow);
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                    return;
+                }
+                if (!swGraceRow) {
+                    swGraceRow = document.createElement("div");
+                    swGraceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+                    swGraceLbl = document.createElement("span");
+                    swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
+                    const cancelBtn = document.createElement("button");
+                    cancelBtn.textContent = t("sw.endGrace");
+                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    cancelBtn.addEventListener("click", () => { endGrace(); refreshGraceRow(); });
+                    swGraceRow.appendChild(swGraceLbl);
+                    swGraceRow.appendChild(cancelBtn);
+                    swInner.insertBefore(swGraceRow, swInner.firstChild);
+                }
+                const rem = getGraceRemaining();
+                if (swGraceLbl) {
+                    swGraceLbl.textContent = rem === Infinity
+                        ? "🛡 Grace active (indefinite)"
+                        : `🛡 Grace active — ${Math.ceil(rem / 60000)} min remaining`;
+                }
+            };
             const buildSwInner = () => {
                 while (swInner.firstChild)
                     swInner.removeChild(swInner.firstChild);
                 const cfg = getSafewordConfig();
-                // -- Grace active row --
-                if (isGraceActive()) {
-                    const graceRow = document.createElement("div");
-                    graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
-                    const graceLbl = document.createElement("span");
-                    graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
-                    const rem = getGraceRemaining();
-                    graceLbl.textContent = rem === Infinity
-                        ? "🛡 Grace active (indefinite)"
-                        : `🛡 Grace active - ${Math.ceil(rem / 60000)} min remaining`;
-                    const cancelBtn = document.createElement("button");
-                    cancelBtn.textContent = t("sw.endGrace");
-                    cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                    cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
-                    graceRow.appendChild(graceLbl);
-                    graceRow.appendChild(cancelBtn);
-                    swInner.appendChild(graceRow);
-                }
                 // -- Per-word section builder --
                 const makeWordSection = (accentColor, wordLabel, wordValue, onWordSave, actions, outfitLabel, outfitId, onOutfitPick) => {
                     const section = document.createElement("div");
@@ -12293,9 +12372,24 @@
                         buildSwInner();
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    // buildSwInner wiped the DOM — reset refs then paint the grace row
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                    refreshGraceRow();
+                    // Keep grace status live while the panel stays open
+                    swGraceTicker = window.setInterval(() => { try {
+                        refreshGraceRow();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, 5000);
                 }
-                // Update grace tag on header
-                swGraceTag.style.display = isGraceActive() ? "" : "none";
+                else {
+                    if (swGraceTicker !== null) {
+                        clearInterval(swGraceTicker);
+                        swGraceTicker = null;
+                    }
+                    swGraceRow = null;
+                    swGraceLbl = null;
+                }
             });
             safewordRow.appendChild(swInner);
             // Body
@@ -12691,15 +12785,26 @@
         updateCrabsPosition() {
             if (!this.rootEl)
                 return;
-            // Heartbeat guard: BC's screen-transition code can set display:none on unknown
-            // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-            // This intentionally runs regardless of this.positioned so it also protects EBC
-            // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+            // Heartbeat guard: restores root visibility within 200 ms if anything hides it.
+            // Covers both inline display:none (set by BC screen-transition code) and the
+            // HTML hidden attribute (which overrides inline display and is NOT caught by the
+            // display check alone).
             if (this.rootEl.style.display !== "block") {
                 this.rootEl.style.display = "block";
             }
+            if (this.rootEl.hidden) {
+                this.rootEl.hidden = false;
+            }
             if (!this.positioned) {
                 // Haven't anchored to the chat log yet - keep retrying until we succeed.
+                this.syncToChat();
+                return;
+            }
+            // Periodic position re-verify: even when positioned=true, re-run syncToChat()
+            // every ~5 s to catch layout shifts (e.g. beep notifications resizing BC's chat
+            // area) that the ResizeObserver may not have fired for.
+            if (++this._positionVerifyTick >= 25) {
+                this._positionVerifyTick = 0;
                 this.syncToChat();
                 return;
             }
@@ -12806,8 +12911,12 @@
                 // fully visible (overrides the in-room left:-10px collapsed state).
                 // Centre the panel vertically in the viewport.
                 this.rootEl.classList.add("ebc-roaming");
-                const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
-                const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
+                const defaultH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+                // If user resized the panel, honour that exact size (only cap at viewport).
+                // Previously baseH was capped at 520 and used as an upper bound too, which
+                // silently truncated any saved height over 520 px in roaming mode.
+                const maxH = Math.max(100, window.innerHeight - 40);
+                const h = this.userPanelHeight !== null ? Math.min(this.userPanelHeight, maxH) : defaultH;
                 const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
                 this.rootEl.style.top = `${top}px`;
                 this.rootEl.style.right = "0px";
@@ -19129,7 +19238,6 @@
                         this.open();
                     this.switchTab("notes");
                 });
-                tab.style.position = "relative";
                 tab.appendChild(dot);
             }
             else if (!hasUnread && dot) {
@@ -19852,11 +19960,11 @@
             const footer = document.createElement("div");
             footer.className = "ebc-beep-win-footer";
             footer.style.position = "relative";
-            // Small ▶/▼ toggle - collapses/expands the quick-reply bar above the footer
+            // Toggle button for the quick-reply bar above the footer
             const qrToggle = document.createElement("button");
             qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+            qrToggle.innerHTML = _mkIconSvg(`<path d="M2 4h12M2 8h8M2 12h10"/>`);
             const syncQrToggle = () => {
-                qrToggle.textContent = qrOpen ? "▼" : "▶";
                 qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
                 qrBar.style.display = qrOpen ? "" : "none";
             };
@@ -20032,6 +20140,7 @@
             input.addEventListener("input", autoGrow);
             sendBtn.addEventListener("click", doSend);
             input.addEventListener("keydown", (e) => {
+                e.stopPropagation(); // stop WASD/arrow keys from reaching BC's map movement handler
                 if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     doSend();
@@ -20577,7 +20686,7 @@
                 renderGroupHistory();
             };
             sendBtn.addEventListener("click", doSend);
-            input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) {
+            input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 doSend();
             } });
@@ -23015,6 +23124,37 @@
                 hookRefreshBtn.textContent = t("dev.refresh");
                 hookRefreshBtn.addEventListener("click", renderHooks);
                 cnt.appendChild(hookRefreshBtn);
+                // ── Emery Versioning toggle ────────────────────────────────────────
+                const evDivider = document.createElement("div");
+                evDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
+                cnt.appendChild(evDivider);
+                const evRow = document.createElement("div");
+                evRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:5px;";
+                const evTextWrap = document.createElement("div");
+                evTextWrap.style.cssText = "flex:1;min-width:0;";
+                const evLabel = document.createElement("div");
+                evLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;";
+                evLabel.textContent = "Emery Versioning";
+                const evHint = document.createElement("div");
+                evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
+                evHint.textContent = `Shows internal build counter (s${this.salVersion}) in the panel header`;
+                evTextWrap.appendChild(evLabel);
+                evTextWrap.appendChild(evHint);
+                const evBtn = document.createElement("button");
+                const refreshEvBtn = () => {
+                    const on = getShowSalVersion();
+                    evBtn.textContent = on ? "ON" : "OFF";
+                    evBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "#8b4060" : "#4c2537"};background:${on ? "rgba(139,64,96,0.25)" : "transparent"};color:${on ? "#cf6f98" : "#7a5a6a"};`;
+                };
+                refreshEvBtn();
+                evBtn.addEventListener("click", () => {
+                    setShowSalVersion(!getShowSalVersion());
+                    refreshEvBtn();
+                    this._updateVersionTitle();
+                });
+                evRow.appendChild(evTextWrap);
+                evRow.appendChild(evBtn);
+                cnt.appendChild(evRow);
             });
             // ── Copy Restraints from Room Member (credited members only) ─────────
             if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
@@ -26061,6 +26201,79 @@
                 });
                 return { wrap, cBody };
             };
+            // ── 📍 POSITION ───────────────────────────────────────────────────────────
+            {
+                const { wrap: posWrap, cBody: posBody } = makeCollapsible("EBC_kitty_pos", "📍 Position", true);
+                const KITTY_POS_DEFS = [
+                    ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints", "side"],
+                    ["🤗", "Get in Arms", "钻进怀里", "ItemTorso", "arms"],
+                    ["💪", "Hold in Arms", "抱入怀中", "ItemTorso", "hold"],
+                ];
+                const kPosGrid = document.createElement("div");
+                kPosGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+                const kPosStatus = document.createElement("div");
+                kPosStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+                for (const [emoji, label, echoName, focusGroup, posMode] of KITTY_POS_DEFS) {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                    btn.textContent = `${emoji} ${label}`;
+                    btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                    btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                    btn.addEventListener("click", () => {
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") {
+                            kPosStatus.textContent = "⚠ Must be in a room.";
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                            return;
+                        }
+                        setPositionSilent(EMERY_MEMBER, posMode);
+                        try {
+                            if (echoName === "拉到身边") {
+                                ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                            }
+                            ServerSend("ChatRoomChat", {
+                                Content: echoName,
+                                Type: "Activity",
+                                Dictionary: [
+                                    { ActivityName: echoName },
+                                    { SourceCharacter: Player.MemberNumber },
+                                    { TargetCharacter: EMERY_MEMBER },
+                                    { Tag: "FocusAssetGroup", AssetGroupName: focusGroup },
+                                ],
+                            });
+                            kPosStatus.textContent = `✓ ${label} → sent.`;
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                        }
+                        catch (_a) {
+                            kPosStatus.textContent = "⚠ Failed.";
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                        }
+                    });
+                    kPosGrid.appendChild(btn);
+                }
+                posBody.appendChild(kPosGrid);
+                posBody.appendChild(kPosStatus);
+                const kReleaseBtn = document.createElement("button");
+                kReleaseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 6px;border-radius:6px;border:1px solid #7a4050;background:#3a1020;color:#e08090;cursor:pointer;transition:background 0.12s,border-color 0.12s;";
+                kReleaseBtn.textContent = "🔓 Release from Arms";
+                kReleaseBtn.addEventListener("mouseenter", () => { kReleaseBtn.style.background = "#6a1830"; kReleaseBtn.style.borderColor = "#e08090"; });
+                kReleaseBtn.addEventListener("mouseleave", () => { kReleaseBtn.style.background = "#3a1020"; kReleaseBtn.style.borderColor = "#7a4050"; });
+                kReleaseBtn.addEventListener("click", () => {
+                    if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                        return;
+                    clearPosition(EMERY_MEMBER);
+                    try {
+                        ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                        sendRoomEmote(getKittyMood() === "rough"
+                            ? "drops Emery without ceremony~"
+                            : "gently sets Emery down~");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    kPosStatus.textContent = "✓ Released.";
+                    window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                });
+                posBody.appendChild(kReleaseBtn);
+                body.appendChild(posWrap);
+            }
             // ── PET REACTIONS ─────────────────────────────────────────────────────────
             const reactionsWrap = document.createElement("div");
             reactionsWrap.style.marginBottom = "10px";
@@ -27639,6 +27852,54 @@
             exprCBody.appendChild(exprWrap);
             exprCBody.appendChild(exprHint);
             body.appendChild(exprWrap2);
+            // ── CURSE ─────────────────────────────────────────────────────────────────
+            const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
+            const CURSE_GROUPS = [
+                ["Arms", "ItemArms"],
+                ["Hands", "ItemHands"],
+                ["Legs", "ItemLegs"],
+                ["Feet", "ItemFeet"],
+                ["Neck", "ItemNeck"],
+                ["Mouth", "ItemMouth"],
+                ["Head", "ItemHead"],
+                ["Torso", "ItemTorso"],
+                ["Pelvis", "ItemPelvis"],
+                ["Breasts", "ItemBreast"],
+                ["Boots", "ItemBoots"],
+            ];
+            const selectedCurseGroups = new Set();
+            const chipRow = document.createElement("div");
+            chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
+            const setChipStyle = (btn, sel) => {
+                btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+            };
+            for (const [label, group] of CURSE_GROUPS) {
+                const chip = document.createElement("button");
+                chip.textContent = label;
+                setChipStyle(chip, false);
+                chip.addEventListener("click", () => {
+                    const sel = selectedCurseGroups.has(group);
+                    if (sel)
+                        selectedCurseGroups.delete(group);
+                    else
+                        selectedCurseGroups.add(group);
+                    setChipStyle(chip, !sel);
+                });
+                chipRow.appendChild(chip);
+            }
+            const curseActionRow = document.createElement("div");
+            curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+            curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
+                if (selectedCurseGroups.size === 0)
+                    return;
+                sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+            }, 2000));
+            curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+                sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+            }, 2000));
+            curseCBody.appendChild(chipRow);
+            curseCBody.appendChild(curseActionRow);
+            body.appendChild(curseWrap2);
         }
         renderExpressions(container) {
             var _a, _b;
@@ -28232,13 +28493,12 @@
                 lovContent.appendChild(lvsHdr("CONNECTION"));
                 const nav = navigator;
                 const btApi = nav["bluetooth"];
-                if (!btApi) {
-                    const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:6px;padding:8px 10px;margin:4px 0 10px;line-height:1.6;`);
-                    noBlue.innerHTML = "<b>Web Bluetooth not available</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys.";
-                    lovContent.appendChild(noBlue);
-                }
-                else {
+                // ── BLE (Web Bluetooth) ─────────────────────────────────────────────
+                if (btApi) {
                     const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                    bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                    connCard.appendChild(bleHdrRow);
                     const toyListEl = mk("div", "margin-bottom:8px;");
                     const LVS_SERVICES = [
                         "0000fff0-0000-1000-8000-00805f9b34fb",
@@ -28261,7 +28521,9 @@
                             for (const [key, conn] of this._lovConnections) {
                                 const dev = conn.device;
                                 const isConn = ((_a = dev === null || dev === void 0 ? void 0 : dev.gatt) === null || _a === void 0 ? void 0 : _a.connected) === true;
-                                const tRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;");
+                                const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                                // Top row: status dot + name + disconnect button
+                                const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
                                 const dot = mk("span", "font-size:14px;flex-shrink:0;");
                                 dot.textContent = isConn ? "🟢" : "⚫";
                                 const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;`);
@@ -28280,7 +28542,36 @@
                                 tRow.appendChild(dot);
                                 tRow.appendChild(tName);
                                 tRow.appendChild(discBtn);
-                                toyListEl.appendChild(tRow);
+                                tCard.appendChild(tRow);
+                                // Per-toy intensity + duration sliders (only when actively connected)
+                                if (isConn) {
+                                    const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                                    const mkTinySlider = (label, min, max, val, unit, onChange) => {
+                                        const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);flex-shrink:0;`);
+                                        lbl.textContent = label;
+                                        const sl = document.createElement("input");
+                                        sl.type = "range";
+                                        sl.min = String(min);
+                                        sl.max = String(max);
+                                        sl.value = String(val);
+                                        sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);min-width:22px;`);
+                                        vl.textContent = val + unit;
+                                        sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                                        wrap.appendChild(lbl);
+                                        wrap.appendChild(sl);
+                                        wrap.appendChild(vl);
+                                        return wrap;
+                                    };
+                                    sRow.appendChild(mkTinySlider("I:", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                    const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`);
+                                    divider.textContent = "│";
+                                    sRow.appendChild(divider);
+                                    sRow.appendChild(mkTinySlider("D:", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                    tCard.appendChild(sRow);
+                                }
+                                toyListEl.appendChild(tCard);
                             }
                         }
                     };
@@ -28311,8 +28602,11 @@
                             lovConnBtn.textContent = "🔄 Connecting…";
                             const server = await device.gatt.connect();
                             let services = [];
-                            for (let attempt = 0; attempt < 3; attempt++) {
-                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                            // Retry with increasing delays — some toys (Domi, Nora) need GATT
+                            // discovery to complete before services are enumerable
+                            const svcDelays = [600, 1000, 1500, 2000, 2500];
+                            for (let attempt = 0; attempt < svcDelays.length; attempt++) {
+                                await new Promise(r => setTimeout(r, svcDelays[attempt]));
                                 try {
                                     services = await server.getPrimaryServices();
                                 }
@@ -28320,8 +28614,23 @@
                                 if (services.length > 0)
                                     break;
                             }
+                            // Fallback: try each known Lovense service UUID individually.
+                            // Chrome may return empty from getPrimaryServices() while still
+                            // servicing individual lookups (depends on BLE chip + driver timing).
+                            if (!services.length) {
+                                for (const svcUuid of LVS_SERVICES) {
+                                    try {
+                                        const svc = await server.getPrimaryService(svcUuid);
+                                        if (svc) {
+                                            services = [svc];
+                                            break;
+                                        }
+                                    }
+                                    catch ( /* not this UUID */_d) { /* not this UUID */ }
+                                }
+                            }
                             if (!services.length)
-                                throw new Error("No services found - ensure Lovense Connect app is closed and toy is not connected elsewhere.");
+                                throw new Error("No services found — close Lovense Connect app if running, and ensure the toy is not paired to another device.");
                             let char = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -28331,7 +28640,10 @@
                             }
                             if (!char)
                                 throw new Error("No writable characteristic found");
-                            this._lovConnections.set(connKey, { device, char, name: devName });
+                            const connS = getSettings();
+                            const toyDefI = typeof connS.lovenseIntensity === "number" ? connS.lovenseIntensity : 10;
+                            const toyDefD = typeof connS.lovenseDuration === "number" ? connS.lovenseDuration : 5;
+                            this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
                             lovConnBtn.textContent = "＋ Connect Toy";
                             lovConnBtn.disabled = false;
                             renderToyList();
@@ -28346,10 +28658,96 @@
                     });
                     connBtnRow.appendChild(lovConnBtn);
                     connCard.appendChild(connBtnRow);
-                    const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
-                    connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                    const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
+                    connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
                     connCard.appendChild(connNote);
                     lovContent.appendChild(connCard);
+                }
+                // ── HTTP (Lovense Connect app) — collapsible ─────────────────────────
+                {
+                    const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:10px;overflow:hidden;");
+                    // Clickable header
+                    let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
+                    const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
+                    const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
+                    httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                    const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
+                    httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                    httpHdrRow.appendChild(httpHdrLabel);
+                    httpHdrRow.appendChild(httpChevron);
+                    httpCard.appendChild(httpHdrRow);
+                    // Collapsible body
+                    const httpBody = mk("div", "padding:8px 12px 10px;border-top:1px solid var(--ebc-border);");
+                    httpBody.style.display = httpCollapsed ? "none" : "";
+                    httpHdrRow.addEventListener("click", () => {
+                        httpCollapsed = !httpCollapsed;
+                        localStorage.setItem("EBC_lovHttpCollapsed", String(httpCollapsed));
+                        httpBody.style.display = httpCollapsed ? "none" : "";
+                        httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                    });
+                    // Load saved URL
+                    const savedHttpUrl = typeof s["lovenseHttpUrl"] === "string" ? s["lovenseHttpUrl"] : "";
+                    if (savedHttpUrl)
+                        this._lovHttpUrl = savedHttpUrl || null;
+                    const urlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                    const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex-shrink:0;`);
+                    urlLbl.textContent = "URL:";
+                    const urlInp = document.createElement("input");
+                    urlInp.type = "text";
+                    urlInp.value = savedHttpUrl || "http://127.0.0.1:20010";
+                    urlInp.placeholder = "http://127.0.0.1:20010";
+                    urlInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;min-width:0;box-sizing:border-box;`;
+                    urlRow.appendChild(urlLbl);
+                    urlRow.appendChild(urlInp);
+                    httpBody.appendChild(urlRow);
+                    const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                    const httpTestBtn = document.createElement("button");
+                    httpTestBtn.textContent = "Test Connection";
+                    httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
+                    const httpStatus = mk("span", `${FONT}font-size:11px;`);
+                    httpStatus.textContent = this._lovHttpConnected
+                        ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
+                        : "⚫ Not tested";
+                    httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
+                    httpBtnRow.appendChild(httpTestBtn);
+                    httpBtnRow.appendChild(httpStatus);
+                    httpBody.appendChild(httpBtnRow);
+                    httpTestBtn.addEventListener("click", () => {
+                        const rawUrl = urlInp.value.trim().replace(/\/$/, "");
+                        if (!rawUrl)
+                            return;
+                        s["lovenseHttpUrl"] = rawUrl;
+                        syncSettings();
+                        this._lovHttpUrl = rawUrl;
+                        httpTestBtn.disabled = true;
+                        httpStatus.textContent = "🔄 Testing…";
+                        httpStatus.style.color = "var(--ebc-text-sub)";
+                        this._lovHttpPing().then(ok => {
+                            httpTestBtn.disabled = false;
+                            if (ok) {
+                                httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                                httpStatus.style.color = "#80c080";
+                            }
+                            else {
+                                httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
+                                httpStatus.style.color = "#e07070";
+                            }
+                        });
+                    });
+                    const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
+                    httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
+                    httpBody.appendChild(httpNote);
+                    const httpAppLink = document.createElement("a");
+                    httpAppLink.href = "https://www.lovense.com/app/remote";
+                    httpAppLink.target = "_blank";
+                    httpAppLink.rel = "noopener noreferrer";
+                    httpAppLink.textContent = "↗ Get Lovense Connect app";
+                    httpAppLink.style.cssText = `${FONT}font-size:10px;color:var(--ebc-accent);text-decoration:none;display:inline-block;margin-top:5px;`;
+                    httpAppLink.addEventListener("mouseenter", () => { httpAppLink.style.textDecoration = "underline"; });
+                    httpAppLink.addEventListener("mouseleave", () => { httpAppLink.style.textDecoration = "none"; });
+                    httpBody.appendChild(httpAppLink);
+                    httpCard.appendChild(httpBody);
+                    lovContent.appendChild(httpCard);
                 }
                 // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
                 lovContent.appendChild(sep());
@@ -28357,7 +28755,7 @@
                 const mkLovSlider = (label, key, min, max, def, fmtFn) => {
                     const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key], min), max) : def;
                     const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;flex-shrink:0;`);
+                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);min-width:68px;flex-shrink:0;`);
                     lbl.textContent = label;
                     const sl = document.createElement("input");
                     sl.type = "range";
@@ -28381,7 +28779,7 @@
                 lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                 lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "var(--ebc-bg)"; });
                 lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "transparent"; });
-                const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+                const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-sub);`);
                 lovTestBtn.addEventListener("click", () => {
                     lovTestBtn.disabled = true;
                     lovTestRes.textContent = "…";
@@ -29272,26 +29670,42 @@
             const s = getSettings();
             if (s.lovenseEnabled !== true)
                 return "";
-            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
-            if (active.length === 0)
-                return "⚠ Lovense: no toys connected via Bluetooth";
             const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
             const defD = typeof s.lovenseDuration === "number" ? s.lovenseDuration : 5;
             const finalI = Math.max(1, Math.min(intensity !== null && intensity !== void 0 ? intensity : defI, 20));
             const finalD = Math.max(1, Math.min(duration !== null && duration !== void 0 ? duration : defD, 60));
+            const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
+            if (active.length === 0) {
+                // No BLE toys — fall through to HTTP path if configured
+                if (this._lovHttpUrl && this._lovHttpConnected) {
+                    return await this._lovHttpVibrate(finalI, finalD);
+                }
+                return "⚠ Lovense: no toys connected (BLE or HTTP)";
+            }
             const enc = new TextEncoder();
-            const doWrite = (char, cmd) => {
+            const doWrite = async (char, cmd) => {
                 const d = enc.encode(cmd);
-                return (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                    ? char.writeValueWithoutResponse(d)
-                    : char.writeValue(d);
+                // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
+                // but throws "Access is denied" when it's called — fall back to writeValue.
+                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                    try {
+                        return await char.writeValueWithoutResponse(d);
+                    }
+                    catch ( /* fall through */_a) { /* fall through */ }
+                }
+                return await char.writeValue(d);
             };
             const errors = [];
+            const summaries = [];
             await Promise.all(active.map(async (conn) => {
                 const char = conn.char;
+                // Trigger's explicit intensity overrides per-toy setting; otherwise use the toy's own default
+                const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
+                const toyD = Math.max(1, Math.min(duration !== undefined ? duration : conn.duration, 60));
                 try {
-                    await doWrite(char, `Vibrate:${finalI};`);
-                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, finalD * 1000);
+                    await doWrite(char, `Vibrate:${toyI};`);
+                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => { }); }, toyD * 1000);
+                    summaries.push(`${conn.name} ${toyI}/20`);
                 }
                 catch (err) {
                     errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
@@ -29301,7 +29715,13 @@
                 console.warn("[EBC Lovense] BLE write errors:", errors);
                 return `⚠ Lovense BLE error: ${errors.join("; ")}`;
             }
-            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
+            return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`;
+        }
+        _updateVersionTitle() {
+            if (!this._versionTitleEl)
+                return;
+            const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (s${this.salVersion})` : "";
+            this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
         }
         startBCLiveSync() {
             const s = getSettings();
@@ -29343,19 +29763,80 @@
         }
         async _lovWriteLevel(intensity) {
             const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
-            if (active.length === 0)
+            if (active.length === 0) {
+                // HTTP path for BC live sync (t=0 = continuous until next command)
+                if (this._lovHttpUrl && this._lovHttpConnected) {
+                    await this._lovHttpVibrate(intensity, 0);
+                }
                 return;
+            }
             const enc = new TextEncoder();
             const cmd = enc.encode(`Vibrate:${intensity};`);
             await Promise.all(active.map(async (conn) => {
                 const char = conn.char;
                 try {
-                    await ((char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                        ? char.writeValueWithoutResponse(cmd)
-                        : char.writeValue(cmd));
+                    if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                        try {
+                            await char.writeValueWithoutResponse(cmd);
+                            return;
+                        }
+                        catch ( /* fall through */_a) { /* fall through */ }
+                    }
+                    await char.writeValue(cmd);
                 }
-                catch ( /* ignore BLE errors */_a) { /* ignore BLE errors */ }
+                catch ( /* ignore BLE errors */_b) { /* ignore BLE errors */ }
             }));
+        }
+        async _lovHttpPing() {
+            if (!this._lovHttpUrl)
+                return false;
+            try {
+                const resp = await fetch(this._lovHttpUrl + "/GetToys", {
+                    signal: AbortSignal.timeout(4000),
+                });
+                if (!resp.ok) {
+                    this._lovHttpConnected = false;
+                    return false;
+                }
+                const json = await resp.json();
+                if ((json === null || json === void 0 ? void 0 : json.data) && typeof json.data === "object") {
+                    this._lovHttpToyCount = Object.keys(json.data).length;
+                }
+                else {
+                    this._lovHttpToyCount = 0;
+                }
+                this._lovHttpConnected = true;
+                return true;
+            }
+            catch (_a) {
+                this._lovHttpConnected = false;
+                return false;
+            }
+        }
+        async _lovHttpVibrate(intensity, durationSec) {
+            const url = this._lovHttpUrl;
+            if (!url)
+                return "⚠ Lovense HTTP: not configured";
+            try {
+                const v = Math.max(0, Math.min(Math.round(intensity), 20));
+                // t=0 means continuous (stop only via next command); t>0 means auto-stop
+                const t = Math.max(0, Math.min(Math.round(durationSec), 60));
+                const resp = await fetch(`${url}/Vibrate?v=${v}&t=${t}`, {
+                    signal: AbortSignal.timeout(3000),
+                });
+                if (!resp.ok) {
+                    this._lovHttpConnected = false;
+                    return `⚠ Lovense HTTP: server error ${resp.status}`;
+                }
+                if (v === 0)
+                    return "";
+                return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+            }
+            catch (err) {
+                this._lovHttpConnected = false;
+                const msg = err instanceof Error ? err.message : String(err);
+                return `⚠ Lovense HTTP error: ${msg}`;
+            }
         }
         checkLovenseTriggers(content) {
             try {
@@ -31636,7 +32117,8 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.68";
+    const MOD_VERSION = "8.1.2";
+    const SAL_VERSION = 7; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31647,6 +32129,59 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.1.2",
+            changes: [
+                "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
+                "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
+                "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
+                "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
+                "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
+                "Lovense: HTTP card is now a collapsible dropdown (click header to expand/collapse, state saved). Fixed all low-contrast text-muted colors in Lovense section to text-bright/text-sub.",
+            ],
+        },
+        {
+            version: "8.1.1",
+            changes: [
+                "Lovense: added HTTP connection path via Lovense Connect app — works on Firefox and other non-BLE browsers. Configure the local API URL (default http://127.0.0.1:20010) in the IRL Toys section.",
+                "LianChat compat: EBC beep hook now always passes events through the mod chain so mods like LianChat running on the same client also see incoming friend beeps.",
+                "Version jump to 8.1.1. Internal sal sub-version counter added (only visible to Emery).",
+            ],
+        },
+        {
+            version: "6.9.73",
+            changes: [
+                "Fix: EBC drawer tab no longer disappears when a beep notification arrives — removed erroneous tab.style.position='relative' mutation in the unread-dot code (was overriding CSS position:absolute, causing tab offset to shift); raised root z-index from 99 to 101 (above BC's toast container at 100); heartbeat guard now also removes the HTML hidden attribute; added a periodic 5-second position re-sync.",
+            ],
+        },
+        {
+            version: "6.9.72",
+            changes: [
+                "Fix: grace period banner in the Safewords tab now appears and stays live while the tab is open — no longer requires closing and reopening the tab to see it after a safeword triggers.",
+            ],
+        },
+        {
+            version: "6.9.71",
+            changes: [
+                "Safewords: owner, lover (LoversPadlock/LoversTimerPadlock), and family (FamilyPadlock) locks are now always protected — safeword release and grace period enforcement never remove them. Removed the now-redundant 'Exclude owner locks' toggle.",
+                "Fix: quick-reply toggle button in beep window footer no longer shows ▶/▼ arrow characters — uses a clean lines icon instead.",
+            ],
+        },
+        {
+            version: "6.9.70",
+            changes: [
+                "Fix: Grace=ON without Release=ON no longer removes existing restraints — grace now only strips items added AFTER the safeword was triggered.",
+                "Safewords: added 'Exclude owner locks' toggle — skips OwnerPadlock / ExclusivePadlock items during both release and grace enforcement.",
+            ],
+        },
+        {
+            version: "6.9.69",
+            changes: [
+                "Kitty tab: added ⛓ Curse section — group chips + Apply/Clear buttons, targets Emery only.",
+                "Fix: typing in a beep window no longer triggers WASD movement in map rooms.",
+                "Fix: panel height is now correctly restored in roaming mode (main menu) instead of being capped at 520 px.",
+            ],
+        },
         {
             version: "6.9.68",
             changes: [
@@ -37289,7 +37824,8 @@
             window.setTimeout(() => doAppend(), 300);
     }
     function showVersionInfo() {
-        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
+        const salStr = getShowSalVersion() ? ` (s${SAL_VERSION})` : "";
+        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
     }
     function showChangelog() {
         const latest = CHANGELOG[0];
@@ -38646,7 +39182,7 @@
         let drawer = null;
         try {
             EBCDrawer.pawDataUri = EBC_PAW_DATA;
-            drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
+            drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).
             window.setTimeout(() => { try {
@@ -39481,11 +40017,11 @@
                     }
                 }
                 catch ( /* ignore */_m) { /* ignore */ }
-                // Suppress BC's native chat-log notification for ALL friend beeps when
-                // the toggle is on. document.hidden is intentionally NOT checked here —
-                // OS-level notifications come through FriendListBeep, not this path.
+                // Suppress EBC's own sound already ran above. Always call next() here so
+                // other mods in the chain (LianChat, WCE, etc.) also see this beep —
+                // returning without next() would block their hooks silently.
                 if (!getUseNativeBeepSound() && getSuppressNativeBeep())
-                    return;
+                    return next(args);
             }
             catch ( /* ignore */_o) { /* ignore */ }
             return next(args);
@@ -39736,12 +40272,19 @@
         document.addEventListener("keydown", onChatKeydownCapture, true);
         // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
+            var _a, _b;
             try {
                 const ev = args[0];
                 // BC's InputKeyDown crashes at ev.key.length when ev.key is undefined.
                 // This can happen when a hook in the chain passes a synthetic/plain object
                 // instead of a real KeyboardEvent.  Guard here to prevent the crash.
                 if (!ev || typeof ev.key !== "string")
+                    return false;
+                // Don't let BC process movement keys (WASD / arrows) while the user is
+                // typing inside an EBC beep window — stopPropagation() on the textarea
+                // handles DOM-level listeners; this hook handles BC's function-call path.
+                const activeEl = document.activeElement;
+                if (activeEl && ((_b = (_a = activeEl).closest) === null || _b === void 0 ? void 0 : _b.call(_a, ".ebc-beep-win")))
                     return false;
                 if (ev.shiftKey)
                     return next(args);
@@ -39761,7 +40304,7 @@
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
