@@ -26201,6 +26201,79 @@
                 });
                 return { wrap, cBody };
             };
+            // ── 📍 POSITION ───────────────────────────────────────────────────────────
+            {
+                const { wrap: posWrap, cBody: posBody } = makeCollapsible("EBC_kitty_pos", "📍 Position", true);
+                const KITTY_POS_DEFS = [
+                    ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints", "side"],
+                    ["🤗", "Get in Arms", "钻进怀里", "ItemTorso", "arms"],
+                    ["💪", "Hold in Arms", "抱入怀中", "ItemTorso", "hold"],
+                ];
+                const kPosGrid = document.createElement("div");
+                kPosGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+                const kPosStatus = document.createElement("div");
+                kPosStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+                for (const [emoji, label, echoName, focusGroup, posMode] of KITTY_POS_DEFS) {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                    btn.textContent = `${emoji} ${label}`;
+                    btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                    btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                    btn.addEventListener("click", () => {
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") {
+                            kPosStatus.textContent = "⚠ Must be in a room.";
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                            return;
+                        }
+                        setPositionSilent(EMERY_MEMBER, posMode);
+                        try {
+                            if (echoName === "拉到身边") {
+                                ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                            }
+                            ServerSend("ChatRoomChat", {
+                                Content: echoName,
+                                Type: "Activity",
+                                Dictionary: [
+                                    { ActivityName: echoName },
+                                    { SourceCharacter: Player.MemberNumber },
+                                    { TargetCharacter: EMERY_MEMBER },
+                                    { Tag: "FocusAssetGroup", AssetGroupName: focusGroup },
+                                ],
+                            });
+                            kPosStatus.textContent = `✓ ${label} → sent.`;
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                        }
+                        catch (_a) {
+                            kPosStatus.textContent = "⚠ Failed.";
+                            window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                        }
+                    });
+                    kPosGrid.appendChild(btn);
+                }
+                posBody.appendChild(kPosGrid);
+                posBody.appendChild(kPosStatus);
+                const kReleaseBtn = document.createElement("button");
+                kReleaseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 6px;border-radius:6px;border:1px solid #7a4050;background:#3a1020;color:#e08090;cursor:pointer;transition:background 0.12s,border-color 0.12s;";
+                kReleaseBtn.textContent = "🔓 Release from Arms";
+                kReleaseBtn.addEventListener("mouseenter", () => { kReleaseBtn.style.background = "#6a1830"; kReleaseBtn.style.borderColor = "#e08090"; });
+                kReleaseBtn.addEventListener("mouseleave", () => { kReleaseBtn.style.background = "#3a1020"; kReleaseBtn.style.borderColor = "#7a4050"; });
+                kReleaseBtn.addEventListener("click", () => {
+                    if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                        return;
+                    clearPosition(EMERY_MEMBER);
+                    try {
+                        ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                        sendRoomEmote(getKittyMood() === "rough"
+                            ? "drops Emery without ceremony~"
+                            : "gently sets Emery down~");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    kPosStatus.textContent = "✓ Released.";
+                    window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                });
+                posBody.appendChild(kReleaseBtn);
+                body.appendChild(posWrap);
+            }
             // ── PET REACTIONS ─────────────────────────────────────────────────────────
             const reactionsWrap = document.createElement("div");
             reactionsWrap.style.marginBottom = "10px";
@@ -32045,7 +32118,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 6; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 7; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32059,6 +32132,7 @@
         {
             version: "8.1.2",
             changes: [
+                "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
                 "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
                 "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
                 "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
