@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.47
+// @version      6.9.48
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11648,6 +11648,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._toyPendingOut = new Map();
             this._toyGrantedTo = new Map();
             this._toyIncoming = null;
+            this._irlCtrlSessions = new Map();
+            this._irlPendingOut = new Map();
+            this._irlGrantedTo = new Map();
+            this._irlIncoming = null;
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -28345,8 +28349,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        static getIrlToyWhitelist() {
+            try {
+                const raw = localStorage.getItem("EBC_irlToy_wl");
+                return raw ? JSON.parse(raw) : [];
+            }
+            catch (_a) {
+                return [];
+            }
+        }
+        static saveIrlToyWhitelist(list) {
+            try {
+                localStorage.setItem("EBC_irlToy_wl", JSON.stringify(list));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         renderToys() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -28789,6 +28808,234 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (syncEnabled)
                     this.startBCLiveSync();
                 lovContent.appendChild(syncCard);
+                // ── LOVENSE REMOTE CONTROL ─────────────────────────────────────────────
+                lovContent.appendChild(sep());
+                lovContent.appendChild(lvsHdr("LOVENSE REMOTE CONTROL — let others fire your toy"));
+                const irlAllowReqs = s["irlToyAllowRequests"] === true;
+                const irlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
+                const irlTogRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                const irlTogLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                irlTogLbl.textContent = "Allow others to request IRL toy control";
+                const irlTog = document.createElement("input");
+                irlTog.type = "checkbox";
+                irlTog.checked = irlAllowReqs;
+                irlTog.style.cssText = "accent-color:var(--ebc-accent);width:14px;height:14px;cursor:pointer;";
+                irlTogRow.appendChild(irlTogLbl);
+                irlTogRow.appendChild(irlTog);
+                irlCard.appendChild(irlTogRow);
+                const irlWlArea = mk("div");
+                irlCard.appendChild(irlWlArea);
+                const renderIrlWl = () => {
+                    var _a, _b;
+                    while (irlWlArea.firstChild)
+                        irlWlArea.removeChild(irlWlArea.firstChild);
+                    if (!irlTog.checked)
+                        return;
+                    const irlWl = EBCDrawer.getIrlToyWhitelist();
+                    const wlNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                    wlNote.textContent = "Friends can always request. Add others by member #:";
+                    irlWlArea.appendChild(wlNote);
+                    for (let idx = 0; idx < irlWl.length; idx++) {
+                        const num = irlWl[idx];
+                        const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                        const wlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        wlLbl.textContent = `#${num}`;
+                        const wlRem = document.createElement("button");
+                        wlRem.textContent = "✗";
+                        wlRem.style.cssText = `${FONT}font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                        wlRem.addEventListener("click", () => { irlWl.splice(idx, 1); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
+                        wlRow.appendChild(wlLbl);
+                        wlRow.appendChild(wlRem);
+                        irlWlArea.appendChild(wlRow);
+                    }
+                    const irlRoomChs = window.ChatRoomCharacter;
+                    const irlMyMN = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.MemberNumber;
+                    const nonWl = (irlRoomChs !== null && irlRoomChs !== void 0 ? irlRoomChs : []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN && !irlWl.includes(c.MemberNumber));
+                    if (nonWl.length > 0) {
+                        const addRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                        const roomSel = document.createElement("select");
+                        roomSel.style.cssText = GTSel;
+                        for (const c of nonWl) {
+                            const opt = document.createElement("option");
+                            opt.value = String(c.MemberNumber);
+                            opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                            roomSel.appendChild(opt);
+                        }
+                        const addBtn = document.createElement("button");
+                        addBtn.textContent = "+ Add";
+                        addBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                        addBtn.addEventListener("click", () => { const n = parseInt(roomSel.value, 10); if (!n || irlWl.includes(n))
+                            return; irlWl.push(n); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
+                        addRow.appendChild(roomSel);
+                        addRow.appendChild(addBtn);
+                        irlWlArea.appendChild(addRow);
+                    }
+                    const manRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;");
+                    const manLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                    manLbl.textContent = "Member # (manual)";
+                    const manInp = document.createElement("input");
+                    manInp.type = "number";
+                    manInp.style.cssText = `${FONT}font-size:11px;flex:1;padding:4px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;`;
+                    const manBtn = document.createElement("button");
+                    manBtn.textContent = "+ Add";
+                    manBtn.style.cssText = `${FONT}font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                    manBtn.addEventListener("click", () => { const n = parseInt(manInp.value, 10); if (!n || n < 1 || irlWl.includes(n)) {
+                        manInp.value = "";
+                        return;
+                    } irlWl.push(n); EBCDrawer.saveIrlToyWhitelist(irlWl); manInp.value = ""; renderIrlWl(); });
+                    manRow.appendChild(manLbl);
+                    manRow.appendChild(manInp);
+                    manRow.appendChild(manBtn);
+                    irlWlArea.appendChild(manRow);
+                };
+                irlTog.addEventListener("change", () => { s["irlToyAllowRequests"] = irlTog.checked; syncSettings(); renderIrlWl(); });
+                renderIrlWl();
+                if (this._irlGrantedTo.size > 0) {
+                    const gHdr = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:10px 0 4px;letter-spacing:0.8px;`);
+                    gHdr.textContent = "PEOPLE WITH ACCESS:";
+                    irlCard.appendChild(gHdr);
+                    for (const [memberNum, grant] of this._irlGrantedTo) {
+                        const gRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;");
+                        const gDot = mk("span");
+                        gDot.textContent = "🟢";
+                        const gName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        gName.textContent = grant.name;
+                        const rBtn = document.createElement("button");
+                        rBtn.textContent = "✗ Revoke";
+                        rBtn.style.cssText = `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
+                        rBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlGrantedTo.delete(memberNum); this.refreshToysIfActive(); });
+                        gRow.appendChild(gDot);
+                        gRow.appendChild(gName);
+                        gRow.appendChild(rBtn);
+                        irlCard.appendChild(gRow);
+                    }
+                }
+                lovContent.appendChild(irlCard);
+                lovContent.appendChild(sep());
+                lovContent.appendChild(lvsHdr("CONTROL A FRIEND'S LOVENSE"));
+                const irlFriendChs = window.ChatRoomCharacter;
+                const irlPW = window.Player;
+                const irlMyMN2 = irlPW === null || irlPW === void 0 ? void 0 : irlPW.MemberNumber;
+                const irlFnums = (_b = irlPW === null || irlPW === void 0 ? void 0 : irlPW.FriendList) !== null && _b !== void 0 ? _b : [];
+                const irlFriends = (irlFriendChs !== null && irlFriendChs !== void 0 ? irlFriendChs : []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN2 && irlFnums.includes(c.MemberNumber));
+                const irlOutCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
+                if (irlFriends.length === 0) {
+                    const noFr = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 4px;`);
+                    noFr.textContent = "No friends currently in the room.";
+                    irlOutCard.appendChild(noFr);
+                }
+                else {
+                    const irlPickRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+                    const irlFriendSel = document.createElement("select");
+                    irlFriendSel.style.cssText = GTSel;
+                    for (const c of irlFriends) {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.MemberNumber);
+                        opt.textContent = `${((_c = c.Nickname) !== null && _c !== void 0 ? _c : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                        irlFriendSel.appendChild(opt);
+                    }
+                    const irlReqBtn = document.createElement("button");
+                    irlReqBtn.textContent = "→ Request";
+                    irlReqBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;transition:background 0.1s;`;
+                    irlReqBtn.addEventListener("mouseenter", () => { irlReqBtn.style.background = "var(--ebc-bg)"; });
+                    irlReqBtn.addEventListener("mouseleave", () => { irlReqBtn.style.background = "transparent"; });
+                    irlPickRow.appendChild(irlFriendSel);
+                    irlPickRow.appendChild(irlReqBtn);
+                    irlOutCard.appendChild(irlPickRow);
+                    const irlStatusArea = mk("div");
+                    irlOutCard.appendChild(irlStatusArea);
+                    const updateIrlUI = () => {
+                        while (irlStatusArea.firstChild)
+                            irlStatusArea.removeChild(irlStatusArea.firstChild);
+                        for (const [memberNum, sess] of this._irlCtrlSessions) {
+                            const sCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-accent);border-radius:6px;padding:9px 10px;margin-bottom:8px;");
+                            const sTop = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                            const sDot = mk("span");
+                            sDot.textContent = "🟢";
+                            const sName = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);font-weight:bold;flex:1;`);
+                            sName.textContent = sess.name;
+                            const endBtn = document.createElement("button");
+                            endBtn.textContent = "✗ End";
+                            endBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
+                            endBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlCtrlSessions.delete(memberNum); updateIrlUI(); });
+                            sTop.appendChild(sDot);
+                            sTop.appendChild(sName);
+                            sTop.appendChild(endBtn);
+                            sCard.appendChild(sTop);
+                            let vI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
+                            let vD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
+                            const iR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                            const iL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                            iL.textContent = "Intensity";
+                            const iS = document.createElement("input");
+                            iS.type = "range";
+                            iS.min = "1";
+                            iS.max = "20";
+                            iS.value = String(vI);
+                            iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                            const iV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                            iV.textContent = `${vI}/20`;
+                            iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
+                            iR.appendChild(iL);
+                            iR.appendChild(iS);
+                            iR.appendChild(iV);
+                            sCard.appendChild(iR);
+                            const dR = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                            const dL = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;`);
+                            dL.textContent = "Duration";
+                            const dS = document.createElement("input");
+                            dS.type = "range";
+                            dS.min = "1";
+                            dS.max = "60";
+                            dS.value = String(vD);
+                            dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                            const dV = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;font-weight:bold;`);
+                            dV.textContent = `${vD}s`;
+                            dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
+                            dR.appendChild(dL);
+                            dR.appendChild(dS);
+                            dR.appendChild(dV);
+                            sCard.appendChild(dR);
+                            const vBtn = document.createElement("button");
+                            vBtn.textContent = "〜 Vibrate";
+                            vBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                            vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
+                            vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
+                            vBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "VIB", vI, vD); vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000); });
+                            sCard.appendChild(vBtn);
+                            irlStatusArea.appendChild(sCard);
+                        }
+                        for (const [pendNum, pend] of this._irlPendingOut) {
+                            const pRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px 10px;");
+                            const pTxt = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex:1;`);
+                            pTxt.textContent = `⏳ Waiting for ${pend.name} to accept…`;
+                            const cBtn = document.createElement("button");
+                            cBtn.textContent = "Cancel";
+                            cBtn.style.cssText = `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`;
+                            cBtn.addEventListener("click", () => { this.sendIrlToyMsg(pendNum, "REV"); this._irlPendingOut.delete(pendNum); updateIrlUI(); });
+                            pRow.appendChild(pTxt);
+                            pRow.appendChild(cBtn);
+                            irlStatusArea.appendChild(pRow);
+                        }
+                        if (this._irlCtrlSessions.size === 0 && this._irlPendingOut.size === 0) {
+                            const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                            hint.textContent = "Pick a friend and click → Request to start a session.";
+                            irlStatusArea.appendChild(hint);
+                        }
+                    };
+                    updateIrlUI();
+                    irlReqBtn.addEventListener("click", () => {
+                        const targetNum = parseInt(irlFriendSel.value, 10);
+                        if (!targetNum || this._irlCtrlSessions.has(targetNum) || this._irlPendingOut.has(targetNum))
+                            return;
+                        const selOpt = irlFriendSel.options[irlFriendSel.selectedIndex];
+                        const targetName = selOpt ? selOpt.text.replace(/ \(#\d+\)$/, "") : String(targetNum);
+                        this._irlPendingOut.set(targetNum, { name: targetName });
+                        this.sendIrlToyMsg(targetNum, "REQ");
+                        updateIrlUI();
+                    });
+                }
+                lovContent.appendChild(irlOutCard);
             }
             // ── GAME TOYS ────────────────────────────────────────────────────────────
             // Always-accessible section — no enable toggle
@@ -28896,7 +29143,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const c of wlRoomPeers) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     roomSel.appendChild(opt);
                 }
                 const roomAddBtn = document.createElement("button");
@@ -28948,7 +29195,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const gtRoomChars = window.ChatRoomCharacter;
             const gtPlayerW = window.Player;
             const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
-            const gtFriendNums = (_c = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _c !== void 0 ? _c : [];
+            const gtFriendNums = (_e = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _e !== void 0 ? _e : [];
             const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
             const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
             if (gtFriendsInRoom.length === 0) {
@@ -28963,7 +29210,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const c of gtFriendsInRoom) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_f = c.Nickname) !== null && _f !== void 0 ? _f : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     friendSel.appendChild(opt);
                 }
                 const reqBtn = document.createElement("button");
@@ -29261,6 +29508,122 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     (_d = win.ChatRoomCharacterItemUpdate) === null || _d === void 0 ? void 0 : _d.call(win, player, group);
             }
             catch ( /* ignore */_e) { /* ignore */ }
+        }
+        sendIrlToyMsg(targetNum, type, intensity, duration) {
+            try {
+                let content = `[EBC-IRL:${type}]`;
+                if (type === "VIB" && intensity !== undefined && duration !== undefined) {
+                    content = `[EBC-IRL:VIB:${intensity}:${duration}]`;
+                }
+                const serverSend = window.ServerSend;
+                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        handleIrlToyMsg(senderNumber, senderName, type, intensity, duration) {
+            var _a, _b;
+            try {
+                if (type === "REQ") {
+                    const s = getSettings();
+                    if (s["irlToyAllowRequests"] !== true) {
+                        this.sendIrlToyMsg(senderNumber, "DEN");
+                        return;
+                    }
+                    const wl = EBCDrawer.getIrlToyWhitelist();
+                    const fromFriend = ((_b = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.FriendList) !== null && _b !== void 0 ? _b : []).includes(senderNumber);
+                    if (!fromFriend && !wl.includes(senderNumber)) {
+                        this.sendIrlToyMsg(senderNumber, "DEN");
+                        return;
+                    }
+                    this._irlIncoming = { memberNumber: senderNumber, name: senderName };
+                    this._showIrlReqPopup();
+                }
+                else if (type === "ACK") {
+                    const pend = this._irlPendingOut.get(senderNumber);
+                    if (pend) {
+                        this._irlPendingOut.delete(senderNumber);
+                        this._irlCtrlSessions.set(senderNumber, { name: pend.name });
+                        this._showToyToast(`${pend.name} accepted Lovense control!`);
+                        this.refreshToysIfActive();
+                    }
+                }
+                else if (type === "DEN") {
+                    const pend = this._irlPendingOut.get(senderNumber);
+                    if (pend) {
+                        this._irlPendingOut.delete(senderNumber);
+                        this._showToyToast(`${pend.name} declined Lovense control.`);
+                        this.refreshToysIfActive();
+                    }
+                }
+                else if (type === "VIB") {
+                    if (!this._irlGrantedTo.has(senderNumber))
+                        return;
+                    const i = intensity !== null && intensity !== void 0 ? intensity : 10;
+                    const d = duration !== null && duration !== void 0 ? duration : 5;
+                    this._showToyToast(`${senderName}: ${i}/20 for ${d}s ~`);
+                    this.fireLovense(i, d).catch(() => { });
+                }
+                else if (type === "REV") {
+                    if (this._irlGrantedTo.has(senderNumber)) {
+                        this._irlGrantedTo.delete(senderNumber);
+                        this._showToyToast(`${senderName} ended the Lovense session.`);
+                        this.refreshToysIfActive();
+                    }
+                    else if (this._irlCtrlSessions.has(senderNumber)) {
+                        this._irlCtrlSessions.delete(senderNumber);
+                        this._showToyToast(`${senderName} revoked your Lovense access.`);
+                        this.refreshToysIfActive();
+                    }
+                }
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        _showIrlReqPopup() {
+            const mk = (tag, css) => { const el = document.createElement(tag); if (css)
+                el.style.cssText = css; return el; };
+            const req = this._irlIncoming;
+            if (!req)
+                return;
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            const box = mk("div", "background:#1a0e2a;border:1px solid #9a6fd0;border-radius:12px;padding:22px 26px;max-width:320px;width:90%;font-family:'Palatino Linotype',serif;text-align:center;");
+            const title = mk("div", "font-size:14px;font-weight:bold;color:#c9a8ff;margin-bottom:10px;");
+            title.textContent = "IRL Toy Request";
+            const msg = mk("div", "font-size:12px;color:#d0b8e0;margin-bottom:18px;line-height:1.5;");
+            msg.textContent = `${req.name} (#${req.memberNumber}) wants to control your real Lovense toy. Allow them?`;
+            const btnRow = mk("div", "display:flex;gap:12px;justify-content:center;");
+            const allowBtn = document.createElement("button");
+            allowBtn.textContent = "✓ Allow";
+            allowBtn.style.cssText = "font-family:'Palatino Linotype',serif;font-size:12px;font-weight:bold;padding:7px 20px;border-radius:7px;cursor:pointer;border:1px solid #9a6fd0;background:#2e1540;color:#c9a8ff;";
+            const denyBtn = document.createElement("button");
+            denyBtn.textContent = "✗ Deny";
+            denyBtn.style.cssText = "font-family:'Palatino Linotype',serif;font-size:12px;font-weight:bold;padding:7px 20px;border-radius:7px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;";
+            allowBtn.addEventListener("click", () => {
+                this._irlGrantedTo.set(req.memberNumber, { name: req.name });
+                this._irlIncoming = null;
+                this.sendIrlToyMsg(req.memberNumber, "ACK");
+                this._showToyToast(`Allowed ${req.name} to control your Lovense.`);
+                this.refreshToysIfActive();
+                document.body.removeChild(overlay);
+            });
+            denyBtn.addEventListener("click", () => {
+                this._irlIncoming = null;
+                this.sendIrlToyMsg(req.memberNumber, "DEN");
+                document.body.removeChild(overlay);
+            });
+            btnRow.appendChild(allowBtn);
+            btnRow.appendChild(denyBtn);
+            box.appendChild(title);
+            box.appendChild(msg);
+            box.appendChild(btnRow);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            window.setTimeout(() => {
+                if (document.body.contains(overlay)) {
+                    this._irlIncoming = null;
+                    this.sendIrlToyMsg(req.memberNumber, "DEN");
+                    document.body.removeChild(overlay);
+                }
+            }, 30000);
         }
         handleGameToyMsg(senderNumber, senderName, type, intensity, duration) {
             var _a, _b;
@@ -31330,7 +31693,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.47";
+    const MOD_VERSION = "6.9.48";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31341,6 +31704,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.48",
+            changes: [
+                "IRL TOYS: added Lovense Remote Control — others can request to fire your real toy via EBC-IRL whisper protocol. Toggle to allow requests, friends-or-whitelist gating, popup accept/deny, intensity+duration control panel, sessions shown in IRL TOYS tab.",
+            ],
+        },
         {
             version: "6.9.47",
             changes: [
@@ -37192,6 +37561,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const duration = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
         return { type, intensity, duration };
     }
+    function parseEBCIrlMsg(content) {
+        const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+        if (!m)
+            return null;
+        const type = m[1];
+        const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
+        const duration = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
+        return { type, intensity, duration };
+    }
     function handleKittyCommand(msg) {
         var _a, _b, _c, _d;
         const parsed = parseKittyCmd(msg);
@@ -38834,7 +39212,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
         // Lovense triggers: chat phrases + body touch activities + BC toy sync
         tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const [data] = args;
                 // EBC-TOY whisper intercept — suppress from BC chat display
@@ -38852,6 +39230,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return; // suppress — do not call next(args)
                     }
                 }
+                // EBC-IRL whisper intercept — IRL Lovense remote control
+                if (data.Type === "Whisper" && typeof data.Content === "string" &&
+                    data.Content.startsWith("[EBC-IRL:")) {
+                    const parsed = parseEBCIrlMsg(data.Content);
+                    if (parsed) {
+                        const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                        if (senderNum && senderNum !== Player.MemberNumber) {
+                            const roomChars = window.ChatRoomCharacter;
+                            const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === senderNum);
+                            const senderName = found ? (((_b = found.Nickname) !== null && _b !== void 0 ? _b : "").trim() || found.Name || String(senderNum)) : String(senderNum);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                        }
+                        return; // suppress — do not call next(args)
+                    }
+                }
                 if (data.Type === "Chat" && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
@@ -38859,7 +39252,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (data.Type === "Activity" && typeof data.Content === "string") {
                     const dict = data.Dictionary;
                     const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                    const targetNum = (_b = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _b !== void 0 ? _b : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
+                    const targetNum = (_c = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _c !== void 0 ? _c : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
                     if (targetNum === Player.MemberNumber) {
                         const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
                         const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["AssetGroupName"];
@@ -38867,7 +39260,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
