@@ -28510,7 +28510,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
                                     const mkTinySlider = (label, min, max, val, unit, onChange) => {
                                         const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
-                                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);flex-shrink:0;`);
                                         lbl.textContent = label;
                                         const sl = document.createElement("input");
                                         sl.type = "range";
@@ -28518,7 +28518,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         sl.max = String(max);
                                         sl.value = String(val);
                                         sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
-                                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text);min-width:22px;`);
+                                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);min-width:22px;`);
                                         vl.textContent = val + unit;
                                         sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
                                         wrap.appendChild(lbl);
@@ -28620,26 +28620,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     connBtnRow.appendChild(lovConnBtn);
                     connCard.appendChild(connBtnRow);
-                    const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
+                    const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
                     connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
                     connCard.appendChild(connNote);
                     lovContent.appendChild(connCard);
                 }
-                // ── HTTP (Lovense Connect app) ───────────────────────────────────────
-                // Works in all browsers (Firefox, Safari, Chrome, etc.).
-                // Requires the Lovense Connect app running locally.
+                // ── HTTP (Lovense Connect app) — collapsible ─────────────────────────
                 {
-                    const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
-                    const httpHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
-                    httpHdrRow.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                    const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:10px;overflow:hidden;");
+                    // Clickable header
+                    let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
+                    const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
+                    const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
+                    httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                    const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
+                    httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                    httpHdrRow.appendChild(httpHdrLabel);
+                    httpHdrRow.appendChild(httpChevron);
                     httpCard.appendChild(httpHdrRow);
+                    // Collapsible body
+                    const httpBody = mk("div", "padding:8px 12px 10px;border-top:1px solid var(--ebc-border);");
+                    httpBody.style.display = httpCollapsed ? "none" : "";
+                    httpHdrRow.addEventListener("click", () => {
+                        httpCollapsed = !httpCollapsed;
+                        localStorage.setItem("EBC_lovHttpCollapsed", String(httpCollapsed));
+                        httpBody.style.display = httpCollapsed ? "none" : "";
+                        httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                    });
                     // Load saved URL
                     const savedHttpUrl = typeof s["lovenseHttpUrl"] === "string" ? s["lovenseHttpUrl"] : "";
-                    if (savedHttpUrl) {
+                    if (savedHttpUrl)
                         this._lovHttpUrl = savedHttpUrl || null;
-                    }
                     const urlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
-                    const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex-shrink:0;`);
                     urlLbl.textContent = "URL:";
                     const urlInp = document.createElement("input");
                     urlInp.type = "text";
@@ -28648,7 +28661,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     urlInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;min-width:0;box-sizing:border-box;`;
                     urlRow.appendChild(urlLbl);
                     urlRow.appendChild(urlInp);
-                    httpCard.appendChild(urlRow);
+                    httpBody.appendChild(urlRow);
                     const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                     const httpTestBtn = document.createElement("button");
                     httpTestBtn.textContent = "Test Connection";
@@ -28657,10 +28670,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     httpStatus.textContent = this._lovHttpConnected
                         ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
                         : "⚫ Not tested";
-                    httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-muted)";
+                    httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
                     httpBtnRow.appendChild(httpTestBtn);
                     httpBtnRow.appendChild(httpStatus);
-                    httpCard.appendChild(httpBtnRow);
+                    httpBody.appendChild(httpBtnRow);
                     httpTestBtn.addEventListener("click", () => {
                         const rawUrl = urlInp.value.trim().replace(/\/$/, "");
                         if (!rawUrl)
@@ -28670,7 +28683,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this._lovHttpUrl = rawUrl;
                         httpTestBtn.disabled = true;
                         httpStatus.textContent = "🔄 Testing…";
-                        httpStatus.style.color = "var(--ebc-text-muted)";
+                        httpStatus.style.color = "var(--ebc-text-sub)";
                         this._lovHttpPing().then(ok => {
                             httpTestBtn.disabled = false;
                             if (ok) {
@@ -28683,9 +28696,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         });
                     });
-                    const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.6;`);
+                    const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
                     httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
-                    httpCard.appendChild(httpNote);
+                    httpBody.appendChild(httpNote);
+                    httpCard.appendChild(httpBody);
                     lovContent.appendChild(httpCard);
                 }
                 // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
@@ -28694,7 +28708,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const mkLovSlider = (label, key, min, max, def, fmtFn) => {
                     const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key], min), max) : def;
                     const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;flex-shrink:0;`);
+                    const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);min-width:68px;flex-shrink:0;`);
                     lbl.textContent = label;
                     const sl = document.createElement("input");
                     sl.type = "range";
@@ -28718,7 +28732,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                 lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "var(--ebc-bg)"; });
                 lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "transparent"; });
-                const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+                const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-sub);`);
                 lovTestBtn.addEventListener("click", () => {
                     lovTestBtn.disabled = true;
                     lovTestRes.textContent = "…";
@@ -32057,7 +32071,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 4; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 5; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32075,6 +32089,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
                 "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
                 "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
+                "Lovense: HTTP card is now a collapsible dropdown (click header to expand/collapse, state saved). Fixed all low-contrast text-muted colors in Lovense section to text-bright/text-sub.",
             ],
         },
         {
