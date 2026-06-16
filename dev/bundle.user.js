@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.55
+// @version      6.9.56
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28399,7 +28399,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
                 chevron.textContent = collapsed ? "▶" : "▼";
                 const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-                titleEl.textContent = `${icon} ${title}`;
+                titleEl.textContent = title;
                 const eBtn = mkBtn(enabled ? "ON" : "OFF", `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
                 eBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -28425,7 +28425,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return { wrap, content };
             };
             const lovEnabled = s.lovenseEnabled === true;
-            const { wrap: lovWrap, content: lovContent } = mkSection("🧸", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
+            const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
                 offNote.textContent = "Enable Lovense above to configure.";
@@ -29117,7 +29117,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const gtChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
             gtChevron.textContent = gtCollapsed ? "▶" : "▼";
             const gtTitleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-            gtTitleEl.textContent = "🎮 GAME TOYS";
+            gtTitleEl.textContent = "GAME TOYS";
             gtHRow.appendChild(gtChevron);
             gtHRow.appendChild(gtTitleEl);
             const gtContent = mk("div", `display:${gtCollapsed ? "none" : "block"};`);
@@ -31787,7 +31787,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.55";
+    const MOD_VERSION = "6.9.56";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31798,6 +31798,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.56",
+            changes: [
+                "TOYS: removed emoji icons from GAME TOYS and IRL TOYS section headers.",
+            ],
+        },
         {
             version: "6.9.55",
             changes: [
