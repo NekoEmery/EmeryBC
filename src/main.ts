@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.44";
+const MOD_VERSION = "6.9.45";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.45",
+        changes: [
+            "BC TOY SYNC: Replaced one-shot fire with live polling. Now reads Player.ArousalSettings.VibratorLevel every 500ms and maps the BC 0–4 scale to Lovense 0–20 continuously. BC already updates this value in real-time for ALL vibrator modes (Constant, Escalate, Random, Tease, Deny, Edge), so edge mode bounces, escalate ramps, random flickers — all mirror to Lovense automatically.",
+            "BC TOY SYNC: Added max intensity cap slider (1–20) to limit how hard the Lovense goes even when BC toy is at max.",
+            "BC TOY SYNC: Live status indicator in the panel shows whether the poller is running and the current Lovense level.",
+            "BC TOY SYNC: Poller also auto-starts on room join (ChatRoomSync hook).",
+        ],
+    },
     {
         version: "6.9.44",
         changes: [
@@ -7123,6 +7132,7 @@ function init(): void {
             }, 0);
         }
         try { applyPositions(); } catch { /* ignore */ }
+        try { drawer?.startBCLiveSync(); } catch { /* ignore */ }
         return result;
     });
     tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
