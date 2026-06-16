@@ -7433,6 +7433,8 @@
         "buttons.resetDefaultPoseTitle": { en: "Clears all active poses back to standing", de: "Alle aktiven Posen auf Stehen zurücksetzen", zh: "清除所有活动姿势，恢复站立", fr: "Efface toutes les poses actives (retour debout)", es: "Borra todas las poses activas (vuelve de pie)", ru: "Сбрасывает все позы до стоячей", ja: "すべてのアクティブなポーズを解除して立ち姿に戻す" },
         "buttons.noFriendsHere": { en: "No friends here~", de: "Keine Freunde hier~", zh: "房间里没有朋友~", fr: "Aucun ami ici~", es: "No hay amigos aquí~", ru: "Здесь нет друзей~", ja: "フレンドがいません~" },
         "buttons.boopedN": { en: "Booped {n}!", de: "{n} gestupst!", zh: "戳了 {n} 个！", fr: "Touché {n} !", es: "¡Tocado a {n}!", ru: "Потыкали {n}!", ja: "{n} 人をビープしました！" },
+        "buttons.cuddledN": { en: "Cuddled {n}!", de: "{n} gekuschelt!", zh: "抱了 {n} 个！", fr: "Câliné {n} !", es: "¡Abrazado a {n}!", ru: "Обнялись с {n}!", ja: "{n} 人をハグしました！" },
+        "buttons.pettedN": { en: "Pet {n}!", de: "{n} gestreichelt!", zh: "摸了 {n} 个！", fr: "Caressé {n} !", es: "¡Acariciado a {n}!", ru: "Погладили {n}!", ja: "{n} 人を撫でました！" },
         // ─── ANIMS TAB ─────────────────────────────────────────────────────────
         "anims.poses": { en: "Poses", de: "Posen", zh: "姿势", fr: "Poses", es: "Poses", ru: "Позы", ja: "ポーズ" },
         "anims.poseCombos": { en: "Pose Combos", de: "Pose-Kombinationen", zh: "姿势组合", fr: "Combos de poses", es: "Combos de poses", ru: "Комбинации поз", ja: "ポーズコンボ" },
@@ -7530,6 +7532,8 @@
         "kitty.pull": { en: "↗ Pull", de: "↗ Ziehen", zh: "↗ 拉近", fr: "↗ Tirer", es: "↗ Tirar", ru: "↗ Потянуть", ja: "↗ 引く" },
         "kitty.barkBtn": { en: "🐶 Bark!", de: "🐶 Bellen!", zh: "🐶 汪汪！", fr: "🐶 Aboyer !", es: "🐶 ¡Ladrar!", ru: "🐶 Гав!", ja: "🐶 ワン！" },
         "kitty.boopAll": { en: "🐾 Boop all friends in room", de: "🐾 Alle Freunde im Raum tippen", zh: "🐾 戳戳房间里所有朋友", fr: "🐾 Taper tous les amis dans la salle", es: "🐾 Tocar a todos los amigos", ru: "🐾 Потыкать всех друзей в комнате", ja: "🐾 ルームのフレンド全員をビープ" },
+        "kitty.cuddleAll": { en: "🫂 Cuddle all friends in room", de: "🫂 Alle Freunde im Raum kuscheln", zh: "🫂 抱抱房间里所有朋友", fr: "🫂 Câliner tous les amis dans la salle", es: "🫂 Abrazar a todos los amigos", ru: "🫂 Обняться со всеми друзьями в комнате", ja: "🫂 ルームのフレンド全員をハグ" },
+        "kitty.petAll": { en: "✋ Pet all friends in room", de: "✋ Alle Freunde im Raum streicheln", zh: "✋ 摸摸房间里所有朋友", fr: "✋ Caresser tous les amis dans la salle", es: "✋ Acariciar a todos los amigos", ru: "✋ Погладить всех друзей в комнате", ja: "✋ ルームのフレンド全員を撫でる" },
         "kitty.emotes": { en: "Emotes", de: "Emotes", zh: "表情动作", fr: "Émotes", es: "Emotes", ru: "Эмоуты", ja: "エモート" },
         "kitty.moods": { en: "Moods", de: "Stimmungen", zh: "心情", fr: "Humeurs", es: "Estados de ánimo", ru: "Настроения", ja: "気分" },
         "kitty.restraintSets": { en: "Restraint Sets", de: "Fesseln-Sets", zh: "束缚套装", fr: "Sets de liens", es: "Conjuntos de ataduras", ru: "Наборы пут", ja: "拘束具セット" },
@@ -16962,6 +16966,86 @@
                 return 0;
             }
         }
+        cuddleOne(target) {
+            try {
+                const win = window;
+                const ActivityRun = win.ActivityRun;
+                const AssetGetActivity = win.AssetGetActivity;
+                if (!ActivityRun || !AssetGetActivity)
+                    return;
+                const cuddleActivity = AssetGetActivity("Female3DCG", "Cuddle");
+                if (!cuddleActivity)
+                    return;
+                ActivityRun(Player, target, { Name: "ItemArms" }, { Activity: cuddleActivity, Item: null });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        cuddleFriendsInRoom() {
+            var _a;
+            try {
+                const friendList = Player.FriendList;
+                if (!Array.isArray(friendList) || friendList.length === 0)
+                    return 0;
+                const friendSet = new Set(friendList);
+                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
+                if (friends.length === 0)
+                    return 0;
+                let count = 0;
+                for (const friend of friends) {
+                    const target = friend;
+                    window.setTimeout(() => { try {
+                        this.cuddleOne(target);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, count * 1800);
+                    count++;
+                }
+                return count;
+            }
+            catch (_b) {
+                return 0;
+            }
+        }
+        petOne(target) {
+            try {
+                const win = window;
+                const ActivityRun = win.ActivityRun;
+                const AssetGetActivity = win.AssetGetActivity;
+                if (!ActivityRun || !AssetGetActivity)
+                    return;
+                const petActivity = AssetGetActivity("Female3DCG", "Pet");
+                if (!petActivity)
+                    return;
+                ActivityRun(Player, target, { Name: "ItemHead" }, { Activity: petActivity, Item: null });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        petFriendsInRoom() {
+            var _a;
+            try {
+                const friendList = Player.FriendList;
+                if (!Array.isArray(friendList) || friendList.length === 0)
+                    return 0;
+                const friendSet = new Set(friendList);
+                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
+                if (friends.length === 0)
+                    return 0;
+                let count = 0;
+                for (const friend of friends) {
+                    const target = friend;
+                    window.setTimeout(() => { try {
+                        this.petOne(target);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, count * 1800);
+                    count++;
+                }
+                return count;
+            }
+            catch (_b) {
+                return 0;
+            }
+        }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
             while (panel.firstChild)
@@ -25588,6 +25672,38 @@
                 window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
             });
             body.appendChild(boopBtn);
+            const cuddleBtn = document.createElement("button");
+            cuddleBtn.className = "ebc-create-btn";
+            cuddleBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            cuddleBtn.title = "Send a cuddle to every friend currently in the room";
+            cuddleBtn.textContent = t("kitty.cuddleAll");
+            cuddleBtn.addEventListener("click", () => {
+                const count = this.cuddleFriendsInRoom();
+                if (count === 0) {
+                    cuddleBtn.textContent = t("buttons.noFriendsHere");
+                }
+                else {
+                    cuddleBtn.textContent = t("buttons.cuddledN", { n: count });
+                }
+                window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
+            });
+            body.appendChild(cuddleBtn);
+            const petBtn = document.createElement("button");
+            petBtn.className = "ebc-create-btn";
+            petBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            petBtn.title = "Pet every friend currently in the room";
+            petBtn.textContent = t("kitty.petAll");
+            petBtn.addEventListener("click", () => {
+                const count = this.petFriendsInRoom();
+                if (count === 0) {
+                    petBtn.textContent = t("buttons.noFriendsHere");
+                }
+                else {
+                    petBtn.textContent = t("buttons.pettedN", { n: count });
+                }
+                window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
+            });
+            body.appendChild(petBtn);
             // -- Useful Buttons ------------------------------------------------------
             const usefulLbl = document.createElement("div");
             usefulLbl.className = "ebc-section-label";
@@ -31821,7 +31937,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.65";
+    const MOD_VERSION = "6.9.66";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31832,6 +31948,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.66",
+            changes: [
+                "Fun Actions: added 'Cuddle all friends in room' and 'Pet all friends in room' buttons below Boop All.",
+            ],
+        },
         {
             version: "6.9.65",
             changes: [
