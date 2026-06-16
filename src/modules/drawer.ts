@@ -20999,6 +20999,14 @@ export class EBCDrawer {
                 const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
                 httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Default port 20010 (v1 API). If CORS fails, open Lovense Connect settings and enable LAN API.";
                 httpBody.appendChild(httpNote);
+                const httpAppLink = document.createElement("a");
+                httpAppLink.href = "https://www.lovense.com/app/remote";
+                httpAppLink.target = "_blank"; httpAppLink.rel = "noopener noreferrer";
+                httpAppLink.textContent = "↗ Get Lovense Connect app";
+                httpAppLink.style.cssText = `${FONT}font-size:10px;color:var(--ebc-accent);text-decoration:none;display:inline-block;margin-top:5px;`;
+                httpAppLink.addEventListener("mouseenter", () => { httpAppLink.style.textDecoration = "underline"; });
+                httpAppLink.addEventListener("mouseleave", () => { httpAppLink.style.textDecoration = "none"; });
+                httpBody.appendChild(httpAppLink);
                 httpCard.appendChild(httpBody);
                 lovContent.appendChild(httpCard);
             }
