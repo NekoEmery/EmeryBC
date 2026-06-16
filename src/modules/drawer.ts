@@ -494,7 +494,7 @@ const CSS = `
  */
 #emerybc-root {
     position: fixed;
-    z-index: 99;
+    z-index: 101;
     width: 0;
     pointer-events: none;
 }
@@ -4005,6 +4005,7 @@ export class EBCDrawer {
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
+    private _positionVerifyTick = 0;
     // Kitty page: whether Lucy is currently holding Emery's leash.
     // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
     // our own authoritative copy here; it survives panel re-renders.
@@ -5415,16 +5416,28 @@ export class EBCDrawer {
     private updateCrabsPosition(): void {
         if (!this.rootEl) return;
 
-        // Heartbeat guard: BC's screen-transition code can set display:none on unknown
-        // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-        // This intentionally runs regardless of this.positioned so it also protects EBC
-        // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+        // Heartbeat guard: restores root visibility within 200 ms if anything hides it.
+        // Covers both inline display:none (set by BC screen-transition code) and the
+        // HTML hidden attribute (which overrides inline display and is NOT caught by the
+        // display check alone).
         if (this.rootEl.style.display !== "block") {
             this.rootEl.style.display = "block";
+        }
+        if (this.rootEl.hidden) {
+            this.rootEl.hidden = false;
         }
 
         if (!this.positioned) {
             // Haven't anchored to the chat log yet - keep retrying until we succeed.
+            this.syncToChat();
+            return;
+        }
+
+        // Periodic position re-verify: even when positioned=true, re-run syncToChat()
+        // every ~5 s to catch layout shifts (e.g. beep notifications resizing BC's chat
+        // area) that the ResizeObserver may not have fired for.
+        if (++this._positionVerifyTick >= 25) {
+            this._positionVerifyTick = 0;
             this.syncToChat();
             return;
         }
@@ -12082,7 +12095,6 @@ export class EBCDrawer {
                 if (!this.isOpen) this.open();
                 this.switchTab("notes");
             });
-            tab.style.position = "relative";
             tab.appendChild(dot);
         } else if (!hasUnread && dot) {
             dot.remove();

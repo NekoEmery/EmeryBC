@@ -24,7 +24,7 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "6.9.72";
+const MOD_VERSION = "6.9.73";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -38,6 +38,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "6.9.73",
+        changes: [
+            "Fix: EBC drawer tab no longer disappears when a beep notification arrives — removed erroneous tab.style.position='relative' mutation in the unread-dot code (was overriding CSS position:absolute, causing tab offset to shift); raised root z-index from 99 to 101 (above BC's toast container at 100); heartbeat guard now also removes the HTML hidden attribute; added a periodic 5-second position re-sync.",
+        ],
+    },
     {
         version: "6.9.72",
         changes: [
