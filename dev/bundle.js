@@ -28644,15 +28644,14 @@
                     const stored = touchData[def.key];
                     const enNow = stored ? stored.enabled : def.dflt;
                     const cellWrap = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 9px;");
-                    const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
-                    const chk = document.createElement("input");
-                    chk.type = "checkbox";
-                    chk.checked = enNow;
-                    chk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;flex-shrink:0;margin:0;`;
-                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
+                    let togEnabled = enNow;
+                    const r1 = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                    const togBtn = document.createElement("button");
+                    togBtn.textContent = togEnabled ? "ON" : "OFF";
+                    togBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;padding:2px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${togEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${togEnabled ? "var(--ebc-accent)" : "transparent"};color:${togEnabled ? "#fff" : "var(--ebc-text-muted)"};transition:all 0.1s;`;
+                    const tlbl = mk("span", `${FONT}font-size:11px;color:${togEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${togEnabled ? "bold" : "normal"};`);
                     tlbl.textContent = def.label;
-                    tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
-                    r1.appendChild(chk);
+                    r1.appendChild(togBtn);
                     r1.appendChild(tlbl);
                     cellWrap.appendChild(r1);
                     const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
@@ -28676,19 +28675,25 @@
                         const iv = iInp2.value.trim();
                         const dv = dInp2.value.trim();
                         touchData[def.key] = {
-                            enabled: chk.checked,
+                            enabled: togEnabled,
                             intensity: iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined,
                             duration: dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined,
                         };
                         EBCDrawer.saveTouchTriggers(touchData);
                     };
-                    chk.addEventListener("change", () => {
-                        const en = chk.checked;
-                        tlbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
-                        tlbl.style.fontWeight = en ? "bold" : "normal";
-                        r2.style.opacity = en ? "" : "0.4";
+                    const onToggle = () => {
+                        togEnabled = !togEnabled;
+                        togBtn.textContent = togEnabled ? "ON" : "OFF";
+                        togBtn.style.borderColor = togEnabled ? "var(--ebc-accent)" : "var(--ebc-border)";
+                        togBtn.style.background = togEnabled ? "var(--ebc-accent)" : "transparent";
+                        togBtn.style.color = togEnabled ? "#fff" : "var(--ebc-text-muted)";
+                        tlbl.style.color = togEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
+                        tlbl.style.fontWeight = togEnabled ? "bold" : "normal";
+                        r2.style.opacity = togEnabled ? "" : "0.4";
                         saveTouchCell();
-                    });
+                    };
+                    togBtn.addEventListener("click", onToggle);
+                    tlbl.addEventListener("click", onToggle);
                     iInp2.addEventListener("change", saveTouchCell);
                     dInp2.addEventListener("change", saveTouchCell);
                     touchGrid.appendChild(cellWrap);
@@ -31747,7 +31752,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.54";
+    const MOD_VERSION = "6.9.55";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31758,6 +31763,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.55",
+            changes: [
+                "BODY TOUCH: checkboxes replaced with ON/OFF toggle buttons (accent-colored when active).",
+            ],
+        },
         {
             version: "6.9.54",
             changes: [
