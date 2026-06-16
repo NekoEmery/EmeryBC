@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      6.9.54
+// @version      6.9.60
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28399,7 +28399,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
                 chevron.textContent = collapsed ? "▶" : "▼";
                 const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-                titleEl.textContent = `${icon} ${title}`;
+                titleEl.textContent = title;
                 const eBtn = mkBtn(enabled ? "ON" : "OFF", `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
                 eBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -28425,7 +28425,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return { wrap, content };
             };
             const lovEnabled = s.lovenseEnabled === true;
-            const { wrap: lovWrap, content: lovContent } = mkSection("🧸", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
+            const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS", "lovenseEnabled", "EBC_ui_lovense_open");
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
                 offNote.textContent = "Enable Lovense above to configure.";
@@ -28612,13 +28612,46 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lovTestRow.appendChild(lovTestBtn);
                 lovTestRow.appendChild(lovTestRes);
                 lovContent.appendChild(lovTestRow);
-                // ── CHAT PHRASES ────────────────────────────────────────────────────
+                // ── Shared collapsible helpers ─────────────────────────────────────────
+                const lsGet = (k, d) => { var _a; try {
+                    return (_a = localStorage.getItem(k)) !== null && _a !== void 0 ? _a : d;
+                }
+                catch (_b) {
+                    return d;
+                } };
+                const lsSet = (k, v) => { try {
+                    localStorage.setItem(k, v);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } };
+                const mkLovSub = (title, lsKey) => {
+                    const open = lsGet(lsKey, "1") === "1";
+                    const wrap = mk("div", "margin-bottom:6px;");
+                    const hdr = mk("div", `display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 10px;background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;user-select:none;margin-bottom:4px;`);
+                    const chev = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                    chev.textContent = open ? "▼" : "▶";
+                    const ttxt = mk("span", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-text-bright);letter-spacing:0.5px;flex:1;`);
+                    ttxt.textContent = title;
+                    hdr.appendChild(chev);
+                    hdr.appendChild(ttxt);
+                    const body = mk("div");
+                    body.style.display = open ? "" : "none";
+                    hdr.addEventListener("click", () => {
+                        const nowOpen = body.style.display === "none";
+                        body.style.display = nowOpen ? "" : "none";
+                        chev.textContent = nowOpen ? "▼" : "▶";
+                        lsSet(lsKey, nowOpen ? "1" : "0");
+                    });
+                    wrap.appendChild(hdr);
+                    wrap.appendChild(body);
+                    return { wrap, body };
+                };
+                // ── CHAT PHRASES ─────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("CHAT PHRASES — fire when phrase is said in chat"));
+                const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
                 const phraseAddBtn = document.createElement("button");
                 phraseAddBtn.textContent = "+ Add phrase";
                 phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);margin-bottom:7px;`;
-                lovContent.appendChild(phraseAddBtn);
+                phraseBody.appendChild(phraseAddBtn);
                 const lovTriggers = EBCDrawer.getLovenseTriggers();
                 const lovListEl = mk("div");
                 const renderLovTriggers = () => {
@@ -28642,13 +28675,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         tCard.appendChild(r1);
                         const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
                         const mkOLbl = (txt) => { const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); l.textContent = txt; return l; };
-                        r2.appendChild(mkOLbl("I:"));
+                        r2.appendChild(mkOLbl("Intensity:"));
                         const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : "");
                         r2.appendChild(iInp);
-                        r2.appendChild(mkOLbl("D:"));
+                        r2.appendChild(mkOLbl("Duration:"));
                         const dInp = lvsNumInp("def", tr.duration !== undefined ? String(tr.duration) : "");
                         r2.appendChild(dInp);
-                        r2.appendChild(mkOLbl("s  (blank = default)"));
+                        r2.appendChild(mkOLbl("s"));
                         const savePhrTr = () => {
                             const iv = iInp.value.trim();
                             const dv = dInp.value.trim();
@@ -28669,34 +28702,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 };
                 phraseAddBtn.addEventListener("click", () => { lovTriggers.push({ phrase: "" }); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
                 renderLovTriggers();
-                lovContent.appendChild(lovListEl);
-                // ── BODY TOUCH ──────────────────────────────────────────────────────
+                phraseBody.appendChild(lovListEl);
+                lovContent.appendChild(phraseSec);
+                // ── BODY TOUCH ───────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("BODY TOUCH — fire when someone does an action on you"));
+                const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
                 const touchData = EBCDrawer.getTouchTriggers();
                 const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
                 for (const def of TOUCH_DEFS) {
                     const stored = touchData[def.key];
                     const enNow = stored ? stored.enabled : def.dflt;
                     const cellWrap = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:7px 9px;");
-                    const r1 = mk("div", "display:flex;align-items:center;gap:5px;margin-bottom:5px;");
-                    const chk = document.createElement("input");
-                    chk.type = "checkbox";
-                    chk.checked = enNow;
-                    chk.style.cssText = `accent-color:var(--ebc-accent);cursor:pointer;flex-shrink:0;margin:0;`;
-                    const tlbl = mk("span", `${FONT}font-size:11px;color:${enNow ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${enNow ? "bold" : "normal"};`);
+                    let togEnabled = enNow;
+                    const r1 = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
+                    const togBtn = document.createElement("button");
+                    togBtn.textContent = togEnabled ? "ON" : "OFF";
+                    togBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;padding:2px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${togEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${togEnabled ? "var(--ebc-accent)" : "transparent"};color:${togEnabled ? "#fff" : "var(--ebc-text-muted)"};transition:all 0.1s;`;
+                    const tlbl = mk("span", `${FONT}font-size:11px;color:${togEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)"};cursor:pointer;flex:1;font-weight:${togEnabled ? "bold" : "normal"};`);
                     tlbl.textContent = def.label;
-                    tlbl.addEventListener("click", () => { chk.checked = !chk.checked; chk.dispatchEvent(new Event("change")); });
-                    r1.appendChild(chk);
+                    r1.appendChild(togBtn);
                     r1.appendChild(tlbl);
                     cellWrap.appendChild(r1);
                     const r2 = mk("div", `display:flex;align-items:center;gap:4px;${enNow ? "" : "opacity:0.4;"}`);
                     const iLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                    iLbl2.textContent = "I:";
+                    iLbl2.textContent = "Int:";
                     const iInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.intensity) !== undefined ? String(stored.intensity) : "");
-                    iInp2.style.width = "42px";
+                    iInp2.style.width = "38px";
                     const dLbl2 = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                    dLbl2.textContent = "D:";
+                    dLbl2.textContent = "Dur:";
                     const dInp2 = lvsNumInp("—", (stored === null || stored === void 0 ? void 0 : stored.duration) !== undefined ? String(stored.duration) : "");
                     dInp2.style.width = "42px";
                     const sUnit = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
@@ -28711,30 +28744,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const iv = iInp2.value.trim();
                         const dv = dInp2.value.trim();
                         touchData[def.key] = {
-                            enabled: chk.checked,
+                            enabled: togEnabled,
                             intensity: iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined,
                             duration: dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined,
                         };
                         EBCDrawer.saveTouchTriggers(touchData);
                     };
-                    chk.addEventListener("change", () => {
-                        const en = chk.checked;
-                        tlbl.style.color = en ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
-                        tlbl.style.fontWeight = en ? "bold" : "normal";
-                        r2.style.opacity = en ? "" : "0.4";
+                    const onToggle = () => {
+                        togEnabled = !togEnabled;
+                        togBtn.textContent = togEnabled ? "ON" : "OFF";
+                        togBtn.style.borderColor = togEnabled ? "var(--ebc-accent)" : "var(--ebc-border)";
+                        togBtn.style.background = togEnabled ? "var(--ebc-accent)" : "transparent";
+                        togBtn.style.color = togEnabled ? "#fff" : "var(--ebc-text-muted)";
+                        tlbl.style.color = togEnabled ? "var(--ebc-text-bright)" : "var(--ebc-text-muted)";
+                        tlbl.style.fontWeight = togEnabled ? "bold" : "normal";
+                        r2.style.opacity = togEnabled ? "" : "0.4";
                         saveTouchCell();
-                    });
+                    };
+                    togBtn.addEventListener("click", onToggle);
+                    tlbl.addEventListener("click", onToggle);
                     iInp2.addEventListener("change", saveTouchCell);
                     dInp2.addEventListener("change", saveTouchCell);
                     touchGrid.appendChild(cellWrap);
                 }
-                lovContent.appendChild(touchGrid);
-                const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:0 0 4px;`);
-                touchHint.textContent = "I = intensity (1–20)  D = duration in seconds  blank = use defaults";
-                lovContent.appendChild(touchHint);
-                // ── BC TOY SYNC ─────────────────────────────────────────────────────
+                touchBody.appendChild(touchGrid);
+                const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:2px 0 4px;`);
+                touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional — leave blank for defaults.";
+                touchBody.appendChild(touchHint);
+                lovContent.appendChild(touchSec);
+                // ── BC TOY SYNC ──────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                lovContent.appendChild(lvsHdr("BC TOY SYNC — live mirror of BC toy intensity"));
+                const { wrap: syncSec, body: syncSecBody } = mkLovSub("BC TOY SYNC", "EBC_sec_sync");
                 const syncEnabled = s["lovenseBcSyncEnabled"] === true;
                 const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
                 const syncToggleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
@@ -28809,22 +28849,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 if (syncEnabled)
                     this.startBCLiveSync();
-                lovContent.appendChild(syncCard);
+                syncSecBody.appendChild(syncCard);
+                lovContent.appendChild(syncSec);
                 // ── IRL TOYS (collapsible) ─────────────────────────────────────────────
                 lovContent.appendChild(sep());
-                const irlLsGet = (key, def) => { var _a; try {
-                    return (_a = localStorage.getItem(key)) !== null && _a !== void 0 ? _a : def;
-                }
-                catch (_b) {
-                    return def;
-                } };
-                const irlLsSet = (key, val) => { try {
-                    localStorage.setItem(key, val);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } };
                 const makeCollSection = (titleText, lsKey) => {
                     const wrap = mk("div", "margin-bottom:10px;");
-                    const isOpen = irlLsGet(lsKey, "1") === "1";
+                    const isOpen = lsGet(lsKey, "1") === "1";
                     const hdr = mk("div", "background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                     const chev = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);`);
                     chev.textContent = isOpen ? "▼" : "▶";
@@ -28838,7 +28869,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const open = body.style.display === "none";
                         body.style.display = open ? "" : "none";
                         chev.textContent = open ? "▼" : "▶";
-                        irlLsSet(lsKey, open ? "1" : "0");
+                        lsSet(lsKey, open ? "1" : "0");
                     });
                     wrap.appendChild(hdr);
                     wrap.appendChild(body);
@@ -28861,7 +28892,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // collapsible whitelist sub-section
                 const wlWrap = mk("div", "margin-bottom:8px;");
                 wlWrap.style.display = irlAllowReqs ? "" : "none";
-                const wlIsOpen = irlLsGet("EBC_irl_wl_open", "1") === "1";
+                const wlIsOpen = lsGet("EBC_irl_wl_open", "1") === "1";
                 const wlHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;margin-bottom:4px;");
                 const wlChev = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
                 wlChev.textContent = wlIsOpen ? "▼" : "▶";
@@ -28875,7 +28906,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const open = wlBody.style.display === "none";
                     wlBody.style.display = open ? "" : "none";
                     wlChev.textContent = open ? "▼" : "▶";
-                    irlLsSet("EBC_irl_wl_open", open ? "1" : "0");
+                    lsSet("EBC_irl_wl_open", open ? "1" : "0");
                 });
                 wlWrap.appendChild(wlHdr);
                 wlWrap.appendChild(wlBody);
@@ -29112,7 +29143,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const gtChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
             gtChevron.textContent = gtCollapsed ? "▶" : "▼";
             const gtTitleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
-            gtTitleEl.textContent = "🎮 GAME TOYS";
+            gtTitleEl.textContent = "GAME TOYS";
             gtHRow.appendChild(gtChevron);
             gtHRow.appendChild(gtTitleEl);
             const gtContent = mk("div", `display:${gtCollapsed ? "none" : "block"};`);
@@ -29276,21 +29307,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     friendSel.appendChild(opt);
                 }
                 const charHasVibs = (memberNum) => {
-                    var _a;
+                    var _a, _b;
                     try {
-                        const lookup = (_a = window.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
-                        const roomChars = window.ChatRoomCharacter;
-                        const ch = (roomChars !== null && roomChars !== void 0 ? roomChars : []).find(c => c.MemberNumber === memberNum);
+                        const win = window;
+                        const ch = ((_a = win.ChatRoomCharacter) !== null && _a !== void 0 ? _a : []).find(c => c.MemberNumber === memberNum);
                         if (!(ch === null || ch === void 0 ? void 0 : ch.Appearance))
                             return false;
+                        const lookup = (_b = win.VibratorModeDataLookup) !== null && _b !== void 0 ? _b : {};
                         return ch.Appearance.some(item => {
-                            var _a, _b, _c;
-                            if (!((_b = (_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) || !((_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Name))
-                                return false;
-                            return (item.Asset.Group.Name + item.Asset.Name) in lookup;
+                            var _a, _b, _c, _d, _e;
+                            if (((_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Archetype) === "vibrating")
+                                return true;
+                            const g = (_c = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name;
+                            const n = (_d = item.Asset) === null || _d === void 0 ? void 0 : _d.Name;
+                            if (g && n && (g + n) in lookup)
+                                return true;
+                            return typeof ((_e = item.Property) === null || _e === void 0 ? void 0 : _e["Mode"]) === "string";
                         });
                     }
-                    catch (_b) {
+                    catch (_c) {
                         return false;
                     }
                 };
@@ -29366,7 +29401,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 mBtn.style.cssText = baseCSS;
                                 mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
                                 mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
-                                mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
+                                mBtn.addEventListener("click", () => { this._controlGameToyMode(memberNum, m.mode); this.sendGameToyMsg(memberNum, m.mode); });
                                 rowEl.appendChild(mBtn);
                             }
                             sessCard.appendChild(rowEl);
@@ -29581,8 +29616,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        _controlGameToyMode(targetNum, modeName) {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+            try {
+                const win = window;
+                const targetChar = ((_a = win.ChatRoomCharacter) !== null && _a !== void 0 ? _a : []).find(c => c.MemberNumber === targetNum);
+                if (!(targetChar === null || targetChar === void 0 ? void 0 : targetChar.Appearance))
+                    return;
+                const lookup = (_b = win.VibratorModeDataLookup) !== null && _b !== void 0 ? _b : {};
+                for (const item of targetChar.Appearance) {
+                    const g = (_e = (_d = (_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Group) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : "";
+                    const n = (_g = (_f = item.Asset) === null || _f === void 0 ? void 0 : _f.Name) !== null && _g !== void 0 ? _g : "";
+                    if (((_h = item.Asset) === null || _h === void 0 ? void 0 : _h.Archetype) === "vibrating" || (g + n) in lookup || typeof ((_j = item.Property) === null || _j === void 0 ? void 0 : _j["Mode"]) === "string") {
+                        (_k = win.VibratorModeSetOptionByName) === null || _k === void 0 ? void 0 : _k.call(win, targetChar, item, modeName, true);
+                    }
+                }
+            }
+            catch ( /* ignore */_l) { /* ignore */ }
+        }
         _applyBCVibratorMode(modeName) {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const win = window;
                 const player = win.Player;
@@ -29591,12 +29644,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const lookup = (_a = win.VibratorModeDataLookup) !== null && _a !== void 0 ? _a : {};
                 for (const item of player.Appearance) {
                     const key = item.Asset.Group.Name + item.Asset.Name;
-                    if (!(key in lookup))
-                        continue;
-                    (_b = win.VibratorModeSetOptionByName) === null || _b === void 0 ? void 0 : _b.call(win, player, item, modeName, true);
+                    if (item.Asset.Archetype === "vibrating" || key in lookup || typeof ((_b = item.Property) === null || _b === void 0 ? void 0 : _b["Mode"]) === "string") {
+                        (_c = win.VibratorModeSetOptionByName) === null || _c === void 0 ? void 0 : _c.call(win, player, item, modeName, false);
+                    }
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         sendIrlToyMsg(targetNum, type, intensity, duration) {
             try {
@@ -31782,7 +31835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.54";
+    const MOD_VERSION = "6.9.60";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31793,6 +31846,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.60",
+            changes: [
+                "GAME TOYS: mode buttons now call VibratorModeSetOptionByName on the target character directly (same as BC's DOM toy controller), so chat messages appear with the controller as source. Target applies the mode silently (no double message).",
+            ],
+        },
+        {
+            version: "6.9.59",
+            changes: [
+                "Fix: vib check now uses three fallbacks — Asset.Archetype, VibratorModeDataLookup key, and Property.Mode being set (covers handheld wands and older typed-vibrator items).",
+            ],
+        },
+        {
+            version: "6.9.58",
+            changes: [
+                "CHAT PHRASES, BODY TOUCH, BC TOY SYNC are now collapsible subsections (▶/▼, state saved in localStorage).",
+                "BODY TOUCH: renamed 'I:' / 'D:' labels to 'Int:' / 'Dur:' for clarity; updated hint text.",
+                "CHAT PHRASES: renamed 'I:' / 'D:' to 'Intensity:' / 'Duration:'; removed confusing '(blank = default)' suffix.",
+            ],
+        },
+        {
+            version: "6.9.57",
+            changes: [
+                "Fix: GAME TOYS vib check now uses Asset.Archetype instead of VibratorModeDataLookup (lookup was unreliable at render time).",
+            ],
+        },
+        {
+            version: "6.9.56",
+            changes: [
+                "TOYS: removed emoji icons from GAME TOYS and IRL TOYS section headers.",
+            ],
+        },
+        {
+            version: "6.9.55",
+            changes: [
+                "BODY TOUCH: checkboxes replaced with ON/OFF toggle buttons (accent-colored when active).",
+            ],
+        },
         {
             version: "6.9.54",
             changes: [

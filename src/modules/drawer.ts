@@ -21478,7 +21478,7 @@ export class EBCDrawer {
                             mBtn.style.cssText = baseCSS;
                             mBtn.addEventListener("mouseenter", () => { mBtn.style.background = `${m.color}38`; mBtn.style.borderColor = m.color; });
                             mBtn.addEventListener("mouseleave", () => { mBtn.style.background = `${m.color}18`; mBtn.style.borderColor = `${m.color}44`; });
-                            mBtn.addEventListener("click", () => { this.sendGameToyMsg(memberNum, m.mode); });
+                            mBtn.addEventListener("click", () => { this._controlGameToyMode(memberNum, m.mode); this.sendGameToyMsg(memberNum, m.mode); });
                             rowEl.appendChild(mBtn);
                         }
                         sessCard.appendChild(rowEl);
@@ -21681,6 +21681,26 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
+    private _controlGameToyMode(targetNum: number, modeName: string): void {
+        try {
+            type Win = {
+                ChatRoomCharacter?: Array<{ MemberNumber?: number; Appearance?: Array<{ Asset?: { Archetype?: string; Group?: { Name: string }; Name: string }; Property?: Record<string, unknown> }> }>;
+                VibratorModeDataLookup?: Record<string, unknown>;
+                VibratorModeSetOptionByName?: (C: unknown, item: unknown, mode: string, push?: boolean) => void;
+            };
+            const win = window as unknown as Win;
+            const targetChar = (win.ChatRoomCharacter ?? []).find(c => c.MemberNumber === targetNum);
+            if (!targetChar?.Appearance) return;
+            const lookup = win.VibratorModeDataLookup ?? {};
+            for (const item of targetChar.Appearance) {
+                const g = item.Asset?.Group?.Name ?? ""; const n = item.Asset?.Name ?? "";
+                if (item.Asset?.Archetype === "vibrating" || (g + n) in lookup || typeof item.Property?.["Mode"] === "string") {
+                    win.VibratorModeSetOptionByName?.(targetChar, item, modeName, true);
+                }
+            }
+        } catch { /* ignore */ }
+    }
+
     private _applyBCVibratorMode(modeName: string): void {
         try {
             type Win = {
@@ -21689,13 +21709,14 @@ export class EBCDrawer {
                 VibratorModeSetOptionByName?: (C: unknown, item: unknown, mode: string, push?: boolean) => void;
             };
             const win = window as unknown as Win;
-            const player = win.Player as { Appearance?: Array<{ Asset: { Group: { Name: string }; Name: string } }> } | undefined;
+            const player = win.Player as { Appearance?: Array<{ Asset: { Archetype?: string; Group: { Name: string }; Name: string }; Property?: Record<string, unknown> }> } | undefined;
             if (!player?.Appearance) return;
             const lookup = win.VibratorModeDataLookup ?? {};
             for (const item of player.Appearance) {
                 const key = item.Asset.Group.Name + item.Asset.Name;
-                if (!(key in lookup)) continue;
-                win.VibratorModeSetOptionByName?.(player, item, modeName, true);
+                if (item.Asset.Archetype === "vibrating" || key in lookup || typeof item.Property?.["Mode"] === "string") {
+                    win.VibratorModeSetOptionByName?.(player, item, modeName, false);
+                }
             }
         } catch { /* ignore */ }
     }
