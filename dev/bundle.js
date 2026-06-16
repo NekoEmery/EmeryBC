@@ -5897,7 +5897,6 @@
         redGrace: true,
         redAnnounce: true,
         redLeave: true,
-        excludeOwnerLocks: false,
     };
     function getSafewordConfig() {
         const raw = getSettings().safeword;
@@ -5920,7 +5919,6 @@
             redGrace: b("redGrace", DEFAULTS.redGrace),
             redAnnounce: b("redAnnounce", DEFAULTS.redAnnounce),
             redLeave: b("redLeave", DEFAULTS.redLeave),
-            excludeOwnerLocks: b("excludeOwnerLocks", DEFAULTS.excludeOwnerLocks),
         };
     }
     function setSafewordConfig(cfg) {
@@ -5955,8 +5953,6 @@
     // enforceGracePeriod() only strips groups that appeared AFTER this snapshot,
     // so Release=OFF + Grace=ON doesn't remove existing restraints.
     let graceStartGroups = new Set();
-    // Whether to skip owner/exclusive-locked items during this grace window.
-    let graceExcludeOwnerLocks = false;
     function isGraceActive() {
         if (gracePeriodEnd === null)
             return false;
@@ -5973,8 +5969,7 @@
         const rem = gracePeriodEnd - Date.now();
         return rem > 0 ? rem : null;
     }
-    function startGrace(durationMs, excludeOwnerLocks = false) {
-        graceExcludeOwnerLocks = excludeOwnerLocks;
+    function startGrace(durationMs) {
         // Snapshot current restraint groups so grace enforcement only strips
         // items added DURING the grace window, not items that were already on.
         graceStartGroups = new Set(Player.Appearance
@@ -5985,7 +5980,6 @@
     function endGrace() {
         gracePeriodEnd = null;
         graceStartGroups = new Set();
-        graceExcludeOwnerLocks = false;
     }
     function checkGraceExpiry() {
         if (gracePeriodEnd !== null && gracePeriodEnd !== Infinity && Date.now() >= gracePeriodEnd) {
@@ -5997,29 +5991,29 @@
     const NECK_GROUPS = new Set([
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
-    // Lock asset names considered "owner locks" for the excludeOwnerLocks option.
-    const OWNER_LOCK_NAMES = new Set([
+    // Lock asset names that are never removed by safeword (owner / lover / family padlocks).
+    const PROTECTED_LOCK_NAMES = new Set([
         "OwnerPadlock",
         "OwnerTimedPadlock",
         "ExclusivePadlock",
+        "LoversPadlock",
+        "LoversTimerPadlock",
+        "FamilyPadlock",
     ]);
-    // Check if an item is secured with an owner or exclusive padlock.
-    // Reads Item.Property.LockedBy directly rather than calling InventoryGetLock
-    // to avoid depending on a BC global that isn't in our type declarations.
-    function isOwnerLocked(item) {
+    function isProtectedLocked(item) {
         try {
             const prop = item.Property;
-            return !!(prop === null || prop === void 0 ? void 0 : prop.LockedBy) && OWNER_LOCK_NAMES.has(prop.LockedBy);
+            return !!(prop === null || prop === void 0 ? void 0 : prop.LockedBy) && PROTECTED_LOCK_NAMES.has(prop.LockedBy);
         }
         catch (_a) {
             return false;
         }
     }
-    function releaseBindingRestraints(excludeOwnerLocks) {
+    function releaseBindingRestraints() {
         const removeGroups = new Set(Player.Appearance
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
             !NECK_GROUPS.has(i.Asset.Group.Name) &&
-            !(excludeOwnerLocks && isOwnerLocked(i)))
+            !isProtectedLocked(i))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -6051,7 +6045,7 @@
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
             !NECK_GROUPS.has(i.Asset.Group.Name) &&
             !graceStartGroups.has(i.Asset.Group.Name) &&
-            !(graceExcludeOwnerLocks && isOwnerLocked(i)))
+            !isProtectedLocked(i))
             .map((i) => i.Asset.Group.Name));
         if (removeGroups.size === 0)
             return;
@@ -6080,9 +6074,9 @@
         if (!cfg.enabled)
             return;
         if (cfg.yellowRelease)
-            releaseBindingRestraints(cfg.excludeOwnerLocks);
+            releaseBindingRestraints();
         if (cfg.yellowGrace)
-            startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
+            startGrace(cfg.graceDurationMs);
         if (cfg.yellowAnnounce) {
             try {
                 const graceDesc = cfg.graceDurationMs <= 0
@@ -6126,9 +6120,9 @@
         if (!cfg.enabled)
             return;
         if (cfg.redRelease)
-            releaseBindingRestraints(cfg.excludeOwnerLocks);
+            releaseBindingRestraints();
         if (cfg.redGrace)
-            startGrace(cfg.graceDurationMs, cfg.excludeOwnerLocks);
+            startGrace(cfg.graceDurationMs);
         if (cfg.redAnnounce) {
             try {
                 ServerSend("ChatRoomChat", {
@@ -12318,26 +12312,6 @@
                 graceDurRow.appendChild(graceDurInp);
                 graceDurRow.appendChild(graceDurUnit);
                 swInner.appendChild(graceDurRow);
-                // -- Exclude owner locks toggle --
-                const exclRow = document.createElement("div");
-                exclRow.style.cssText = "display:flex;align-items:center;gap:6px;padding-left:66px;";
-                const exclBtn = document.createElement("button");
-                const exclAcc = "#9a70b0";
-                const setExclStyle = (on) => {
-                    exclBtn.style.background = on ? exclAcc + "44" : "transparent";
-                    exclBtn.style.color = on ? exclAcc : "#6a4858";
-                    exclBtn.textContent = (on ? "✓ " : "○ ") + "Exclude owner locks";
-                };
-                exclBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${exclAcc}66;transition:background 0.12s,color 0.12s;`;
-                let exclState = cfg.excludeOwnerLocks;
-                setExclStyle(exclState);
-                exclBtn.addEventListener("click", () => {
-                    exclState = !exclState;
-                    setExclStyle(exclState);
-                    setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { excludeOwnerLocks: exclState }));
-                });
-                exclRow.appendChild(exclBtn);
-                swInner.appendChild(exclRow);
                 // -- Hint --
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.45;padding-top:2px;";
@@ -19917,11 +19891,11 @@
             const footer = document.createElement("div");
             footer.className = "ebc-beep-win-footer";
             footer.style.position = "relative";
-            // Small ▶/▼ toggle - collapses/expands the quick-reply bar above the footer
+            // Toggle button for the quick-reply bar above the footer
             const qrToggle = document.createElement("button");
             qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+            qrToggle.innerHTML = _mkIconSvg(`<path d="M2 4h12M2 8h8M2 12h10"/>`);
             const syncQrToggle = () => {
-                qrToggle.textContent = qrOpen ? "▼" : "▶";
                 qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
                 qrBar.style.display = qrOpen ? "" : "none";
             };
@@ -31750,7 +31724,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "6.9.70";
+    const MOD_VERSION = "6.9.71";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31761,6 +31735,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "6.9.71",
+            changes: [
+                "Safewords: owner, lover (LoversPadlock/LoversTimerPadlock), and family (FamilyPadlock) locks are now always protected — safeword release and grace period enforcement never remove them. Removed the now-redundant 'Exclude owner locks' toggle.",
+                "Fix: quick-reply toggle button in beep window footer no longer shows ▶/▼ arrow characters — uses a clean lines icon instead.",
+            ],
+        },
         {
             version: "6.9.70",
             changes: [
