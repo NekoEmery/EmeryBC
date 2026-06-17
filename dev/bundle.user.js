@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.1
+// @version      8.2.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -7284,6 +7284,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "tabs.credits": { en: "CREDITS", de: "CREDITS", zh: "致谢", fr: "CRÉDITS", es: "CRÉDITOS", ru: "АВТОРЫ", ja: "クレジット" },
         "tabs.dev": { en: "DEV", de: "DEV", zh: "开发", fr: "DEV", es: "DEV", ru: "DEV", ja: "DEV" },
         "tabs.dom": { en: "DOM", de: "DOM", zh: "DOM", fr: "DOM", es: "DOM", ru: "DOM", ja: "DOM" },
+        "tabs.toys": { en: "TOYS", de: "TOYS", zh: "玩具", fr: "JOUETS", es: "JUGUETES", ru: "ИГРУШКИ", ja: "玩具" },
+        "tabs.toysTitle": { en: "Toys & Integrations", de: "Toys & Integrationen", zh: "玩具与集成", fr: "Jouets & Intégrations", es: "Juguetes & Integraciones", ru: "Игрушки и интеграции", ja: "玩具 & 統合" },
         "tabs.buttonsTitle": { en: "Action Buttons", de: "Aktions-Tasten", zh: "动作按键", fr: "Boutons d'action", es: "Botones de acción", ru: "Кнопки действий", ja: "アクションボタン" },
         "tabs.usersTitle": { en: "User Notes", de: "Benutzernotizen", zh: "用户笔记", fr: "Notes utilisateur", es: "Notas de usuario", ru: "Заметки о пользователях", ja: "ユーザーメモ" },
         "tabs.creditsTitle": { en: "Special Thanks", de: "Besonderer Dank", zh: "特别感谢", fr: "Remerciements", es: "Agradecimientos", ru: "Особая благодарность", ja: "スペシャルサンクス" },
@@ -7642,6 +7644,118 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "theme.mainText": { en: "Main Text", de: "Haupttext", zh: "主文字", fr: "Texte principal", es: "Texto principal", ru: "Основной текст", ja: "メインテキスト" },
         "theme.labelText": { en: "Label Text", de: "Beschriftung", zh: "标签文字", fr: "Texte étiquette", es: "Texto etiqueta", ru: "Текст метки", ja: "ラベルテキスト" },
         "theme.dimText": { en: "Dim Text", de: "Gedimmter Text", zh: "暗文字", fr: "Texte atténué", es: "Texto atenuado", ru: "Приглушённый текст", ja: "薄いテキスト" },
+        // ─── FOOTER BUTTONS ────────────────────────────────────────────────────
+        "footer.tutorial": { en: "Tutorial", de: "Tutorial", zh: "教程", fr: "Tutoriel", es: "Tutorial", ru: "Руководство", ja: "チュートリアル" },
+        "footer.feedbackBugs": { en: "Feedback & Bugs", de: "Feedback & Fehler", zh: "反馈与错误", fr: "Retour & Bugs", es: "Comentarios & Errores", ru: "Отзыв и баги", ja: "フィードバック & バグ" },
+        // ─── GUIDE / TUTORIAL ──────────────────────────────────────────────────
+        "guide.title": { en: "EBC Tutorial", de: "EBC Tutorial", zh: "EBC 教程", fr: "Tutoriel EBC", es: "Tutorial de EBC", ru: "EBC Руководство", ja: "EBC チュートリアル" },
+        "guide.subtitle": { en: "How do you want to explore EBC?", de: "Wie möchtest du EBC erkunden?", zh: "你想如何探索 EBC？", fr: "Comment veux-tu explorer EBC ?", es: "¿Cómo quieres explorar EBC?", ru: "Как ты хочешь изучить EBC?", ja: "EBC をどのように探索しますか？" },
+        "guide.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar", ru: "Закрыть", ja: "閉じる" },
+        "guide.closeGuide": { en: "Close guide", de: "Anleitung schließen", zh: "关闭指南", fr: "Fermer le guide", es: "Cerrar guía", ru: "Закрыть руководство", ja: "ガイドを閉じる" },
+        "guide.quickTourTitle": { en: "Quick Tour", de: "Schnelle Tour", zh: "快速游览", fr: "Tour rapide", es: "Tour rápido", ru: "Быстрый тур", ja: "クイックツアー" },
+        "guide.quickTourDesc": { en: "Every feature in a few bullets. Done in 2 minutes.", de: "Alle Funktionen in wenigen Punkten. In 2 Minuten fertig.", zh: "几个要点涵盖所有功能。2分钟完成。", fr: "Toutes les fonctionnalités en quelques points. Fini en 2 minutes.", es: "Cada función en pocos puntos. Listo en 2 minutos.", ru: "Все функции в нескольких пунктах. Готово за 2 минуты.", ja: "すべての機能を数点で。2分で完了。" },
+        "guide.quickTourBadge": { en: "6 steps", de: "6 Schritte", zh: "6 个步骤", fr: "6 étapes", es: "6 pasos", ru: "6 шагов", ja: "6ステップ" },
+        "guide.fullGuideTitle": { en: "Full Guide", de: "Vollständige Anleitung", zh: "完整指南", fr: "Guide complet", es: "Guía completa", ru: "Полное руководство", ja: "フルガイド" },
+        "guide.fullGuideDesc": { en: "Full walkthrough with try-it prompts.", de: "Vollständige Anleitung mit Ausprobier-Hinweisen.", zh: "带有实践提示的完整演练。", fr: "Guide complet avec des invites à essayer.", es: "Guía completa con sugerencias para probar.", ru: "Полное руководство с подсказками.", ja: "試すプロンプト付きの完全ガイド。" },
+        "guide.fullGuideBadge": { en: "13 steps", de: "13 Schritte", zh: "13 个步骤", fr: "13 étapes", es: "13 pasos", ru: "13 шагов", ja: "13ステップ" },
+        "guide.back": { en: "← Back", de: "← Zurück", zh: "← 返回", fr: "← Retour", es: "← Atrás", ru: "← Назад", ja: "← 戻る" },
+        "guide.next": { en: "Next →", de: "Weiter →", zh: "下一步 →", fr: "Suivant →", es: "Siguiente →", ru: "Далее →", ja: "次へ →" },
+        "guide.done": { en: "Done ✓", de: "Fertig ✓", zh: "完成 ✓", fr: "Terminé ✓", es: "Listo ✓", ru: "Готово ✓", ja: "完了 ✓" },
+        "guide.ofN": { en: "{mode} · {step} of {total}", de: "{mode} · {step} von {total}", zh: "{mode} · {step}/{total}", fr: "{mode} · {step} sur {total}", es: "{mode} · {step} de {total}", ru: "{mode} · {step} из {total}", ja: "{mode} · {step}/{total}" },
+        // Guide fast step labels (translated)
+        "guide.fast.s1.label": { en: "Outfits", de: "Outfits", zh: "服装", fr: "Tenues", es: "Atuendos", ru: "Наряды", ja: "衣装" },
+        "guide.fast.s2.label": { en: "Action Buttons", de: "Aktionsschaltflächen", zh: "动作按钮", fr: "Boutons d'action", es: "Botones de acción", ru: "Кнопки действий", ja: "アクションボタン" },
+        "guide.fast.s3.label": { en: "Poses & Animations", de: "Posen & Animationen", zh: "姿势与动画", fr: "Poses & Animations", es: "Poses y Animaciones", ru: "Позы и анимации", ja: "ポーズ & アニメーション" },
+        "guide.fast.s4.label": { en: "Remote Toys", de: "Ferngesteuerte Toys", zh: "远程玩具", fr: "Jouets à distance", es: "Juguetes remotos", ru: "Удалённые игрушки", ja: "リモート玩具" },
+        "guide.fast.s5.label": { en: "Settings", de: "Einstellungen", zh: "设置", fr: "Paramètres", es: "Ajustes", ru: "Настройки", ja: "設定" },
+        "guide.fast.s6.label": { en: "Safewords - Always Here", de: "Safewords - Immer da", zh: "安全词 - 始终存在", fr: "Mots de sécurité - Toujours là", es: "Palabras seguras - Siempre aquí", ru: "Стоп-слова - Всегда здесь", ja: "セーフワード - 常にここに" },
+        // Guide fast step body text (English for all - complex markup content)
+        "guide.fast.s1.text": { en: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", de: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", zh: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", fr: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", es: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", ru: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))", ja: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))" },
+        "guide.fast.s2.text": { en: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", de: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", zh: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", fr: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", es: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", ru: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))", ja: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))" },
+        "guide.fast.s3.text": { en: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", de: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", zh: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", fr: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", es: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", ru: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", ja: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))" },
+        "guide.fast.s4.text": { en: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", de: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", zh: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", fr: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", es: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ru: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ja: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room." },
+        "guide.fast.s5.text": { en: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", de: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", zh: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", fr: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", es: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ru: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ja: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))" },
+        "guide.fast.s6.text": { en: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", de: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", zh: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", fr: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", es: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ru: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ja: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))" },
+        // Guide indepth step labels (translated)
+        "guide.deep.s1.label": { en: "Welcome to EBC", de: "Willkommen bei EBC", zh: "欢迎来到 EBC", fr: "Bienvenue dans EBC", es: "Bienvenido a EBC", ru: "Добро пожаловать в EBC", ja: "EBC へようこそ" },
+        "guide.deep.s2.label": { en: "Moving & Resizing", de: "Bewegen & Skalieren", zh: "移动与调整大小", fr: "Déplacer & Redimensionner", es: "Mover y Redimensionar", ru: "Перемещение и изменение размера", ja: "移動 & リサイズ" },
+        "guide.deep.s3.label": { en: "Saving & Applying Outfits", de: "Outfits speichern & anwenden", zh: "保存与应用服装", fr: "Sauvegarder & Appliquer des tenues", es: "Guardar y Aplicar Atuendos", ru: "Сохранение и применение нарядов", ja: "衣装の保存と適用" },
+        "guide.deep.s4.label": { en: "Tags, Schedules & Sharing", de: "Tags, Zeitpläne & Teilen", zh: "标签、时间表与分享", fr: "Tags, Plannings & Partage", es: "Etiquetas, Horarios y Compartir", ru: "Теги, расписания и общий доступ", ja: "タグ、スケジュール、共有" },
+        "guide.deep.s5.label": { en: "Action Buttons", de: "Aktionsschaltflächen", zh: "动作按钮", fr: "Boutons d'action", es: "Botones de acción", ru: "Кнопки действий", ja: "アクションボタン" },
+        "guide.deep.s6.label": { en: "Pose Combos", de: "Posen-Kombos", zh: "姿势组合", fr: "Combos de poses", es: "Combos de poses", ru: "Комбо поз", ja: "ポーズコンボ" },
+        "guide.deep.s7.label": { en: "Face Presets", de: "Gesichts-Presets", zh: "面部预设", fr: "Présets de visage", es: "Presets de cara", ru: "Пресеты лица", ja: "表情プリセット" },
+        "guide.deep.s8.label": { en: "Chat Triggers", de: "Chat-Auslöser", zh: "聊天触发器", fr: "Déclencheurs chat", es: "Disparadores de chat", ru: "Триггеры чата", ja: "チャットトリガー" },
+        "guide.deep.s9.label": { en: "Users & Friends", de: "Nutzer & Freunde", zh: "用户与朋友", fr: "Utilisateurs & Amis", es: "Usuarios y Amigos", ru: "Пользователи и друзья", ja: "ユーザー & フレンド" },
+        "guide.deep.s10.label": { en: "Remote Toys", de: "Ferngesteuerte Toys", zh: "远程玩具", fr: "Jouets à distance", es: "Juguetes remotos", ru: "Удалённые игрушки", ja: "リモート玩具" },
+        "guide.deep.s11.label": { en: "Settings & Themes", de: "Einstellungen & Themes", zh: "设置与主题", fr: "Paramètres & Thèmes", es: "Ajustes y Temas", ru: "Настройки и темы", ja: "設定 & テーマ" },
+        "guide.deep.s12.label": { en: "Logs & History", de: "Protokolle & Verlauf", zh: "日志与历史", fr: "Journaux & Historique", es: "Registros e Historial", ru: "Журналы и история", ja: "ログ & 履歴" },
+        "guide.deep.s13.label": { en: "Safewords - Always On Top", de: "Safewords - Immer sichtbar", zh: "安全词 - 始终置顶", fr: "Mots de sécurité - Toujours visible", es: "Palabras seguras - Siempre arriba", ru: "Стоп-слова - Всегда видны", ja: "セーフワード - 常に最前面" },
+        // Guide indepth step body text (English for all - complex markup content)
+        "guide.deep.s1.text": { en: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", de: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", zh: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", fr: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", es: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", ru: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.", ja: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go." },
+        "guide.deep.s2.text": { en: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", de: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", zh: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", fr: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", es: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", ru: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))", ja: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))" },
+        "guide.deep.s3.text": { en: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", de: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", zh: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", fr: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", es: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", ru: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))", ja: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))" },
+        "guide.deep.s4.text": { en: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", de: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", zh: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", fr: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", es: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", ru: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.", ja: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore." },
+        "guide.deep.s5.text": { en: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", de: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", zh: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", fr: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", es: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", ru: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips", ja: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips" },
+        "guide.deep.s6.text": { en: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", de: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", zh: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", fr: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", es: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", ru: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))", ja: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))" },
+        "guide.deep.s7.text": { en: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", de: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", zh: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", fr: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", es: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", ru: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))", ja: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))" },
+        "guide.deep.s8.text": { en: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", de: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", zh: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", fr: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", es: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", ru: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))", ja: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))" },
+        "guide.deep.s9.text": { en: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", de: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", zh: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", fr: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", es: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", ru: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))", ja: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))" },
+        "guide.deep.s10.text": { en: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", de: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", zh: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", fr: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", es: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", ru: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", ja: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety" },
+        "guide.deep.s11.text": { en: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", de: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", zh: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", fr: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", es: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", ru: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", ja: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean" },
+        "guide.deep.s12.text": { en: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", de: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", zh: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", fr: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", es: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ru: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ja: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered" },
+        "guide.deep.s13.text": { en: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", de: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", zh: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", fr: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", es: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ru: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ja: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))" },
+        // ─── FEEDBACK MODAL ────────────────────────────────────────────────────
+        "feedback.title": { en: "Feedback & Bug Report", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
+        "feedback.subtitle": { en: "Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
+        "feedback.typeLabel": { en: "TYPE", de: "TYP", zh: "类型", fr: "TYPE", es: "TIPO", ru: "ТИП", ja: "タイプ" },
+        "feedback.bugReport": { en: "Bug report", de: "Fehlerbericht", zh: "错误报告", fr: "Rapport de bug", es: "Informe de error", ru: "Отчёт об ошибке", ja: "バグレポート" },
+        "feedback.featureReq": { en: "Feature request", de: "Funktionswunsch", zh: "功能请求", fr: "Demande de fonctionnalité", es: "Solicitud de función", ru: "Запрос функции", ja: "機能リクエスト" },
+        "feedback.other": { en: "Other", de: "Sonstiges", zh: "其他", fr: "Autre", es: "Otro", ru: "Другое", ja: "その他" },
+        "feedback.whatLabel": { en: "WHAT HAPPENED / WHAT DO YOU WANT?", de: "WAS IST PASSIERT / WAS MÖCHTEST DU?", zh: "发生了什么 / 你想要什么？", fr: "QUE S'EST-IL PASSÉ / QUE VEUX-TU ?", es: "¿QUÉ PASÓ / QUÉ QUIERES?", ru: "ЧТО СЛУЧИЛОСЬ / ЧТО ТЫ ХОЧЕШЬ?", ja: "何が起きた / 何が欲しい？" },
+        "feedback.whatPH": { en: "Describe the bug, or the feature you'd like...", de: "Beschreibe den Fehler oder die gewünschte Funktion...", zh: "描述错误或你想要的功能…", fr: "Décris le bug ou la fonctionnalité souhaitée...", es: "Describe el error o la función que deseas...", ru: "Опишите ошибку или желаемую функцию...", ja: "バグや欲しい機能を説明してください…" },
+        "feedback.stepsLabel": { en: "STEPS TO REPRODUCE - OPTIONAL", de: "REPRODUKTIONSSCHRITTE - OPTIONAL", zh: "复现步骤 - 可选", fr: "ÉTAPES POUR REPRODUIRE - OPTIONNEL", es: "PASOS PARA REPRODUCIR - OPCIONAL", ru: "ШАГИ ДЛЯ ВОСПРОИЗВЕДЕНИЯ - НЕОБЯЗАТЕЛЬНО", ja: "再現手順 - 任意" },
+        "feedback.stepsPH": { en: "What were you doing when it broke?", de: "Was hast du gemacht, als es kaputt ging?", zh: "出错时你在做什么？", fr: "Que faisais-tu quand ça a planté ?", es: "¿Qué estabas haciendo cuando falló?", ru: "Что ты делал, когда оно сломалось?", ja: "壊れたときに何をしていましたか？" },
+        "feedback.cancel": { en: "Cancel", de: "Abbrechen", zh: "取消", fr: "Annuler", es: "Cancelar", ru: "Отмена", ja: "キャンセル" },
+        "feedback.send": { en: "Send", de: "Senden", zh: "发送", fr: "Envoyer", es: "Enviar", ru: "Отправить", ja: "送信" },
+        "feedback.sending": { en: "Sending...", de: "Senden...", zh: "发送中...", fr: "Envoi...", es: "Enviando...", ru: "Отправка...", ja: "送信中..." },
+        "feedback.errEmpty": { en: "Please describe the bug or request first.", de: "Bitte beschreibe zuerst den Fehler oder die Anfrage.", zh: "请先描述错误或请求。", fr: "Veuillez d'abord décrire le bug ou la demande.", es: "Por favor describe primero el error o la solicitud.", ru: "Пожалуйста, сначала опишите ошибку или запрос.", ja: "まずバグやリクエストを説明してください。" },
+        "feedback.verNote": { en: "EBC v{v} · {mn} is attached automatically.", de: "EBC v{v} · {mn} wird automatisch angehängt.", zh: "EBC v{v} · {mn} 已自动附加。", fr: "EBC v{v} · {mn} est joint automatiquement.", es: "EBC v{v} · {mn} se adjunta automáticamente.", ru: "EBC v{v} · {mn} прикреплён автоматически.", ja: "EBC v{v} · {mn} が自動的に添付されます。" },
+        "feedback.toast": { en: "Thanks! Your feedback was sent.", de: "Danke! Dein Feedback wurde gesendet.", zh: "谢谢！你的反馈已发送。", fr: "Merci ! Ton retour a été envoyé.", es: "¡Gracias! Tu comentario ha sido enviado.", ru: "Спасибо! Твой отзыв был отправлен.", ja: "ありがとう！フィードバックが送信されました。" },
+        // ─── PISHOCK SETUP MODAL ───────────────────────────────────────────────
+        "pishock.setupTitle": { en: "Cloudflare Worker Setup", de: "Cloudflare Worker Einrichtung", zh: "Cloudflare Worker 设置", fr: "Configuration Cloudflare Worker", es: "Configuración Cloudflare Worker", ru: "Настройка Cloudflare Worker", ja: "Cloudflare Worker 設定" },
+        "pishock.setupSub": { en: "One-time setup - takes about 3 minutes. Free forever.", de: "Einmalige Einrichtung - dauert etwa 3 Minuten. Kostenlos.", zh: "一次性设置 - 约3分钟。永久免费。", fr: "Configuration unique - environ 3 minutes. Gratuit pour toujours.", es: "Configuración única - unos 3 minutos. Gratis para siempre.", ru: "Одноразовая настройка - около 3 минут. Бесплатно.", ja: "一度限りのセットアップ - 約3分。永久に無料。" },
+        "pishock.step1Head": { en: "Create a free Cloudflare account", de: "Kostenloses Cloudflare-Konto erstellen", zh: "创建免费Cloudflare账户", fr: "Créer un compte Cloudflare gratuit", es: "Crear una cuenta Cloudflare gratuita", ru: "Создайте бесплатный аккаунт", ja: "無料Cloudflareアカウントを作成" },
+        "pishock.step1Body": { en: "Go to cloudflare.com and sign up. It's completely free - no credit card needed.", de: "Gehe zu cloudflare.com und registriere dich. Völlig kostenlos - keine Kreditkarte.", zh: "前往 cloudflare.com 注册。完全免费，无需信用卡。", fr: "Va sur cloudflare.com et inscris-toi. Entièrement gratuit - pas de carte requise.", es: "Ve a cloudflare.com y regístrate. Completamente gratis - sin tarjeta.", ru: "Зайди на cloudflare.com и зарегистрируйся. Бесплатно, карта не нужна.", ja: "cloudflare.com にアクセスしてサインアップ。無料、カード不要。" },
+        "pishock.step1Link": { en: "cloudflare.com - Sign up", de: "cloudflare.com - Registrieren", zh: "cloudflare.com - 注册", fr: "cloudflare.com - S'inscrire", es: "cloudflare.com - Registrarse", ru: "cloudflare.com - Регистрация", ja: "cloudflare.com - サインアップ" },
+        "pishock.step2Head": { en: "Open Workers & Pages", de: "Workers & Pages öffnen", zh: "打开 Workers & Pages", fr: "Ouvrir Workers & Pages", es: "Abrir Workers & Pages", ru: "Открыть Workers & Pages", ja: "Workers & Pages を開く" },
+        "pishock.step2Body": { en: "Once you're logged in, click \"Workers & Pages\" in the left sidebar of your dashboard.", de: "Nach dem Einloggen klicke auf \"Workers & Pages\" in der linken Seitenleiste.", zh: "登录后，点击仪表板左侧边栏中的\"Workers & Pages\"。", fr: "Connecté, clique \"Workers & Pages\" dans la barre latérale gauche.", es: "Conectado, haz clic en \"Workers & Pages\" en la barra lateral izquierda.", ru: "После входа нажми \"Workers & Pages\" в левой панели.", ja: "ログイン後、左サイドバーの\"Workers & Pages\"をクリック。" },
+        "pishock.step3Head": { en: "Create a new Worker", de: "Neuen Worker erstellen", zh: "创建新Worker", fr: "Créer un nouveau Worker", es: "Crear un nuevo Worker", ru: "Создать новый Worker", ja: "新しいWorkerを作成" },
+        "pishock.step3Body": { en: "Click the blue \"Create\" button, then select \"Create Worker\". Give it any name - something like \"pishock-proxy\" works fine. Then click \"Deploy\" at the bottom.", de: "Klicke \"Erstellen\" dann \"Worker erstellen\". Name z.B. \"pishock-proxy\". Dann \"Bereitstellen\".", zh: "点击蓝色\"Create\"，选择\"Create Worker\"，命名为\"pishock-proxy\"，点\"Deploy\"。", fr: "Clique \"Create\" puis \"Create Worker\". Nom: \"pishock-proxy\" par exemple. Puis \"Deploy\".", es: "Clic en \"Create\", luego \"Create Worker\". Nombre: \"pishock-proxy\". Haz clic en \"Deploy\".", ru: "Нажми \"Create\", потом \"Create Worker\". Назови \"pishock-proxy\". Нажми \"Deploy\".", ja: "\"Create\"→\"Create Worker\"、名前は\"pishock-proxy\"など、\"Deploy\"をクリック。" },
+        "pishock.step4Head": { en: "Replace the code", de: "Code ersetzen", zh: "替换代码", fr: "Remplacer le code", es: "Reemplazar el código", ru: "Замените код", ja: "コードを置き換える" },
+        "pishock.step4Body": { en: "After deploying, click \"Edit code\" on the next screen. Delete everything in the editor on the left, then paste the code below and click \"Deploy\" again.", de: "Nach dem Deploy auf \"Code bearbeiten\" klicken. Alles links löschen, Code einfügen, erneut \"Bereitstellen\".", zh: "部署后点\"Edit code\"，删除左侧编辑器内容，粘贴下方代码，再次\"Deploy\"。", fr: "Après déploiement: \"Edit code\", supprime tout, colle le code, puis \"Deploy\" à nouveau.", es: "Tras desplegar: \"Edit code\", borra todo, pega el código, haz clic en \"Deploy\" de nuevo.", ru: "После деплоя: \"Edit code\", удали всё, вставь код, снова \"Deploy\".", ja: "デプロイ後\"Edit code\"→左側を全削除→コードを貼り付け→\"Deploy\"を再クリック。" },
+        "pishock.step5Head": { en: "Copy your Worker URL", de: "Worker-URL kopieren", zh: "复制Worker URL", fr: "Copier l'URL du Worker", es: "Copiar tu URL de Worker", ru: "Скопируй URL Worker", ja: "Worker URLをコピー" },
+        "pishock.step5Body": { en: "After deploying you'll see a URL at the top of the page - it looks like \"your-name.workers.dev\". Copy the full URL.", de: "Nach dem Deploy siehst du eine URL oben - wie \"dein-name.workers.dev\". Kopiere die ganze URL.", zh: "部署后页面顶部会出现类似\"your-name.workers.dev\"的URL，复制完整URL。", fr: "Après le déploiement tu verras une URL en haut - comme \"votre-nom.workers.dev\". Copie l'URL complète.", es: "Tras desplegar verás una URL arriba - como \"tu-nombre.workers.dev\". Copia la URL completa.", ru: "После деплоя вверху появится URL вроде \"адрес.workers.dev\". Скопируй полный URL.", ja: "デプロイ後、上部に\"your-name.workers.dev\"のようなURLが表示されます。完全なURLをコピー。" },
+        "pishock.step6Head": { en: "Paste it into EBC", de: "In EBC einfügen", zh: "粘贴到EBC中", fr: "Collez-la dans EBC", es: "Pégalo en EBC", ru: "Вставь в EBC", ja: "EBCに貼り付ける" },
+        "pishock.step6Body": { en: "Go back to the PiShock section in EBC, paste the URL into the \"Proxy URL\" field, and click Test. If it says OK you're all done!", de: "Zurück zu PiShock in EBC, URL ins \"Proxy-URL\" Feld einfügen, auf Test klicken. Wenn OK - fertig!", zh: "回到EBC的PiShock部分，将URL粘贴到\"Proxy URL\"字段，点击Test。显示OK则完成！", fr: "Retourne à PiShock dans EBC, colle l'URL dans \"Proxy URL\" et clique Test. Si ça dit OK: terminé!", es: "Vuelve a PiShock en EBC, pega la URL en \"Proxy URL\" y haz clic en Test. ¡Si dice OK estás listo!", ru: "Вернись в PiShock в EBC, вставь URL в поле \"Proxy URL\" и нажми Test. Если OK - готово!", ja: "EBCのPiShockに戻り、URLを\"Proxy URL\"フィールドに貼り付けてTestをクリック。OKと出たら完了！" },
+        "pishock.copyCode": { en: "Copy code", de: "Code kopieren", zh: "复制代码", fr: "Copier le code", es: "Copiar código", ru: "Скопировать код", ja: "コードをコピー" },
+        "pishock.copied": { en: "Copied!", de: "Kopiert!", zh: "已复制！", fr: "Copié!", es: "¡Copiado!", ru: "Скопировано!", ja: "コピーしました！" },
+        "pishock.gotItClose": { en: "Got it, close", de: "Verstanden, schließen", zh: "知道了，关闭", fr: "C'est bon, fermer", es: "Entendido, cerrar", ru: "Понятно, закрыть", ja: "了解、閉じる" },
+        // ─── TOYS TAB ──────────────────────────────────────────────────────────
+        "toys.irlHeader": { en: "IRL TOYS (lovense)", de: "IRL-TOYS (Lovense)", zh: "现实玩具 (Lovense)", fr: "JOUETS IRL (Lovense)", es: "JUGUETES IRL (Lovense)", ru: "ИРЛ ИГРУШКИ (Lovense)", ja: "リアル玩具 (Lovense)" },
+        "toys.enableAbove": { en: "Enable Lovense above to configure.", de: "Lovense oben aktivieren um zu konfigurieren.", zh: "请先在上方启用Lovense来配置。", fr: "Active Lovense ci-dessus pour configurer.", es: "Activa Lovense arriba para configurar.", ru: "Включи Lovense выше для настройки.", ja: "設定するには上でLovenseを有効にしてください。" },
+        "toys.connection": { en: "CONNECTION", de: "VERBINDUNG", zh: "连接", fr: "CONNEXION", es: "CONEXIÓN", ru: "ПОДКЛЮЧЕНИЕ", ja: "接続" },
+        "toys.bleDirect": { en: "BLE (Bluetooth Direct)", de: "BLE (Bluetooth Direkt)", zh: "BLE（蓝牙直连）", fr: "BLE (Bluetooth Direct)", es: "BLE (Bluetooth Directo)", ru: "BLE (Bluetooth Direct)", ja: "BLE (Bluetooth直接)" },
+        "toys.noToys": { en: "No toys connected.", de: "Keine Toys verbunden.", zh: "没有连接的玩具。", fr: "Aucun jouet connecté.", es: "No hay juguetes conectados.", ru: "Нет подключённых игрушек.", ja: "接続されている玩具がありません。" },
+        "toys.intensity": { en: "Intensity", de: "Intensität", zh: "强度", fr: "Intensité", es: "Intensidad", ru: "Интенсивность", ja: "強度" },
+        "toys.seconds": { en: "Seconds", de: "Sekunden", zh: "秒数", fr: "Secondes", es: "Segundos", ru: "Секунды", ja: "秒" },
+        "toys.connectToy": { en: "＋ Connect Toy", de: "＋ Toy verbinden", zh: "＋ 连接玩具", fr: "＋ Connecter jouet", es: "＋ Conectar juguete", ru: "＋ Подключить", ja: "＋ 玩具を接続" },
+        "toys.opening": { en: "🔄 Opening...", de: "🔄 Öffne...", zh: "🔄 打开中...", fr: "🔄 Ouverture...", es: "🔄 Abriendo...", ru: "🔄 Открываю...", ja: "🔄 開いています..." },
+        "toys.connecting": { en: "🔄 Connecting...", de: "🔄 Verbinde...", zh: "🔄 连接中...", fr: "🔄 Connexion...", es: "🔄 Conectando...", ru: "🔄 Подключение...", ja: "🔄 接続中..." },
+        "toys.lovHttpHdr": { en: "LOVENSE CONNECT APP (HTTP) — All Browsers", de: "LOVENSE CONNECT APP (HTTP) — Alle Browser", zh: "LOVENSE CONNECT APP（HTTP）— 所有浏览器", fr: "LOVENSE CONNECT APP (HTTP) — Tous navigateurs", es: "LOVENSE CONNECT APP (HTTP) — Todos los navegadores", ru: "LOVENSE CONNECT APP (HTTP) — Все браузеры", ja: "LOVENSE CONNECT APP (HTTP) — 全ブラウザ" },
+        "toys.testConnection": { en: "Test Connection", de: "Verbindung testen", zh: "测试连接", fr: "Tester la connexion", es: "Probar conexión", ru: "Тест соединения", ja: "接続テスト" },
+        "toys.notTested": { en: "⚫ Not tested", de: "⚫ Nicht getestet", zh: "⚫ 未测试", fr: "⚫ Non testé", es: "⚫ No probado", ru: "⚫ Не протестировано", ja: "⚫ 未テスト" },
+        "toys.testing": { en: "🔄 Testing...", de: "🔄 Teste...", zh: "🔄 测试中...", fr: "🔄 Test...", es: "🔄 Probando...", ru: "🔄 Тестирование...", ja: "🔄 テスト中..." },
+        "toys.testBtn": { en: "Test", de: "Testen", zh: "测试", fr: "Tester", es: "Probar", ru: "Тест", ja: "テスト" },
     };
     // ---------------------------------------------------------------------------
     // Runtime state & storage
@@ -11912,8 +12026,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const toysTabBtn = document.createElement("button");
             toysTabBtn.className = "ebc-tab-btn";
             toysTabBtn.id = "ebc-tab-toys";
-            toysTabBtn.textContent = "TOYS";
-            toysTabBtn.title = "Toys & Integrations";
+            toysTabBtn.textContent = t("tabs.toys");
+            toysTabBtn.title = t("tabs.toysTitle");
             toysTabBtn.style.display = "none"; // Emery-only - revealed in open()
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
@@ -12479,7 +12593,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tutorialBtn.title = "Open the interactive guide / tutorial";
             tutorialBtn.innerHTML = BOOK_SVG;
             const tutLbl = document.createElement("span");
-            tutLbl.textContent = "Tutorial";
+            tutLbl.textContent = t("footer.tutorial");
+            this._i18nRefs.footerTutLbl = tutLbl;
             tutorialBtn.appendChild(tutLbl);
             tutorialBtn.addEventListener("click", () => this.startGuide());
             const fbBtn = document.createElement("button");
@@ -12487,7 +12602,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
             fbBtn.innerHTML = BUG_SVG;
             const fbLbl = document.createElement("span");
-            fbLbl.textContent = "Feedback & Bugs";
+            fbLbl.textContent = t("footer.feedbackBugs");
+            this._i18nRefs.footerFbLbl = fbLbl;
             fbBtn.appendChild(fbLbl);
             fbBtn.addEventListener("click", () => this._openFeedbackModal());
             footerBtnRow.appendChild(tutorialBtn);
@@ -13102,6 +13218,132 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_f) { /* ignore */ }
         }
+        static get FAST_STEPS() {
+            return [
+                {
+                    tab: "outfits",
+                    label: t("guide.fast.s1.label"),
+                    text: t("guide.fast.s1.text"),
+                    spotlight: ["[data-guide-target='btn-new-outfit']"],
+                    autoExpand: ["btn-new-outfit"],
+                },
+                {
+                    tab: "buttons",
+                    label: t("guide.fast.s2.label"),
+                    text: t("guide.fast.s2.text"),
+                    spotlight: ["[data-guide-target='btn-add-category']"],
+                },
+                {
+                    tab: "anims",
+                    label: t("guide.fast.s3.label"),
+                    text: t("guide.fast.s3.text"),
+                    spotlight: ["[data-guide-target='btn-new-combo']"],
+                },
+                {
+                    tab: "toys",
+                    label: t("guide.fast.s4.label"),
+                    text: t("guide.fast.s4.text"),
+                },
+                {
+                    tab: "dev",
+                    label: t("guide.fast.s5.label"),
+                    text: t("guide.fast.s5.text"),
+                    spotlight: ["[data-guide-target='section-dev-prefs']"],
+                    autoExpand: ["section-dev-prefs"],
+                },
+                {
+                    tab: null,
+                    label: t("guide.fast.s6.label"),
+                    text: t("guide.fast.s6.text"),
+                    spotlight: ["[data-guide-target='strip-safewords']"],
+                },
+            ];
+        }
+        static get INDEPTH_STEPS() {
+            return [
+                {
+                    tab: null,
+                    label: t("guide.deep.s1.label"),
+                    text: t("guide.deep.s1.text"),
+                },
+                {
+                    tab: null,
+                    label: t("guide.deep.s2.label"),
+                    text: t("guide.deep.s2.text"),
+                    spotlight: ["[data-guide-target='resize-corner']"],
+                },
+                {
+                    tab: "outfits",
+                    label: t("guide.deep.s3.label"),
+                    text: t("guide.deep.s3.text"),
+                    spotlight: ["[data-guide-target='btn-new-outfit']"],
+                    autoExpand: ["btn-new-outfit"],
+                },
+                {
+                    tab: "outfits",
+                    label: t("guide.deep.s4.label"),
+                    text: t("guide.deep.s4.text"),
+                    spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
+                    autoExpand: ["section-outfit-tags", "section-schedules"],
+                },
+                {
+                    tab: "buttons",
+                    label: t("guide.deep.s5.label"),
+                    text: t("guide.deep.s5.text"),
+                    spotlight: ["[data-guide-target='btn-add-category']"],
+                },
+                {
+                    tab: "anims",
+                    label: t("guide.deep.s6.label"),
+                    text: t("guide.deep.s6.text"),
+                    spotlight: ["[data-guide-target='btn-new-combo']"],
+                },
+                {
+                    tab: "anims",
+                    label: t("guide.deep.s7.label"),
+                    text: t("guide.deep.s7.text"),
+                    spotlight: ["[data-guide-target='btn-save-face']"],
+                },
+                {
+                    tab: "anims",
+                    label: t("guide.deep.s8.label"),
+                    text: t("guide.deep.s8.text"),
+                    spotlight: ["[data-guide-target='btn-new-trigger']"],
+                },
+                {
+                    tab: "notes",
+                    label: t("guide.deep.s9.label"),
+                    text: t("guide.deep.s9.text"),
+                    spotlight: ["[data-guide-target='section-room-people']"],
+                    autoExpand: ["section-room-people"],
+                },
+                {
+                    tab: "toys",
+                    label: t("guide.deep.s10.label"),
+                    text: t("guide.deep.s10.text"),
+                },
+                {
+                    tab: "dev",
+                    label: t("guide.deep.s11.label"),
+                    text: t("guide.deep.s11.text"),
+                    spotlight: ["[data-guide-target='section-dev-prefs']"],
+                    autoExpand: ["section-dev-prefs"],
+                },
+                {
+                    tab: "dev",
+                    label: t("guide.deep.s12.label"),
+                    text: t("guide.deep.s12.text"),
+                    spotlight: ["[data-guide-target='section-dev-logs']"],
+                    autoExpand: ["section-dev-logs"],
+                },
+                {
+                    tab: null,
+                    label: t("guide.deep.s13.label"),
+                    text: t("guide.deep.s13.text"),
+                    spotlight: ["[data-guide-target='strip-safewords']"],
+                },
+            ];
+        }
         renderGuideModeSelect() {
             const card = this.guideEl;
             if (!card)
@@ -13113,18 +13355,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             topRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
             const titleEl = document.createElement("span");
             titleEl.style.cssText = `${FONT}font-size:15px;font-weight:bold;color:#f7e6ee;`;
-            titleEl.textContent = "EBC Tutorial";
+            titleEl.textContent = t("guide.title");
             const closeX = document.createElement("button");
             closeX.className = "ebc-guide-close-btn";
             closeX.textContent = "✕";
-            closeX.title = "Close";
+            closeX.title = t("guide.close");
             closeX.addEventListener("click", () => this.closeGuide());
             topRow.appendChild(titleEl);
             topRow.appendChild(closeX);
             card.appendChild(topRow);
             const subEl = document.createElement("div");
             subEl.style.cssText = `${FONT}font-size:12px;color:#9a7080;margin-bottom:16px;`;
-            subEl.textContent = "How do you want to explore EBC?";
+            subEl.textContent = t("guide.subtitle");
             card.appendChild(subEl);
             // Mode cards
             const modesRow = document.createElement("div");
@@ -13156,8 +13398,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Lightning bolt = quick/fast. Open book = detailed reading.
             const SVG_BOLT = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
             const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
-            const fastCard = makeCard("Quick Tour", SVG_BOLT, "Every feature in a few bullets. Done in 2 minutes.", "6 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
-            const deepCard = makeCard("Full Guide", SVG_BOOK, "Full walkthrough with try-it prompts.", "13 steps", "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            const fastCard = makeCard(t("guide.quickTourTitle"), SVG_BOLT, t("guide.quickTourDesc"), t("guide.quickTourBadge"), "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            const deepCard = makeCard(t("guide.fullGuideTitle"), SVG_BOOK, t("guide.fullGuideDesc"), t("guide.fullGuideBadge"), "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
             modesRow.appendChild(fastCard);
             modesRow.appendChild(deepCard);
             card.appendChild(modesRow);
@@ -13248,12 +13490,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             topRow.className = "ebc-guide-top";
             const stepLbl = document.createElement("span");
             stepLbl.className = "ebc-guide-step-lbl";
-            const modeLabel = this.guideMode === "fast" ? "Quick Tour" : "Full Guide";
-            stepLbl.textContent = `${modeLabel} · ${this.guideStep + 1} of ${steps.length}`;
+            const modeLabel = this.guideMode === "fast" ? t("guide.quickTourTitle") : t("guide.fullGuideTitle");
+            stepLbl.textContent = t("guide.ofN", { mode: modeLabel, step: String(this.guideStep + 1), total: String(steps.length) });
             const closeX = document.createElement("button");
             closeX.className = "ebc-guide-close-btn";
             closeX.textContent = "✕";
-            closeX.title = "Close guide";
+            closeX.title = t("guide.closeGuide");
             closeX.addEventListener("click", () => this.closeGuide());
             topRow.appendChild(stepLbl);
             topRow.appendChild(closeX);
@@ -13293,7 +13535,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             nav.className = "ebc-guide-nav";
             const prevBtn = document.createElement("button");
             prevBtn.className = "ebc-guide-nav-prev";
-            prevBtn.textContent = "← Back";
+            prevBtn.textContent = t("guide.back");
             // Back is disabled on the very first spotlight of the very first step
             if (this.guideStep === 0 && spotIdx === 0)
                 prevBtn.disabled = true;
@@ -13316,18 +13558,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const nextBtn = document.createElement("button");
             nextBtn.className = "ebc-guide-nav-next";
             if (isLastStep && isLastSpot) {
-                nextBtn.textContent = "Done ✓";
+                nextBtn.textContent = t("guide.done");
                 nextBtn.addEventListener("click", () => this.closeGuide(true));
             }
             else if (!isLastSpot) {
-                nextBtn.textContent = "Next →";
+                nextBtn.textContent = t("guide.next");
                 nextBtn.addEventListener("click", () => {
                     this.guideSpotlightIndex++;
                     this.renderGuideStep();
                 });
             }
             else {
-                nextBtn.textContent = "Next →";
+                nextBtn.textContent = t("guide.next");
                 nextBtn.addEventListener("click", () => {
                     this.guideStep++;
                     this.guideSpotlightIndex = 0;
@@ -13736,6 +13978,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     lbl.textContent = t("tabs.users");
                 r.tabNotes.title = t("tabs.usersTitle");
             }
+            if (r.tabToys) {
+                r.tabToys.textContent = t("tabs.toys");
+                r.tabToys.title = t("tabs.toysTitle");
+            }
             if (r.tabThanks) {
                 r.tabThanks.textContent = t("tabs.credits");
                 r.tabThanks.title = t("tabs.creditsTitle");
@@ -13769,6 +14015,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 r.pickBtn.textContent = t("qa.pickRestraints");
                 r.pickBtn.title = t("qa.pickTitle");
             }
+            // Footer buttons
+            if (r.footerTutLbl)
+                r.footerTutLbl.textContent = t("footer.tutorial");
+            if (r.footerFbLbl)
+                r.footerFbLbl.textContent = t("footer.feedbackBugs");
             // EBC tags strip is a persistent DOM section - rebuild it so all labels re-translate
             this.rebuildEbcTagsStrip();
         }
@@ -28593,7 +28844,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 chevron.textContent = collapsed ? "▶" : "▼";
                 const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
                 titleEl.textContent = icon ? `${icon} ${title}` : title;
-                const eBtn = mkBtn(enabled ? "ON" : "OFF", `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
+                const eBtn = mkBtn(enabled ? t("core.on") : t("core.off"), `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
                 eBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
                     s[enabledKey] = !enabled;
@@ -28618,10 +28869,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return { wrap, content };
             };
             const lovEnabled = s.lovenseEnabled === true;
-            const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS (lovense)", "lovenseEnabled", "EBC_ui_lovense_open");
+            const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open");
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-                offNote.textContent = "Enable Lovense above to configure.";
+                offNote.textContent = t("toys.enableAbove");
                 lovContent.appendChild(offNote);
             }
             else {
@@ -28640,14 +28891,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return inp;
                 };
                 // ── CONNECTION ──────────────────────────────────────────────────────
-                lovContent.appendChild(lvsHdr("CONNECTION"));
+                lovContent.appendChild(lvsHdr(t("toys.connection")));
                 const nav = navigator;
                 const btApi = nav["bluetooth"];
                 // ── BLE (Web Bluetooth) ─────────────────────────────────────────────
                 if (btApi) {
                     const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
                     const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
-                    bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                    bleHdrRow.textContent = t("toys.bleDirect");
                     connCard.appendChild(bleHdrRow);
                     const toyListEl = mk("div", "margin-bottom:8px;");
                     const LVS_SERVICES = [
@@ -28664,7 +28915,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             toyListEl.removeChild(toyListEl.firstChild);
                         if (this._lovConnections.size === 0) {
                             const noToys = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                            noToys.textContent = "No toys connected.";
+                            noToys.textContent = t("toys.noToys");
                             toyListEl.appendChild(noToys);
                         }
                         else {
@@ -28714,11 +28965,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         wrap.appendChild(vl);
                                         return wrap;
                                     };
-                                    sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                    sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
                                     const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`);
                                     divider.textContent = "│";
                                     sRow.appendChild(divider);
-                                    sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                    sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, conn.duration, "s", v => { conn.duration = v; }));
                                     tCard.appendChild(sRow);
                                 }
                                 toyListEl.appendChild(tCard);
@@ -28729,13 +28980,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     connCard.appendChild(toyListEl);
                     const connBtnRow = mk("div", "display:flex;justify-content:center;margin-bottom:8px;");
                     const lovConnBtn = document.createElement("button");
-                    lovConnBtn.textContent = "＋ Connect Toy";
+                    lovConnBtn.textContent = t("toys.connectToy");
                     lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:6px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                     lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                     lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
                     lovConnBtn.addEventListener("click", () => {
                         lovConnBtn.disabled = true;
-                        lovConnBtn.textContent = "🔄 Opening…";
+                        lovConnBtn.textContent = t("toys.opening");
                         btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                             .then(async (rawDevice) => {
                             var _a, _b;
@@ -28749,7 +29000,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 }
                                 renderToyList();
                             });
-                            lovConnBtn.textContent = "🔄 Connecting…";
+                            lovConnBtn.textContent = t("toys.connecting");
                             const server = await device.gatt.connect();
                             let services = [];
                             // Retry with increasing delays — some toys (Domi, Nora) need GATT
@@ -28794,12 +29045,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const toyDefI = typeof connS.lovenseIntensity === "number" ? connS.lovenseIntensity : 10;
                             const toyDefD = typeof connS.lovenseDuration === "number" ? connS.lovenseDuration : 5;
                             this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
-                            lovConnBtn.textContent = "＋ Connect Toy";
+                            lovConnBtn.textContent = t("toys.connectToy");
                             lovConnBtn.disabled = false;
                             renderToyList();
                         })
                             .catch((err) => {
-                            lovConnBtn.textContent = "＋ Connect Toy";
+                            lovConnBtn.textContent = t("toys.connectToy");
                             lovConnBtn.disabled = false;
                             if (!(err instanceof Error && err.name === "NotFoundError")) {
                                 console.warn("[EBC Lovense] Connect error:", err);
@@ -28820,7 +29071,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
                     const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
                     const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
-                    httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                    httpHdrLabel.textContent = t("toys.lovHttpHdr");
                     const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
                     httpChevron.textContent = httpCollapsed ? "▶" : "▼";
                     httpHdrRow.appendChild(httpHdrLabel);
@@ -28852,12 +29103,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     httpBody.appendChild(urlRow);
                     const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                     const httpTestBtn = document.createElement("button");
-                    httpTestBtn.textContent = "Test Connection";
+                    httpTestBtn.textContent = t("toys.testConnection");
                     httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
                     const httpStatus = mk("span", `${FONT}font-size:11px;`);
                     httpStatus.textContent = this._lovHttpConnected
                         ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
-                        : "⚫ Not tested";
+                        : t("toys.notTested");
                     httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
                     httpBtnRow.appendChild(httpTestBtn);
                     httpBtnRow.appendChild(httpStatus);
@@ -28906,7 +29157,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;color:#c8e0c8;`);
                             tName.textContent = toy.name;
                             const testBtn = document.createElement("button");
-                            testBtn.textContent = "Test";
+                            testBtn.textContent = t("toys.testBtn");
                             testBtn.style.cssText = `${FONT}font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                             testBtn.addEventListener("click", () => {
                                 testBtn.disabled = true;
@@ -28919,11 +29170,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             tRow.appendChild(testBtn);
                             tCard.appendChild(tRow);
                             const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
-                            sRow.appendChild(mkTinySlider("Intensity", 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
+                            sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
                             const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`);
                             divider.textContent = "│";
                             sRow.appendChild(divider);
-                            sRow.appendChild(mkTinySlider("Seconds", 1, 60, toy.duration, "s", v => { toy.duration = v; }));
+                            sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, toy.duration, "s", v => { toy.duration = v; }));
                             tCard.appendChild(sRow);
                             httpToyListEl.appendChild(tCard);
                         }
@@ -28936,7 +29187,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         syncSettings();
                         this._lovHttpUrl = rawUrl;
                         httpTestBtn.disabled = true;
-                        httpStatus.textContent = "🔄 Testing…";
+                        httpStatus.textContent = t("toys.testing");
                         httpStatus.style.color = "var(--ebc-text-sub)";
                         this._lovHttpPing().then(ok => {
                             httpTestBtn.disabled = false;
@@ -31158,10 +31409,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Thin accent bar at the top for a bit of polish
             card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
             const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
-            titleEl.textContent = "Feedback & Bug Report";
+            titleEl.textContent = t("feedback.title");
             card.appendChild(titleEl);
             const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-            subEl.textContent = "Your BC member number is attached so misuse can be blocked.";
+            subEl.textContent = t("feedback.subtitle");
             card.appendChild(subEl);
             const mkLabel = (txt) => {
                 const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
@@ -31174,12 +31425,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
             // ── Type — segmented control (no emoji; value = exact Google Form string) ──
-            card.appendChild(mkLabel("Type"));
+            card.appendChild(mkLabel(t("feedback.typeLabel")));
             const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:18px;");
             const TYPES = [
-                { label: "Bug report", value: "Bug report" },
-                { label: "Feature request", value: "Feature request" },
-                { label: "Other", value: "Other" },
+                { label: t("feedback.bugReport"), value: "Bug report" },
+                { label: t("feedback.featureReq"), value: "Feature request" },
+                { label: t("feedback.other"), value: "Other" },
             ];
             let selectedType = TYPES[0].value;
             const typeChips = [];
@@ -31202,33 +31453,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             paintChips();
             card.appendChild(typeRow);
             // ── "What" textarea (required) ───────────────────────────────
-            card.appendChild(mkLabel("What happened / what do you want?"));
+            card.appendChild(mkLabel(t("feedback.whatLabel")));
             const whatArea = document.createElement("textarea");
-            whatArea.placeholder = "Describe the bug, or the feature you'd like…";
+            whatArea.placeholder = t("feedback.whatPH");
             whatArea.style.cssText = taCss + "min-height:84px;margin-bottom:18px;";
             wireFocus(whatArea);
             card.appendChild(whatArea);
             // ── Steps textarea (optional) ────────────────────────────────
-            card.appendChild(mkLabel("Steps to reproduce — optional"));
+            card.appendChild(mkLabel(t("feedback.stepsLabel")));
             const stepsArea = document.createElement("textarea");
-            stepsArea.placeholder = "What were you doing when it broke?";
+            stepsArea.placeholder = t("feedback.stepsPH");
             stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
             wireFocus(stepsArea);
             card.appendChild(stepsArea);
             const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
             const _mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
-            verNote.textContent = `EBC v${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} · ${_mn} is attached automatically.`;
+            verNote.textContent = t("feedback.verNote", { v: (_a = this.version) !== null && _a !== void 0 ? _a : "?", mn: _mn });
             card.appendChild(verNote);
             // ── Buttons ──────────────────────────────────────────────────
             const errEl = mk("div", `${FONT}font-size:11px;color:#ff8a8a;margin-bottom:10px;min-height:14px;`);
             card.appendChild(errEl);
             const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
             const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #33283c;background:transparent;color:#9b8fa6;transition:all 0.14s;`);
-            cancelBtn.textContent = "Cancel";
+            cancelBtn.textContent = t("feedback.cancel");
             cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#cbbdd6"; });
             cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9b8fa6"; });
             const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.3px;padding:9px 28px;border-radius:9px;cursor:pointer;border:1px solid #cf6f98;background:#c2628a;color:#ffffff;transition:all 0.14s;`);
-            sendBtn.textContent = "Send";
+            sendBtn.textContent = t("feedback.send");
             sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled)
                 sendBtn.style.background = "#d278a0"; });
             sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled)
@@ -31245,13 +31496,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 var _a;
                 const what = whatArea.value.trim();
                 if (!what) {
-                    errEl.textContent = "Please describe the bug or request first.";
+                    errEl.textContent = t("feedback.errEmpty");
                     whatArea.focus();
                     return;
                 }
                 errEl.textContent = "";
                 sendBtn.disabled = true;
-                sendBtn.textContent = "Sending…";
+                sendBtn.textContent = t("feedback.sending");
                 const mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
                 const params = new URLSearchParams();
                 params.append(E_TYPE, selectedType);
@@ -31260,8 +31511,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 params.append(E_VER, `${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} | ${mn}`);
                 // no-cors: fire-and-forget; we can't read the response but the submit goes through
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                    .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
-                    .catch(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); });
+                    .then(() => { close(); this._showToyToast(t("feedback.toast")); })
+                    .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
             });
             document.body.appendChild(overlay);
             whatArea.focus();
@@ -31311,44 +31562,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Accent bar
             card.appendChild(mk("div", "height:3px;border-radius:3px;background:#8060b0;margin:-8px 0 18px;"));
             const title = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:4px;`);
-            title.textContent = "Cloudflare Worker Setup";
+            title.textContent = t("pishock.setupTitle");
             card.appendChild(title);
             const sub = mk("div", `${FONT}font-size:12px;color:#9a86aa;margin-bottom:22px;`);
-            sub.textContent = "One-time setup - takes about 3 minutes. Free forever.";
+            sub.textContent = t("pishock.setupSub");
             card.appendChild(sub);
             const STEPS = [
-                {
-                    num: "1",
-                    heading: "Create a free Cloudflare account",
-                    body: "Go to cloudflare.com and sign up. It's completely free - no credit card needed.",
-                    link: { label: "cloudflare.com - Sign up", url: "https://cloudflare.com" },
-                },
-                {
-                    num: "2",
-                    heading: "Open Workers & Pages",
-                    body: "Once you're logged in, click \"Workers & Pages\" in the left sidebar of your dashboard.",
-                },
-                {
-                    num: "3",
-                    heading: "Create a new Worker",
-                    body: "Click the blue \"Create\" button, then select \"Create Worker\". Give it any name you like - something like \"pishock-proxy\" works fine. Then click \"Deploy\" at the bottom.",
-                },
-                {
-                    num: "4",
-                    heading: "Replace the code",
-                    body: "After deploying, click \"Edit code\" on the next screen. Delete everything in the editor on the left, then paste the code below and click \"Deploy\" again.",
-                    code: true,
-                },
-                {
-                    num: "5",
-                    heading: "Copy your Worker URL",
-                    body: "After deploying you'll see a URL at the top of the page - it looks like \"your-name.workers.dev\". Copy the full URL.",
-                },
-                {
-                    num: "6",
-                    heading: "Paste it into EBC",
-                    body: "Go back to the PiShock section in EBC, paste the URL into the \"Proxy URL\" field, and click Test. If it says OK you're all done!",
-                },
+                { num: "1", heading: t("pishock.step1Head"), body: t("pishock.step1Body"), link: { label: t("pishock.step1Link"), url: "https://cloudflare.com" } },
+                { num: "2", heading: t("pishock.step2Head"), body: t("pishock.step2Body") },
+                { num: "3", heading: t("pishock.step3Head"), body: t("pishock.step3Body") },
+                { num: "4", heading: t("pishock.step4Head"), body: t("pishock.step4Body"), code: true },
+                { num: "5", heading: t("pishock.step5Head"), body: t("pishock.step5Body") },
+                { num: "6", heading: t("pishock.step6Head"), body: t("pishock.step6Body") },
             ];
             STEPS.forEach(step => {
                 const row = mk("div", "display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;");
@@ -31377,13 +31602,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const pre = mk("pre", `${FONT}font-size:10px;background:#0f0b15;border:1px solid #2a1f38;border-radius:8px;padding:10px 12px;overflow-x:auto;color:#b09acc;white-space:pre;margin:0;line-height:1.5;`);
                     pre.textContent = WORKER_CODE;
                     const copyBtn = document.createElement("button");
-                    copyBtn.textContent = "Copy code";
+                    copyBtn.textContent = t("pishock.copyCode");
                     copyBtn.style.cssText = `${FONT}position:absolute;top:8px;right:8px;font-size:10.5px;font-weight:bold;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid #5a4070;background:#1e1530;color:#c8a0e8;`;
                     copyBtn.addEventListener("click", () => {
                         navigator.clipboard.writeText(WORKER_CODE).then(() => {
-                            copyBtn.textContent = "Copied!";
+                            copyBtn.textContent = t("pishock.copied");
                             copyBtn.style.background = "#3a2050";
-                            window.setTimeout(() => { copyBtn.textContent = "Copy code"; copyBtn.style.background = "#1e1530"; }, 1800);
+                            window.setTimeout(() => { copyBtn.textContent = t("pishock.copyCode"); copyBtn.style.background = "#1e1530"; }, 1800);
                         });
                     });
                     codeWrap.appendChild(pre);
@@ -31397,7 +31622,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Divider + close button
             card.appendChild(mk("div", "border-top:1px solid #2a1f38;margin:6px 0 16px;"));
             const doneBtn = document.createElement("button");
-            doneBtn.textContent = "Got it, close";
+            doneBtn.textContent = t("pishock.gotItClose");
             doneBtn.style.cssText = `${FONT}width:100%;font-size:13px;font-weight:bold;padding:10px;border-radius:9px;cursor:pointer;border:1px solid #8060b0;background:#4a2860;color:#e8dff5;`;
             doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
             doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
@@ -33210,128 +33435,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    EBCDrawer.FAST_STEPS = [
-        {
-            tab: "outfits",
-            label: "Outfits",
-            text: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))",
-            spotlight: ["[data-guide-target='btn-new-outfit']"],
-            autoExpand: ["btn-new-outfit"],
-        },
-        {
-            tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))",
-            spotlight: ["[data-guide-target='btn-add-category']"],
-        },
-        {
-            tab: "anims",
-            label: "Poses & Animations",
-            text: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))",
-            spotlight: ["[data-guide-target='btn-new-combo']"],
-        },
-        {
-            tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.",
-        },
-        {
-            tab: "dev",
-            label: "Settings",
-            text: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))",
-            spotlight: ["[data-guide-target='section-dev-prefs']"],
-            autoExpand: ["section-dev-prefs"],
-        },
-        {
-            tab: null,
-            label: "Safewords — Always Here",
-            text: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))",
-            spotlight: ["[data-guide-target='strip-safewords']"],
-        },
-    ];
-    EBCDrawer.INDEPTH_STEPS = [
-        {
-            tab: null,
-            label: "Welcome to EBC",
-            text: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
-        },
-        {
-            tab: null,
-            label: "Moving & Resizing",
-            text: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))",
-            spotlight: ["[data-guide-target='resize-corner']"],
-        },
-        {
-            tab: "outfits",
-            label: "Saving & Applying Outfits",
-            text: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))",
-            spotlight: ["[data-guide-target='btn-new-outfit']"],
-            autoExpand: ["btn-new-outfit"],
-        },
-        {
-            tab: "outfits",
-            label: "Tags, Schedules & Sharing",
-            text: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.",
-            spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
-            autoExpand: ["section-outfit-tags", "section-schedules"],
-        },
-        {
-            tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips",
-            spotlight: ["[data-guide-target='btn-add-category']"],
-        },
-        {
-            tab: "anims",
-            label: "Pose Combos",
-            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))",
-            spotlight: ["[data-guide-target='btn-new-combo']"],
-        },
-        {
-            tab: "anims",
-            label: "Face Presets",
-            text: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))",
-            spotlight: ["[data-guide-target='btn-save-face']"],
-        },
-        {
-            tab: "anims",
-            label: "Chat Triggers",
-            text: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))",
-            spotlight: ["[data-guide-target='btn-new-trigger']"],
-        },
-        {
-            tab: "notes",
-            label: "Users & Friends",
-            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))",
-            spotlight: ["[data-guide-target='section-room-people']"],
-            autoExpand: ["section-room-people"],
-        },
-        {
-            tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
-        },
-        {
-            tab: "dev",
-            label: "Settings & Themes",
-            text: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean",
-            spotlight: ["[data-guide-target='section-dev-prefs']"],
-            autoExpand: ["section-dev-prefs"],
-        },
-        {
-            tab: "dev",
-            label: "Logs & History",
-            text: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered",
-            spotlight: ["[data-guide-target='section-dev-logs']"],
-            autoExpand: ["section-dev-logs"],
-        },
-        {
-            tab: null,
-            label: "Safewords — Always On Top",
-            text: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))",
-            spotlight: ["[data-guide-target='strip-safewords']"],
-        },
-    ];
 
     // Character bundle storage — session-memory only.
     // Dexie/IndexedDB was removed because Chrome's IDB implementation
@@ -33393,8 +33496,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 39; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.2";
+    const SAL_VERSION = 40; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33408,6 +33511,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.2",
+            changes: [
+                "i18n: all new UI strings are now fully translated - Tutorial mode selector and step labels, Feedback form, PiShock setup modal, Toys tab headers and controls, and the Tutorial/Feedback footer buttons. Switch language mid-session and everything updates instantly.",
+                "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
+            ],
+        },
         {
             version: "8.2.1",
             changes: [
