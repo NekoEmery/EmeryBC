@@ -8273,7 +8273,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     width: 100%;
     flex: 1;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden; /* clip content to the panel box so nothing bleeds outside when zoomed/scaled */
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -12472,7 +12472,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const BUG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
             const BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
             const footerBtnRow = document.createElement("div");
-            footerBtnRow.style.cssText = "display:flex;gap:8px;width:100%;justify-content:center;margin-top:6px;";
+            footerBtnRow.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;width:100%;justify-content:center;margin-top:6px;";
             const tutorialBtn = document.createElement("button");
             tutorialBtn.className = "ebc-footer-action-btn";
             tutorialBtn.title = "Open the interactive guide / tutorial";
@@ -30720,8 +30720,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
             titleEl.textContent = "Feedback & Bug Report";
             card.appendChild(titleEl);
-            const subEl = mk("div", `${FONT}font-size:12px;color:#9b8fa6;margin-bottom:20px;line-height:1.55;`);
-            subEl.textContent = "Anonymous — sent straight from the game. No account, no email, nothing tied to you.";
+            const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
+            subEl.textContent = "Anonymous — No account, no email, nothing tied to you.";
             card.appendChild(subEl);
             const mkLabel = (txt) => {
                 const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
@@ -32787,7 +32787,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 27; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 28; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32805,6 +32805,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             version: "8.1.2",
             changes: [
                 "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
+                "Fix: panel content no longer bleeds outside the window when zoomed/scaled — the panel now clips to its own bounds, and the footer buttons wrap instead of overflowing.",
+                "Feedback form: privacy line is now a highlighted callout reading 'Anonymous — No account, no email, nothing tied to you.'",
                 "Feedback form: cleaner readable sans-serif font, unified rose colour scheme (no more pink/purple clash), and tighter spacing.",
                 "Footer: moved the Tutorial and Feedback & Bugs buttons to the very bottom, beneath the online/room/bound timers.",
                 "Feedback form redesign: cleaner layout, no emoji, segmented Type selector, focus highlights on the text fields, and polished Send/Cancel buttons.",
