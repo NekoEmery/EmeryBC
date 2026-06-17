@@ -33875,7 +33875,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 74; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 75; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33894,6 +33894,7 @@
             changes: [
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
                 "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
+                "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
             ],
         },
         {
@@ -41726,8 +41727,9 @@
                     }
                 }
                 if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
-                    typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
-                    drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
+                    typeof data.Sender === "number") {
+                    if (data.Sender !== Player.MemberNumber)
+                        drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockTriggers(data.Content);
                 }
                 if (data.Type === "Activity" && typeof data.Content === "string" &&
