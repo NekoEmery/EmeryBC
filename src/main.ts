@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -24,10 +24,14 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.2";
+const MOD_VERSION = "5.5.3";
+const SAL_VERSION  = 34;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
+// Set to true by the beep hook when we want to let the mod chain through
+// (for LianChat/WCE compat) but still block BC's native notification.
+let _ebcBlockBeepNative = false;
 
 // Members already recorded in "people met" this session — avoids redundant server syncs
 // on repeated CharacterRefresh calls for the same person in a large room.
@@ -39,13 +43,110 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.5.2",
+        version: "5.5.3",
         changes: [
-            "TOYS tab: now visible to all users; IRL TOYS renamed to 'IRL TOYS (lovense)'; dropdown clip fixed; same-room note added; active access badges on section headers.",
-            "GAME TOYS: BC-native vibrator control with chat attribution via VibratorModeSetOptionByName.",
-            "Fun Actions: Cuddle all friends and Pet all friends buttons added; all three restyled with distinct accent colors and hover effects.",
-            "Guide '?' button repositioned to footer right side with absolute positioning.",
-            "Kitty tab: emotes section removed.",
+            "Tutorial: clicking Tutorial shows a mode selection screen — Quick Tour (6 steps, one spotlight per feature, try-it prompts) or Full Guide (13 steps, every sub-feature with detailed walkthrough). Panel centered on screen.",
+            "Fix: panel zoom now works correctly at all scale levels — content no longer bleeds outside or double-shrinks; switched from CSS transform:scale to CSS zoom.",
+            "Feedback: anonymous in-game form in the footer — pick a type, write your message, hit Send; no browser tab, no account, submitted silently from the game.",
+            "IRL toys: two-remote support with per-toy routing — body-touch and phrase triggers each have toy chips to target a specific toy; HTTP toys appear as cards matching BLE style.",
+            "Toy whitelist: entries show friend display names beside member numbers; instant-control toggle added (OFF by default for safety).",
+        ],
+    },
+    {
+        version: "8.2.1",
+        changes: [
+            "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
+        ],
+    },
+    {
+        version: "8.2.0",
+        changes: [
+            "Tutorial: redesigned from 16 text-heavy steps to 8 short interactive ones — each with a clear label, a pulsing spotlight on the relevant UI element, and a try-it nudge.",
+            "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside or double-shrinks when zooming out.",
+            "Feedback: new in-game anonymous form (footer Feedback & Bugs button) — pick a type, describe the issue, hit Send; no browser tab, no account, submitted silently from the game.",
+            "IRL toys: two-remote support — when multiple Lovense toys are connected, the controller shows a separate vibrate panel per toy with independent Intensity/Duration sliders.",
+            "Toy whitelist: entries now show display names beside member numbers; 'No need to ask' instant-control toggle added — OFF by default for safety.",
+        ],
+    },
+    {
+        version: "8.1.2",
+        changes: [
+            "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside the panel or gets double-shrunk when zooming out.",
+            "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
+            "Feedback form: privacy line is now a highlighted callout reading 'Anonymous — No account, no email, nothing tied to you.'",
+            "Feedback form: cleaner readable sans-serif font, unified rose colour scheme (no more pink/purple clash), and tighter spacing.",
+            "Footer: moved the Tutorial and Feedback & Bugs buttons to the very bottom, beneath the online/room/bound timers.",
+            "Feedback form redesign: cleaner layout, no emoji, segmented Type selector, focus highlights on the text fields, and polished Send/Cancel buttons.",
+            "Toy whitelist: added a 'No need to ask' toggle (IRL + game toys). OFF by default for safety — whitelisted friends still send a request you approve. Turn it ON to let trusted friends take instant control with no popup.",
+            "Footer redesign: 'Tutorial' and 'Feedback & Bugs' buttons now sit together at the top of the footer (above the version line) where they're easy to find. Removed the floating '?' button from the bottom corner, and moved Feedback out of the cramped header so nothing overflows when you drag the window.",
+            "Feedback: header button now shows a bug icon + 'Feedback & Bugs' label, and the in-game form submits the exact option values the backend expects (fixes the Type field not registering).",
+            "Feedback: 🐛 Feedback button now opens a form right inside EBC — pick a type, type your message, hit Send, and it's submitted anonymously without ever leaving the game. No browser tab, no account, no email.",
+            "Feedback: 🐛 button now links to an anonymous Google Form instead of GitHub — no account needed to submit a bug report or feature request.",
+            "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
+            "Lovense: phrase triggers now have toy chips too — each chat phrase trigger can target a specific toy (or All), same as body-touch triggers.",
+            "IRL toys / Game toys: added auto-accept whitelist — if a friend is on your whitelist, their control request is accepted instantly without a popup. Whitelist is managed in the existing whitelist UI.",
+            "IRL toys: two-remote support — when your controller has multiple toys connected, their ACK carries toy names and your controller UI shows a separate vibrate panel per toy with independent Intensity/Duration sliders and a targeted Vibrate button. Single-toy sessions show the existing single panel.",
+            "Lovense: per-action toy routing — each body-touch trigger (headpat, spank, etc.) now has toy chips showing all connected toys. Click a chip to restrict that trigger to a specific toy; 'All' resets to firing everything. Works across both BLE and HTTP toys simultaneously.",
+            "Lovense HTTP: connected toys now appear as cards (matching BLE style) with a Test button and per-toy Intensity/Seconds sliders. Attempts to fetch real toy names via GetToys command; falls back to 'Lovense Connect' placeholder if unavailable.",
+            "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
+            "UI: brightened --ebc-text-sub across all themes (was too low-contrast on dark backgrounds); affects secondary labels, hints, and notes throughout the panel.",
+            "Fix: Lovense HTTP /GetToys now correctly parses toy count — Lovense Connect v1 API returns data as a JSON-encoded string, not an object; count was always 0 before this fix.",
+            "Settings: added 'LianChat compatibility' toggle in Chat & Notifications — OFF by default (beeps suppressed from BC chat); ON lets BC native run so LianChat/WCE get full passthrough at the cost of beeps appearing in BC's default chat.",
+            "Fix: beep suppression now uses a sentinel hook so LianChat/WCE still see friend beeps through the mod chain, but BC's native chat notification is blocked as intended.",
+            "Kitty menu: added 📍 Position section (Pull to Side, Get in Arms, Hold in Arms, Release from Arms) — Lucy can now reposition Emery directly from the kitty menu.",
+            "Lovense BLE: increased service discovery retries (5 attempts, up to ~8s total) and added per-UUID fallback — fixes 'No services found' on Domi and other toys where GATT discovery is slow.",
+            "Lovense: each connected BLE toy now has its own intensity (I:) and duration (D:) sliders in the toy list — triggers with no explicit intensity use the toy's individual setting.",
+            "Lovense BLE: writeWithoutResponse now falls back to writeValue on failure — fixes 'Access is denied' error for Firefox users running the WebBT BLE polyfill extension.",
+            "Emery Versioning: SAL sub-version display moved from Emery-only hardcode to a toggle in DEV → Developer Tools — anyone can enable it to show (sN) in the EBC header.",
+            "Lovense: HTTP card is now a collapsible dropdown (click header to expand/collapse, state saved). Fixed all low-contrast text-muted colors in Lovense section to text-bright/text-sub.",
+        ],
+    },
+    {
+        version: "8.1.1",
+        changes: [
+            "Lovense: added HTTP connection path via Lovense Connect app — works on Firefox and other non-BLE browsers. Configure the local API URL (default http://127.0.0.1:20010) in the IRL Toys section.",
+            "LianChat compat: EBC beep hook now always passes events through the mod chain so mods like LianChat running on the same client also see incoming friend beeps.",
+            "Version jump to 8.1.1. Internal sal sub-version counter added (only visible to Emery).",
+        ],
+    },
+    {
+        version: "6.9.73",
+        changes: [
+            "Fix: EBC drawer tab no longer disappears when a beep notification arrives — removed erroneous tab.style.position='relative' mutation in the unread-dot code (was overriding CSS position:absolute, causing tab offset to shift); raised root z-index from 99 to 101 (above BC's toast container at 100); heartbeat guard now also removes the HTML hidden attribute; added a periodic 5-second position re-sync.",
+        ],
+    },
+    {
+        version: "6.9.72",
+        changes: [
+            "Fix: grace period banner in the Safewords tab now appears and stays live while the tab is open — no longer requires closing and reopening the tab to see it after a safeword triggers.",
+        ],
+    },
+    {
+        version: "6.9.71",
+        changes: [
+            "Safewords: owner, lover (LoversPadlock/LoversTimerPadlock), and family (FamilyPadlock) locks are now always protected — safeword release and grace period enforcement never remove them. Removed the now-redundant 'Exclude owner locks' toggle.",
+            "Fix: quick-reply toggle button in beep window footer no longer shows ▶/▼ arrow characters — uses a clean lines icon instead.",
+        ],
+    },
+    {
+        version: "6.9.70",
+        changes: [
+            "Fix: Grace=ON without Release=ON no longer removes existing restraints — grace now only strips items added AFTER the safeword was triggered.",
+            "Safewords: added 'Exclude owner locks' toggle — skips OwnerPadlock / ExclusivePadlock items during both release and grace enforcement.",
+        ],
+    },
+    {
+        version: "6.9.69",
+        changes: [
+            "Kitty tab: added ⛓ Curse section — group chips + Apply/Clear buttons, targets Emery only.",
+            "Fix: typing in a beep window no longer triggers WASD movement in map rooms.",
+            "Fix: panel height is now correctly restored in roaming mode (main menu) instead of being capped at 520 px.",
+        ],
+    },
+    {
+        version: "6.9.68",
+        changes: [
+            "Fix: drawer tab no longer disappears after clicking a BC side beep notification and returning to chatroom.",
         ],
     },
     {
@@ -5683,7 +5784,8 @@ function appendClickableCmd(cmd: string, desc: string): void {
 }
 
 function showVersionInfo(): void {
-    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
+    const salStr = getShowSalVersion() ? ` (${SAL_VERSION})` : "";
+    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
 }
 
 function showChangelog(): void {
@@ -6033,13 +6135,31 @@ function parseEBCToyMsg(content: string): { type: string; intensity?: number; du
     const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
     return { type, intensity, duration };
 }
-function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
-    const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number; toys?: string[] } | null {
+    // Flexible parser: [EBC-IRL:TYPE] or [EBC-IRL:TYPE:extra]
+    const m = content.match(/^\[EBC-IRL:([A-Za-z]+)(?::([^\]]*))?\]$/);
     if (!m) return null;
     const type = m[1];
-    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
-    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
-    return { type, intensity, duration };
+    const extra = m[2] ?? "";
+    if (type === "VIB") {
+        const nm = extra.match(/^(\d+):(\d+)$/);
+        if (nm) return { type, intensity: parseInt(nm[1], 10), duration: parseInt(nm[2], 10) };
+    } else if (type === "ACK") {
+        // ACK optionally carries comma-separated toy names: [EBC-IRL:ACK:ToyA,ToyB]
+        const toys = extra ? extra.split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+        return { type, toys: toys.length > 0 ? toys : undefined };
+    } else if (type === "TOY") {
+        // Targeted vibrate: [EBC-IRL:TOY:toyName:intensity:duration]
+        const lastColon = extra.lastIndexOf(":");
+        const prevColon = lastColon > 0 ? extra.lastIndexOf(":", lastColon - 1) : -1;
+        if (prevColon >= 0) {
+            const toyName = extra.slice(0, prevColon);
+            const i = parseInt(extra.slice(prevColon + 1, lastColon), 10);
+            const d = parseInt(extra.slice(lastColon + 1), 10);
+            if (toyName && !isNaN(i) && !isNaN(d)) return { type, intensity: i, duration: d, toys: [toyName] };
+        }
+    }
+    return { type };
 }
 
 function handleKittyCommand(msg: string): void {
@@ -6948,6 +7068,10 @@ function init(): void {
             const serverES = serverData?.ExtensionSettings as Record<string, unknown> | undefined;
             const ebcData = (serverES?.["EmeryBC"] ?? {}) as Record<string, unknown>;
             reinitFromExtensionSettings(ebcData);
+            // Refresh the header title now that persisted settings are loaded —
+            // the drawer was built before server settings arrived, so the SAL
+            // version suffix would be missing if it was saved as enabled.
+            try { drawer?._updateVersionTitle(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
@@ -7053,7 +7177,7 @@ function init(): void {
     let drawer: EBCDrawer | null = null;
     try {
         EBCDrawer.pawDataUri = EBC_PAW_DATA;
-        drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
+        drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
@@ -7378,9 +7502,21 @@ function init(): void {
     // Keep drawer visibility in sync whenever the BC screen changes.
     // Do NOT reset room timers here — transient screens (wardrobe, preferences, etc.)
     // temporarily leave ChatRoom but the player hasn't actually left the room.
+    //
+    // BC's CommonSetScreen is async (R127+): CurrentScreen is set synchronously, but
+    // ElementToggleGeneratedElements and Load() run after the first internal await.
+    // We call updateVisibility() twice:
+    //   1. Immediately (sync part) — so the tab transitions out of roaming mode right away.
+    //   2. After the Promise resolves (async part) — so syncToChat() runs AFTER BC has
+    //      made #chat-room-div visible and called ChatRoomResize().  Without this second
+    //      call, the FriendList→ChatRoom path left the tab invisible because syncToChat()
+    //      failed (TextAreaChatLog still had 0×0 dimensions at the first call).
     tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
         const result = next(args);
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
+        if (result instanceof Promise) {
+            result.then(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }).catch(() => {});
+        }
         return result;
     });
 
@@ -7584,7 +7720,7 @@ function init(): void {
                         const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
                         const found = roomChars?.find(c => c.MemberNumber === senderNum);
                         const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
-                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration, parsed.toys);
                     }
                     return; // suppress — do not call next(args)
                 }
@@ -7710,11 +7846,26 @@ function init(): void {
                 }
             } catch { /* ignore */ }
 
-            // Suppress BC's native chat-log notification for ALL friend beeps when
-            // the toggle is on. document.hidden is intentionally NOT checked here —
-            // OS-level notifications come through FriendListBeep, not this path.
-            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) return;
+            // Suppress EBC's own sound already ran above. Call next() so other mods in
+            // the chain (LianChat, WCE, etc.) still see this beep, but set a flag first
+            // so the low-priority sentinel hook below can block BC's native notification
+            // from running at the end of the chain.
+            if (!getUseNativeBeepSound() && getSuppressNativeBeep()) {
+                _ebcBlockBeepNative = true;
+                try { return next(args); } finally { _ebcBlockBeepNative = false; }
+            }
         } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Sentinel hook at priority 0 (runs just before BC native). When _ebcBlockBeepNative
+    // is set by the priority-3 hook above, we swallow the call here so BC's native
+    // notification never fires — while LianChat/WCE hooks at intermediate priorities
+    // have already seen the beep normally. If LianChat compat is ON the user has opted
+    // in to BC's native handling (which shows beeps in chat), so we skip the block.
+    tryHookFunction(modAPI, "ServerAccountBeep", 0, (args, next) => {
+        if (_ebcBlockBeepNative && !getLianChatCompat()) { _ebcBlockBeepNative = false; return; }
+        _ebcBlockBeepNative = false;
         return next(args);
     });
 
@@ -7938,6 +8089,11 @@ function init(): void {
             // This can happen when a hook in the chain passes a synthetic/plain object
             // instead of a real KeyboardEvent.  Guard here to prevent the crash.
             if (!ev || typeof ev.key !== "string") return false;
+            // Don't let BC process movement keys (WASD / arrows) while the user is
+            // typing inside an EBC beep window — stopPropagation() on the textarea
+            // handles DOM-level listeners; this hook handles BC's function-call path.
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl as HTMLElement).closest?.(".ebc-beep-win")) return false;
             if (ev.shiftKey) return next(args);
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = getChatInput();

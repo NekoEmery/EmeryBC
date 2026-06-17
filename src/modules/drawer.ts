@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -494,7 +494,7 @@ const CSS = `
  */
 #emerybc-root {
     position: fixed;
-    z-index: 99;
+    z-index: 101;
     width: 0;
     pointer-events: none;
 }
@@ -674,7 +674,7 @@ const CSS = `
     width: 100%;
     flex: 1;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden; /* clip content to the panel box so nothing bleeds outside when zoomed/scaled */
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -727,6 +727,17 @@ const CSS = `
 }
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
+
+.ebc-footer-action-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 14px; border-radius: 8px;
+    border: 1px solid #7a3a55; background: rgba(42,20,33,0.6);
+    color: #e3b6cb; font-family: "Trebuchet MS", serif;
+    font-size: 11px; font-weight: bold; cursor: pointer;
+    white-space: nowrap; transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.ebc-footer-action-btn:hover { background: #5a2c42; color: #fff0f6; border-color: #e08ab0; }
+.ebc-footer-action-btn svg { flex-shrink: 0; }
 
 @keyframes ebc-spin { to { transform: rotate(360deg); } }
 .ebc-icon-btn.spinning svg { animation: ebc-spin 0.6s linear; }
@@ -1468,7 +1479,7 @@ const CSS = `
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 5px 8px 4px;
+    padding: 8px 8px 5px;
     border-top: 1px solid #3a1928;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -3357,12 +3368,12 @@ const CSS = `
 /* Detached from the main panel so the full menu stays visible while reading. */
 .ebc-guide-side {
     position: fixed;
-    width: 240px;
+    width: 310px;
     background: #170810;
     border: 2px solid #cf6f98;
     border-left: 4px solid #cf6f98;
     border-radius: 10px;
-    padding: 11px 13px 10px;
+    padding: 13px 14px 12px;
     box-shadow: 0 6px 32px rgba(0,0,0,0.9), 0 0 0 1px rgba(207,111,152,0.12);
     z-index: 10010;
     font-family: "Trebuchet MS", serif;
@@ -3372,8 +3383,8 @@ const CSS = `
     animation: ebc-guide-in 0.18s ease;
 }
 @keyframes ebc-guide-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 .ebc-guide-top {
     display: flex;
@@ -3397,13 +3408,13 @@ const CSS = `
 }
 .ebc-guide-close-btn:hover { color: #cf6f98; }
 .ebc-guide-tab-lbl {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
-    letter-spacing: 0.5px;
-    color: #f0a0c8;
-    border-bottom: 1px solid #3a1428;
-    padding-bottom: 5px;
-    margin-bottom: 1px;
+    letter-spacing: 0.3px;
+    color: #f7e6ee;
+    border-left: 3px solid #cf6f98;
+    padding-left: 8px;
+    margin-bottom: 6px;
 }
 .ebc-guide-text {
     font-size: 11px;
@@ -3702,7 +3713,7 @@ const DEFAULT_COLORS: CoreColors = {
     border:     "#3a1928",  // all dividing lines & outlines
     accent:     "#cf6f98",  // tabs, buttons, highlights
     textBright: "#f7e6ee",  // primary readable text
-    textSub:    "#967281",  // secondary labels & soft text
+    textSub:    "#c090a8",  // secondary labels & soft text
     textMuted:  "#7a5a6a",  // placeholders / inactive items
     gold:       "#c9ab72",  // gold / special accents
 };
@@ -3712,13 +3723,13 @@ const EBC_THEME_PRESETS: Record<string, ThemePreset> = {
     // Each preset is fully cohesive - backgrounds tinted with the theme hue,
     // accent is the primary colour, text & border complement it naturally.
     rose:     { name: "Rose (Default)",  colors: DEFAULT_COLORS },
-    sakura:   { name: "Sakura",          colors: { bg:"#200e14", card:"#2e1520", cardMuted:"#190a0f", border:"#481a24", accent:"#e8608a", textBright:"#ffecf2", textSub:"#b87890", textMuted:"#906070", gold:"#e0b060" } },
-    lavender: { name: "Lavender",        colors: { bg:"#120d1e", card:"#1e1532", cardMuted:"#0d0918", border:"#281a42", accent:"#9b6fcf", textBright:"#ece6f8", textSub:"#7868a0", textMuted:"#5a5278", gold:"#c8b46a" } },
-    ocean:    { name: "Ocean",           colors: { bg:"#0c1828", card:"#122034", cardMuted:"#081018", border:"#162e4c", accent:"#5a98c8", textBright:"#e0eef8", textSub:"#587898", textMuted:"#3e5870", gold:"#c0a860" } },
-    forest:   { name: "Forest",          colors: { bg:"#0c1a10", card:"#122018", cardMuted:"#080e0a", border:"#163422", accent:"#52b870", textBright:"#daf0e2", textSub:"#507860", textMuted:"#3e5e48", gold:"#aab840" } },
-    crimson:  { name: "Crimson",         colors: { bg:"#1c0c0c", card:"#2a1212", cardMuted:"#120808", border:"#3c1414", accent:"#c84848", textBright:"#f8e0e0", textSub:"#906060", textMuted:"#704848", gold:"#c89050" } },
-    amber:    { name: "Amber",           colors: { bg:"#1c1208", card:"#281808", cardMuted:"#120c04", border:"#3a2412", accent:"#d08030", textBright:"#f8ecd8", textSub:"#987050", textMuted:"#806848", gold:"#e8c040" } },
-    obsidian: { name: "Obsidian",        colors: { bg:"#141618", card:"#1e2028", cardMuted:"#0e1014", border:"#28293a", accent:"#8090b8", textBright:"#e8eaf0", textSub:"#687080", textMuted:"#545a68", gold:"#a89058" } },
+    sakura:   { name: "Sakura",          colors: { bg:"#200e14", card:"#2e1520", cardMuted:"#190a0f", border:"#481a24", accent:"#e8608a", textBright:"#ffecf2", textSub:"#cc9caa", textMuted:"#906070", gold:"#e0b060" } },
+    lavender: { name: "Lavender",        colors: { bg:"#120d1e", card:"#1e1532", cardMuted:"#0d0918", border:"#281a42", accent:"#9b6fcf", textBright:"#ece6f8", textSub:"#a090c8", textMuted:"#5a5278", gold:"#c8b46a" } },
+    ocean:    { name: "Ocean",           colors: { bg:"#0c1828", card:"#122034", cardMuted:"#081018", border:"#162e4c", accent:"#5a98c8", textBright:"#e0eef8", textSub:"#84a8c8", textMuted:"#3e5870", gold:"#c0a860" } },
+    forest:   { name: "Forest",          colors: { bg:"#0c1a10", card:"#122018", cardMuted:"#080e0a", border:"#163422", accent:"#52b870", textBright:"#daf0e2", textSub:"#7aa890", textMuted:"#3e5e48", gold:"#aab840" } },
+    crimson:  { name: "Crimson",         colors: { bg:"#1c0c0c", card:"#2a1212", cardMuted:"#120808", border:"#3c1414", accent:"#c84848", textBright:"#f8e0e0", textSub:"#b88888", textMuted:"#704848", gold:"#c89050" } },
+    amber:    { name: "Amber",           colors: { bg:"#1c1208", card:"#281808", cardMuted:"#120c04", border:"#3a2412", accent:"#d08030", textBright:"#f8ecd8", textSub:"#c09870", textMuted:"#806848", gold:"#e8c040" } },
+    obsidian: { name: "Obsidian",        colors: { bg:"#141618", card:"#1e2028", cardMuted:"#0e1014", border:"#28293a", accent:"#8090b8", textBright:"#e8eaf0", textSub:"#98a8b8", textMuted:"#545a68", gold:"#a89058" } },
 };
 
 // ── Colour math helpers ───────────────────────────────────────────────────
@@ -3924,12 +3935,14 @@ interface LovenseTrigger {
     phrase: string;
     intensity?: number;
     duration?: number;
+    toyNames?: string[];
 }
 
 interface LovenseTouchState {
     enabled: boolean;
     intensity?: number;
     duration?: number;
+    toyNames?: string[]; // undefined = all toys; specific names = only those toys
 }
 
 const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [
@@ -3984,8 +3997,10 @@ export class EBCDrawer {
     private windowResizeHandler: (() => void) | null = null;
     private positioned = false;
     private hasBeenShown = false;
-    private version = "";
-    private isDev   = false;
+    private version    = "";
+    private isDev      = false;
+    private salVersion = 0;
+    private _versionTitleEl: HTMLElement | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins  = new Map<number, { el: HTMLElement; minimized: boolean }>();
@@ -4005,6 +4020,7 @@ export class EBCDrawer {
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
+    private _positionVerifyTick = 0;
     // Kitty page: whether Lucy is currently holding Emery's leash.
     // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
     // our own authoritative copy here; it survives panel re-renders.
@@ -4025,6 +4041,7 @@ export class EBCDrawer {
     private resetLocationBtn: HTMLElement | null = null;
     // Interactive guide overlay
     private guideEl: HTMLElement | null = null;
+    private guideMode: "fast" | "indepth" | null = null;
     private guideStep = 0;
     private guideSpotlightIndex = 0; // which spotlight in the current step is active
     // Category dropdown in quick actions bar
@@ -4035,14 +4052,19 @@ export class EBCDrawer {
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
 
-    private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string }>();
+    private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string; intensity: number; duration: number }>();
     private _bcLiveSyncPoller: ReturnType<typeof setInterval> | null = null;
     private _bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+    private _lovHttpUrl: string | null = null;
+    private _lovHttpConnected = false;
+    private _lovHttpToyCount  = 0;
+    private _lovHttpLastRaw   = "";
+    private _lovHttpToys: Array<{ id: string; name: string; intensity: number; duration: number }> = [];
     private _toyCtrlSessions  = new Map<number, { name: string }>();
     private _toyPendingOut    = new Map<number, { name: string }>();
     private _toyGrantedTo     = new Map<number, { name: string }>();
     private _toyIncoming: { memberNumber: number; name: string } | null = null;
-    private _irlCtrlSessions  = new Map<number, { name: string }>();
+    private _irlCtrlSessions  = new Map<number, { name: string; toys?: string[] }>();
     private _irlPendingOut    = new Map<number, { name: string }>();
     private _irlGrantedTo     = new Map<number, { name: string }>();
     private _irlIncoming: { memberNumber: number; name: string } | null = null;
@@ -4077,10 +4099,11 @@ export class EBCDrawer {
         pickBtn?: HTMLButtonElement;
     } = {};
 
-    constructor(version = "", isDev = false) {
+    constructor(version = "", isDev = false, salVersion = 0) {
         EBCDrawer._instance = this;
-        this.version = version;
-        this.isDev   = isDev;
+        this.version    = version;
+        this.isDev      = isDev;
+        this.salVersion = salVersion;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
         // Live-update the DEV tab whisper log section when new messages arrive
         setWhisperUpdateCallback(() => {
@@ -4280,7 +4303,8 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
-        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+        this._versionTitleEl = titleMain;
+        this._updateVersionTitle();
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
@@ -4807,28 +4831,44 @@ export class EBCDrawer {
         const swInner = document.createElement("div");
         swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
 
-        const buildSwInner = (): void => {
-            while (swInner.firstChild) swInner.removeChild(swInner.firstChild);
-            const cfg = getSafewordConfig();
+        // Grace row lives outside buildSwInner so it can appear/update while the panel stays open.
+        let swGraceRow: HTMLDivElement | null = null;
+        let swGraceLbl: HTMLSpanElement | null = null;
+        let swGraceTicker: number | null = null;
 
-            // -- Grace active row --
-            if (isGraceActive()) {
-                const graceRow = document.createElement("div");
-                graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
-                const graceLbl = document.createElement("span");
-                graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
-                const rem = getGraceRemaining();
-                graceLbl.textContent = rem === Infinity
-                    ? "🛡 Grace active (indefinite)"
-                    : `🛡 Grace active - ${Math.ceil((rem as number) / 60_000)} min remaining`;
+        const refreshGraceRow = (): void => {
+            const active = isGraceActive();
+            swGraceTag.style.display = active ? "" : "none";
+            if (!active) {
+                if (swGraceRow && swGraceRow.parentNode) swGraceRow.parentNode.removeChild(swGraceRow);
+                swGraceRow = null;
+                swGraceLbl = null;
+                return;
+            }
+            if (!swGraceRow) {
+                swGraceRow = document.createElement("div");
+                swGraceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+                swGraceLbl = document.createElement("span");
+                swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex:1;";
                 const cancelBtn = document.createElement("button");
                 cancelBtn.textContent = t("sw.endGrace");
                 cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
-                graceRow.appendChild(graceLbl);
-                graceRow.appendChild(cancelBtn);
-                swInner.appendChild(graceRow);
+                cancelBtn.addEventListener("click", () => { endGrace(); refreshGraceRow(); });
+                swGraceRow.appendChild(swGraceLbl);
+                swGraceRow.appendChild(cancelBtn);
+                swInner.insertBefore(swGraceRow, swInner.firstChild);
             }
+            const rem = getGraceRemaining();
+            if (swGraceLbl) {
+                swGraceLbl.textContent = rem === Infinity
+                    ? "🛡 Grace active (indefinite)"
+                    : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
+            }
+        };
+
+        const buildSwInner = (): void => {
+            while (swInner.firstChild) swInner.removeChild(swInner.firstChild);
+            const cfg = getSafewordConfig();
 
             // -- Row helper: text input --
             const makeTextRow = (label: string, value: string, placeholder: string, onSave: (v: string) => void): void => {
@@ -4992,9 +5032,17 @@ export class EBCDrawer {
             const open = swInner.style.display !== "flex";
             swInner.style.display = open ? "flex" : "none";
             swArrow.textContent = open ? "▲" : "▼";
-            if (open) { try { buildSwInner(); } catch { /* ignore */ } }
-            // Update grace tag on header
-            swGraceTag.style.display = isGraceActive() ? "" : "none";
+            if (open) {
+                try { buildSwInner(); } catch { /* ignore */ }
+                // buildSwInner wiped the DOM — reset refs then paint the grace row
+                swGraceRow = null; swGraceLbl = null;
+                refreshGraceRow();
+                // Keep grace status live while the panel stays open
+                swGraceTicker = window.setInterval(() => { try { refreshGraceRow(); } catch { /* ignore */ } }, 5_000);
+            } else {
+                if (swGraceTicker !== null) { clearInterval(swGraceTicker); swGraceTicker = null; }
+                swGraceRow = null; swGraceLbl = null;
+            }
         });
 
         safewordRow.appendChild(swInner);
@@ -5009,6 +5057,32 @@ export class EBCDrawer {
         footer.className = "ebc-footer";
         footer.style.position = "relative";
 
+        // ── Two important action buttons at the bottom of the footer ─────────
+        const BUG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
+        const BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
+
+        const footerBtnRow = document.createElement("div");
+        footerBtnRow.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;width:100%;justify-content:center;margin-top:6px;";
+
+        const tutorialBtn = document.createElement("button");
+        tutorialBtn.className = "ebc-footer-action-btn";
+        tutorialBtn.title = "Open the interactive guide / tutorial";
+        tutorialBtn.innerHTML = BOOK_SVG;
+        const tutLbl = document.createElement("span"); tutLbl.textContent = "Tutorial";
+        tutorialBtn.appendChild(tutLbl);
+        tutorialBtn.addEventListener("click", () => this.startGuide());
+
+        const fbBtn = document.createElement("button");
+        fbBtn.className = "ebc-footer-action-btn";
+        fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
+        fbBtn.innerHTML = BUG_SVG;
+        const fbLbl = document.createElement("span"); fbLbl.textContent = "Feedback & Bugs";
+        fbBtn.appendChild(fbLbl);
+        fbBtn.addEventListener("click", () => this._openFeedbackModal());
+
+        footerBtnRow.appendChild(tutorialBtn);
+        footerBtnRow.appendChild(fbBtn);
+
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
         footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
@@ -5017,16 +5091,10 @@ export class EBCDrawer {
         const timerEl = document.createElement("div");
         timerEl.className = "ebc-timer";
         footer.appendChild(timerEl);
-
-        const footerGuideBtn = document.createElement("button");
-        footerGuideBtn.textContent = "?";
-        footerGuideBtn.title = "Interactive guide";
-        footerGuideBtn.style.cssText = "position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:7px;cursor:pointer;border:1.5px solid #cf6f98;background:rgba(42,20,33,0.9);color:#cf6f98;font-family:'Trebuchet MS',serif;font-size:16px;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:0;transition:background 0.15s;";
-        footerGuideBtn.addEventListener("mouseenter", () => { footerGuideBtn.style.background = "rgba(207,111,152,0.22)"; });
-        footerGuideBtn.addEventListener("mouseleave", () => { footerGuideBtn.style.background = "rgba(42,20,33,0.9)"; });
-        footerGuideBtn.addEventListener("click", () => this.startGuide());
-        footer.appendChild(footerGuideBtn);
         this.timerEl = timerEl;
+
+        // Action buttons sit at the very bottom, under the online/room/bound timers
+        footer.appendChild(footerBtnRow);
 
 
         // ── EBC Tags strip - collapsible, always below safewords ─────────────
@@ -5044,7 +5112,7 @@ export class EBCDrawer {
         // slide transition never misfires - fixes the slider glitch.
         const zoomWrapper = document.createElement("div");
         zoomWrapper.className = "ebc-zoom-wrapper";
-        zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+        zoomWrapper.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
 
         // Flat flex column - applyPanelZoom always keeps width/height:100% so the
         // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
@@ -5391,16 +5459,28 @@ export class EBCDrawer {
     private updateCrabsPosition(): void {
         if (!this.rootEl) return;
 
-        // Heartbeat guard: BC's screen-transition code can set display:none on unknown
-        // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
-        // This intentionally runs regardless of this.positioned so it also protects EBC
-        // in roaming mode (outside a chat room) when BC navigates via FriendListShow().
+        // Heartbeat guard: restores root visibility within 200 ms if anything hides it.
+        // Covers both inline display:none (set by BC screen-transition code) and the
+        // HTML hidden attribute (which overrides inline display and is NOT caught by the
+        // display check alone).
         if (this.rootEl.style.display !== "block") {
             this.rootEl.style.display = "block";
+        }
+        if (this.rootEl.hidden) {
+            this.rootEl.hidden = false;
         }
 
         if (!this.positioned) {
             // Haven't anchored to the chat log yet - keep retrying until we succeed.
+            this.syncToChat();
+            return;
+        }
+
+        // Periodic position re-verify: even when positioned=true, re-run syncToChat()
+        // every ~5 s to catch layout shifts (e.g. beep notifications resizing BC's chat
+        // area) that the ResizeObserver may not have fired for.
+        if (++this._positionVerifyTick >= 25) {
+            this._positionVerifyTick = 0;
             this.syncToChat();
             return;
         }
@@ -5504,8 +5584,12 @@ export class EBCDrawer {
             // fully visible (overrides the in-room left:-10px collapsed state).
             // Centre the panel vertically in the viewport.
             this.rootEl.classList.add("ebc-roaming");
-            const baseH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
-            const h = this.userPanelHeight !== null ? Math.min(baseH, this.userPanelHeight) : baseH;
+            const defaultH = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            // If user resized the panel, honour that exact size (only cap at viewport).
+            // Previously baseH was capped at 520 and used as an upper bound too, which
+            // silently truncated any saved height over 520 px in roaming mode.
+            const maxH = Math.max(100, window.innerHeight - 40);
+            const h = this.userPanelHeight !== null ? Math.min(this.userPanelHeight, maxH) : defaultH;
             const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
             this.rootEl.style.top    = `${top}px`;
             this.rootEl.style.right  = "0px";
@@ -5606,112 +5690,230 @@ export class EBCDrawer {
     private static readonly SVG_CHEV_UP   = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     private static readonly SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-    private static readonly GUIDE_STEPS: Array<{
+    private static readonly FAST_STEPS: Array<{
         tab: DrawerTab | null;
         label: string;
         text: string;
-        spotlight?: string[]; // extra CSS selectors to spotlight beyond the tab button
-        autoExpand?: string[]; // data-guide-target selectors to expand automatically on step entry
+        spotlight?: string[];
+        autoExpand?: string[];
+    }> = [
+        {
+            tab: "outfits",
+            label: "Outfits",
+            text: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))",
+            spotlight: ["[data-guide-target='btn-new-outfit']"],
+            autoExpand: ["btn-new-outfit"],
+        },
+        {
+            tab: "buttons",
+            label: "Action Buttons",
+            text: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))",
+            spotlight: ["[data-guide-target='btn-add-category']"],
+        },
+        {
+            tab: "anims",
+            label: "Poses & Animations",
+            text: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))",
+            spotlight: ["[data-guide-target='btn-new-combo']"],
+        },
+        {
+            tab: "toys",
+            label: "Remote Toys",
+            text: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.",
+        },
+        {
+            tab: "dev",
+            label: "Settings",
+            text: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))",
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
+        },
+        {
+            tab: null,
+            label: "Safewords — Always Here",
+            text: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))",
+            spotlight: ["[data-guide-target='strip-safewords']"],
+        },
+    ];
+
+    private static readonly INDEPTH_STEPS: Array<{
+        tab: DrawerTab | null;
+        label: string;
+        text: string;
+        spotlight?: string[];
+        autoExpand?: string[];
     }> = [
         {
             tab: null,
             label: "Welcome to EBC",
-            text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go - just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
+            text: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
         },
         {
             tab: null,
-            label: "Opening, Moving & Resizing",
-            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner - this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
+            label: "Moving & Resizing",
+            text: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))",
             spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
-            label: "Outfits - Save & Apply Looks",
-            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset - the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look - all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
+            label: "Saving & Applying Outfits",
+            text: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
-            label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags - then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day - both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends - use [[Import]] to load a code you received.))",
+            label: "Tags, Schedules & Sharing",
+            text: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
             autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons - Quick Commands",
-            text: "Buttons send actions or emotes to the room with a single tap - great for quick reactions like nods, waves and poses.\nEach button has a label (up to [[16 characters]]), a hex colour, and the chat text to send. Choose style: [[action]] (Name text), [[emote]] (* Name text *), or [[sequence]] (pipe-separated multi-step).\nLink an [[Expression Preset]] to a button so your face changes automatically when you press it.\n[[Categories]] group buttons into named tabs - switch between them using the arrow chips on the sidebar.",
+            label: "Action Buttons",
+            text: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
-            tab: "buttons",
-            label: "Slow Leave",
-            text: "[[Slow Leave]] is in the [[Useful Buttons]] section - it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] - pick a pre-written departure style\n  • [[Sequence]] - the text sent to the room\n  • [[Duration]] - time (in seconds) between messages",
-            spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
-        },
-        {
             tab: "anims",
-            label: "Poses & Animations",
-            text: "Pose combos chain multiple pose changes together with delays - perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it - no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
+            label: "Pose Combos",
+            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "anims",
-            label: "Expression Presets",
-            text: "Save your facial expressions as named presets so you can restore any look with one click.\nUse BC's own face controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click [[💾 Save face]] to capture it.\nMark one preset as [[Default]] - the [[↺ Reset face]] button always jumps back to it, and you can enable [[Auto-apply on room join]] so your default face loads automatically every time you enter a room.\n((Presets can also be linked to outfits or fired from action buttons and scenes.))",
+            label: "Face Presets",
+            text: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))",
             spotlight: ["[data-guide-target='btn-save-face']"],
         },
         {
             tab: "anims",
             label: "Chat Triggers",
-            text: "Chat triggers fire a face preset automatically when your outgoing message contains a match phrase - no button press needed.\nClick [[＋ New Trigger]] and fill in:\n  • [[Contains]] - the phrase that fires it (e.g. >:3, >_<)\n  • [[Apply]] - which expression preset activates\n  • [[Hold]] - how long the face stays before reverting (0 = keep forever)\nType the phrase naturally in chat and the face swaps with it instantly.\n((Case-insensitive. Triggers work on action messages, emotes and regular chat.))",
+            text: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))",
             spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
             label: "Users & Friends",
-            text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate - perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions - a permanent address book of everyone you've encountered.))",
+            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))",
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
+            tab: "toys",
+            label: "Remote Toys",
+            text: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
+        },
+        {
             tab: "dev",
-            label: "DEV - Preferences & Themes",
-            text: "[[Quick Preset]] lets you apply a full colour theme instantly - try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+            label: "Settings & Themes",
+            text: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
-            label: "DEV - Logs & History",
-            text: "[[Whisper Log]] - every whisper sent and received this session.\n[[Current Room]] - who is in your room right now, with member IDs.\n[[Rooms Visited]] - all rooms you've entered this session.\n[[Restraint Log]] - when items were applied or removed.\n[[People Met]] - persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
+            label: "Logs & History",
+            text: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered",
             spotlight: ["[data-guide-target='section-dev-logs']"],
             autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
-            label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area - click its header to expand it.\n[[My tag]] - shows your custom badge above your own head.\n[[Others]] - shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
-            spotlight: ["[data-guide-target='strip-ebc-tags']"],
-        },
-        {
-            tab: null,
-            label: "Safewords Strip",
-            text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel - reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] - clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+            label: "Safewords — Always On Top",
+            text: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))",
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-        {
-            tab: "toys",
-            label: "Toys - In-Game & IRL Control",
-            text: "The [[TOYS]] tab lets you remotely control a friend's in-game vibrators and real Lovense devices.\n[[GAME TOYS]] - controls a friend's BC vibrator mode. Click [[Request]] to ask for control - they must be in the same room. Once they accept, mode buttons appear: [[Off]], [[Low]], [[Medium]], [[High]], [[Max]], [[Tease]], [[Random]], [[Escalate]], [[Deny]], [[Edge]].\n  • [[My Privacy]] - toggle whether friends can send you requests\n  • [[Whitelist]] - specific members who can always send requests regardless of the toggle\n  • Chat messages appear exactly like BC's own toy controller - attributed to you as the controller\n[[IRL TOYS (lovense)]] - controls a friend's real Lovense toy. Same request/accept flow. Set [[Intensity]] (1-20) and [[Duration]] in seconds before sending a buzz.\n((Both systems require the target to be in the same room as you.))",
-        },
-        {
-            tab: null,
-            label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs - you never know when you'll need it quickly.))",
-        },
     ];
+
+    private renderGuideModeSelect(): void {
+        const card = this.guideEl;
+        if (!card) return;
+        card.innerHTML = "";
+
+        const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
+
+        // Top row: title + close
+        const topRow = document.createElement("div");
+        topRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
+        const titleEl = document.createElement("span");
+        titleEl.style.cssText = `${FONT}font-size:15px;font-weight:bold;color:#f7e6ee;`;
+        titleEl.textContent = "EBC Tutorial";
+        const closeX = document.createElement("button");
+        closeX.className = "ebc-guide-close-btn";
+        closeX.textContent = "✕";
+        closeX.title = "Close";
+        closeX.addEventListener("click", () => this.closeGuide());
+        topRow.appendChild(titleEl);
+        topRow.appendChild(closeX);
+        card.appendChild(topRow);
+
+        const subEl = document.createElement("div");
+        subEl.style.cssText = `${FONT}font-size:12px;color:#9a7080;margin-bottom:16px;`;
+        subEl.textContent = "How do you want to explore EBC?";
+        card.appendChild(subEl);
+
+        // Mode cards
+        const modesRow = document.createElement("div");
+        modesRow.style.cssText = "display:flex;gap:10px;";
+
+        const makeCard = (
+            heading: string,
+            badge: string,
+            desc: string,
+            detail: string,
+            accent: string,
+            onClick: () => void
+        ): HTMLElement => {
+            const c = document.createElement("div");
+            c.style.cssText = `flex:1;background:#1c1020;border:1.5px solid #3a2540;border-radius:12px;padding:16px 12px 14px;cursor:pointer;text-align:center;${FONT}transition:border-color 0.14s,background 0.14s,transform 0.1s;`;
+            const badgeEl = document.createElement("div");
+            badgeEl.style.cssText = `display:flex;justify-content:center;margin-bottom:10px;color:${accent};`;
+            badgeEl.innerHTML = badge;
+            const headEl = document.createElement("div");
+            headEl.style.cssText = `font-size:13px;font-weight:bold;color:#f7e6ee;margin-bottom:6px;`;
+            headEl.textContent = heading;
+            const descEl = document.createElement("div");
+            descEl.style.cssText = `font-size:11px;color:#9a7888;line-height:1.45;margin-bottom:10px;`;
+            descEl.textContent = desc;
+            const detailEl = document.createElement("div");
+            detailEl.style.cssText = `font-size:10px;font-weight:bold;color:${accent};border:1px solid ${accent}55;border-radius:6px;padding:4px 0;letter-spacing:0.3px;`;
+            detailEl.textContent = detail;
+            c.appendChild(badgeEl);
+            c.appendChild(headEl);
+            c.appendChild(descEl);
+            c.appendChild(detailEl);
+            c.addEventListener("mouseenter", () => { c.style.borderColor = accent; c.style.background = "#24152e"; c.style.transform = "translateY(-2px)"; });
+            c.addEventListener("mouseleave", () => { c.style.borderColor = "#3a2540"; c.style.background = "#1c1020"; c.style.transform = ""; });
+            c.addEventListener("click", onClick);
+            return c;
+        };
+
+        // Lightning bolt = quick/fast. Open book = detailed reading.
+        const SVG_BOLT = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+        const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+
+        const fastCard = makeCard(
+            "Quick Tour",
+            SVG_BOLT,
+            "Every feature in a few bullets. Done in 2 minutes.",
+            "6 steps",
+            "#d4a020",
+            () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
+        );
+        const deepCard = makeCard(
+            "Full Guide",
+            SVG_BOOK,
+            "Full walkthrough with try-it prompts.",
+            "13 steps",
+            "#cf6f98",
+            () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
+        );
+
+        modesRow.appendChild(fastCard);
+        modesRow.appendChild(deepCard);
+        card.appendChild(modesRow);
+    }
 
     private startGuide(): void {
         // Tear down any previous instance
@@ -5721,26 +5923,17 @@ export class EBCDrawer {
         const side = document.createElement("div");
         side.className = "ebc-guide-side";
 
-        // Pick a side (prefer left; fall back to right if not enough room)
-        const panelRect = this.panelEl?.getBoundingClientRect() ?? { left: 0, right: 360, top: 60, bottom: 700 };
-        const gw = 248; // panel width + gap
-        let left: number;
-        if (panelRect.left >= gw + 4) {
-            left = panelRect.left - gw;
-        } else {
-            left = (panelRect.right ?? 360) + 8;
-        }
-        left = Math.max(4, Math.min(window.innerWidth - gw - 4, left));
-        const top  = Math.max(4, Math.min(window.innerHeight - 60, panelRect.top ?? 60));
-
-        side.style.left = `${left}px`;
-        side.style.top  = `${top}px`;
+        // Center on screen
+        side.style.left      = "50%";
+        side.style.top       = "50%";
+        side.style.transform = "translate(-50%, -50%)";
 
         document.body.appendChild(side);
-        this.guideEl            = side;
-        this.guideStep          = 0;
+        this.guideEl             = side;
+        this.guideMode           = null;
+        this.guideStep           = 0;
         this.guideSpotlightIndex = 0;
-        this.renderGuideStep();
+        this.renderGuideModeSelect();
     }
 
     // Parses simple inline markup in guide text:
@@ -5791,7 +5984,7 @@ export class EBCDrawer {
         const card = this.guideEl;
         if (!card) return;
 
-        const steps = EBCDrawer.GUIDE_STEPS;
+        const steps = this.guideMode === "fast" ? EBCDrawer.FAST_STEPS : EBCDrawer.INDEPTH_STEPS;
         const step  = steps[this.guideStep];
         if (!step) return;
 
@@ -5814,7 +6007,8 @@ export class EBCDrawer {
 
         const stepLbl = document.createElement("span");
         stepLbl.className = "ebc-guide-step-lbl";
-        stepLbl.textContent = `Step ${this.guideStep + 1} / ${steps.length}`;
+        const modeLabel = this.guideMode === "fast" ? "Quick Tour" : "Full Guide";
+        stepLbl.textContent = `${modeLabel} · ${this.guideStep + 1} of ${steps.length}`;
 
         const closeX = document.createElement("button");
         closeX.className = "ebc-guide-close-btn";
@@ -6193,27 +6387,28 @@ export class EBCDrawer {
 
     /** Scale the entire EBC panel.
      *
-     * Applies transform:scale() to .ebc-zoom-wrapper (an inner div containing
-     * all panel content), NOT to #emerybc-panel (the slide container).
-     * transform doesn't affect layout outside the wrapper, so the slide
-     * container never changes size and its transition never misfires.
+     * Uses CSS zoom (not transform:scale) on .ebc-zoom-wrapper so that
+     * overflow:hidden on .ebc-panel clips correctly at all zoom levels.
+     * transform:scale is applied after layout/clip, causing double-shrink at
+     * scale<1 and visual bleed at scale>1 — zoom avoids both.
      *
-     * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
-     * fills .ebc-panel exactly - no overflow, no clipping, no background bleed.
-     * Rapid slider changes are completely smooth since no layout reflow occurs
-     * on the outer container.
+     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's
+     * effective layout contribution to .ebc-panel exactly 100%, so the panel
+     * never changes size and the slide transition never misfires.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
         const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
         if (!wrapper) return;
         if (scale === 1) {
-            wrapper.style.transform = "";
-            wrapper.style.width     = "100%";  // must keep 100% - clearing to "" removes the
-            wrapper.style.height    = "100%";  // inline height, collapsing the wrapper to content
-        } else {                               // height and breaking flex scroll + footer layout.
-            // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
+            wrapper.style.zoom      = "";
+            wrapper.style.transform = ""; // clear any stale transform from before this fix
+            wrapper.style.width     = "100%";
+            wrapper.style.height    = "100%";
+        } else {
+            // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
             const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.zoom      = String(scale);
+            wrapper.style.transform = "";
             wrapper.style.width     = inv;
             wrapper.style.height    = inv;
         }
@@ -12054,7 +12249,6 @@ export class EBCDrawer {
                 if (!this.isOpen) this.open();
                 this.switchTab("notes");
             });
-            tab.style.position = "relative";
             tab.appendChild(dot);
         } else if (!hasUnread && dot) {
             dot.remove();
@@ -12792,11 +12986,11 @@ export class EBCDrawer {
         footer.className = "ebc-beep-win-footer";
         footer.style.position = "relative";
 
-        // Small ▶/▼ toggle - collapses/expands the quick-reply bar above the footer
+        // Toggle button for the quick-reply bar above the footer
         const qrToggle = document.createElement("button");
         qrToggle.style.cssText = "flex-shrink:0;width:22px;height:28px;padding:0;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a4060;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.1s,border-color 0.1s;";
+        qrToggle.innerHTML = _mkIconSvg(`<path d="M2 4h12M2 8h8M2 12h10"/>`);
         const syncQrToggle = (): void => {
-            qrToggle.textContent = qrOpen ? "▼" : "▶";
             qrToggle.title = qrOpen ? "Hide quick replies" : "Show quick replies";
             qrBar.style.display = qrOpen ? "" : "none";
         };
@@ -12978,6 +13172,7 @@ export class EBCDrawer {
 
         sendBtn.addEventListener("click", doSend);
         input.addEventListener("keydown", (e: KeyboardEvent) => {
+            e.stopPropagation(); // stop WASD/arrow keys from reaching BC's map movement handler
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); }
         });
 
@@ -13545,7 +13740,7 @@ export class EBCDrawer {
             renderGroupHistory();
         };
         sendBtn.addEventListener("click", doSend);
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });
+        input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });
         input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 80)}px`; });
 
         inputRow.appendChild(input);
@@ -13717,7 +13912,7 @@ export class EBCDrawer {
         ));
 
         // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
-        chatSettingsBody.appendChild(mkToggleRow(
+        const showBeepInChatRow = mkToggleRow(
             "Show beeps in BC chat",
             () => !getSuppressNativeBeep(),
             (v) => {
@@ -13728,7 +13923,8 @@ export class EBCDrawer {
                     try { fn?.(); } catch { /* ignore */ }
                 }
             },
-        ));
+        );
+        chatSettingsBody.appendChild(showBeepInChatRow);
 
         chatSettingsBody.appendChild(mkToggleRow(
             "Use BC native beep sound",
@@ -13740,6 +13936,22 @@ export class EBCDrawer {
             getOnlineSoundEnabled,
             (v) => setOnlineSoundEnabled(v),
         ));
+
+        chatSettingsBody.appendChild(mkToggleRow(
+            "LianChat compatibility",
+            getLianChatCompat,
+            (v) => setLianChatCompat(v),
+            () => {
+                // When enabling LianChat compat, auto-enable "Show beeps in BC chat" too
+                if (getLianChatCompat() && getSuppressNativeBeep()) {
+                    (showBeepInChatRow.querySelector("button") as HTMLButtonElement | null)?.click();
+                }
+            },
+        ));
+        const lianHint = document.createElement("div");
+        lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
+        lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
+        chatSettingsBody.appendChild(lianHint);
 
         // ── AFK sub-section (nested collapsible) ──────────────────────────────
         const afkSubDiv = document.createElement("div");
@@ -15955,6 +16167,36 @@ export class EBCDrawer {
             hookRefreshBtn.textContent = t("dev.refresh");
             hookRefreshBtn.addEventListener("click", renderHooks);
             cnt.appendChild(hookRefreshBtn);
+
+            // ── Emery Versioning toggle ────────────────────────────────────────
+            const evDivider = document.createElement("div");
+            evDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
+            cnt.appendChild(evDivider);
+            const evRow = document.createElement("div");
+            evRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:5px;";
+            const evTextWrap = document.createElement("div");
+            evTextWrap.style.cssText = "flex:1;min-width:0;";
+            const evLabel = document.createElement("div");
+            evLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;";
+            evLabel.textContent = "Emery Versioning";
+            const evHint = document.createElement("div");
+            evHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;margin-top:1px;";
+            evHint.textContent = `Shows internal build counter (${this.salVersion}) in the panel header`;
+            evTextWrap.appendChild(evLabel); evTextWrap.appendChild(evHint);
+            const evBtn = document.createElement("button");
+            const refreshEvBtn = (): void => {
+                const on = getShowSalVersion();
+                evBtn.textContent = on ? "ON" : "OFF";
+                evBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "#8b4060" : "#4c2537"};background:${on ? "rgba(139,64,96,0.25)" : "transparent"};color:${on ? "#cf6f98" : "#7a5a6a"};`;
+            };
+            refreshEvBtn();
+            evBtn.addEventListener("click", () => {
+                setShowSalVersion(!getShowSalVersion());
+                refreshEvBtn();
+                this._updateVersionTitle();
+            });
+            evRow.appendChild(evTextWrap); evRow.appendChild(evBtn);
+            cnt.appendChild(evRow);
         });
 
         // ── Copy Restraints from Room Member (credited members only) ─────────
@@ -18987,6 +19229,74 @@ export class EBCDrawer {
             return { wrap, cBody };
         };
 
+        // ── 📍 POSITION ───────────────────────────────────────────────────────────
+        {
+            const { wrap: posWrap, cBody: posBody } = makeCollapsible("EBC_kitty_pos", "📍 Position", true);
+
+            const KITTY_POS_DEFS: ReadonlyArray<[string, string, string, string, PositionMode]> = [
+                ["🔗", "Pull to Side", "拉到身边", "ItemNeckRestraints", "side"],
+                ["🤗", "Get in Arms",  "钻进怀里", "ItemTorso",          "arms"],
+                ["💪", "Hold in Arms", "抱入怀中", "ItemTorso",          "hold"],
+            ];
+
+            const kPosGrid = document.createElement("div");
+            kPosGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
+            const kPosStatus = document.createElement("div");
+            kPosStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+
+            for (const [emoji, label, echoName, focusGroup, posMode] of KITTY_POS_DEFS) {
+                const btn = document.createElement("button");
+                btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 2px;border-radius:6px;border:1px solid #5a3a50;background:#2a1020;color:#cf6f98;cursor:pointer;transition:background 0.12s,border-color 0.12s;text-align:center;";
+                btn.textContent = `${emoji} ${label}`;
+                btn.addEventListener("mouseenter", () => { btn.style.background = "#4a1830"; btn.style.borderColor = "#cf6f98"; });
+                btn.addEventListener("mouseleave", () => { btn.style.background = "#2a1020"; btn.style.borderColor = "#5a3a50"; });
+                btn.addEventListener("click", () => {
+                    if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") {
+                        kPosStatus.textContent = "⚠ Must be in a room."; window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000); return;
+                    }
+                    setPositionSilent(EMERY_MEMBER, posMode);
+                    try {
+                        if (echoName === "拉到身边") {
+                            ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                        }
+                        ServerSend("ChatRoomChat", {
+                            Content: echoName,
+                            Type: "Activity",
+                            Dictionary: [
+                                { ActivityName: echoName },
+                                { SourceCharacter: Player.MemberNumber },
+                                { TargetCharacter: EMERY_MEMBER },
+                                { Tag: "FocusAssetGroup", AssetGroupName: focusGroup },
+                            ],
+                        });
+                        kPosStatus.textContent = `✓ ${label} → sent.`; window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+                    } catch { kPosStatus.textContent = "⚠ Failed."; window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000); }
+                });
+                kPosGrid.appendChild(btn);
+            }
+            posBody.appendChild(kPosGrid);
+            posBody.appendChild(kPosStatus);
+
+            const kReleaseBtn = document.createElement("button");
+            kReleaseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 6px;border-radius:6px;border:1px solid #7a4050;background:#3a1020;color:#e08090;cursor:pointer;transition:background 0.12s,border-color 0.12s;";
+            kReleaseBtn.textContent = "🔓 Release from Arms";
+            kReleaseBtn.addEventListener("mouseenter", () => { kReleaseBtn.style.background = "#6a1830"; kReleaseBtn.style.borderColor = "#e08090"; });
+            kReleaseBtn.addEventListener("mouseleave", () => { kReleaseBtn.style.background = "#3a1020"; kReleaseBtn.style.borderColor = "#7a4050"; });
+            kReleaseBtn.addEventListener("click", () => {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                clearPosition(EMERY_MEMBER);
+                try {
+                    ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    sendRoomEmote(getKittyMood() === "rough"
+                        ? "drops Emery without ceremony~"
+                        : "gently sets Emery down~");
+                } catch { /* ignore */ }
+                kPosStatus.textContent = "✓ Released."; window.setTimeout(() => { kPosStatus.textContent = ""; }, 2000);
+            });
+            posBody.appendChild(kReleaseBtn);
+            body.appendChild(posWrap);
+        }
+
         // ── PET REACTIONS ─────────────────────────────────────────────────────────
         const reactionsWrap = document.createElement("div");
         reactionsWrap.style.marginBottom = "10px";
@@ -20075,6 +20385,51 @@ export class EBCDrawer {
         exprCBody.appendChild(exprWrap);
         exprCBody.appendChild(exprHint);
         body.appendChild(exprWrap2);
+
+        // ── CURSE ─────────────────────────────────────────────────────────────────
+        const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
+        const CURSE_GROUPS: [string, string][] = [
+            ["Arms",    "ItemArms"],
+            ["Hands",   "ItemHands"],
+            ["Legs",    "ItemLegs"],
+            ["Feet",    "ItemFeet"],
+            ["Neck",    "ItemNeck"],
+            ["Mouth",   "ItemMouth"],
+            ["Head",    "ItemHead"],
+            ["Torso",   "ItemTorso"],
+            ["Pelvis",  "ItemPelvis"],
+            ["Breasts", "ItemBreast"],
+            ["Boots",   "ItemBoots"],
+        ];
+        const selectedCurseGroups = new Set<string>();
+        const chipRow = document.createElement("div");
+        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
+        const setChipStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+        };
+        for (const [label, group] of CURSE_GROUPS) {
+            const chip = document.createElement("button");
+            chip.textContent = label;
+            setChipStyle(chip, false);
+            chip.addEventListener("click", () => {
+                const sel = selectedCurseGroups.has(group);
+                if (sel) selectedCurseGroups.delete(group); else selectedCurseGroups.add(group);
+                setChipStyle(chip, !sel);
+            });
+            chipRow.appendChild(chip);
+        }
+        const curseActionRow = document.createElement("div");
+        curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+        curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
+            if (selectedCurseGroups.size === 0) return;
+            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+        }, 2000));
+        curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+            sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+        }, 2000));
+        curseCBody.appendChild(chipRow);
+        curseCBody.appendChild(curseActionRow);
+        body.appendChild(curseWrap2);
     }
 
     private renderExpressions(container?: HTMLElement): void {
@@ -20656,12 +21011,12 @@ export class EBCDrawer {
             const nav = navigator as unknown as Record<string, unknown>;
             const btApi = nav["bluetooth"] as { requestDevice: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
 
-            if (!btApi) {
-                const noBlue = mk("div", `${FONT}font-size:11px;color:#e07070;background:#1c0808;border:1px solid #6a1010;border-radius:6px;padding:8px 10px;margin:4px 0 10px;line-height:1.6;`);
-                noBlue.innerHTML = "<b>Web Bluetooth not available</b> in this browser.<br>Use <b>Chrome</b> or <b>Edge</b> to connect Lovense toys.";
-                lovContent.appendChild(noBlue);
-            } else {
+            // ── BLE (Web Bluetooth) ─────────────────────────────────────────────
+            if (btApi) {
                 const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
+                bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                connCard.appendChild(bleHdrRow);
 
                 const toyListEl = mk("div", "margin-bottom:8px;");
 
@@ -20684,7 +21039,9 @@ export class EBCDrawer {
                         for (const [key, conn] of this._lovConnections) {
                             const dev = conn.device as { gatt?: { connected?: boolean } };
                             const isConn = dev?.gatt?.connected === true;
-                            const tRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;");
+                            const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                            // Top row: status dot + name + disconnect button
+                            const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
                             const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = isConn ? "🟢" : "⚫";
                             const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;`);
                             tName.style.color = isConn ? "#c8e0c8" : "var(--ebc-text-muted)";
@@ -20698,7 +21055,27 @@ export class EBCDrawer {
                                 renderToyList();
                             });
                             tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(discBtn);
-                            toyListEl.appendChild(tRow);
+                            tCard.appendChild(tRow);
+                            // Per-toy intensity + duration sliders (only when actively connected)
+                            if (isConn) {
+                                const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                                const mkTinySlider = (label: string, min: number, max: number, val: number, unit: string, onChange: (v: number) => void): HTMLElement => {
+                                    const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);flex-shrink:0;`); lbl.textContent = label;
+                                    const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(val);
+                                    sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                                    const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);min-width:22px;`); vl.textContent = val + unit;
+                                    sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                                    wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
+                                    return wrap;
+                                };
+                                sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
+                                sRow.appendChild(divider);
+                                sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                tCard.appendChild(sRow);
+                            }
+                            toyListEl.appendChild(tCard);
                         }
                     }
                 };
@@ -20727,14 +21104,29 @@ export class EBCDrawer {
                                 renderToyList();
                             });
                             lovConnBtn.textContent = "🔄 Connecting…";
-                            const server = await device.gatt!.connect() as { getPrimaryServices: () => Promise<Svc[]> };
+                            type GattServer = { getPrimaryServices: () => Promise<Svc[]>; getPrimaryService: (uuid: string) => Promise<Svc> };
+                            const server = await device.gatt!.connect() as GattServer;
                             let services: Svc[] = [];
-                            for (let attempt = 0; attempt < 3; attempt++) {
-                                await new Promise(r => setTimeout(r, attempt === 0 ? 300 : 600));
+                            // Retry with increasing delays — some toys (Domi, Nora) need GATT
+                            // discovery to complete before services are enumerable
+                            const svcDelays = [600, 1000, 1500, 2000, 2500];
+                            for (let attempt = 0; attempt < svcDelays.length; attempt++) {
+                                await new Promise(r => setTimeout(r, svcDelays[attempt]));
                                 try { services = await server.getPrimaryServices(); } catch { /* try again */ }
                                 if (services.length > 0) break;
                             }
-                            if (!services.length) throw new Error("No services found - ensure Lovense Connect app is closed and toy is not connected elsewhere.");
+                            // Fallback: try each known Lovense service UUID individually.
+                            // Chrome may return empty from getPrimaryServices() while still
+                            // servicing individual lookups (depends on BLE chip + driver timing).
+                            if (!services.length) {
+                                for (const svcUuid of LVS_SERVICES) {
+                                    try {
+                                        const svc = await server.getPrimaryService(svcUuid);
+                                        if (svc) { services = [svc]; break; }
+                                    } catch { /* not this UUID */ }
+                                }
+                            }
+                            if (!services.length) throw new Error("No services found — close Lovense Connect app if running, and ensure the toy is not paired to another device.");
                             let char: WriteChar | null = null;
                             for (const svc of services) {
                                 const chars = await svc.getCharacteristics();
@@ -20742,7 +21134,10 @@ export class EBCDrawer {
                                 if (char) break;
                             }
                             if (!char) throw new Error("No writable characteristic found");
-                            this._lovConnections.set(connKey, { device, char, name: devName });
+                            const connS = getSettings();
+                            const toyDefI = typeof connS.lovenseIntensity === "number" ? (connS.lovenseIntensity as number) : 10;
+                            const toyDefD = typeof connS.lovenseDuration  === "number" ? (connS.lovenseDuration  as number) : 5;
+                            this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
                             lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
                             renderToyList();
                         })
@@ -20757,10 +21152,159 @@ export class EBCDrawer {
                 connBtnRow.appendChild(lovConnBtn);
                 connCard.appendChild(connBtnRow);
 
-                const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.5;`);
-                connNote.textContent = "Chrome / Edge only. Toy must be powered on and not connected to any other app.";
+                const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
+                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
                 connCard.appendChild(connNote);
                 lovContent.appendChild(connCard);
+            }
+
+            // ── HTTP (Lovense Connect app) — collapsible ─────────────────────────
+            {
+                const httpCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:10px;overflow:hidden;");
+
+                // Clickable header
+                let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
+                const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
+                const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
+                httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
+                httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                httpHdrRow.appendChild(httpHdrLabel); httpHdrRow.appendChild(httpChevron);
+                httpCard.appendChild(httpHdrRow);
+
+                // Collapsible body
+                const httpBody = mk("div", "padding:8px 12px 10px;border-top:1px solid var(--ebc-border);");
+                httpBody.style.display = httpCollapsed ? "none" : "";
+                httpHdrRow.addEventListener("click", () => {
+                    httpCollapsed = !httpCollapsed;
+                    localStorage.setItem("EBC_lovHttpCollapsed", String(httpCollapsed));
+                    httpBody.style.display = httpCollapsed ? "none" : "";
+                    httpChevron.textContent = httpCollapsed ? "▶" : "▼";
+                });
+
+                // Load saved URL
+                const savedHttpUrl = typeof s["lovenseHttpUrl"] === "string" ? (s["lovenseHttpUrl"] as string) : "";
+                if (savedHttpUrl) this._lovHttpUrl = savedHttpUrl || null;
+
+                const urlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:8px;");
+                const urlLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex-shrink:0;`); urlLbl.textContent = "URL:";
+                const urlInp = document.createElement("input"); urlInp.type = "text";
+                urlInp.value = savedHttpUrl || "http://127.0.0.1:20010";
+                urlInp.placeholder = "http://127.0.0.1:20010";
+                urlInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;min-width:0;box-sizing:border-box;`;
+                urlRow.appendChild(urlLbl); urlRow.appendChild(urlInp);
+                httpBody.appendChild(urlRow);
+
+                const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
+                const httpTestBtn = document.createElement("button");
+                httpTestBtn.textContent = "Test Connection";
+                httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
+                const httpStatus = mk("span", `${FONT}font-size:11px;`);
+                httpStatus.textContent = this._lovHttpConnected
+                    ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
+                    : "⚫ Not tested";
+                httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
+                httpBtnRow.appendChild(httpTestBtn); httpBtnRow.appendChild(httpStatus);
+                httpBody.appendChild(httpBtnRow);
+
+                const httpRawEl = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-sub);word-break:break-all;white-space:pre-wrap;margin-bottom:4px;`);
+                httpRawEl.style.display = "none";
+                httpBody.appendChild(httpRawEl);
+                const showRaw = (text: string): void => {
+                    httpRawEl.textContent = text;
+                    httpRawEl.style.display = text ? "block" : "none";
+                };
+
+                const httpToyListEl = mk("div", "margin-bottom:8px;");
+                httpToyListEl.style.display = "none";
+                httpBody.appendChild(httpToyListEl);
+
+                const renderHttpToyList = (): void => {
+                    while (httpToyListEl.firstChild) httpToyListEl.removeChild(httpToyListEl.firstChild);
+                    if (!this._lovHttpConnected || this._lovHttpToys.length === 0) {
+                        httpToyListEl.style.display = "none";
+                        return;
+                    }
+                    httpToyListEl.style.display = "";
+                    const mkTinySlider = (label: string, min: number, max: number, val: number, unit: string, onChange: (v: number) => void): HTMLElement => {
+                        const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);flex-shrink:0;`); lbl.textContent = label;
+                        const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(val);
+                        sl.style.cssText = "width:72px;accent-color:var(--ebc-accent);cursor:pointer;";
+                        const vl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-bright);min-width:22px;`); vl.textContent = val + unit;
+                        sl.addEventListener("input", () => { const n = Number(sl.value); onChange(n); vl.textContent = n + unit; });
+                        wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
+                        return wrap;
+                    };
+                    for (const toy of this._lovHttpToys) {
+                        const tCard = mk("div", "background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:6px 10px;margin-bottom:5px;");
+                        const tRow = mk("div", "display:flex;align-items:center;gap:8px;");
+                        const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = "🟢";
+                        const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;color:#c8e0c8;`);
+                        tName.textContent = toy.name;
+                        const testBtn = document.createElement("button"); testBtn.textContent = "Test";
+                        testBtn.style.cssText = `${FONT}font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
+                        testBtn.addEventListener("click", () => {
+                            testBtn.disabled = true;
+                            void this._lovHttpVibrate(toy.intensity, toy.duration).then(() => {
+                                setTimeout(() => { testBtn.disabled = false; }, 1200);
+                            });
+                        });
+                        tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(testBtn);
+                        tCard.appendChild(tRow);
+                        const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
+                        sRow.appendChild(mkTinySlider("Intensity", 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
+                        const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
+                        sRow.appendChild(divider);
+                        sRow.appendChild(mkTinySlider("Seconds", 1, 60, toy.duration, "s", v => { toy.duration = v; }));
+                        tCard.appendChild(sRow);
+                        httpToyListEl.appendChild(tCard);
+                    }
+                };
+
+                httpTestBtn.addEventListener("click", () => {
+                    const rawUrl = urlInp.value.trim().replace(/\/$/, "");
+                    if (!rawUrl) return;
+                    (s as Record<string, unknown>)["lovenseHttpUrl"] = rawUrl;
+                    syncSettings();
+                    this._lovHttpUrl = rawUrl;
+                    httpTestBtn.disabled = true;
+                    httpStatus.textContent = "🔄 Testing…";
+                    httpStatus.style.color = "var(--ebc-text-sub)";
+                    this._lovHttpPing().then(ok => {
+                        httpTestBtn.disabled = false;
+                        showRaw("");
+                        if (ok) {
+                            if (this._lovHttpToyCount === 0) {
+                                httpStatus.textContent = "⚠ Connected but 0 toys — raw response:";
+                                httpStatus.style.color = "#e0b060";
+                                showRaw(this._lovHttpLastRaw || "(empty response)");
+                            } else {
+                                httpStatus.textContent = `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`;
+                                httpStatus.style.color = "#80c080";
+                            }
+                        } else {
+                            httpStatus.textContent = "✗ Failed — is Lovense Connect running?";
+                            httpStatus.style.color = "#e07070";
+                            showRaw(this._lovHttpLastRaw || "");
+                        }
+                        renderHttpToyList();
+                    });
+                });
+
+                const httpNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.6;`);
+                httpNote.innerHTML = "Requires <b>Lovense Connect</b> (PC) app running. Works on Firefox, Chrome, Edge, and other browsers.<br>Setup: click the <b>Lovense Connect icon</b> in your system tray → <b>Connect Toys</b> → <b>External Control</b> → enable <b>Allow Control</b>.";
+                httpBody.appendChild(httpNote);
+                const httpAppLink = document.createElement("a");
+                httpAppLink.href = "https://www.lovense.com/app/remote";
+                httpAppLink.target = "_blank"; httpAppLink.rel = "noopener noreferrer";
+                httpAppLink.textContent = "↗ Get Lovense Connect app";
+                httpAppLink.style.cssText = `${FONT}font-size:10px;color:var(--ebc-accent);text-decoration:none;display:inline-block;margin-top:5px;`;
+                httpAppLink.addEventListener("mouseenter", () => { httpAppLink.style.textDecoration = "underline"; });
+                httpAppLink.addEventListener("mouseleave", () => { httpAppLink.style.textDecoration = "none"; });
+                httpBody.appendChild(httpAppLink);
+                httpCard.appendChild(httpBody);
+                lovContent.appendChild(httpCard);
             }
 
             // ── VIBRATE DEFAULTS ────────────────────────────────────────────────
@@ -20769,7 +21313,7 @@ export class EBCDrawer {
             const mkLovSlider = (label: string, key: string, min: number, max: number, def: number, fmtFn: (v: number) => string): void => {
                 const cur = typeof s[key] === "number" ? Math.min(Math.max(s[key] as number, min), max) : def;
                 const row = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
-                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);min-width:68px;flex-shrink:0;`); lbl.textContent = label;
+                const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);min-width:68px;flex-shrink:0;`); lbl.textContent = label;
                 const sl = document.createElement("input"); sl.type = "range"; sl.min = String(min); sl.max = String(max); sl.value = String(cur);
                 sl.style.cssText = `flex:1;min-width:0;accent-color:var(--ebc-accent);cursor:pointer;`;
                 const val = mk("span", `${FONT}font-size:12px;color:var(--ebc-accent);min-width:44px;text-align:right;flex-shrink:0;font-weight:bold;`);
@@ -20787,7 +21331,7 @@ export class EBCDrawer {
             lovTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
             lovTestBtn.addEventListener("mouseenter", () => { lovTestBtn.style.background = "var(--ebc-bg)"; });
             lovTestBtn.addEventListener("mouseleave", () => { lovTestBtn.style.background = "transparent"; });
-            const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-muted);`);
+            const lovTestRes = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-sub);`);
             lovTestBtn.addEventListener("click", () => {
                 lovTestBtn.disabled = true; lovTestRes.textContent = "…";
                 this.fireLovense().then(r => {
@@ -20820,6 +21364,12 @@ export class EBCDrawer {
                 return { wrap, body };
             };
 
+            // Toy names known at render time — shared by phrase triggers and body-touch chips
+            const allToyNames: string[] = [
+                ...[...this._lovConnections.values()].map(c => c.name),
+                ...this._lovHttpToys.map(t => t.name),
+            ].filter((n, i, a) => n && a.indexOf(n) === i);
+
             // ── CHAT PHRASES ─────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
@@ -20844,19 +21394,67 @@ export class EBCDrawer {
                     removeBtn.addEventListener("click", () => { lovTriggers.splice(idx, 1); EBCDrawer.saveLovenseTriggers(lovTriggers); renderLovTriggers(); });
                     r1.appendChild(phraseInp); r1.appendChild(removeBtn);
                     tCard.appendChild(r1);
-                    const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+                    const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;");
                     const mkOLbl = (txt: string): HTMLElement => { const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); l.textContent = txt; return l; };
                     r2.appendChild(mkOLbl("Intensity:")); const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : ""); r2.appendChild(iInp);
                     r2.appendChild(mkOLbl("Duration:")); const dInp = lvsNumInp("def", tr.duration  !== undefined ? String(tr.duration)  : ""); r2.appendChild(dInp);
                     r2.appendChild(mkOLbl("s"));
-                    const savePhrTr = (): void => {
-                        const iv = iInp.value.trim(); const dv = dInp.value.trim();
-                        lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
-                        lovTriggers[idx].duration  = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
-                        EBCDrawer.saveLovenseTriggers(lovTriggers);
-                    };
-                    iInp.addEventListener("change", savePhrTr); dInp.addEventListener("change", savePhrTr);
                     tCard.appendChild(r2);
+
+                    // Toy selection chips (mirrors body-touch chip UI)
+                    if (allToyNames.length > 0) {
+                        let activeToyNamesP: string[] | undefined = tr.toyNames;
+                        const chipStyleP = (active: boolean): string =>
+                            `${FONT}font-size:9px;padding:1px 6px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "rgba(180,100,160,0.25)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};white-space:nowrap;`;
+                        const r3 = mk("div", "display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-bottom:2px;");
+                        const toyLblP = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);flex-shrink:0;`); toyLblP.textContent = "Toy:";
+                        r3.appendChild(toyLblP);
+                        const allChipP = document.createElement("button"); allChipP.textContent = "All";
+                        allChipP.style.cssText = chipStyleP(activeToyNamesP === undefined);
+                        const toyChipsP: Array<{ name: string; el: HTMLButtonElement }> = allToyNames.map(name => {
+                            const chip = document.createElement("button");
+                            chip.textContent = name.replace(/^Lovense\s+/i, "");
+                            chip.style.cssText = chipStyleP(activeToyNamesP !== undefined && activeToyNamesP.includes(name));
+                            return { name, el: chip };
+                        });
+                        const refreshChipsP = (): void => {
+                            allChipP.style.cssText = chipStyleP(activeToyNamesP === undefined);
+                            for (const { name, el } of toyChipsP)
+                                el.style.cssText = chipStyleP(activeToyNamesP !== undefined && activeToyNamesP.includes(name));
+                        };
+                        const savePhrTrWithToys = (): void => {
+                            const iv = iInp.value.trim(); const dv = dInp.value.trim();
+                            lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
+                            lovTriggers[idx].duration  = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
+                            lovTriggers[idx].toyNames  = activeToyNamesP;
+                            EBCDrawer.saveLovenseTriggers(lovTriggers);
+                        };
+                        allChipP.addEventListener("click", () => { activeToyNamesP = undefined; refreshChipsP(); savePhrTrWithToys(); });
+                        for (const { name, el } of toyChipsP) {
+                            el.addEventListener("click", () => {
+                                const cur = activeToyNamesP !== undefined ? [...activeToyNamesP] : [...allToyNames];
+                                const idx2 = cur.indexOf(name);
+                                if (idx2 >= 0) cur.splice(idx2, 1); else cur.push(name);
+                                activeToyNamesP = cur.length === 0 || cur.length === allToyNames.length ? undefined : cur;
+                                refreshChipsP(); savePhrTrWithToys();
+                            });
+                        }
+                        r3.appendChild(allChipP);
+                        for (const { el } of toyChipsP) r3.appendChild(el);
+                        tCard.appendChild(r3);
+
+                        const savePhrTr = (): void => { savePhrTrWithToys(); };
+                        iInp.addEventListener("change", savePhrTr); dInp.addEventListener("change", savePhrTr);
+                    } else {
+                        const savePhrTr = (): void => {
+                            const iv = iInp.value.trim(); const dv = dInp.value.trim();
+                            lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
+                            lovTriggers[idx].duration  = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
+                            EBCDrawer.saveLovenseTriggers(lovTriggers);
+                        };
+                        iInp.addEventListener("change", savePhrTr); dInp.addEventListener("change", savePhrTr);
+                    }
+
                     lovListEl.appendChild(tCard);
                 });
                 if (!lovTriggers.length) {
@@ -20902,12 +21500,63 @@ export class EBCDrawer {
                 r2.appendChild(iLbl2); r2.appendChild(iInp2); r2.appendChild(dLbl2); r2.appendChild(dInp2); r2.appendChild(sUnit);
                 cellWrap.appendChild(r2);
 
+                // ── Toy selection chips (only shown when toys are known) ──────────
+                let activeToyNames: string[] | undefined = stored?.toyNames;
+                if (allToyNames.length > 0) {
+                    const r3 = mk("div", `display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-top:4px;${enNow ? "" : "opacity:0.4;"}`);
+                    const toyLbl = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    toyLbl.textContent = "Toy:";
+                    r3.appendChild(toyLbl);
+
+                    const chipStyle = (active: boolean): string =>
+                        `${FONT}font-size:9px;padding:1px 6px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "rgba(180,100,160,0.25)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};white-space:nowrap;`;
+
+                    // "All" chip — active when toyNames is undefined
+                    const allChip = document.createElement("button");
+                    allChip.textContent = "All";
+                    allChip.style.cssText = chipStyle(activeToyNames === undefined);
+
+                    const toyChips: Array<{ name: string; el: HTMLButtonElement }> = allToyNames.map(name => {
+                        const chip = document.createElement("button");
+                        chip.textContent = name.replace(/^Lovense\s+/i, "");
+                        chip.style.cssText = chipStyle(activeToyNames !== undefined && activeToyNames.includes(name));
+                        return { name, el: chip };
+                    });
+
+                    const refreshChips = (): void => {
+                        allChip.style.cssText = chipStyle(activeToyNames === undefined);
+                        for (const { name, el } of toyChips)
+                            el.style.cssText = chipStyle(activeToyNames !== undefined && activeToyNames.includes(name));
+                    };
+
+                    allChip.addEventListener("click", () => {
+                        activeToyNames = undefined;
+                        refreshChips();
+                        saveTouchCell();
+                    });
+                    for (const { name, el } of toyChips) {
+                        el.addEventListener("click", () => {
+                            const cur = activeToyNames !== undefined ? [...activeToyNames] : [...allToyNames];
+                            const idx = cur.indexOf(name);
+                            if (idx >= 0) cur.splice(idx, 1); else cur.push(name);
+                            activeToyNames = cur.length === 0 || cur.length === allToyNames.length ? undefined : cur;
+                            refreshChips();
+                            saveTouchCell();
+                        });
+                    }
+
+                    r3.appendChild(allChip);
+                    for (const { el } of toyChips) r3.appendChild(el);
+                    cellWrap.appendChild(r3);
+                }
+
                 const saveTouchCell = (): void => {
                     const iv = iInp2.value.trim(); const dv = dInp2.value.trim();
                     touchData[def.key] = {
                         enabled: togEnabled,
                         intensity: iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined,
                         duration:  dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined,
+                        toyNames:  activeToyNames,
                     };
                     EBCDrawer.saveTouchTriggers(touchData);
                 };
@@ -20929,7 +21578,7 @@ export class EBCDrawer {
             }
             touchBody.appendChild(touchGrid);
             const touchHint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin:2px 0 4px;`);
-            touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional - leave blank for defaults.";
+            touchHint.textContent = "Intensity (1–20) and Duration (seconds) are optional — leave blank for defaults.";
             touchBody.appendChild(touchHint);
             lovContent.appendChild(touchSec);
 
@@ -21065,10 +21714,23 @@ export class EBCDrawer {
                 const wlNote = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;`);
                 wlNote.textContent = "Friends can always request. Add others by member #:";
                 wlBody.appendChild(wlNote);
+
+                // "No need to ask" toggle — whitelisted people get instant control (no popup)
+                const irlInstOn = s["irlToyWhitelistInstant"] === true;
+                const irlInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;");
+                const irlInstTog = document.createElement("input"); irlInstTog.type = "checkbox"; irlInstTog.checked = irlInstOn;
+                irlInstTog.style.cssText = "accent-color:var(--ebc-accent);width:15px;height:15px;cursor:pointer;flex-shrink:0;";
+                const irlInstLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);cursor:pointer;flex:1;line-height:1.35;`);
+                irlInstLbl.textContent = "No need to ask — whitelist gets instant control (they just click & it works)";
+                irlInstLbl.addEventListener("click", () => { irlInstTog.checked = !irlInstTog.checked; irlInstTog.dispatchEvent(new Event("change")); });
+                irlInstTog.addEventListener("change", () => { s["irlToyWhitelistInstant"] = irlInstTog.checked; syncSettings(); });
+                irlInstRow.appendChild(irlInstTog); irlInstRow.appendChild(irlInstLbl); wlBody.appendChild(irlInstRow);
+
                 for (let idx = 0; idx < irlWl.length; idx++) {
                     const num = irlWl[idx];
                     const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
-                    const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = `#${num}`;
+                    const wlNm = this._resolveMemberName(num);
+                    const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = wlNm ? `${wlNm} (#${num})` : `#${num}`;
                     const wlRem = document.createElement("button"); wlRem.textContent = "✗";
                     wlRem.style.cssText = `${FONT}font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                     wlRem.addEventListener("click", () => { irlWl.splice(idx, 1); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
@@ -21173,28 +21835,56 @@ export class EBCDrawer {
                         endBtn.style.cssText = `${FONT}font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid #6a2040;background:#280810;color:#e07080;`;
                         endBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "REV"); this._irlCtrlSessions.delete(memberNum); updateIrlUI(); });
                         sTop.appendChild(sDot); sTop.appendChild(sName); sTop.appendChild(endBtn); sCard.appendChild(sTop);
-                        let vI = typeof s["lovenseIntensity"] === "number" ? (s["lovenseIntensity"] as number) : 10;
-                        let vD = typeof s["lovenseDuration"] === "number" ? (s["lovenseDuration"] as number) : 5;
-                        const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
-                        const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); iL.textContent = "Intensity";
-                        const iS = document.createElement("input"); iS.type = "range"; iS.min = "1"; iS.max = "20"; iS.value = String(vI);
-                        iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); iV.textContent = `${vI}/20`;
-                        iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
-                        iR.appendChild(iL); iR.appendChild(iS); iR.appendChild(iV); sCard.appendChild(iR);
-                        const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
-                        const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); dL.textContent = "Duration";
-                        const dS = document.createElement("input"); dS.type = "range"; dS.min = "1"; dS.max = "60"; dS.value = String(vD);
-                        dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                        const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); dV.textContent = `${vD}s`;
-                        dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
-                        dR.appendChild(dL); dR.appendChild(dS); dR.appendChild(dV); sCard.appendChild(dR);
-                        const vBtn = document.createElement("button"); vBtn.textContent = "〜 Vibrate";
-                        vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
-                        vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
-                        vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
-                        vBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "VIB", vI, vD); vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000); });
-                        sCard.appendChild(vBtn); irlStatusArea.appendChild(sCard);
+
+                        // Build per-toy remote panel(s); fall back to single "all toys" panel if no toy list
+                        const defI = typeof s["lovenseIntensity"] === "number" ? (s["lovenseIntensity"] as number) : 10;
+                        const defD = typeof s["lovenseDuration"]  === "number" ? (s["lovenseDuration"]  as number) : 5;
+                        const toyPanels: Array<{ label: string; toyName?: string }> =
+                            sess.toys && sess.toys.length > 1
+                                ? sess.toys.map(n => ({ label: n.replace(/^Lovense\s+/i, ""), toyName: n }))
+                                : [{ label: "All toys" }];
+
+                        for (const panel of toyPanels) {
+                            const pWrap = mk("div", toyPanels.length > 1 ? "border:1px solid var(--ebc-border);border-radius:8px;padding:8px 10px;margin-bottom:8px;" : "");
+                            if (toyPanels.length > 1) {
+                                const pLbl = mk("div", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-accent);margin-bottom:8px;`);
+                                pLbl.textContent = `〜 ${panel.label}`;
+                                pWrap.appendChild(pLbl);
+                            }
+                            let vI = defI; let vD = defD;
+                            const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+                            const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); iL.textContent = "Intensity";
+                            const iS = document.createElement("input"); iS.type = "range"; iS.min = "1"; iS.max = "20"; iS.value = String(vI);
+                            iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                            const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); iV.textContent = `${vI}/20`;
+                            iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
+                            iR.appendChild(iL); iR.appendChild(iS); iR.appendChild(iV); pWrap.appendChild(iR);
+                            const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
+                            const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`); dL.textContent = "Duration";
+                            const dS = document.createElement("input"); dS.type = "range"; dS.min = "1"; dS.max = "60"; dS.value = String(vD);
+                            dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                            const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`); dV.textContent = `${vD}s`;
+                            dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
+                            dR.appendChild(dL); dR.appendChild(dS); dR.appendChild(dV); pWrap.appendChild(dR);
+                            const vBtn = document.createElement("button");
+                            vBtn.textContent = panel.toyName ? `〜 ${panel.label}` : "〜 Vibrate";
+                            vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                            vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
+                            vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
+                            vBtn.addEventListener("click", () => {
+                                if (panel.toyName) {
+                                    // Send targeted TOY message for this specific toy
+                                    const serverSend2 = (window as unknown as { ServerSend?: (msg: string, data: unknown) => void }).ServerSend;
+                                    serverSend2?.("ChatRoomChat", { Type: "Whisper", Content: `[EBC-IRL:TOY:${panel.toyName}:${vI}:${vD}]`, Target: memberNum });
+                                } else {
+                                    this.sendIrlToyMsg(memberNum, "VIB", vI, vD);
+                                }
+                                vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000);
+                            });
+                            pWrap.appendChild(vBtn);
+                            sCard.appendChild(pWrap);
+                        }
+                        irlStatusArea.appendChild(sCard);
                     }
                     for (const [pendNum, pend] of this._irlPendingOut) {
                         const pRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:8px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
@@ -21280,6 +21970,18 @@ export class EBCDrawer {
         acceptNote.textContent = "When ON, friends in the same room can request toy control. Whitelist members bypass this setting.";
         privCard.appendChild(acceptNote);
 
+        // "No need to ask" toggle — whitelisted people get instant control (no popup)
+        const gtInstEnabled = s["gameToyWhitelistInstant"] === true;
+        const gtInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+        const gtInstChk = document.createElement("input"); gtInstChk.type = "checkbox"; gtInstChk.checked = gtInstEnabled;
+        gtInstChk.style.cssText = "accent-color:var(--ebc-accent);cursor:pointer;margin:0;flex-shrink:0;";
+        const gtInstLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);cursor:pointer;line-height:1.35;`);
+        gtInstLbl.textContent = "No need to ask — whitelist gets instant control";
+        gtInstLbl.addEventListener("click", () => { gtInstChk.checked = !gtInstChk.checked; gtInstChk.dispatchEvent(new Event("change")); });
+        gtInstChk.addEventListener("change", () => { s["gameToyWhitelistInstant"] = gtInstChk.checked; syncSettings(); });
+        gtInstRow.appendChild(gtInstChk); gtInstRow.appendChild(gtInstLbl);
+        privCard.appendChild(gtInstRow);
+
         const wlHdrEl = mk("div", `${FONT}font-size:10px;font-weight:bold;color:var(--ebc-text-muted);margin-bottom:5px;`);
         wlHdrEl.textContent = "WHITELIST - always allowed:";
         privCard.appendChild(wlHdrEl);
@@ -21295,9 +21997,7 @@ export class EBCDrawer {
                 wlListEl.appendChild(empty);
             } else {
                 gtWl.forEach((num, idx) => {
-                    const roomChar = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
-                    const found = roomChar?.find(c => c.MemberNumber === num);
-                    const displayName = found ? ((found.Nickname ?? "").trim() || found.Name || String(num)) : String(num);
+                    const displayName = this._resolveMemberName(num) ?? String(num);
                     const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:5px 8px;");
                     const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                     wlName.textContent = `${displayName} (#${num})`;
@@ -21533,39 +22233,78 @@ export class EBCDrawer {
         body.appendChild(card);
     }
 
-    private async fireLovense(intensity?: number, duration?: number): Promise<string> {
+    private async fireLovense(intensity?: number, duration?: number, allowedNames?: string[]): Promise<string> {
         const s = getSettings();
         if (s.lovenseEnabled !== true) return "";
-        type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
-        type ConnDev = { gatt?: { connected?: boolean } };
-        const active = [...this._lovConnections.values()].filter(c => (c.device as ConnDev)?.gatt?.connected === true && c.char != null);
-        if (active.length === 0) return "⚠ Lovense: no toys connected via Bluetooth";
         const defI = typeof s.lovenseIntensity === "number" ? (s.lovenseIntensity as number) : 10;
         const defD = typeof s.lovenseDuration  === "number" ? (s.lovenseDuration  as number) : 5;
         const finalI = Math.max(1, Math.min(intensity ?? defI, 20));
         const finalD = Math.max(1, Math.min(duration  ?? defD, 60));
-        const enc = new TextEncoder();
-        const doWrite = (char: WriteChar, cmd: string): Promise<void> => {
-            const d = enc.encode(cmd);
-            return (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                ? char.writeValueWithoutResponse(d)
-                : char.writeValue(d);
-        };
-        const errors: string[] = [];
-        await Promise.all(active.map(async conn => {
-            const char = conn.char as WriteChar;
-            try {
-                await doWrite(char, `Vibrate:${finalI};`);
-                setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => {}); }, finalD * 1000);
-            } catch (err) {
-                errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
+        type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
+        type ConnDev = { gatt?: { connected?: boolean } };
+        // Filter BLE connections — if allowedNames is set, only fire those toys by name
+        const active = [...this._lovConnections.values()].filter(c =>
+            (c.device as ConnDev)?.gatt?.connected === true && c.char != null &&
+            (allowedNames === undefined || allowedNames.includes(c.name))
+        );
+
+        // HTTP path: fire specific toys if allowedNames is set, or fall back to all HTTP if no BLE active
+        const httpToys = this._lovHttpUrl && this._lovHttpConnected
+            ? (allowedNames !== undefined
+                ? this._lovHttpToys.filter(t => allowedNames.includes(t.name))
+                : active.length === 0 ? this._lovHttpToys : [])  // fallback to all HTTP only when no BLE
+            : [];
+
+        const results: string[] = [];
+        // BLE vibration
+        if (active.length > 0) {
+            const enc = new TextEncoder();
+            const doWrite = async (char: WriteChar, cmd: string): Promise<void> => {
+                const d = enc.encode(cmd);
+                // WebBT (Firefox BLE polyfill) reports writeWithoutResponse in properties
+                // but throws "Access is denied" when it's called — fall back to writeValue.
+                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                    try { return await char.writeValueWithoutResponse(d); } catch { /* fall through */ }
+                }
+                return await char.writeValue(d);
+            };
+            const errors: string[] = [];
+            const summaries: string[] = [];
+            await Promise.all(active.map(async conn => {
+                const char = conn.char as WriteChar;
+                const toyI = Math.max(1, Math.min(intensity !== undefined ? intensity : conn.intensity, 20));
+                const toyD = Math.max(1, Math.min(duration  !== undefined ? duration  : conn.duration,  60));
+                try {
+                    await doWrite(char, `Vibrate:${toyI};`);
+                    setTimeout(() => { doWrite(char, "Vibrate:0;").catch(() => {}); }, toyD * 1000);
+                    summaries.push(`${conn.name} ${toyI}/20`);
+                } catch (err) {
+                    errors.push(conn.name + ": " + (err instanceof Error ? err.message : String(err)));
+                }
+            }));
+            if (errors.length > 0) {
+                console.warn("[EBC Lovense] BLE write errors:", errors);
+                results.push(`⚠ BLE error: ${errors.join("; ")}`);
+            } else {
+                results.push(`〜 BLE (${active.length} toy${active.length > 1 ? "s" : ""}): ${summaries.join(", ")}`);
             }
-        }));
-        if (errors.length > 0) {
-            console.warn("[EBC Lovense] BLE write errors:", errors);
-            return `⚠ Lovense BLE error: ${errors.join("; ")}`;
         }
-        return `〜 Lovense (${active.length} toy${active.length > 1 ? "s" : ""}): ${finalI}/20 for ${finalD}s`;
+        // HTTP vibration
+        for (const toy of httpToys) {
+            const toyId = toy.id !== "http0" ? toy.id : undefined;
+            const r = await this._lovHttpVibrate(finalI, finalD, toyId);
+            if (r) results.push(r);
+        }
+        if (results.length === 0) {
+            return "⚠ Lovense: no toys connected (BLE or HTTP)";
+        }
+        return results.join(" | ");
+    }
+
+    public _updateVersionTitle(): void {
+        if (!this._versionTitleEl) return;
+        const salSuffix = getShowSalVersion() && this.salVersion > 0 ? ` (${this.salVersion})` : "";
+        this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
     }
 
     public startBCLiveSync(): void {
@@ -21608,17 +22347,171 @@ export class EBCDrawer {
         type WriteChar = { properties: Record<string, boolean>; writeValue: (d: BufferSource) => Promise<void>; writeValueWithoutResponse?: (d: BufferSource) => Promise<void> };
         type ConnDev = { gatt?: { connected?: boolean } };
         const active = [...this._lovConnections.values()].filter(c => (c.device as ConnDev)?.gatt?.connected === true && c.char != null);
-        if (active.length === 0) return;
+        if (active.length === 0) {
+            // HTTP path for BC live sync (t=0 = continuous until next command)
+            if (this._lovHttpUrl && this._lovHttpConnected) {
+                await this._lovHttpVibrate(intensity, 0);
+            }
+            return;
+        }
         const enc = new TextEncoder();
         const cmd = enc.encode(`Vibrate:${intensity};`);
         await Promise.all(active.map(async conn => {
             const char = conn.char as WriteChar;
             try {
-                await ((char.writeValueWithoutResponse && char.properties["writeWithoutResponse"])
-                    ? char.writeValueWithoutResponse(cmd)
-                    : char.writeValue(cmd));
+                if (char.writeValueWithoutResponse && char.properties["writeWithoutResponse"]) {
+                    try { await char.writeValueWithoutResponse(cmd); return; } catch { /* fall through */ }
+                }
+                await char.writeValue(cmd);
             } catch { /* ignore BLE errors */ }
         }));
+    }
+
+    // POST to /command — current Lovense Connect API format.
+    // Returns the raw response text, or null on network/HTTP failure.
+    private async _lovPostCommand(body: Record<string, unknown>): Promise<{ raw: string; json: Record<string, unknown> | null } | null> {
+        if (!this._lovHttpUrl) return null;
+        try {
+            const resp = await fetch(this._lovHttpUrl + "/command", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(4000),
+            });
+            if (!resp.ok) return null;
+            const raw = await resp.text();
+            let json: Record<string, unknown> | null = null;
+            try { json = JSON.parse(raw) as Record<string, unknown>; } catch { /* ignore */ }
+            return { raw, json };
+        } catch { return null; }
+    }
+
+    // GET helper — returns parsed response or null on failure / app-level error.
+    private async _lovGet(endpoint: string): Promise<{ raw: string; json: Record<string, unknown> | null } | null> {
+        if (!this._lovHttpUrl) return null;
+        try {
+            const resp = await fetch(this._lovHttpUrl + endpoint, { signal: AbortSignal.timeout(4000) });
+            if (!resp.ok) return null;
+            const raw = await resp.text();
+            let json: Record<string, unknown> | null = null;
+            try { json = JSON.parse(raw) as Record<string, unknown>; } catch { /* ignore */ }
+            return { raw, json };
+        } catch { return null; }
+    }
+
+    private static _lovIsError(json: Record<string, unknown> | null): boolean {
+        return json?.type === "error";
+    }
+
+    private static _lovParseToyCount(json: Record<string, unknown> | null): number {
+        if (!json) return 0;
+        let toyData: Record<string, unknown> | null = null;
+        if (typeof json.data === "string") {
+            try { toyData = JSON.parse(json.data) as Record<string, unknown>; } catch { /* ignore */ }
+        } else if (json.data && typeof json.data === "object" && !Array.isArray(json.data)) {
+            toyData = json.data as Record<string, unknown>;
+        }
+        return toyData ? Object.keys(toyData).length : 0;
+    }
+
+    private async _lovHttpPing(): Promise<boolean> {
+        if (!this._lovHttpUrl) return false;
+
+        // 1. Try POST /command (current Lovense Connect API).
+        //    A Vibrate:0 command is safe (stops any running vibration) and confirms
+        //    both the endpoint and that toy control is working.
+        const cmdRes = await this._lovPostCommand({ command: "Function", action: "Vibrate:0", timeSec: 0, apiVer: 1 });
+        if (cmdRes && !EBCDrawer._lovIsError(cmdRes.json)) {
+            this._lovHttpLastRaw = cmdRes.raw.slice(0, 400);
+            // Try to get a real toy list via GetToys command.
+            const toysRes = await this._lovPostCommand({ command: "GetToys", apiVer: 1 });
+            let toysParsed = false;
+            if (toysRes && !EBCDrawer._lovIsError(toysRes.json) && toysRes.json?.data) {
+                let toyData: Record<string, unknown> | null = null;
+                if (typeof toysRes.json.data === "string") {
+                    try { toyData = JSON.parse(toysRes.json.data) as Record<string, unknown>; } catch { /* ignore */ }
+                } else if (typeof toysRes.json.data === "object" && !Array.isArray(toysRes.json.data)) {
+                    toyData = toysRes.json.data as Record<string, unknown>;
+                }
+                if (toyData && Object.keys(toyData).length > 0) {
+                    this._lovHttpToys = Object.entries(toyData).map(([id, info]) => {
+                        const t = (info as Record<string, unknown>);
+                        const name = typeof t.name === "string" ? t.name : (typeof t.deviceName === "string" ? t.deviceName : id);
+                        return { id, name, intensity: 10, duration: 5 };
+                    });
+                    this._lovHttpToyCount = this._lovHttpToys.length;
+                    toysParsed = true;
+                }
+            }
+            if (!toysParsed) {
+                // /command works but GetToys didn't return data — show single placeholder entry
+                this._lovHttpToys = [{ id: "http0", name: "Lovense Connect", intensity: 10, duration: 5 }];
+                this._lovHttpToyCount = 1;
+            }
+            this._lovHttpConnected = true;
+            return true;
+        }
+
+        // 2. Fall back: try GET /GetToys variants (older Lovense Connect).
+        for (const path of ["/GetToys", "/toys"]) {
+            const res = await this._lovGet(path);
+            if (!res || EBCDrawer._lovIsError(res.json)) continue;
+            this._lovHttpLastRaw = res.raw.slice(0, 400);
+            this._lovHttpToyCount = EBCDrawer._lovParseToyCount(res.json);
+            this._lovHttpToys = this._lovHttpToyCount > 0
+                ? [{ id: "http0", name: "Lovense Connect", intensity: 10, duration: 5 }]
+                : [];
+            this._lovHttpConnected = true;
+            return true;
+        }
+
+        // 3. Server is reachable (something responded) but no working endpoint found.
+        if (cmdRes !== null) {
+            this._lovHttpLastRaw = cmdRes.raw.slice(0, 400);
+            this._lovHttpToyCount = 0;
+            this._lovHttpToys = [];
+            this._lovHttpConnected = true;
+            return true;
+        }
+        this._lovHttpConnected = false;
+        this._lovHttpToys = [];
+        return false;
+    }
+
+    private async _lovHttpVibrate(intensity: number, durationSec: number, toyId?: string): Promise<string> {
+        const url = this._lovHttpUrl;
+        if (!url) return "⚠ Lovense HTTP: not configured";
+        const v = Math.max(0, Math.min(Math.round(intensity), 20));
+        const t = Math.max(0, Math.min(Math.round(durationSec), 60));
+
+        // Try POST /command first (current Lovense Connect API).
+        try {
+            const cmd: Record<string, unknown> = { command: "Function", action: `Vibrate:${v}`, timeSec: t, apiVer: 1 };
+            if (toyId) cmd["toy"] = toyId;
+            const res = await this._lovPostCommand(cmd);
+            if (res && !EBCDrawer._lovIsError(res.json)) {
+                if (v === 0) return "";
+                const toyLabel = toyId ? ` (${toyId.slice(-4)})` : "";
+                return `〜 Lovense HTTP${toyLabel}: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+            }
+        } catch { /* fall through */ }
+
+        // Fall back: GET /Vibrate (older API).
+        try {
+            const resp = await fetch(`${url}/Vibrate?v=${v}&t=${t}`, { signal: AbortSignal.timeout(3000) });
+            if (!resp.ok) { this._lovHttpConnected = false; return `⚠ Lovense HTTP: server error ${resp.status}`; }
+            const body = await resp.text();
+            let bodyJson: Record<string, unknown> | null = null;
+            try { bodyJson = JSON.parse(body) as Record<string, unknown>; } catch { /* ignore */ }
+            if (EBCDrawer._lovIsError(bodyJson)) {
+                return `⚠ Lovense HTTP: no working vibrate endpoint found — ${body.slice(0, 80)}`;
+            }
+            if (v === 0) return "";
+            return `〜 Lovense HTTP: ${v}/20${t > 0 ? ` for ${t}s` : ""}`;
+        } catch (err) {
+            this._lovHttpConnected = false;
+            return `⚠ Lovense HTTP error: ${err instanceof Error ? err.message : String(err)}`;
+        }
     }
 
     public checkLovenseTriggers(content: string): void {
@@ -21629,7 +22522,7 @@ export class EBCDrawer {
             const triggers = EBCDrawer.getLovenseTriggers();
             for (const tr of triggers) {
                 if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase())) continue;
-                this.fireLovense(tr.intensity, tr.duration).catch(() => { /* silently ignore */ });
+                this.fireLovense(tr.intensity, tr.duration, tr.toyNames).catch(() => { /* silently ignore */ });
             }
         } catch { /* ignore */ }
     }
@@ -21646,7 +22539,7 @@ export class EBCDrawer {
                 const stored = touchData[def.key];
                 const enabled = stored ? stored.enabled : def.dflt;
                 if (!enabled) continue;
-                this.fireLovense(stored?.intensity, stored?.duration).catch(() => {});
+                this.fireLovense(stored?.intensity, stored?.duration, stored?.toyNames).catch(() => {});
                 return;
             }
             // BC toy sync - live poller handles the intensity; just ensure it's started
@@ -21714,13 +22607,36 @@ export class EBCDrawer {
             let content = `[EBC-IRL:${type}]`;
             if (type === "VIB" && intensity !== undefined && duration !== undefined) {
                 content = `[EBC-IRL:VIB:${intensity}:${duration}]`;
+            } else if (type === "ACK") {
+                // Include connected toy names so the requester can show per-toy controls
+                const toyNames = [
+                    ...[...this._lovConnections.values()].map(c => c.name),
+                    ...this._lovHttpToys.map(t => t.name),
+                ].filter(Boolean);
+                if (toyNames.length > 1) content = `[EBC-IRL:ACK:${toyNames.join(",")}]`;
+            } else if (type === "TOY" && intensity !== undefined && duration !== undefined) {
+                // Targeted toy vibrate (not used on this side, but kept for symmetry)
+                content = `[EBC-IRL:TOY:${intensity}:${duration}]`;
             }
             const serverSend = (window as unknown as { ServerSend?: (msg: string, data: unknown) => void }).ServerSend;
             serverSend?.("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
         } catch { /* ignore */ }
     }
 
-    public handleIrlToyMsg(senderNumber: number, senderName: string, type: string, intensity?: number, duration?: number): void {
+    /** Resolve a member number to a display name: in-room char → friend nickname → null. */
+    private _resolveMemberName(num: number): string | null {
+        const w = window as unknown as {
+            ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }>;
+            Player?: { FriendNames?: Map<number, string> };
+        };
+        const inRoom = (w.ChatRoomCharacter ?? []).find(c => c.MemberNumber === num);
+        if (inRoom) { const n = (inRoom.Nickname ?? "").trim() || (inRoom.Name ?? "").trim(); if (n) return n; }
+        const fn = w.Player?.FriendNames;
+        if (fn && typeof fn.get === "function") { const n = (fn.get(num) ?? "").trim(); if (n) return n; }
+        return null;
+    }
+
+    public handleIrlToyMsg(senderNumber: number, senderName: string, type: string, intensity?: number, duration?: number, toys?: string[]): void {
         try {
             if (type === "REQ") {
                 const s = getSettings();
@@ -21728,13 +22644,23 @@ export class EBCDrawer {
                 const wl = EBCDrawer.getIrlToyWhitelist();
                 const fromFriend = ((window as unknown as { Player?: { FriendList?: number[] } }).Player?.FriendList ?? []).includes(senderNumber);
                 if (!fromFriend && !wl.includes(senderNumber)) { this.sendIrlToyMsg(senderNumber, "DEN"); return; }
+                // Auto-accept only if sender is whitelisted AND "no need to ask" is explicitly enabled (off by default)
+                const irlInstant = s["irlToyWhitelistInstant"] === true;
+                if (wl.includes(senderNumber) && irlInstant) {
+                    this._irlGrantedTo.set(senderNumber, { name: senderName });
+                    this.sendIrlToyMsg(senderNumber, "ACK");
+                    this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your Lovense.`);
+                    this.refreshToysIfActive();
+                    return;
+                }
+                // Whitelisted but instant off, or a non-whitelisted friend → ask via popup
                 this._irlIncoming = { memberNumber: senderNumber, name: senderName };
                 this._showIrlReqPopup();
             } else if (type === "ACK") {
                 const pend = this._irlPendingOut.get(senderNumber);
                 if (pend) {
                     this._irlPendingOut.delete(senderNumber);
-                    this._irlCtrlSessions.set(senderNumber, { name: pend.name });
+                    this._irlCtrlSessions.set(senderNumber, { name: pend.name, toys });
                     this._showToyToast(`${pend.name} accepted Lovense control!`);
                     this.refreshToysIfActive();
                 }
@@ -21747,6 +22673,14 @@ export class EBCDrawer {
                 const d = duration ?? 5;
                 this._showToyToast(`${senderName}: ${i}/20 for ${d}s ~`);
                 this.fireLovense(i, d).catch(() => {});
+            } else if (type === "TOY") {
+                // Targeted vibrate for a specific toy (sent by the controller)
+                if (!this._irlGrantedTo.has(senderNumber)) return;
+                const i = intensity ?? 10;
+                const d = duration ?? 5;
+                const toyName = toys?.[0];
+                this._showToyToast(`${senderName}: ${toyName ? toyName.replace(/^Lovense\s+/i,"") : "toy"} ${i}/20 for ${d}s ~`);
+                this.fireLovense(i, d, toyName ? [toyName] : undefined).catch(() => {});
             } else if (type === "REV") {
                 if (this._irlGrantedTo.has(senderNumber)) {
                     this._irlGrantedTo.delete(senderNumber);
@@ -21805,11 +22739,22 @@ export class EBCDrawer {
             const s = getSettings();
             if (type === "REQ") {
                 const wl = EBCDrawer.getGameToyWhitelist();
+                const isWl = wl.includes(senderNumber);
                 const fromFriend = ((window as unknown as { Player?: { FriendList?: number[] } }).Player?.FriendList ?? []).includes(senderNumber);
-                if (!fromFriend && !wl.includes(senderNumber)) return;
-                const acceptOn = s["gameToyAcceptRequests"] === true;
-                if (!acceptOn && !wl.includes(senderNumber)) {
-                    this.sendGameToyMsg(senderNumber, "DEN"); return;
+                if (!fromFriend && !isWl) return;
+                // Auto-accept only if sender is whitelisted AND "no need to ask" is explicitly enabled (off by default)
+                const gtInstant = s["gameToyWhitelistInstant"] === true;
+                if (isWl && gtInstant) {
+                    this._toyGrantedTo.set(senderNumber, { name: senderName });
+                    this.sendGameToyMsg(senderNumber, "ACK");
+                    this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your toy.`);
+                    this.refreshToysIfActive();
+                    return;
+                }
+                // Whitelisted members can always ask via popup; non-whitelisted friends need accept-requests on
+                if (!isWl) {
+                    const acceptOn = s["gameToyAcceptRequests"] === true;
+                    if (!acceptOn) { this.sendGameToyMsg(senderNumber, "DEN"); return; }
                 }
                 this._toyIncoming = { memberNumber: senderNumber, name: senderName };
                 this._showToyReqPopup();
@@ -21894,6 +22839,138 @@ export class EBCDrawer {
         toast.textContent = message;
         document.body.appendChild(toast);
         window.setTimeout(() => { if (document.body.contains(toast)) document.body.removeChild(toast); }, 3500);
+    }
+
+    // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
+    private _openFeedbackModal(): void {
+        // Don't stack copies if it's already open
+        if (document.getElementById("ebc-feedback-overlay")) return;
+
+        const FORM_ID = "1FAIpQLSe6lNI5Q4wHX7llKvU6SlvwzR1G7xiYOYrx8NTciGzAW3izhw";
+        const SUBMIT_URL = `https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`;
+        const E_TYPE = "entry.440441484";
+        const E_WHAT = "entry.747044937";
+        const E_STEPS = "entry.1724725225";
+        const E_VER = "entry.1112839188";
+
+        const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
+        const mk = (tag: string, css?: string): HTMLElement => { const el = document.createElement(tag); if (css) el.style.cssText = css; return el; };
+
+        const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+        overlay.id = "ebc-feedback-overlay";
+
+        const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
+        overlay.appendChild(card);
+
+        // Thin accent bar at the top for a bit of polish
+        card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
+
+        const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
+        titleEl.textContent = "Feedback & Bug Report";
+        card.appendChild(titleEl);
+
+        const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
+        subEl.textContent = "Anonymous — No account, no email, nothing tied to you.";
+        card.appendChild(subEl);
+
+        const mkLabel = (txt: string): HTMLElement => {
+            const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
+            l.textContent = txt; return l;
+        };
+        const wireFocus = (el: HTMLElement): void => {
+            el.addEventListener("focus", () => { el.style.borderColor = "#cf6f98"; el.style.boxShadow = "0 0 0 3px rgba(207,111,152,0.16)"; });
+            el.addEventListener("blur", () => { el.style.borderColor = "#33283c"; el.style.boxShadow = "none"; });
+        };
+        const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
+
+        // ── Type — segmented control (no emoji; value = exact Google Form string) ──
+        card.appendChild(mkLabel("Type"));
+        const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:18px;");
+        const TYPES = [
+            { label: "Bug report", value: "Bug report" },
+            { label: "Feature request", value: "Feature request" },
+            { label: "Other", value: "Other" },
+        ];
+        let selectedType = TYPES[0].value;
+        const typeChips: HTMLElement[] = [];
+        const paintChips = (): void => {
+            typeChips.forEach((chip, i) => {
+                const on = TYPES[i].value === selectedType;
+                chip.style.background = on ? "#c2628a" : "transparent";
+                chip.style.borderColor = on ? "#cf6f98" : "#33283c";
+                chip.style.color = on ? "#ffffff" : "#9b8fa6";
+                chip.style.fontWeight = on ? "bold" : "normal";
+            });
+        };
+        TYPES.forEach((tp) => {
+            const chip = mk("button", `${FONT}flex:1;font-size:12px;padding:9px 6px;border-radius:8px;border:1px solid #33283c;cursor:pointer;transition:all 0.14s;`);
+            chip.textContent = tp.label;
+            chip.addEventListener("click", () => { selectedType = tp.value; paintChips(); });
+            typeRow.appendChild(chip); typeChips.push(chip);
+        });
+        paintChips();
+        card.appendChild(typeRow);
+
+        // ── "What" textarea (required) ───────────────────────────────
+        card.appendChild(mkLabel("What happened / what do you want?"));
+        const whatArea = document.createElement("textarea");
+        whatArea.placeholder = "Describe the bug, or the feature you'd like…";
+        whatArea.style.cssText = taCss + "min-height:84px;margin-bottom:18px;";
+        wireFocus(whatArea);
+        card.appendChild(whatArea);
+
+        // ── Steps textarea (optional) ────────────────────────────────
+        card.appendChild(mkLabel("Steps to reproduce — optional"));
+        const stepsArea = document.createElement("textarea");
+        stepsArea.placeholder = "What were you doing when it broke?";
+        stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
+        wireFocus(stepsArea);
+        card.appendChild(stepsArea);
+
+        const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
+        verNote.textContent = `EBC v${this.version ?? "?"} is attached automatically.`;
+        card.appendChild(verNote);
+
+        // ── Buttons ──────────────────────────────────────────────────
+        const errEl = mk("div", `${FONT}font-size:11px;color:#ff8a8a;margin-bottom:10px;min-height:14px;`);
+        card.appendChild(errEl);
+
+        const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
+        const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #33283c;background:transparent;color:#9b8fa6;transition:all 0.14s;`);
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#cbbdd6"; });
+        cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9b8fa6"; });
+        const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.3px;padding:9px 28px;border-radius:9px;cursor:pointer;border:1px solid #cf6f98;background:#c2628a;color:#ffffff;transition:all 0.14s;`) as HTMLButtonElement;
+        sendBtn.textContent = "Send";
+        sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled) sendBtn.style.background = "#d278a0"; });
+        sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled) sendBtn.style.background = "#c2628a"; });
+        btnRow.appendChild(cancelBtn); btnRow.appendChild(sendBtn);
+        card.appendChild(btnRow);
+
+        const close = (): void => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+        cancelBtn.addEventListener("click", close);
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+        sendBtn.addEventListener("click", () => {
+            const what = whatArea.value.trim();
+            if (!what) { errEl.textContent = "Please describe the bug or request first."; whatArea.focus(); return; }
+            errEl.textContent = "";
+            sendBtn.disabled = true; sendBtn.textContent = "Sending…";
+
+            const params = new URLSearchParams();
+            params.append(E_TYPE, selectedType);
+            params.append(E_WHAT, what);
+            params.append(E_STEPS, stepsArea.value.trim());
+            params.append(E_VER, this.version ?? "");
+
+            // no-cors: fire-and-forget; we can't read the response but the submit goes through
+            fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
+                .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
+                .catch(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); });
+        });
+
+        document.body.appendChild(overlay);
+        whatArea.focus();
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

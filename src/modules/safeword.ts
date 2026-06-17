@@ -98,6 +98,11 @@ const GRACE_SYNC_INTERVAL_MS = 2000;
 // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
 let gracePeriodEnd: number | null = null;
 
+// Snapshot of binding-restraint groups present when grace STARTED.
+// enforceGracePeriod() only strips groups that appeared AFTER this snapshot,
+// so Release=OFF + Grace=ON doesn't remove existing restraints.
+let graceStartGroups: Set<string> = new Set();
+
 export function isGraceActive(): boolean {
     if (gracePeriodEnd === null) return false;
     if (gracePeriodEnd === Infinity) return true;
@@ -113,11 +118,19 @@ export function getGraceRemaining(): number | null {
 }
 
 export function startGrace(durationMs: number): void {
+    // Snapshot current restraint groups so grace enforcement only strips
+    // items added DURING the grace window, not items that were already on.
+    graceStartGroups = new Set(
+        Player.Appearance
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i: Item) => i.Asset.Group.Name),
+    );
     gracePeriodEnd = durationMs <= 0 ? Infinity : Date.now() + durationMs;
 }
 
 export function endGrace(): void {
     gracePeriodEnd = null;
+    graceStartGroups = new Set();
 }
 
 export function checkGraceExpiry(): void {
@@ -133,11 +146,31 @@ const NECK_GROUPS = new Set([
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
 ]);
 
+// Lock asset names that are never removed by safeword (owner / lover / family padlocks).
+const PROTECTED_LOCK_NAMES = new Set([
+    "OwnerPadlock",
+    "OwnerTimedPadlock",
+    "ExclusivePadlock",
+    "LoversPadlock",
+    "LoversTimerPadlock",
+    "FamilyPadlock",
+]);
+
+function isProtectedLocked(item: Item): boolean {
+    try {
+        const prop = (item as unknown as { Property?: { LockedBy?: string } }).Property;
+        return !!prop?.LockedBy && PROTECTED_LOCK_NAMES.has(prop.LockedBy);
+    } catch { return false; }
+}
 
 function releaseBindingRestraints(): void {
     const removeGroups = new Set(
         Player.Appearance
-            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i: Item) =>
+                RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+                !NECK_GROUPS.has(i.Asset.Group.Name) &&
+                !isProtectedLocked(i),
+            )
             .map((i: Item) => i.Asset.Group.Name),
     );
     if (removeGroups.size === 0) return;
@@ -169,9 +202,16 @@ export function enforceGracePeriod(): void {
     checkGraceExpiry();
     if (!isGraceActive()) return;
 
+    // Only strip groups added AFTER grace started (graceStartGroups = snapshot at trigger time).
+    // This fixes the bug where Grace=ON without Release=ON still removed existing restraints.
     const removeGroups = new Set(
         Player.Appearance
-            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .filter((i: Item) =>
+                RESTRAINT_GROUPS.has(i.Asset.Group.Name) &&
+                !NECK_GROUPS.has(i.Asset.Group.Name) &&
+                !graceStartGroups.has(i.Asset.Group.Name) &&
+                !isProtectedLocked(i),
+            )
             .map((i: Item) => i.Asset.Group.Name),
     );
     if (removeGroups.size === 0) return;
