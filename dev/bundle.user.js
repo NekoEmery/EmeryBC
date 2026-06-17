@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.1.2
+// @version      8.2.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11007,13 +11007,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-guide-close-btn:hover { color: #cf6f98; }
 .ebc-guide-tab-lbl {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
-    letter-spacing: 0.5px;
-    color: #f0a0c8;
-    border-bottom: 1px solid #3a1428;
-    padding-bottom: 5px;
-    margin-bottom: 1px;
+    letter-spacing: 0.3px;
+    color: #f7e6ee;
+    border-left: 3px solid #cf6f98;
+    padding-left: 8px;
+    margin-bottom: 6px;
 }
 .ebc-guide-text {
     font-size: 11px;
@@ -13197,7 +13197,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             topRow.className = "ebc-guide-top";
             const stepLbl = document.createElement("span");
             stepLbl.className = "ebc-guide-step-lbl";
-            stepLbl.textContent = `Step ${this.guideStep + 1} / ${steps.length}`;
+            stepLbl.textContent = `${this.guideStep + 1} of ${steps.length}`;
             const closeX = document.createElement("button");
             closeX.className = "ebc-guide-close-btn";
             closeX.textContent = "✕";
@@ -32630,100 +32630,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: null,
             label: "Welcome to EBC",
-            text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go - just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
-        },
-        {
-            tab: null,
-            label: "Opening, Moving & Resizing",
-            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel anywhere on screen.\nResize the panel by dragging the [[↗]] icon in the bottom-left corner - this scales both width and height at once. You can also drag the thin handle on the left edge (width only) or the bottom edge (height only).\n[[⌖ Reset all]] in the header restores default position, text size, and panel size in one click.\n((The [[?]] button in the header re-opens this guide any time.))",
-            spotlight: ["[data-guide-target='resize-corner']"],
+            text: "EBC extends Bondage Club with outfits, action buttons, animations, toys and more.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
         },
         {
             tab: "outfits",
-            label: "Outfits - Save & Apply Looks",
-            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset - the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look - all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
+            label: "Outfits",
+            text: "Save and restore your full look in one click.\n• [[+ New Outfit]] → saves everything you're wearing right now\n• [[Apply]] on any card → restores that look instantly\n• [[Tags]] and [[Schedules]] let you organise and auto-switch outfits\n((Try clicking the highlighted button to save an outfit right now!))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
-            tab: "outfits",
-            label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags - then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day - both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends - use [[Import]] to load a code you received.))",
-            spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
-            autoExpand: ["section-outfit-tags", "section-schedules"],
-        },
-        {
             tab: "buttons",
-            label: "Action Buttons - Quick Commands",
-            text: "Buttons send actions or emotes to the room with a single tap - great for quick reactions like nods, waves and poses.\nEach button has a label (up to [[16 characters]]), a hex colour, and the chat text to send. Choose style: [[action]] (Name text), [[emote]] (* Name text *), or [[sequence]] (pipe-separated multi-step).\nLink an [[Expression Preset]] to a button so your face changes automatically when you press it.\n[[Categories]] group buttons into named tabs - switch between them using the arrow chips on the sidebar.",
+            label: "Action Buttons",
+            text: "One-tap shortcuts for actions, emotes and multi-step sequences.\n• [[Action]] → /me text · [[Emote]] → *text* · [[Sequence]] → multi-step\n• Link a face expression to fire automatically when you press the button\n• [[Categories]] group buttons into named tabs for easy switching",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
-            tab: "buttons",
-            label: "Slow Leave",
-            text: "[[Slow Leave]] is in the [[Useful Buttons]] section - it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] - pick a pre-written departure style\n  • [[Sequence]] - the text sent to the room\n  • [[Duration]] - time (in seconds) between messages",
-            spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
-        },
-        {
             tab: "anims",
-            label: "Poses & Animations",
-            text: "Pose combos chain multiple pose changes together with delays - perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it - no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
+            label: "Poses & Expressions",
+            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add steps → type [[/name]] in chat to trigger anywhere\n• Save face presets and link them to buttons, outfits or chat phrases\n((Try clicking the highlighted button to create your first combo!))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
-        },
-        {
-            tab: "anims",
-            label: "Expression Presets",
-            text: "Save your facial expressions as named presets so you can restore any look with one click.\nUse BC's own face controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click [[💾 Save face]] to capture it.\nMark one preset as [[Default]] - the [[↺ Reset face]] button always jumps back to it, and you can enable [[Auto-apply on room join]] so your default face loads automatically every time you enter a room.\n((Presets can also be linked to outfits or fired from action buttons and scenes.))",
-            spotlight: ["[data-guide-target='btn-save-face']"],
-        },
-        {
-            tab: "anims",
-            label: "Chat Triggers",
-            text: "Chat triggers fire a face preset automatically when your outgoing message contains a match phrase - no button press needed.\nClick [[＋ New Trigger]] and fill in:\n  • [[Contains]] - the phrase that fires it (e.g. >:3, >_<)\n  • [[Apply]] - which expression preset activates\n  • [[Hold]] - how long the face stays before reverting (0 = keep forever)\nType the phrase naturally in chat and the face swaps with it instantly.\n((Case-insensitive. Triggers work on action messages, emotes and regular chat.))",
-            spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
             label: "Users & Friends",
-            text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate - perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions - a permanent address book of everyone you've encountered.))",
+            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their ID or view their profile\n((People Met in DEV → Logs saves everyone permanently across sessions.))",
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
+            tab: "toys",
+            label: "Remote Toys",
+            text: "Control a friend's in-game vibrator or real Lovense toy.\n• [[GAME TOYS]] / [[IRL TOYS]] → hit [[Request]] (both must be in the same room)\n• Set [[Intensity]] and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
+        },
+        {
             tab: "dev",
-            label: "DEV - Preferences & Themes",
-            text: "[[Quick Preset]] lets you apply a full colour theme instantly - try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+            label: "Settings",
+            text: "Customise EBC in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme in one click\n• [[Hotkey]] → open/close the menu from anywhere with one key\n• [[Visible Tabs]] → hide tabs you don't use to keep things clean",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
-            tab: "dev",
-            label: "DEV - Logs & History",
-            text: "[[Whisper Log]] - every whisper sent and received this session.\n[[Current Room]] - who is in your room right now, with member IDs.\n[[Rooms Visited]] - all rooms you've entered this session.\n[[Restraint Log]] - when items were applied or removed.\n[[People Met]] - persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
-            spotlight: ["[data-guide-target='section-dev-logs']"],
-            autoExpand: ["section-dev-logs"],
-        },
-        {
             tab: null,
-            label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area - click its header to expand it.\n[[My tag]] - shows your custom badge above your own head.\n[[Others]] - shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Text]] and [[Cat]] drag buttons to reposition each badge to its exact on-screen position.",
-            spotlight: ["[data-guide-target='strip-ebc-tags']"],
-        },
-        {
-            tab: null,
-            label: "Safewords Strip",
-            text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel - reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] - clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+            label: "Safewords — Always On Top",
+            text: "Three safewords pinned above every tab — always one tap away.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] and [[Confirm step]] prevent accidental presses",
             spotlight: ["[data-guide-target='strip-safewords']"],
-        },
-        {
-            tab: "toys",
-            label: "Toys - In-Game & IRL Control",
-            text: "The [[TOYS]] tab lets you remotely control a friend's in-game vibrators and real Lovense devices.\n[[GAME TOYS]] - controls a friend's BC vibrator mode. Click [[Request]] to ask for control - they must be in the same room. Once they accept, mode buttons appear: [[Off]], [[Low]], [[Medium]], [[High]], [[Max]], [[Tease]], [[Random]], [[Escalate]], [[Deny]], [[Edge]].\n  • [[My Privacy]] - toggle whether friends can send you requests\n  • [[Whitelist]] - specific members who can always send requests regardless of the toggle\n  • Chat messages appear exactly like BC's own toy controller - attributed to you as the controller\n[[IRL TOYS (lovense)]] - controls a friend's real Lovense toy. Same request/accept flow. Set [[Intensity]] (1-20) and [[Duration]] in seconds before sending a buzz.\n((Both systems require the target to be in the same room as you.))",
-        },
-        {
-            tab: null,
-            label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] corner icon (bottom-left) to resize width and height at once.\n• [[⌖ Reset all]] in the header restores default position, size, and text scale.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs - you never know when you'll need it quickly.))",
         },
     ];
 
@@ -32787,8 +32738,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 29; // internal sub-version — shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.0";
+    const SAL_VERSION = 30; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32802,6 +32753,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.0",
+            changes: [
+                "Tutorial: redesigned from 16 text-heavy steps to 8 short interactive ones — each with a clear label, a pulsing spotlight on the relevant UI element, and a try-it nudge.",
+                "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside or double-shrinks when zooming out.",
+                "Feedback: new in-game anonymous form (footer Feedback & Bugs button) — pick a type, describe the issue, hit Send; no browser tab, no account, submitted silently from the game.",
+                "IRL toys: two-remote support — when multiple Lovense toys are connected, the controller shows a separate vibrate panel per toy with independent Intensity/Duration sliders.",
+                "Toy whitelist: entries now show display names beside member numbers; 'No need to ask' instant-control toggle added — OFF by default for safety.",
+            ],
+        },
         {
             version: "8.1.2",
             changes: [
