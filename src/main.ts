@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.2";
-const SAL_VERSION  = 69;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 70;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -53,6 +53,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "PiShock proxy fix: add Deno.createHttpClient({ http2: false }) to force HTTP/1.1 - PiShock's server advertises HTTP/2 via ALPN but drops the streams immediately, causing 'http2 error: unspecific protocol error'. HTTP/1.1 bypasses this.",
             "PiShock proxy diagnostic: remove trailing slash from apioperate URL, add Accept header, re-add GET diagnostic (getCheck) to tell if the route exists (405 = exists POST-only, 404 = route gone).",
             "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/ApiOperate (PascalCase matching Swagger route pattern /Api/GetLastLogs).",
+            "PiShock API migration: do.pishock.com Legacy API Swagger confirms apioperate endpoint is completely absent - removed from server. Full Swagger probe revealed new 'PiShock Public API v1' at api.pishock.com. Updated proxy code: now POSTs to api.pishock.com/Shockers/{Code} with X-PiShock-Api-Key + X-PiShock-Username headers (auth moved from body to headers), Duration converted from seconds to milliseconds (new API requirement), Op renamed to Operation.",
         ],
     },
     {
