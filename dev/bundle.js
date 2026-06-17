@@ -30500,7 +30500,8 @@
                         while (trustListEl.firstChild)
                             trustListEl.removeChild(trustListEl.firstChild);
                         const wl = EBCDrawer.getPsWhitelist();
-                        if (!wl.length) {
+                        const tmp = EBCDrawer._psTempWhitelist;
+                        if (!wl.length && !tmp.length) {
                             const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
                             none.textContent = "No trusted senders yet.";
                             trustListEl.appendChild(none);
@@ -30515,47 +30516,92 @@
                             row.appendChild(rmBtn);
                             trustListEl.appendChild(row);
                         });
+                        tmp.forEach((entry, i) => {
+                            const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                            const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                            lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                            const tag = mk("span", `${FONT}font-size:9px;color:#c8a030;border:1px solid #a07020;border-radius:3px;padding:0 4px;white-space:nowrap;`);
+                            tag.textContent = "session";
+                            const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                            rmBtn.addEventListener("click", () => { EBCDrawer._psTempWhitelist.splice(i, 1); renderTrustList(); });
+                            row.appendChild(lbl);
+                            row.appendChild(tag);
+                            row.appendChild(rmBtn);
+                            trustListEl.appendChild(row);
+                        });
                     };
                     renderTrustList();
                     psContent.appendChild(trustListEl);
-                    const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
-                    const trustNumInp = document.createElement("input");
-                    trustNumInp.type = "number";
-                    trustNumInp.placeholder = "Member #";
-                    trustNumInp.style.cssText = `${FONT}width:90px;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                    const trustNameInp = document.createElement("input");
-                    trustNameInp.type = "text";
-                    trustNameInp.placeholder = "Name (optional)";
-                    trustNameInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                    // Populate name from room characters when member # is typed
-                    trustNumInp.addEventListener("input", () => {
+                    // Room character dropdown + Add / Add Temp buttons
+                    const getRoomChars = () => {
+                        const rc = window["ChatRoomCharacter"];
+                        if (!Array.isArray(rc))
+                            return [];
+                        return rc
+                            .filter(c => c.MemberNumber != null && c.MemberNumber !== Player.MemberNumber)
+                            .map(c => { var _a; return ({ memberNumber: c.MemberNumber, name: ((_a = c.Nickname) !== null && _a !== void 0 ? _a : "").trim() || c.Name || String(c.MemberNumber) }); })
+                            .sort((a, b) => a.name.localeCompare(b.name));
+                    };
+                    const trustSel = document.createElement("select");
+                    trustSel.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;cursor:pointer;`;
+                    const rebuildTrustSel = () => {
+                        while (trustSel.firstChild)
+                            trustSel.removeChild(trustSel.firstChild);
+                        const chars = getRoomChars();
+                        const placeholder = document.createElement("option");
+                        placeholder.value = "";
+                        placeholder.textContent = chars.length ? "Select from room..." : "No one else in room";
+                        placeholder.disabled = true;
+                        placeholder.selected = true;
+                        trustSel.appendChild(placeholder);
+                        chars.forEach(c => {
+                            const opt = document.createElement("option");
+                            opt.value = String(c.memberNumber);
+                            opt.textContent = `${c.name} (#${c.memberNumber})`;
+                            trustSel.appendChild(opt);
+                        });
+                    };
+                    rebuildTrustSel();
+                    // Refresh dropdown when user opens it
+                    trustSel.addEventListener("mousedown", () => { rebuildTrustSel(); });
+                    const getSelChar = () => {
                         var _a;
-                        const num = parseInt(trustNumInp.value);
-                        if (!isNaN(num)) {
-                            const roomChars = window["ChatRoomCharacter"];
-                            const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
-                            if (found)
-                                trustNameInp.value = ((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || "";
-                        }
-                    });
+                        const num = parseInt(trustSel.value);
+                        if (isNaN(num))
+                            return null;
+                        const chars = getRoomChars();
+                        return (_a = chars.find(c => c.memberNumber === num)) !== null && _a !== void 0 ? _a : { memberNumber: num, name: String(num) };
+                    };
                     const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                    addTrustBtn.title = "Add permanently (saved across sessions)";
                     addTrustBtn.addEventListener("click", () => {
-                        const num = parseInt(trustNumInp.value);
-                        if (isNaN(num) || num <= 0)
+                        const c = getSelChar();
+                        if (!c)
                             return;
-                        const name = (trustNameInp.value).trim();
                         const arr = EBCDrawer.getPsWhitelist();
-                        if (!arr.some(e => e.memberNumber === num)) {
-                            arr.push({ memberNumber: num, name });
+                        if (!arr.some(e => e.memberNumber === c.memberNumber)) {
+                            arr.push(c);
                             EBCDrawer.savePsWhitelist(arr);
                         }
-                        trustNumInp.value = "";
-                        trustNameInp.value = "";
+                        trustSel.value = "";
                         renderTrustList();
                     });
-                    addTrustRow.appendChild(trustNumInp);
-                    addTrustRow.appendChild(trustNameInp);
+                    const addTempBtn = mkBtn("Temp", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #a07020;background:transparent;color:#c8a030;`);
+                    addTempBtn.title = "Add for this session only (not saved, clears on reload)";
+                    addTempBtn.addEventListener("click", () => {
+                        const c = getSelChar();
+                        if (!c)
+                            return;
+                        const tmp = EBCDrawer._psTempWhitelist;
+                        if (!tmp.some(e => e.memberNumber === c.memberNumber))
+                            tmp.push(c);
+                        trustSel.value = "";
+                        renderTrustList();
+                    });
+                    const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                    addTrustRow.appendChild(trustSel);
                     addTrustRow.appendChild(addTrustBtn);
+                    addTrustRow.appendChild(addTempBtn);
                     psContent.appendChild(addTrustRow);
                     // ── Shockers ──────────────────────────────────────────────────────
                     psContent.appendChild(sep());
@@ -31362,7 +31408,7 @@
                     return;
                 const shockers = EBCDrawer.getPsShockers();
                 const levels = EBCDrawer.getPsLevels();
-                const whitelist = EBCDrawer.getPsWhitelist();
+                const whitelist = [...EBCDrawer.getPsWhitelist(), ...EBCDrawer._psTempWhitelist];
                 shockers.forEach((sh, idx) => {
                     if (sh.whitelistOnly === true) {
                         if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum))
@@ -33869,6 +33915,7 @@
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    EBCDrawer._psTempWhitelist = [];
 
     // Character bundle storage — session-memory only.
     // Dexie/IndexedDB was removed because Chrome's IDB implementation
@@ -33931,7 +33978,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 86; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 87; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
