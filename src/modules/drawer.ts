@@ -23350,6 +23350,7 @@ export class EBCDrawer {
         overlay.id = "ebc-pishock-setup-overlay";
 
         const card = mk("div", `${FONT}width:min(480px,94vw);max-height:90vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:24px 26px 20px;box-shadow:0 16px 50px rgba(0,0,0,0.65);`);
+        card.id = "ebc-pishock-setup-card";
         overlay.appendChild(card);
 
         // Accent bar
@@ -23432,7 +23433,11 @@ export class EBCDrawer {
         doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
         doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
 
-        const close = (): void => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+        const sbStyle = document.createElement("style");
+        sbStyle.textContent = `#ebc-pishock-setup-card::-webkit-scrollbar{width:5px}#ebc-pishock-setup-card::-webkit-scrollbar-track{background:transparent}#ebc-pishock-setup-card::-webkit-scrollbar-thumb{background:#5a3a7a;border-radius:3px}#ebc-pishock-setup-card::-webkit-scrollbar-thumb:hover{background:#8060b0}`;
+        document.head.appendChild(sbStyle);
+
+        const close = (): void => { if (document.body.contains(overlay)) document.body.removeChild(overlay); sbStyle.remove(); };
         doneBtn.addEventListener("click", close);
         overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
         card.appendChild(doneBtn);
