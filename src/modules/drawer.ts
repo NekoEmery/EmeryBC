@@ -22482,13 +22482,13 @@ export class EBCDrawer {
                             const u = localStorage.getItem("EBC_ps_user")?.trim() ?? "";
                             const k = localStorage.getItem("EBC_ps_key")?.trim() ?? "";
                             if (!u || !k || !sh.code) { showPsStatus("missing-creds"); return; }
-                            const payload = { Username: u, apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
-                            console.log("[EBC PiShock] DIRECT test payload:", { ...payload, apikey: k.slice(0, 4) + "****" });
+                            const payload = { Username: u, APIKey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                            console.log("[EBC PiShock] DIRECT test payload:", { ...payload, APIKey: k.slice(0, 4) + "****" });
                             console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
                             psStatusEl.style.color = "var(--ebc-text-muted)";
                             psStatusEl.textContent = "Direct request sent - check F12 Network tab";
                             psStatusEl.style.display = "block";
-                            fetch("https://do.pishock.com/api/apioperate", {
+                            fetch("https://do.pishock.com/api/apioperate/", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify(payload),
@@ -22935,8 +22935,8 @@ export class EBCDrawer {
                 intensity = Math.min(intensity, sh.maxInt ?? 100);
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
-            const payload = { Username: username, apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
-            console.log("[EBC PiShock] sending payload:", { ...payload, apikey: apikey.slice(0, 4) + "****" });
+            const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            console.log("[EBC PiShock] sending payload:", { ...payload, APIKey: apikey.slice(0, 4) + "****" });
             if (proxyUrl) {
                 // Proxy path - can read response
                 const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
@@ -22949,7 +22949,7 @@ export class EBCDrawer {
             } else {
                 // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
                 // text/plain avoids preflight; response is opaque so we fire-and-forget
-                await fetch("https://do.pishock.com/api/apioperate", {
+                await fetch("https://do.pishock.com/api/apioperate/", {
                     method: "POST",
                     mode: "no-cors",
                     headers: { "Content-Type": "text/plain" },
@@ -23487,7 +23487,7 @@ export class EBCDrawer {
             `      const body = await request.json();`,
             `      if (body._ping)`,
             `        return new Response("pong", { headers: cors });`,
-            `      const PS_URL = "https://do.pishock.com/api/apioperate";`,
+            `      const PS_URL = "https://do.pishock.com/api/apioperate/";`,
             `      const psHeaders = {`,
             `        "Content-Type": "application/json",`,
             `        "Origin": "https://pishock.com",`,
