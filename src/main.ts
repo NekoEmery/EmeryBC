@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.5";
-const SAL_VERSION  = 92;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 93;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +48,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
             "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
             "Active Curses pause picker now has d/h/m/s custom inputs alongside the preset chips - type any combination and hit the play button to send a custom pause duration.",
+            "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
         ],
     },
     {
@@ -7674,6 +7675,21 @@ function init(): void {
         try {
             const expiry = getCurseExpiry();
             if (expiry !== null && Date.now() >= expiry && getCursedGroups().size > 0) {
+                // Push current appearance for every cursed slot BEFORE clearing the curse data.
+                // This ensures any in-flight server removal that arrives after the clear cannot
+                // win a race against a stale empty-slot state; the server gets our latest truth first.
+                const w = window as unknown as Record<string, unknown>;
+                const itemUpdateFn = w.ChatRoomCharacterItemUpdate as ((c: Character, g: string) => void) | undefined;
+                if (itemUpdateFn) {
+                    for (const g of getCursedGroups()) {
+                        const slotItem = (Player.Appearance ?? []).find(
+                            (a) => a.Asset?.Group?.Name === g
+                        );
+                        if (slotItem) {
+                            try { itemUpdateFn(Player, g); } catch { /* ignore */ }
+                        }
+                    }
+                }
                 handleCurseCommand("[EBC-CURSE:clear]");
                 appendLocalLogLine("[EBC] ⏰ Timed curse expired - curses lifted automatically.", UI.textMuted);
             }
@@ -7710,12 +7726,17 @@ function init(): void {
                 const cursed = getCursedGroups();
                 if (cursed.has(group) && !isCursePaused(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
-                    // Send correction: our item is still here, push it back to the server
-                    const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
-                        ((c: Character, g: string) => void) | undefined;
-                    window.setTimeout(() => {
-                        try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
-                    }, 0);
+                    // Send correction only if the item is actually present in our appearance;
+                    // calling ChatRoomCharacterItemUpdate on an empty slot sends Name:undefined
+                    // which would itself become a removal broadcast.
+                    const slotItem = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                    if (slotItem) {
+                        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+                            ((c: Character, g: string) => void) | undefined;
+                        window.setTimeout(() => {
+                            try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
+                        }, 0);
+                    }
                     return; // block the removal sync
                 }
             }
