@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.2
+// @version      8.2.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28810,7 +28810,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         renderToys() {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -30324,6 +30324,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return inp;
                     };
                     const psRow = (gap = "6px") => mk("div", `display:flex;align-items:center;gap:${gap};margin-bottom:6px;`);
+                    const DEVICE_TYPES = ["Collar", "Chastity", "Prongs", "Clamps", "Plug", "Custom"];
                     // ── Safety warning ────────────────────────────────────────────────
                     const warnBox = mk("div", `${FONT}background:rgba(180,40,40,0.13);border:1.5px solid #a03030;border-radius:8px;padding:10px 12px;margin-bottom:10px;`);
                     const warnTitle = mk("div", `${FONT}font-size:11px;font-weight:bold;color:#e07070;margin-bottom:5px;letter-spacing:0.3px;`);
@@ -30333,13 +30334,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     warnBox.appendChild(warnTitle);
                     warnBox.appendChild(warnText);
                     psContent.appendChild(warnBox);
-                    // ── Proxy URL ─────────────────────────────────────────────────────
-                    psContent.appendChild(psHdr("Proxy URL (optional)"));
+                    // ── Connection (collapsible) ───────────────────────────────────────
+                    const connHasCreds = !!(((_f = localStorage.getItem("EBC_ps_user")) === null || _f === void 0 ? void 0 : _f.trim()) && ((_g = localStorage.getItem("EBC_ps_key")) === null || _g === void 0 ? void 0 : _g.trim()));
+                    const connBox = mk("div", "border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:8px;overflow:hidden;");
+                    const connHdr = mk("div", `${FONT}display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;user-select:none;background:var(--ebc-bg-darker);`);
+                    const connHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;text-transform:uppercase;color:${connHasCreds ? "#70c080" : "#e07070"};`);
+                    connHdrLbl.textContent = connHasCreds ? "✓ Connection" : "Connection - not set up";
+                    const connArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);`);
+                    const connOpen = !connHasCreds;
+                    connArrow.textContent = connOpen ? "▼" : "▶";
+                    connHdr.appendChild(connHdrLbl);
+                    connHdr.appendChild(connArrow);
+                    const connBody = mk("div", `padding:8px 10px;${connOpen ? "" : "display:none;"}`);
+                    connHdr.addEventListener("click", () => {
+                        const open = connBody.style.display !== "none";
+                        connBody.style.display = open ? "none" : "block";
+                        connArrow.textContent = open ? "▶" : "▼";
+                    });
+                    connBox.appendChild(connHdr);
+                    connBox.appendChild(connBody);
+                    // Proxy URL
+                    const proxySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                    proxySubLbl.textContent = "Proxy URL (optional)";
+                    connBody.appendChild(proxySubLbl);
                     const proxyOptNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:4px;`);
-                    proxyOptNote.textContent = "Leave blank to send directly from your browser (recommended). Only needed if direct mode stops working.";
-                    psContent.appendChild(proxyOptNote);
+                    proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
+                    connBody.appendChild(proxyOptNote);
                     const proxyRow = psRow();
-                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_f = localStorage.getItem("EBC_ps_proxy")) !== null && _f !== void 0 ? _f : "");
+                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_h = localStorage.getItem("EBC_ps_proxy")) !== null && _h !== void 0 ? _h : "");
                     proxyInp.style.flex = "1";
                     proxyInp.addEventListener("input", () => { try {
                         localStorage.setItem("EBC_ps_proxy", proxyInp.value.trim());
@@ -30359,39 +30381,163 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     proxyRow.appendChild(proxyInp);
                     proxyRow.appendChild(proxyTestBtn);
-                    psContent.appendChild(proxyRow);
-                    const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:11px;font-weight:bold;padding:5px 0;width:100%;border-radius:6px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;margin-bottom:4px;`);
+                    connBody.appendChild(proxyRow);
+                    const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:11px;font-weight:bold;padding:5px 0;width:100%;border-radius:6px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;margin-bottom:8px;`);
                     setupBtn.addEventListener("mouseenter", () => { setupBtn.style.background = "rgba(90,40,110,0.32)"; setupBtn.style.borderColor = "#8060a0"; });
                     setupBtn.addEventListener("mouseleave", () => { setupBtn.style.background = "rgba(90,40,110,0.18)"; setupBtn.style.borderColor = "#5a4070"; });
                     setupBtn.addEventListener("click", () => { this._openPiShockSetupModal(); });
-                    psContent.appendChild(setupBtn);
-                    // ── Credentials ───────────────────────────────────────────────────
-                    psContent.appendChild(psHdr("Credentials"));
-                    const userInp = psInp("PiShock username (pishock.com login name)", (_g = localStorage.getItem("EBC_ps_user")) !== null && _g !== void 0 ? _g : "");
+                    connBody.appendChild(setupBtn);
+                    // Username
+                    const userSubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                    userSubLbl.textContent = "Username";
+                    connBody.appendChild(userSubLbl);
+                    const userInp = psInp("PiShock username (pishock.com login name)", (_j = localStorage.getItem("EBC_ps_user")) !== null && _j !== void 0 ? _j : "");
                     userInp.style.marginBottom = "2px";
-                    userInp.addEventListener("input", () => { try {
-                        localStorage.setItem("EBC_ps_user", userInp.value.trim());
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                    psContent.appendChild(userInp);
-                    const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:5px;`);
+                    userInp.addEventListener("input", () => {
+                        var _a;
+                        try {
+                            localStorage.setItem("EBC_ps_user", userInp.value.trim());
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                        const ok = !!((userInp.value.trim()) && ((_a = localStorage.getItem("EBC_ps_key")) === null || _a === void 0 ? void 0 : _a.trim()));
+                        connHdrLbl.textContent = ok ? "✓ Connection" : "Connection - not set up";
+                        connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
+                    });
+                    connBody.appendChild(userInp);
+                    const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:6px;`);
                     userHint.textContent = "Your pishock.com account name - not your BC name";
-                    psContent.appendChild(userHint);
+                    connBody.appendChild(userHint);
+                    // API key
+                    const keySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                    keySubLbl.textContent = "API Key";
+                    connBody.appendChild(keySubLbl);
                     const keyRow = psRow();
-                    const keyInp = psInp("API key", (_h = localStorage.getItem("EBC_ps_key")) !== null && _h !== void 0 ? _h : "", true);
+                    const keyInp = psInp("API key", (_k = localStorage.getItem("EBC_ps_key")) !== null && _k !== void 0 ? _k : "", true);
                     keyInp.style.flex = "1";
-                    keyInp.addEventListener("input", () => { try {
-                        localStorage.setItem("EBC_ps_key", keyInp.value.trim());
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
+                    keyInp.addEventListener("input", () => {
+                        var _a;
+                        try {
+                            localStorage.setItem("EBC_ps_key", keyInp.value.trim());
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                        const ok = !!(((_a = localStorage.getItem("EBC_ps_user")) === null || _a === void 0 ? void 0 : _a.trim()) && (keyInp.value.trim()));
+                        connHdrLbl.textContent = ok ? "✓ Connection" : "Connection - not set up";
+                        connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
+                    });
                     const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
                     eyeBtn.addEventListener("click", () => { keyInp.type = keyInp.type === "password" ? "text" : "password"; });
                     keyRow.appendChild(keyInp);
                     keyRow.appendChild(eyeBtn);
-                    psContent.appendChild(keyRow);
-                    const keyHint = mk("div", `${FONT}font-size:9.5px;color:var(--ebc-text-muted);margin:-2px 0 6px;`);
+                    connBody.appendChild(keyRow);
+                    const keyHint = mk("div", `${FONT}font-size:9.5px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
                     keyHint.textContent = "API key from pishock.com/Account - not your login password";
-                    psContent.appendChild(keyHint);
+                    connBody.appendChild(keyHint);
+                    psContent.appendChild(connBox);
+                    // ── Global safety cap ─────────────────────────────────────────────
+                    psContent.appendChild(psHdr("Global Safety Cap"));
+                    const capNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    capNote.textContent = "Hard ceiling applied to every shock regardless of source.";
+                    psContent.appendChild(capNote);
+                    const gCap = EBCDrawer.getPsGlobal();
+                    const capRow = psRow("12px");
+                    const mkCapField = (label, key, min, max, suffix) => {
+                        const w = mk("div", "display:flex;align-items:center;gap:5px;");
+                        const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
+                        lbl.textContent = label;
+                        const inp = document.createElement("input");
+                        inp.type = "number";
+                        inp.min = String(min);
+                        inp.max = String(max);
+                        inp.value = String(gCap[key]);
+                        inp.style.cssText = `${FONT}width:50px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                        const sfx = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                        sfx.textContent = suffix;
+                        inp.addEventListener("input", () => { const g = EBCDrawer.getPsGlobal(); g[key] = Math.min(max, Math.max(min, parseInt(inp.value) || min)); EBCDrawer.savePsGlobal(g); });
+                        w.appendChild(lbl);
+                        w.appendChild(inp);
+                        w.appendChild(sfx);
+                        return w;
+                    };
+                    capRow.appendChild(mkCapField("Max intensity:", "maxInt", 1, 100, "%"));
+                    capRow.appendChild(mkCapField("Max duration:", "maxDur", 1, 15, "s"));
+                    psContent.appendChild(capRow);
+                    // ── Pre-shock warning chain ────────────────────────────────────────
+                    psContent.appendChild(sep());
+                    psContent.appendChild(psHdr("Pre-Shock Warning"));
+                    const warnChainNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    warnChainNote.textContent = "Fire these automatically before every shock (1s gap each).";
+                    psContent.appendChild(warnChainNote);
+                    const psWarnCfg = EBCDrawer.getPsWarn();
+                    const warnRow = psRow("6px");
+                    const mkWarnToggle = (label, key) => {
+                        const on = psWarnCfg[key];
+                        const b = mkBtn(label, `${FONT}font-size:11px;padding:4px 12px;border-radius:5px;cursor:pointer;border:1px solid ${on ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${on ? "var(--ebc-card)" : "transparent"};color:${on ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                        b.addEventListener("click", () => {
+                            const w = EBCDrawer.getPsWarn();
+                            w[key] = !w[key];
+                            EBCDrawer.savePsWarn(w);
+                            b.style.borderColor = w[key] ? "var(--ebc-accent)" : "var(--ebc-border)";
+                            b.style.background = w[key] ? "var(--ebc-card)" : "transparent";
+                            b.style.color = w[key] ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+                        });
+                        return b;
+                    };
+                    warnRow.appendChild(mkWarnToggle("🔔 Beep first", "preBeep"));
+                    warnRow.appendChild(mkWarnToggle("〜 Vibrate first", "preVib"));
+                    psContent.appendChild(warnRow);
+                    // ── Intensity levels ──────────────────────────────────────────────
+                    psContent.appendChild(sep());
+                    psContent.appendChild(psHdr("Intensity Levels"));
+                    const levelsNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 7px;`);
+                    levelsNote.textContent = "Customize each level - name, intensity, and duration. Used by shockers and triggers.";
+                    psContent.appendChild(levelsNote);
+                    const levelColors = [
+                        { bg: "rgba(40,160,80,0.12)", border: "rgba(40,160,80,0.4)", nameColor: "#4daa60", valColor: "#2d8040" },
+                        { bg: "rgba(200,160,40,0.12)", border: "rgba(200,160,40,0.4)", nameColor: "#b89028", valColor: "#907010" },
+                        { bg: "rgba(200,90,30,0.12)", border: "rgba(200,90,30,0.4)", nameColor: "#c06020", valColor: "#904010" },
+                        { bg: "rgba(180,40,40,0.14)", border: "#5a2828", nameColor: "#c05050", valColor: "#a03030" },
+                    ];
+                    const levelsGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;");
+                    const renderLevels = () => {
+                        while (levelsGrid.firstChild)
+                            levelsGrid.removeChild(levelsGrid.firstChild);
+                        const levels = EBCDrawer.getPsLevels();
+                        levels.forEach((lv, i) => {
+                            const col = levelColors[i];
+                            const lvCard = mk("div", `background:${col.bg};border:1.5px solid ${col.border};border-radius:8px;padding:8px 9px;`);
+                            const nameInp = document.createElement("input");
+                            nameInp.type = "text";
+                            nameInp.value = lv.name;
+                            nameInp.style.cssText = `${FONT}width:100%;box-sizing:border-box;font-size:12px;font-weight:bold;padding:3px 5px;background:transparent;border:none;border-bottom:1px solid ${col.border};color:${col.nameColor};margin-bottom:6px;outline:none;`;
+                            nameInp.addEventListener("input", () => { const lvs = EBCDrawer.getPsLevels(); lvs[i].name = nameInp.value; EBCDrawer.savePsLevels(lvs); });
+                            lvCard.appendChild(nameInp);
+                            const mkLvField = (label, field, min, max, suffix) => {
+                                const row = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;");
+                                const lbl = mk("span", `${FONT}font-size:9px;color:${col.valColor};`);
+                                lbl.textContent = label;
+                                const right = mk("div", "display:flex;align-items:center;gap:2px;");
+                                const inp = document.createElement("input");
+                                inp.type = "number";
+                                inp.min = String(min);
+                                inp.max = String(max);
+                                inp.value = String(lv[field]);
+                                inp.style.cssText = `${FONT}width:40px;font-size:11px;padding:2px 4px;background:rgba(0,0,0,0.2);border:1px solid ${col.border};color:${col.nameColor};border-radius:3px;text-align:center;`;
+                                inp.addEventListener("input", () => { const lvs = EBCDrawer.getPsLevels(); lvs[i][field] = Math.min(max, Math.max(min, parseInt(inp.value) || min)); EBCDrawer.savePsLevels(lvs); });
+                                const sfx = mk("span", `${FONT}font-size:9px;color:${col.valColor};`);
+                                sfx.textContent = suffix;
+                                right.appendChild(inp);
+                                right.appendChild(sfx);
+                                row.appendChild(lbl);
+                                row.appendChild(right);
+                                return row;
+                            };
+                            lvCard.appendChild(mkLvField("Intensity", "intensity", 1, 100, "%"));
+                            lvCard.appendChild(mkLvField("Duration", "duration", 1, 15, "s"));
+                            levelsGrid.appendChild(lvCard);
+                        });
+                    };
+                    renderLevels();
+                    psContent.appendChild(levelsGrid);
                     // ── Shockers ──────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Shockers"));
@@ -30409,6 +30555,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         shockers.forEach((sh, idx) => {
                             var _a;
                             const shCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
+                            // Device type chips
+                            const dtRow = mk("div", "display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;");
+                            DEVICE_TYPES.forEach(dt => {
+                                var _a;
+                                const active = ((_a = sh.deviceType) !== null && _a !== void 0 ? _a : "Collar") === dt;
+                                const chip = mkBtn(dt, `${FONT}font-size:10px;padding:2px 7px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "var(--ebc-card)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                                chip.addEventListener("click", () => {
+                                    const arr = EBCDrawer.getPsShockers();
+                                    arr[idx].deviceType = dt;
+                                    EBCDrawer.savePsShockers(arr);
+                                    renderShockers();
+                                });
+                                dtRow.appendChild(chip);
+                            });
+                            shCard.appendChild(dtRow);
                             // Name + share code row
                             const r1 = psRow();
                             const nameInp = psInp("Name", sh.name);
@@ -30419,7 +30580,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             codeInp.addEventListener("input", () => {
                                 var _a;
                                 let v = codeInp.value.trim();
-                                // Strip full share URLs down to just the code
                                 const m = (_a = v.match(/[?&]sharecode=([^&]+)/i)) !== null && _a !== void 0 ? _a : v.match(/Control\?([A-Za-z0-9]+)/i);
                                 if (m) {
                                     v = m[1];
@@ -30450,10 +30610,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             allowRow.appendChild(mkAllow("Vib", "allowVib"));
                             allowRow.appendChild(mkAllow("Shock", "allowShock"));
                             shCard.appendChild(allowRow);
-                            // Max intensity + duration
+                            // Per-shocker cap
                             const limRow = psRow();
                             limRow.style.marginBottom = "6px";
-                            const mkLim = (label, key, min, max) => {
+                            const mkLim = (label, key, min, max, suffix) => {
                                 var _a;
                                 const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
                                 const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
@@ -30465,12 +30625,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 inp.value = String((_a = sh[key]) !== null && _a !== void 0 ? _a : max);
                                 inp.style.cssText = `${FONT}width:44px;font-size:11px;padding:3px 4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
                                 inp.addEventListener("input", () => { shockers[idx][key] = Math.min(max, Math.max(min, parseInt(inp.value) || min)); EBCDrawer.savePsShockers(shockers); });
+                                const sfx = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);`);
+                                sfx.textContent = suffix;
                                 wrap.appendChild(lbl);
                                 wrap.appendChild(inp);
+                                wrap.appendChild(sfx);
                                 return wrap;
                             };
-                            limRow.appendChild(mkLim("Max Int:", "maxInt", 1, 100));
-                            limRow.appendChild(mkLim("Max Dur:", "maxDur", 1, 15));
+                            limRow.appendChild(mkLim("Cap int:", "maxInt", 1, 100, "%"));
+                            limRow.appendChild(mkLim("Cap dur:", "maxDur", 1, 15, "s"));
                             shCard.appendChild(limRow);
                             const shBcEvents = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
                             const evHdr = mk("div", "display:flex;align-items:center;gap:4px;cursor:pointer;margin:4px 0 3px;user-select:none;");
@@ -30508,25 +30671,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     ["auto", "beep", "vib", "shock"].forEach(v => { var _a; const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === ((_a = ev.op) !== null && _a !== void 0 ? _a : "auto"))
                                         o.selected = true; opSel.appendChild(o); });
                                     opSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { op: opSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                    const mkEvNum = (label, field, max) => {
-                                        var _a;
-                                        const w = mk("div", "display:flex;align-items:center;gap:3px;");
-                                        const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                                        l.textContent = label;
-                                        const n = document.createElement("input");
-                                        n.type = "number";
-                                        n.min = "1";
-                                        n.max = String(max);
-                                        n.value = String((_a = ev[field]) !== null && _a !== void 0 ? _a : (field === "intensity" ? 20 : 1));
-                                        n.style.cssText = `${FONT}width:36px;font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
-                                        n.addEventListener("input", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { [field]: Math.min(max, Math.max(1, parseInt(n.value) || 1)) }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                        w.appendChild(l);
-                                        w.appendChild(n);
-                                        return w;
-                                    };
                                     evRow.appendChild(opSel);
-                                    evRow.appendChild(mkEvNum("Int:", "intensity", 100));
-                                    evRow.appendChild(mkEvNum("Dur:", "duration", 15));
+                                    const evLvSel = document.createElement("select");
+                                    evLvSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                    const evLvs = EBCDrawer.getPsLevels();
+                                    evLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = ev.levelName) !== null && _a !== void 0 ? _a : evLvs[0].name))
+                                        o.selected = true; evLvSel.appendChild(o); });
+                                    evLvSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { levelName: evLvSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
+                                    evRow.appendChild(evLvSel);
                                 }
                                 evBody.appendChild(evRow);
                             });
@@ -30556,14 +30708,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             testRow.appendChild(testLbl);
                             const mkTest = (label, op) => {
                                 const b = mkBtn(label, `${FONT}font-size:10px;padding:2px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);`);
-                                b.addEventListener("click", async () => {
-                                    var _a;
-                                    b.textContent = "...";
-                                    psStatusEl.style.display = "none";
-                                    const result = await this.firePiShock(idx, op, Math.min((_a = sh.maxInt) !== null && _a !== void 0 ? _a : 10, 10), 1, true);
-                                    b.textContent = label;
-                                    showPsStatus(result);
-                                });
+                                b.addEventListener("click", async () => { var _a; b.textContent = "..."; psStatusEl.style.display = "none"; const result = await this.firePiShock(idx, op, Math.min((_a = sh.maxInt) !== null && _a !== void 0 ? _a : 10, 10), 1, true); b.textContent = label; showPsStatus(result); });
                                 return b;
                             };
                             testRow.appendChild(mkTest("🔔 Beep", 2));
@@ -30580,45 +30725,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 showPsStatus(result);
                             });
                             testRow.appendChild(shockTestBtn);
-                            // Direct bypass test - fires straight at PiShock, no proxy
-                            const directTestRow = psRow("3px");
-                            const directBtn = mkBtn("🔍 Direct (no proxy)", `${FONT}font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px dashed var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
-                            directBtn.title = "Send beep directly to PiShock bypassing the Cloudflare proxy - check F12 Network tab for result";
-                            directBtn.addEventListener("click", () => {
-                                var _a, _b, _c, _d;
-                                const u = (_b = (_a = localStorage.getItem("EBC_ps_user")) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
-                                const k = (_d = (_c = localStorage.getItem("EBC_ps_key")) === null || _c === void 0 ? void 0 : _c.trim()) !== null && _d !== void 0 ? _d : "";
-                                if (!u || !k || !sh.code) {
-                                    showPsStatus("missing-creds");
-                                    return;
-                                }
-                                const payload = { Username: u, APIKey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
-                                console.log("[EBC PiShock] DIRECT test payload:", Object.assign(Object.assign({}, payload), { APIKey: k.slice(0, 4) + "****" }));
-                                console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
-                                psStatusEl.style.color = "var(--ebc-text-muted)";
-                                psStatusEl.textContent = "Direct request sent - check F12 Network tab";
-                                psStatusEl.style.display = "block";
-                                fetch("https://do.pishock.com/api/apioperate/", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify(payload),
-                                }).then(r => {
-                                    console.log(`[EBC PiShock] Direct response: HTTP ${r.status} | url: ${r.url}`);
-                                    return r.text().then(t => {
-                                        console.log("[EBC PiShock] Direct body:", t || "(empty)");
-                                        psStatusEl.textContent = `Direct: HTTP ${r.status} - ${t || "(empty)"}`;
-                                        psStatusEl.style.color = t.toLowerCase().includes("success") ? "#70c080" : "#e07070";
-                                    });
-                                }).catch((e) => {
-                                    const msg = e instanceof Error ? e.message : String(e);
-                                    console.log("[EBC PiShock] Direct request error (CORS expected if BC blocks it):", msg);
-                                    psStatusEl.textContent = `Direct error: ${msg}`;
-                                });
-                            });
-                            directTestRow.appendChild(directBtn);
                             shCard.appendChild(psStatusEl);
                             shCard.appendChild(testRow);
-                            shCard.appendChild(directTestRow);
                             shockerListEl.appendChild(shCard);
                         });
                     };
@@ -30641,6 +30749,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             trigListEl.removeChild(trigListEl.firstChild);
                         const trigs = EBCDrawer.getPsTriggers();
                         const shNames = EBCDrawer.getPsShockers().map((s, i) => s.name || `Shocker ${i + 1}`);
+                        const trigLvs = EBCDrawer.getPsLevels();
                         if (!trigs.length) {
                             const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
                             empty.textContent = "No triggers set up yet.";
@@ -30677,31 +30786,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             r1.appendChild(opSel);
                             r1.appendChild(rmBtn);
                             tCard.appendChild(r1);
-                            // Optional intensity + duration overrides
-                            const r2 = psRow();
-                            const mkOvr = (label, key, max) => {
-                                const w = mk("div", "display:flex;align-items:center;gap:4px;");
-                                const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
-                                lbl.textContent = label;
-                                const inp = document.createElement("input");
-                                inp.type = "number";
-                                inp.min = "1";
-                                inp.max = String(max);
-                                inp.value = tr[key] !== undefined ? String(tr[key]) : "";
-                                inp.placeholder = "default";
-                                inp.style.cssText = `${FONT}width:52px;font-size:11px;padding:3px 4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
-                                inp.addEventListener("input", () => {
-                                    const n = parseInt(inp.value);
-                                    trigs[idx][key] = isNaN(n) ? undefined : Math.min(max, Math.max(1, n));
-                                    EBCDrawer.savePsTriggers(trigs);
-                                });
-                                w.appendChild(lbl);
-                                w.appendChild(inp);
-                                return w;
-                            };
-                            r2.appendChild(mkOvr("Int:", "intensity", 100));
-                            r2.appendChild(mkOvr("Dur:", "duration", 15));
-                            tCard.appendChild(r2);
+                            // Level picker
+                            const lvRow = psRow("6px");
+                            const lvLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
+                            lvLbl.textContent = "Level:";
+                            const lvSel = document.createElement("select");
+                            lvSel.style.cssText = GTSel + "flex:1;";
+                            trigLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = tr.levelName) !== null && _a !== void 0 ? _a : trigLvs[0].name))
+                                o.selected = true; lvSel.appendChild(o); });
+                            lvSel.addEventListener("change", () => { trigs[idx].levelName = lvSel.value; EBCDrawer.savePsTriggers(trigs); });
+                            lvRow.appendChild(lvLbl);
+                            lvRow.appendChild(lvSel);
+                            tCard.appendChild(lvRow);
                             trigListEl.appendChild(tCard);
                         });
                     };
@@ -31083,6 +31179,60 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        static getPsLevels() {
+            var _a;
+            const defaults = [
+                { name: "Low", intensity: 10, duration: 1 },
+                { name: "Medium", intensity: 30, duration: 2 },
+                { name: "High", intensity: 60, duration: 3 },
+                { name: "Max", intensity: 100, duration: 5 },
+            ];
+            try {
+                const s = JSON.parse((_a = localStorage.getItem("EBC_ps_levels")) !== null && _a !== void 0 ? _a : "null");
+                if (Array.isArray(s) && s.length === 4)
+                    return s;
+            }
+            catch (_b) { }
+            return defaults;
+        }
+        static savePsLevels(arr) {
+            try {
+                localStorage.setItem("EBC_ps_levels", JSON.stringify(arr));
+            }
+            catch (_a) { }
+        }
+        static getPsWarn() {
+            var _a;
+            try {
+                const s = JSON.parse((_a = localStorage.getItem("EBC_ps_warn")) !== null && _a !== void 0 ? _a : "null");
+                if (s && typeof s === "object")
+                    return s;
+            }
+            catch (_b) { }
+            return { preBeep: false, preVib: false };
+        }
+        static savePsWarn(w) {
+            try {
+                localStorage.setItem("EBC_ps_warn", JSON.stringify(w));
+            }
+            catch (_a) { }
+        }
+        static getPsGlobal() {
+            var _a;
+            try {
+                const s = JSON.parse((_a = localStorage.getItem("EBC_ps_global")) !== null && _a !== void 0 ? _a : "null");
+                if (s && typeof s === "object")
+                    return s;
+            }
+            catch (_b) { }
+            return { maxInt: 100, maxDur: 15 };
+        }
+        static savePsGlobal(g) {
+            try {
+                localStorage.setItem("EBC_ps_global", JSON.stringify(g));
+            }
+            catch (_a) { }
+        }
         // bypass=true skips allow-toggles and limits (for test buttons)
         async firePiShock(shockerIdx, op, intensity, duration, bypass = false) {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j;
@@ -31105,6 +31255,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return "not-allowed";
                     intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
                     duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
+                    const gCap = EBCDrawer.getPsGlobal();
+                    intensity = Math.min(intensity, gCap.maxInt);
+                    duration = Math.min(duration, gCap.maxDur);
                 }
                 const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { APIKey: apikey.slice(0, 4) + "****" }));
@@ -31146,8 +31299,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return String(e);
             }
         }
+        async firePiShockWithWarn(shockerIdx, op, intensity, duration) {
+            if (op === 0) {
+                const warn = EBCDrawer.getPsWarn();
+                if (warn.preBeep) {
+                    await this.firePiShock(shockerIdx, 2, 50, 1, true);
+                    await new Promise(r => setTimeout(r, 1200));
+                }
+                if (warn.preVib) {
+                    await this.firePiShock(shockerIdx, 1, 30, 1, true);
+                    await new Promise(r => setTimeout(r, 1200));
+                }
+            }
+            return this.firePiShock(shockerIdx, op, intensity, duration);
+        }
         checkPiShockTriggers(content) {
-            var _a, _b, _c, _d;
+            var _a, _b, _c;
             try {
                 if (typeof Player === "undefined" || (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== EMERY_MEMBER)
                     return;
@@ -31179,12 +31346,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         else
                             op = 2;
                     }
-                    const intensity = (_b = tr.intensity) !== null && _b !== void 0 ? _b : 10;
-                    const duration = (_c = tr.duration) !== null && _c !== void 0 ? _c : 1;
-                    this.firePiShock((_d = tr.shockerIdx) !== null && _d !== void 0 ? _d : 0, op, intensity, duration).catch(() => { });
+                    const levels = EBCDrawer.getPsLevels();
+                    const lvName = tr.levelName;
+                    const lv = (_b = levels.find(l => l.name === lvName)) !== null && _b !== void 0 ? _b : levels[0];
+                    this.firePiShockWithWarn((_c = tr.shockerIdx) !== null && _c !== void 0 ? _c : 0, op, lv.intensity, lv.duration).catch(() => { });
                 }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         checkPiShockActivityTrigger(activityName, assetGroup) {
             try {
@@ -31194,8 +31362,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (s["psEnabled"] !== true)
                     return;
                 const shockers = EBCDrawer.getPsShockers();
+                const levels = EBCDrawer.getPsLevels();
                 shockers.forEach((sh, idx) => {
-                    var _a, _b, _c;
+                    var _a, _b;
                     const events = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
                     for (const def of TOUCH_DEFS) {
                         if (activityName !== def.activity)
@@ -31212,7 +31381,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             op = 1;
                         else if (ev.op === "shock")
                             op = 0;
-                        else { // auto - pick strongest allowed
+                        else {
                             if (sh.allowShock !== false)
                                 op = 0;
                             else if (sh.allowVib !== false)
@@ -31220,7 +31389,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             else
                                 op = 2;
                         }
-                        this.firePiShock(idx, op, (_b = ev.intensity) !== null && _b !== void 0 ? _b : 20, (_c = ev.duration) !== null && _c !== void 0 ? _c : 1).catch(() => { });
+                        const lv = (_b = levels.find(l => l.name === ev.levelName)) !== null && _b !== void 0 ? _b : levels[0];
+                        this.firePiShockWithWarn(idx, op, lv.intensity, lv.duration).catch(() => { });
                     }
                 });
             }
@@ -33738,8 +33908,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 72; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.3";
+    const SAL_VERSION = 73; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33753,6 +33923,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.3",
+            changes: [
+                "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
+            ],
+        },
         {
             version: "8.2.2",
             changes: [
