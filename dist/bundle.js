@@ -29350,7 +29350,7 @@
                     wlNote.textContent = "Friends can always request. Add others by member #:";
                     wlBody.appendChild(wlNote);
                     // "No need to ask" toggle — whitelisted people get instant control (no popup)
-                    const irlInstOn = s["irlToyWhitelistInstant"] !== false;
+                    const irlInstOn = s["irlToyWhitelistInstant"] === true;
                     const irlInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;");
                     const irlInstTog = document.createElement("input");
                     irlInstTog.type = "checkbox";
@@ -29664,7 +29664,7 @@
             acceptNote.textContent = "When ON, friends in the same room can request toy control. Whitelist members bypass this setting.";
             privCard.appendChild(acceptNote);
             // "No need to ask" toggle — whitelisted people get instant control (no popup)
-            const gtInstEnabled = s["gameToyWhitelistInstant"] !== false;
+            const gtInstEnabled = s["gameToyWhitelistInstant"] === true;
             const gtInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
             const gtInstChk = document.createElement("input");
             gtInstChk.type = "checkbox";
@@ -30426,8 +30426,8 @@
                         this.sendIrlToyMsg(senderNumber, "DEN");
                         return;
                     }
-                    // Auto-accept if sender is whitelisted AND "no need to ask" is enabled (default on)
-                    const irlInstant = s["irlToyWhitelistInstant"] !== false;
+                    // Auto-accept only if sender is whitelisted AND "no need to ask" is explicitly enabled (off by default)
+                    const irlInstant = s["irlToyWhitelistInstant"] === true;
                     if (wl.includes(senderNumber) && irlInstant) {
                         this._irlGrantedTo.set(senderNumber, { name: senderName });
                         this.sendIrlToyMsg(senderNumber, "ACK");
@@ -30546,8 +30546,8 @@
                     const fromFriend = ((_b = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.FriendList) !== null && _b !== void 0 ? _b : []).includes(senderNumber);
                     if (!fromFriend && !isWl)
                         return;
-                    // Auto-accept if sender is whitelisted AND "no need to ask" is enabled (default on)
-                    const gtInstant = s["gameToyWhitelistInstant"] !== false;
+                    // Auto-accept only if sender is whitelisted AND "no need to ask" is explicitly enabled (off by default)
+                    const gtInstant = s["gameToyWhitelistInstant"] === true;
                     if (isWl && gtInstant) {
                         this._toyGrantedTo.set(senderNumber, { name: senderName });
                         this.sendGameToyMsg(senderNumber, "ACK");
@@ -30675,41 +30675,50 @@
             const FONT = "font-family:'Palatino Linotype','Book Antiqua',serif;";
             const mk = (tag, css) => { const el = document.createElement(tag); if (css)
                 el.style.cssText = css; return el; };
-            const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.72);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
             overlay.id = "ebc-feedback-overlay";
-            const card = mk("div", `${FONT}width:min(440px,92vw);max-height:88vh;overflow-y:auto;background:#160b22;border:1px solid #9a6fd0;border-radius:12px;padding:18px 20px;box-shadow:0 8px 40px rgba(0,0,0,0.6);`);
+            const card = mk("div", `${FONT}width:min(440px,92vw);max-height:88vh;overflow-y:auto;background:linear-gradient(165deg,#1c1029,#130a1c);border:1px solid #6e4a8c;border-radius:14px;padding:20px 22px;box-shadow:0 12px 50px rgba(0,0,0,0.65),0 0 0 1px rgba(154,111,208,0.08);`);
             overlay.appendChild(card);
-            const titleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:4px;");
-            const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#e9d4f5;flex:1;`);
-            titleEl.textContent = "🐛 Feedback & Bug Report";
-            titleRow.appendChild(titleEl);
-            card.appendChild(titleRow);
-            const subEl = mk("div", `${FONT}font-size:11px;color:#9a86ad;margin-bottom:14px;line-height:1.4;`);
+            // Thin accent bar at the top for a bit of polish
+            card.appendChild(mk("div", "height:3px;border-radius:3px;background:linear-gradient(90deg,#cf6f98,#9a6fd0);margin:-4px 0 16px;"));
+            const titleEl = mk("div", `${FONT}font-size:18px;font-weight:bold;color:#f0e2fa;letter-spacing:0.3px;margin-bottom:5px;`);
+            titleEl.textContent = "Feedback & Bug Report";
+            card.appendChild(titleEl);
+            const subEl = mk("div", `${FONT}font-size:11.5px;color:#9a86ad;margin-bottom:18px;line-height:1.5;`);
             subEl.textContent = "Anonymous — sent straight from the game. No account, no email, nothing tied to you.";
             card.appendChild(subEl);
-            // ── Type chips ───────────────────────────────────────────────
-            const typeLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
-            typeLbl.textContent = "Type";
-            card.appendChild(typeLbl);
-            const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;");
-            // label = shown in-game (with emoji); value = exact string the Google Form expects
+            const mkLabel = (txt) => {
+                const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;color:#b98fd0;margin-bottom:8px;`);
+                l.textContent = txt;
+                return l;
+            };
+            const wireFocus = (el) => {
+                el.addEventListener("focus", () => { el.style.borderColor = "#9a6fd0"; el.style.boxShadow = "0 0 0 3px rgba(154,111,208,0.15)"; });
+                el.addEventListener("blur", () => { el.style.borderColor = "#3d2433"; el.style.boxShadow = "none"; });
+            };
+            const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0e0718;border:1px solid #3d2433;border-radius:9px;color:#e9d4f5;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
+            // ── Type — segmented control (no emoji; value = exact Google Form string) ──
+            card.appendChild(mkLabel("Type"));
+            const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:18px;");
             const TYPES = [
-                { label: "🐛 Bug report", value: "Bug report" },
-                { label: "✨ Feature request", value: "Feature request" },
-                { label: "💬 Other", value: "Other" },
+                { label: "Bug report", value: "Bug report" },
+                { label: "Feature request", value: "Feature request" },
+                { label: "Other", value: "Other" },
             ];
             let selectedType = TYPES[0].value;
             const typeChips = [];
             const paintChips = () => {
                 typeChips.forEach((chip, i) => {
                     const on = TYPES[i].value === selectedType;
-                    chip.style.background = on ? "#4c2537" : "transparent";
-                    chip.style.borderColor = on ? "#e08ab0" : "#4c2537";
-                    chip.style.color = on ? "#fff0f6" : "#a98fb8";
+                    chip.style.background = on ? "linear-gradient(160deg,#5a2c46,#3f2036)" : "rgba(255,255,255,0.02)";
+                    chip.style.borderColor = on ? "#e08ab0" : "#3d2433";
+                    chip.style.color = on ? "#fff0f6" : "#9a86ad";
+                    chip.style.fontWeight = on ? "bold" : "normal";
+                    chip.style.boxShadow = on ? "0 0 0 1px rgba(224,138,176,0.25)" : "none";
                 });
             };
             TYPES.forEach((tp) => {
-                const chip = mk("button", `${FONT}font-size:12px;padding:6px 12px;border-radius:14px;border:1px solid #4c2537;cursor:pointer;transition:all 0.12s;`);
+                const chip = mk("button", `${FONT}flex:1;font-size:12px;padding:9px 6px;border-radius:9px;border:1px solid #3d2433;cursor:pointer;transition:all 0.14s;`);
                 chip.textContent = tp.label;
                 chip.addEventListener("click", () => { selectedType = tp.value; paintChips(); });
                 typeRow.appendChild(chip);
@@ -30718,32 +30727,36 @@
             paintChips();
             card.appendChild(typeRow);
             // ── "What" textarea (required) ───────────────────────────────
-            const whatLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
-            whatLbl.textContent = "What happened / what do you want? *";
-            card.appendChild(whatLbl);
+            card.appendChild(mkLabel("What happened / what do you want?"));
             const whatArea = document.createElement("textarea");
             whatArea.placeholder = "Describe the bug, or the feature you'd like…";
-            whatArea.style.cssText = `${FONT}width:100%;box-sizing:border-box;min-height:80px;resize:vertical;background:#0e0718;border:1px solid #4c2537;border-radius:7px;color:#e9d4f5;font-size:13px;padding:8px 10px;margin-bottom:14px;`;
+            whatArea.style.cssText = taCss + "min-height:84px;margin-bottom:18px;";
+            wireFocus(whatArea);
             card.appendChild(whatArea);
             // ── Steps textarea (optional) ────────────────────────────────
-            const stepsLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
-            stepsLbl.textContent = "Steps to reproduce (optional — for bugs)";
-            card.appendChild(stepsLbl);
+            card.appendChild(mkLabel("Steps to reproduce — optional"));
             const stepsArea = document.createElement("textarea");
             stepsArea.placeholder = "What were you doing when it broke?";
-            stepsArea.style.cssText = `${FONT}width:100%;box-sizing:border-box;min-height:56px;resize:vertical;background:#0e0718;border:1px solid #4c2537;border-radius:7px;color:#e9d4f5;font-size:13px;padding:8px 10px;margin-bottom:10px;`;
+            stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
+            wireFocus(stepsArea);
             card.appendChild(stepsArea);
-            const verNote = mk("div", `${FONT}font-size:10px;color:#7a6a8a;margin-bottom:16px;`);
+            const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
             verNote.textContent = `EBC v${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} is attached automatically.`;
             card.appendChild(verNote);
             // ── Buttons ──────────────────────────────────────────────────
-            const errEl = mk("div", `${FONT}font-size:11px;color:#e88;margin-bottom:8px;min-height:14px;`);
+            const errEl = mk("div", `${FONT}font-size:11px;color:#ff8a8a;margin-bottom:10px;min-height:14px;`);
             card.appendChild(errEl);
-            const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;");
-            const cancelBtn = mk("button", `${FONT}font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#a98fb8;`);
+            const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
+            const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #3d2433;background:transparent;color:#9a86ad;transition:all 0.14s;`);
             cancelBtn.textContent = "Cancel";
-            const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;padding:8px 22px;border-radius:8px;cursor:pointer;border:1px solid #9a6fd0;background:#3a1f52;color:#f0e0ff;`);
+            cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#c9b4d8"; });
+            cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9a86ad"; });
+            const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.4px;padding:9px 26px;border-radius:9px;cursor:pointer;border:1px solid #b07fd8;background:linear-gradient(160deg,#5a2f7e,#3a1f52);color:#f5ebff;transition:all 0.14s;`);
             sendBtn.textContent = "Send";
+            sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled)
+                sendBtn.style.background = "linear-gradient(160deg,#6d3a96,#48285f)"; });
+            sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled)
+                sendBtn.style.background = "linear-gradient(160deg,#5a2f7e,#3a1f52)"; });
             btnRow.appendChild(cancelBtn);
             btnRow.appendChild(sendBtn);
             card.appendChild(btnRow);
@@ -30770,8 +30783,8 @@
                 params.append(E_VER, (_a = this.version) !== null && _a !== void 0 ? _a : "");
                 // no-cors: fire-and-forget; we can't read the response but the submit goes through
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                    .then(() => { close(); this._showToyToast("✓ Thanks! Your feedback was sent."); })
-                    .catch(() => { close(); this._showToyToast("✓ Thanks! Your feedback was sent."); });
+                    .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
+                    .catch(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); });
             });
             document.body.appendChild(overlay);
             whatArea.focus();
@@ -32739,7 +32752,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 25; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 26; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32757,7 +32770,8 @@
             version: "8.1.2",
             changes: [
                 "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
-                "Toy whitelist: added a 'No need to ask' toggle (IRL + game toys) — when ON (default), whitelisted friends get instant control with no popup; when OFF, they still send a request you approve. Lets trusted friends just click and control.",
+                "Feedback form redesign: cleaner layout, no emoji, segmented Type selector, focus highlights on the text fields, and polished Send/Cancel buttons.",
+                "Toy whitelist: added a 'No need to ask' toggle (IRL + game toys). OFF by default for safety — whitelisted friends still send a request you approve. Turn it ON to let trusted friends take instant control with no popup.",
                 "Footer redesign: 'Tutorial' and 'Feedback & Bugs' buttons now sit together at the top of the footer (above the version line) where they're easy to find. Removed the floating '?' button from the bottom corner, and moved Feedback out of the cramped header so nothing overflows when you drag the window.",
                 "Feedback: header button now shows a bug icon + 'Feedback & Bugs' label, and the in-game form submits the exact option values the backend expects (fixes the Type field not registering).",
                 "Feedback: 🐛 Feedback button now opens a form right inside EBC — pick a type, type your message, hit Send, and it's submitted anonymously without ever leaving the game. No browser tab, no account, no email.",
