@@ -22433,7 +22433,8 @@ export class EBCDrawer {
                 const renderTrustList = (): void => {
                     while (trustListEl.firstChild) trustListEl.removeChild(trustListEl.firstChild);
                     const wl = EBCDrawer.getPsWhitelist();
-                    if (!wl.length) {
+                    const tmp = EBCDrawer._psTempWhitelist;
+                    if (!wl.length && !tmp.length) {
                         const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
                         none.textContent = "No trusted senders yet.";
                         trustListEl.appendChild(none);
@@ -22447,37 +22448,76 @@ export class EBCDrawer {
                         row.appendChild(lbl); row.appendChild(rmBtn);
                         trustListEl.appendChild(row);
                     });
+                    tmp.forEach((entry, i) => {
+                        const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                        const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                        const tag = mk("span", `${FONT}font-size:9px;color:#c8a030;border:1px solid #a07020;border-radius:3px;padding:0 4px;white-space:nowrap;`);
+                        tag.textContent = "session";
+                        const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                        rmBtn.addEventListener("click", () => { EBCDrawer._psTempWhitelist.splice(i, 1); renderTrustList(); });
+                        row.appendChild(lbl); row.appendChild(tag); row.appendChild(rmBtn);
+                        trustListEl.appendChild(row);
+                    });
                 };
                 renderTrustList();
                 psContent.appendChild(trustListEl);
-                const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
-                const trustNumInp = document.createElement("input");
-                trustNumInp.type = "number"; trustNumInp.placeholder = "Member #";
-                trustNumInp.style.cssText = `${FONT}width:90px;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                const trustNameInp = document.createElement("input");
-                trustNameInp.type = "text"; trustNameInp.placeholder = "Name (optional)";
-                trustNameInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                // Populate name from room characters when member # is typed
-                trustNumInp.addEventListener("input", () => {
-                    const num = parseInt((trustNumInp as HTMLInputElement).value);
-                    if (!isNaN(num)) {
-                        const roomChars = (window as Record<string, unknown>)["ChatRoomCharacter"] as Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
-                        const found = roomChars?.find(c => c.MemberNumber === num);
-                        if (found) (trustNameInp as HTMLInputElement).value = (found.Nickname ?? "").trim() || found.Name || "";
-                    }
-                });
+
+                // Room character dropdown + Add / Add Temp buttons
+                const getRoomChars = (): Array<{ memberNumber: number; name: string }> => {
+                    const rc = (window as Record<string, unknown>)["ChatRoomCharacter"] as Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    if (!Array.isArray(rc)) return [];
+                    return rc
+                        .filter(c => c.MemberNumber != null && c.MemberNumber !== (Player as { MemberNumber?: number }).MemberNumber)
+                        .map(c => ({ memberNumber: c.MemberNumber as number, name: (c.Nickname ?? "").trim() || c.Name || String(c.MemberNumber) }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                };
+                const trustSel = document.createElement("select");
+                trustSel.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;cursor:pointer;`;
+                const rebuildTrustSel = (): void => {
+                    while (trustSel.firstChild) trustSel.removeChild(trustSel.firstChild);
+                    const chars = getRoomChars();
+                    const placeholder = document.createElement("option");
+                    placeholder.value = ""; placeholder.textContent = chars.length ? "Select from room..." : "No one else in room";
+                    placeholder.disabled = true; placeholder.selected = true;
+                    trustSel.appendChild(placeholder);
+                    chars.forEach(c => {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.memberNumber);
+                        opt.textContent = `${c.name} (#${c.memberNumber})`;
+                        trustSel.appendChild(opt);
+                    });
+                };
+                rebuildTrustSel();
+                // Refresh dropdown when user opens it
+                trustSel.addEventListener("mousedown", () => { rebuildTrustSel(); });
+
+                const getSelChar = (): { memberNumber: number; name: string } | null => {
+                    const num = parseInt((trustSel as HTMLSelectElement).value);
+                    if (isNaN(num)) return null;
+                    const chars = getRoomChars();
+                    return chars.find(c => c.memberNumber === num) ?? { memberNumber: num, name: String(num) };
+                };
                 const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                addTrustBtn.title = "Add permanently (saved across sessions)";
                 addTrustBtn.addEventListener("click", () => {
-                    const num = parseInt((trustNumInp as HTMLInputElement).value);
-                    if (isNaN(num) || num <= 0) return;
-                    const name = ((trustNameInp as HTMLInputElement).value).trim();
+                    const c = getSelChar(); if (!c) return;
                     const arr = EBCDrawer.getPsWhitelist();
-                    if (!arr.some(e => e.memberNumber === num)) { arr.push({ memberNumber: num, name }); EBCDrawer.savePsWhitelist(arr); }
-                    (trustNumInp as HTMLInputElement).value = "";
-                    (trustNameInp as HTMLInputElement).value = "";
+                    if (!arr.some(e => e.memberNumber === c.memberNumber)) { arr.push(c); EBCDrawer.savePsWhitelist(arr); }
+                    (trustSel as HTMLSelectElement).value = "";
                     renderTrustList();
                 });
-                addTrustRow.appendChild(trustNumInp); addTrustRow.appendChild(trustNameInp); addTrustRow.appendChild(addTrustBtn);
+                const addTempBtn = mkBtn("Temp", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #a07020;background:transparent;color:#c8a030;`);
+                addTempBtn.title = "Add for this session only (not saved, clears on reload)";
+                addTempBtn.addEventListener("click", () => {
+                    const c = getSelChar(); if (!c) return;
+                    const tmp = EBCDrawer._psTempWhitelist;
+                    if (!tmp.some(e => e.memberNumber === c.memberNumber)) tmp.push(c);
+                    (trustSel as HTMLSelectElement).value = "";
+                    renderTrustList();
+                });
+                const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                addTrustRow.appendChild(trustSel); addTrustRow.appendChild(addTrustBtn); addTrustRow.appendChild(addTempBtn);
                 psContent.appendChild(addTrustRow);
 
                 // ── Shockers ──────────────────────────────────────────────────────
@@ -23029,6 +23069,7 @@ export class EBCDrawer {
     static savePsWhitelist(arr: Array<{ memberNumber: number; name: string }>): void {
         try { localStorage.setItem("EBC_ps_whitelist", JSON.stringify(arr)); } catch {}
     }
+    static _psTempWhitelist: Array<{ memberNumber: number; name: string }> = [];
 
     // bypass=true skips allow-toggles and limits (for test buttons)
     public async firePiShock(shockerIdx: number, op: number, intensity: number, duration: number, bypass = false): Promise<string> {
@@ -23126,7 +23167,7 @@ export class EBCDrawer {
             if (s["psEnabled"] !== true) return;
             const shockers = EBCDrawer.getPsShockers();
             const levels = EBCDrawer.getPsLevels();
-            const whitelist = EBCDrawer.getPsWhitelist();
+            const whitelist = [...EBCDrawer.getPsWhitelist(), ...EBCDrawer._psTempWhitelist];
             shockers.forEach((sh, idx) => {
                 if ((sh as Record<string, unknown>).whitelistOnly === true) {
                     if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum)) return;
