@@ -770,7 +770,10 @@ export function hasSessionBundle(memberNumber: number): boolean {
 export function sendBeep(memberNumber: number, message: string): void {
     // Queue the message for re-delivery if the recipient is currently offline.
     // BC drops beeps to offline players, so we resend when they come online.
-    markPendingMessage(memberNumber, message);
+    // Don't queue or record EBC protocol messages - they are silent channel commands
+    // and must never appear in the IM conversation window
+    const isProtocol = message.startsWith("[EBC-");
+    if (!isProtocol) markPendingMessage(memberNumber, message);
     try {
         // IsSecret: false tells the BC server to include the sender's current room
         // in the beep it delivers to the recipient, so they see "in room X" with a
@@ -778,7 +781,7 @@ export function sendBeep(memberNumber: number, message: string): void {
         // from the client has no effect; only IsSecret matters.
         ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
     } catch { /* ignore */ }
-    addBeepEntry({
+    if (!isProtocol) addBeepEntry({
         from: Player.MemberNumber ?? 0,
         to: memberNumber,
         message,

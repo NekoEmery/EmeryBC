@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 89;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 90;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -7849,8 +7849,8 @@ function init(): void {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
             }
-            // Curse commands from any EBC user — runs on the receiver's client.
-            // Only accepted from friends to prevent random abuse.
+            // EBC protocol messages are always silent - never shown in IM or BC notification.
+            // Curse commands only processed if sender is a friend (to prevent abuse).
             if (typeof beep.Message === "string" &&
                 beep.Message.startsWith("[EBC-CURSE:")) {
                 const senderNum = typeof beep.MemberNumber === "number"
@@ -7879,6 +7879,7 @@ function init(): void {
                     }
                     return; // suppress notification
                 }
+                return; // sender not a friend - still suppress, just don't process
             }
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -8007,7 +8008,7 @@ function init(): void {
         try {
             const [target, msg] = args as [number, string | undefined, unknown];
             const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
-            if (toNum && typeof msg === "string" && msg.trim()) {
+            if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {
                 const clean = stripBeepMetadata(msg.trim());
                 if (clean) {
                     addBeepEntry({ from: Player.MemberNumber ?? 0, to: toNum, message: clean, ts: Date.now() });
