@@ -22891,7 +22891,7 @@ export class EBCDrawer {
                 intensity = Math.min(intensity, sh.maxInt ?? 100);
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
-            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            const payload = { Username: username, Apikey: apikey, Sharecode: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             console.log("[EBC PiShock] sending payload:", { ...payload, Apikey: apikey.slice(0, 4) + "****" });
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const raw = (await resp.text()).trim();
