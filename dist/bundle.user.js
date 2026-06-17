@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.3
+// @version      8.2.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11599,21 +11599,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
-    const TOUCH_DEFS = [
-        { key: "headpat", label: "🤚 Headpat", activity: "Pet", group: "ItemHead", dflt: true },
-        { key: "caress", label: "🤲 Caress", activity: "Caress", group: undefined, dflt: true },
-        { key: "kiss", label: "💋 Kiss", activity: "Kiss", group: "ItemMouth", dflt: true },
-        { key: "lick", label: "👅 Lick", activity: "Lick", group: undefined, dflt: false },
-        { key: "bite", label: "😬 Bite", activity: "Bite", group: undefined, dflt: false },
-        { key: "spank", label: "👋 Spank", activity: "Spank", group: "ItemButt", dflt: false },
-        { key: "slap", label: "✋ Slap", activity: "Slap", group: undefined, dflt: false },
-        { key: "tickle", label: "🪶 Tickle", activity: "Tickle", group: undefined, dflt: false },
-        { key: "pinch", label: "🤏 Pinch", activity: "Pinch", group: undefined, dflt: false },
-        { key: "squeeze", label: "🫸 Squeeze", activity: "Squeeze", group: undefined, dflt: false },
-        { key: "rub", label: "🖐 Rub", activity: "Rub", group: undefined, dflt: false },
-        { key: "choke", label: "🤜 Choke", activity: "Choke", group: "ItemNeck", dflt: false },
-        { key: "grab", label: "✊ Grab", activity: "Grab", group: undefined, dflt: false },
-    ];
+    const TOUCH_DEFS = [];
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
         static getOpenBeepWindows() {
@@ -30538,6 +30524,74 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     };
                     renderLevels();
                     psContent.appendChild(levelsGrid);
+                    // ── Trusted Senders ───────────────────────────────────────────────
+                    psContent.appendChild(sep());
+                    psContent.appendChild(psHdr("Trusted Senders"));
+                    const trustNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
+                    psContent.appendChild(trustNote);
+                    const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
+                    const renderTrustList = () => {
+                        while (trustListEl.firstChild)
+                            trustListEl.removeChild(trustListEl.firstChild);
+                        const wl = EBCDrawer.getPsWhitelist();
+                        if (!wl.length) {
+                            const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
+                            none.textContent = "No trusted senders yet.";
+                            trustListEl.appendChild(none);
+                        }
+                        wl.forEach((entry, i) => {
+                            const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                            const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                            lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                            const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                            rmBtn.addEventListener("click", () => { const arr = EBCDrawer.getPsWhitelist(); arr.splice(i, 1); EBCDrawer.savePsWhitelist(arr); renderTrustList(); });
+                            row.appendChild(lbl);
+                            row.appendChild(rmBtn);
+                            trustListEl.appendChild(row);
+                        });
+                    };
+                    renderTrustList();
+                    psContent.appendChild(trustListEl);
+                    const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                    const trustNumInp = document.createElement("input");
+                    trustNumInp.type = "number";
+                    trustNumInp.placeholder = "Member #";
+                    trustNumInp.style.cssText = `${FONT}width:90px;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                    const trustNameInp = document.createElement("input");
+                    trustNameInp.type = "text";
+                    trustNameInp.placeholder = "Name (optional)";
+                    trustNameInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                    // Populate name from room characters when member # is typed
+                    trustNumInp.addEventListener("input", () => {
+                        var _a;
+                        const num = parseInt(trustNumInp.value);
+                        if (!isNaN(num)) {
+                            const roomChars = window["ChatRoomCharacter"];
+                            const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
+                            if (found)
+                                trustNameInp.value = ((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || "";
+                        }
+                    });
+                    const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                    addTrustBtn.addEventListener("click", () => {
+                        const num = parseInt(trustNumInp.value);
+                        if (isNaN(num) || num <= 0)
+                            return;
+                        const name = (trustNameInp.value).trim();
+                        const arr = EBCDrawer.getPsWhitelist();
+                        if (!arr.some(e => e.memberNumber === num)) {
+                            arr.push({ memberNumber: num, name });
+                            EBCDrawer.savePsWhitelist(arr);
+                        }
+                        trustNumInp.value = "";
+                        trustNameInp.value = "";
+                        renderTrustList();
+                    });
+                    addTrustRow.appendChild(trustNumInp);
+                    addTrustRow.appendChild(trustNameInp);
+                    addTrustRow.appendChild(addTrustBtn);
+                    psContent.appendChild(addTrustRow);
                     // ── Shockers ──────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Shockers"));
@@ -30553,7 +30607,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return;
                         }
                         shockers.forEach((sh, idx) => {
-                            var _a;
                             const shCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
                             // Device type chips
                             const dtRow = mk("div", "display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;");
@@ -30610,6 +30663,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             allowRow.appendChild(mkAllow("Vib", "allowVib"));
                             allowRow.appendChild(mkAllow("Shock", "allowShock"));
                             shCard.appendChild(allowRow);
+                            // Trusted-only toggle - own row so it is always visible
+                            const wlOn = sh.whitelistOnly === true;
+                            const wlRow = psRow("6px");
+                            wlRow.style.marginBottom = "6px";
+                            const wlLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                            wlLbl.textContent = "Trusted senders only:";
+                            const wlBtn = mkBtn(wlOn ? "ON" : "OFF", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.18)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};font-weight:${wlOn ? "bold" : "normal"};`);
+                            wlBtn.title = "When ON: only shocks from people in your Trusted Senders list trigger this shocker";
+                            wlBtn.addEventListener("click", () => { shockers[idx].whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                            wlRow.appendChild(wlLbl);
+                            wlRow.appendChild(wlBtn);
+                            shCard.appendChild(wlRow);
                             // Per-shocker cap
                             const limRow = psRow();
                             limRow.style.marginBottom = "6px";
@@ -30635,55 +30700,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             limRow.appendChild(mkLim("Cap int:", "maxInt", 1, 100, "%"));
                             limRow.appendChild(mkLim("Cap dur:", "maxDur", 1, 15, "s"));
                             shCard.appendChild(limRow);
-                            const shBcEvents = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
-                            const evHdr = mk("div", "display:flex;align-items:center;gap:4px;cursor:pointer;margin:4px 0 3px;user-select:none;");
-                            const evHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;color:var(--ebc-text-muted);text-transform:uppercase;`);
-                            evHdrLbl.textContent = "BC Events";
-                            const evArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-left:2px;`);
-                            evArrow.textContent = "▶";
-                            evHdr.appendChild(evHdrLbl);
-                            evHdr.appendChild(evArrow);
-                            const evBody = mk("div", "display:none;padding-top:2px;");
-                            evHdr.addEventListener("click", () => {
-                                const open = evBody.style.display !== "none";
-                                evBody.style.display = open ? "none" : "block";
-                                evArrow.textContent = open ? "▶" : "▼";
-                            });
-                            TOUCH_DEFS.forEach(def => {
-                                var _a;
-                                const ev = (_a = shBcEvents[def.key]) !== null && _a !== void 0 ? _a : {};
-                                const evEnabled = ev.enabled === true;
-                                const evRow = mk("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap;");
-                                const toggleChip = mkBtn(def.label, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "var(--ebc-card)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
-                                toggleChip.addEventListener("click", () => {
-                                    var _a;
-                                    const arr = EBCDrawer.getPsShockers();
-                                    const shEvMap = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {});
-                                    shEvMap[def.key] = Object.assign(Object.assign({}, shEvMap[def.key]), { enabled: !evEnabled });
-                                    arr[idx].bcEvents = shEvMap;
-                                    EBCDrawer.savePsShockers(arr);
-                                    renderShockers();
-                                });
-                                evRow.appendChild(toggleChip);
-                                if (evEnabled) {
-                                    const opSel = document.createElement("select");
-                                    opSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                                    ["auto", "beep", "vib", "shock"].forEach(v => { var _a; const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === ((_a = ev.op) !== null && _a !== void 0 ? _a : "auto"))
-                                        o.selected = true; opSel.appendChild(o); });
-                                    opSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { op: opSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                    evRow.appendChild(opSel);
-                                    const evLvSel = document.createElement("select");
-                                    evLvSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                                    const evLvs = EBCDrawer.getPsLevels();
-                                    evLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = ev.levelName) !== null && _a !== void 0 ? _a : evLvs[0].name))
-                                        o.selected = true; evLvSel.appendChild(o); });
-                                    evLvSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { levelName: evLvSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                    evRow.appendChild(evLvSel);
-                                }
-                                evBody.appendChild(evRow);
-                            });
-                            shCard.appendChild(evHdr);
-                            shCard.appendChild(evBody);
                             // Test buttons
                             const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
                             const showPsStatus = (result) => {
@@ -31233,6 +31249,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch (_a) { }
         }
+        static getPsWhitelist() {
+            var _a;
+            try {
+                const s = JSON.parse((_a = localStorage.getItem("EBC_ps_whitelist")) !== null && _a !== void 0 ? _a : "[]");
+                return Array.isArray(s) ? s : [];
+            }
+            catch (_b) {
+                return [];
+            }
+        }
+        static savePsWhitelist(arr) {
+            try {
+                localStorage.setItem("EBC_ps_whitelist", JSON.stringify(arr));
+            }
+            catch (_a) { }
+        }
         // bypass=true skips allow-toggles and limits (for test buttons)
         async firePiShock(shockerIdx, op, intensity, duration, bypass = false) {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j;
@@ -31354,7 +31386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_d) { /* ignore */ }
         }
-        checkPiShockActivityTrigger(activityName, assetGroup) {
+        checkPiShockActivityTrigger(senderNum) {
             try {
                 if (typeof Player === "undefined" || Player.MemberNumber !== EMERY_MEMBER)
                     return;
@@ -31363,34 +31395,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 const shockers = EBCDrawer.getPsShockers();
                 const levels = EBCDrawer.getPsLevels();
+                const whitelist = EBCDrawer.getPsWhitelist();
                 shockers.forEach((sh, idx) => {
-                    var _a, _b;
-                    const events = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
-                    for (const def of TOUCH_DEFS) {
-                        if (activityName !== def.activity)
-                            continue;
-                        if (def.group && assetGroup !== def.group)
-                            continue;
-                        const ev = events[def.key];
-                        if (!(ev === null || ev === void 0 ? void 0 : ev.enabled))
-                            continue;
-                        let op;
-                        if (ev.op === "beep")
-                            op = 2;
-                        else if (ev.op === "vib")
-                            op = 1;
-                        else if (ev.op === "shock")
-                            op = 0;
-                        else {
-                            if (sh.allowShock !== false)
-                                op = 0;
-                            else if (sh.allowVib !== false)
-                                op = 1;
-                            else
-                                op = 2;
-                        }
-                        const lv = (_b = levels.find(l => l.name === ev.levelName)) !== null && _b !== void 0 ? _b : levels[0];
-                        this.firePiShockWithWarn(idx, op, lv.intensity, lv.duration).catch(() => { });
+                    if (sh.whitelistOnly === true) {
+                        if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum))
+                            return;
+                    }
+                    const op = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
+                    if (op >= 0) {
+                        this.firePiShockWithWarn(idx, op, levels[0].intensity, levels[0].duration).catch(() => { });
                     }
                 });
             }
@@ -33596,6 +33609,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
                 for (const group of groups) {
+                    const wrap = document.createElement("div");
+                    wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
                     row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
@@ -33604,6 +33619,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                     nm.title = group;
+                    // ⏱ pause button - toggles duration picker inline
+                    const pauseBtn = document.createElement("button");
+                    pauseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;flex-shrink:0;";
+                    pauseBtn.textContent = "⏱";
+                    pauseBtn.title = "Temporarily pause this curse";
                     const liftOneBtn = document.createElement("button");
                     liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
                     liftOneBtn.textContent = "✕";
@@ -33612,7 +33632,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
                         setCurseRecord(id, remaining);
-                        // Use clear:group to precisely remove just this curse from target's record
                         sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                         const label = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                         const targetName4 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
@@ -33622,8 +33641,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         rebuildActiveCurses();
                     });
                     row.appendChild(nm);
+                    row.appendChild(pauseBtn);
                     row.appendChild(liftOneBtn);
-                    activeCursesList.appendChild(row);
+                    // Duration picker - hidden until ⏱ clicked
+                    const pickerRow = document.createElement("div");
+                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:2px 4px 4px 4px;flex-wrap:wrap;";
+                    const pickerLbl = document.createElement("span");
+                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7090b0;white-space:nowrap;";
+                    pickerLbl.textContent = "Pause for:";
+                    pickerRow.appendChild(pickerLbl);
+                    const PAUSE_OPTS = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
+                    for (const [label, mins] of PAUSE_OPTS) {
+                        const chip = document.createElement("button");
+                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                        chip.textContent = label;
+                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(70,100,160,0.2)"; chip.style.borderColor = "#5070a0"; });
+                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#3a4060"; });
+                        chip.addEventListener("click", () => {
+                            var _a, _b, _c;
+                            const ms = mins * 60 * 1000;
+                            sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                            const itemLabel = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
+                            const targetName5 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
+                            appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetName5} for ${label}.`, UI.textMuted);
+                            curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
+                            window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                            pickerRow.style.display = "none";
+                            pauseBtn.style.color = "#7090b0";
+                        });
+                        pickerRow.appendChild(chip);
+                    }
+                    pauseBtn.addEventListener("click", () => {
+                        const open = pickerRow.style.display !== "none";
+                        pickerRow.style.display = open ? "none" : "flex";
+                        pauseBtn.style.color = open ? "#7090b0" : "#90b8e0";
+                    });
+                    wrap.appendChild(row);
+                    wrap.appendChild(pickerRow);
+                    activeCursesList.appendChild(wrap);
                 }
             };
             cursePanel.appendChild(activeCursesEl);
@@ -33908,8 +33963,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 73; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.4";
+    const SAL_VERSION = 84; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33924,9 +33979,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "8.2.4",
+            changes: [
+                "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all checks were previously wrong so shock collar never fired PiShock.",
+                "PiShock BC Events configuration removed entirely - shockers now always fire automatically when BC shocks you, using Allow flags to pick the operation (Shock if allowed, else Vib, else Beep). No setup or toggles needed.",
+                "PiShock: Trusted Senders whitelist - add trusted people by member number; each shocker has a 'Trusted only' toggle that when on only fires that shocker if the person who triggered the BC shock is in the whitelist. Toggle off to let anyone trigger it.",
+            ],
+        },
+        {
             version: "8.2.3",
             changes: [
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
+                "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
+                "PiShock fix: shock collar Action message Content is TriggerShock0/1/2 (not a 'shock' keyword) and target is in DestinationCharacterName tag (not TargetCharacter) - both checks were wrong so the hook never matched and PiShock never fired. Now correctly detects TriggerShock prefix and reads MemberNumber from DestinationCharacterName.",
+                "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
+                "PiShock: BC Events section redesigned - now a clearly bordered accent-colored panel (open by default, with lightning icon and subtitle) instead of tiny collapsed text. Reduced TOUCH_DEFS to only relevant shock/pain activities: Bite, Spank, Slap, Pinch, Shock (removed Headpat, Caress, Kiss, Lick, Tickle, Squeeze, Rub, Choke, Grab).",
+                "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
+                "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
             ],
         },
         {
@@ -41568,6 +41637,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
         const getCurseKey = () => { var _a; return `EBC_curses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
         const getCurseItemKey = () => { var _a; return `EBC_curseItems_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+        const getCursePauseKey = () => { var _a; return `EBC_curse_pauses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+        const getCursePauses = () => {
+            try {
+                const r = localStorage.getItem(getCursePauseKey());
+                return r ? JSON.parse(r) : {};
+            }
+            catch (_a) {
+                return {};
+            }
+        };
+        const saveCursePauses = (p) => {
+            try {
+                localStorage.setItem(getCursePauseKey(), JSON.stringify(p));
+            }
+            catch (_a) { }
+        };
+        const isCursePaused = (group) => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
         const getCursedGroups = () => {
             try {
                 const raw = localStorage.getItem(getCurseKey());
@@ -41619,9 +41705,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 saveCursedGroups(current);
                 saveCurseItemMap(itemMap);
             }
+            else if (inner.startsWith("pause:")) {
+                const pauses = getCursePauses();
+                for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
+                    const eqIdx = entry.indexOf("=");
+                    const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                    const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
+                    if (g && ms > 0)
+                        pauses[g] = Date.now() + ms;
+                }
+                saveCursePauses(pauses);
+            }
             else if (inner === "clear") {
                 saveCursedGroups(new Set());
                 saveCurseItemMap({});
+                saveCursePauses({});
             }
             else if (inner.startsWith("clear:")) {
                 const itemMap = getCurseItemMap();
@@ -41639,7 +41737,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const [char, group] = args;
                 if (char === Player && typeof group === "string") {
                     const cursed = getCursedGroups();
-                    if (cursed.has(group)) {
+                    if (cursed.has(group) && !isCursePaused(group)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                         return; // block self-removal of cursed item
                     }
@@ -41662,7 +41760,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const nameVal = item.Name; // undefined = removal
                 if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
                     const cursed = getCursedGroups();
-                    if (cursed.has(group)) {
+                    if (cursed.has(group) && !isCursePaused(group)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
                         // Send correction: our item is still here, push it back to the server
                         const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
@@ -41725,7 +41823,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
         // Lovense triggers: chat phrases + body touch activities + BC toy sync
         tryHookFunction(modAPI, "ChatRoomMessage", 1, (args, next) => {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             try {
                 const [data] = args;
                 // EBC-TOY whisper intercept — suppress from BC chat display
@@ -41759,8 +41857,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
                 if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
-                    typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
-                    drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
+                    typeof data.Sender === "number") {
+                    if (data.Sender !== Player.MemberNumber)
+                        drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
                     drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockTriggers(data.Content);
                 }
                 if (data.Type === "Activity" && typeof data.Content === "string" &&
@@ -41777,12 +41876,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
                         if (activityName) {
                             drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(activityName, assetGroup);
-                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger(activityName, assetGroup);
+                        }
+                    }
+                }
+                // Shock collar and other shock items - PropertyShockPublishAction sends TriggerShock0/1/2
+                if (data.Type === "Action" && typeof data.Content === "string") {
+                    const dict = data.Dictionary;
+                    const content = data.Content;
+                    const contentLow = content.toLowerCase();
+                    // TriggerShock0/1/2 = petsuit shock collar / forbidden chastity bra / other items using PropertyShockPublishAction
+                    const isShockAction = content.startsWith("TriggerShock") || contentLow.includes("electro");
+                    if (isShockAction) {
+                        // PropertyShockPublishAction uses DestinationCharacterName (Tag) with MemberNumber
+                        const destEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "DestinationCharacterName" || e["Tag"] === "DestinationCharacter" ||
+                            e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
+                        const targetNum = ((_e = destEntry === null || destEntry === void 0 ? void 0 : destEntry["MemberNumber"]) !== null && _e !== void 0 ? _e : destEntry === null || destEntry === void 0 ? void 0 : destEntry["TargetCharacter"]);
+                        if (targetNum === Player.MemberNumber) {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger(data.Sender);
                         }
                     }
                 }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             return next(args);
         });
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).

@@ -22541,13 +22541,18 @@ export class EBCDrawer {
                         allowRow.appendChild(mkAllow("Beep", "allowBeep"));
                         allowRow.appendChild(mkAllow("Vib", "allowVib"));
                         allowRow.appendChild(mkAllow("Shock", "allowShock"));
-                        // Trusted-only toggle
-                        const wlOn = (sh as Record<string, unknown>).whitelistOnly === true;
-                        const wlBtn = mkBtn("🔒 Trusted only", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.12)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};`);
-                        wlBtn.title = "When on: only shocks from Trusted Senders trigger this shocker";
-                        wlBtn.addEventListener("click", () => { (shockers[idx] as Record<string, unknown>).whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
-                        allowRow.appendChild(wlBtn);
                         shCard.appendChild(allowRow);
+
+                        // Trusted-only toggle - own row so it is always visible
+                        const wlOn = (sh as Record<string, unknown>).whitelistOnly === true;
+                        const wlRow = psRow("6px");
+                        wlRow.style.marginBottom = "6px";
+                        const wlLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); wlLbl.textContent = "Trusted senders only:";
+                        const wlBtn = mkBtn(wlOn ? "ON" : "OFF", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.18)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};font-weight:${wlOn ? "bold" : "normal"};`);
+                        wlBtn.title = "When ON: only shocks from people in your Trusted Senders list trigger this shocker";
+                        wlBtn.addEventListener("click", () => { (shockers[idx] as Record<string, unknown>).whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                        wlRow.appendChild(wlLbl); wlRow.appendChild(wlBtn);
+                        shCard.appendChild(wlRow);
 
                         // Per-shocker cap
                         const limRow = psRow();
