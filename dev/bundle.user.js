@@ -33960,7 +33960,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 78; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 79; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33979,7 +33979,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             changes: [
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
                 "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
-                "PiShock fix: Action message Dictionary uses { Tag:'TargetCharacter', MemberNumber:X } format - previous check used 'TargetCharacter' as a direct key which never matched, so target check always failed silently and shock collar never triggered PiShock.",
+                "PiShock fix: shock collar Action message Content is TriggerShock0/1/2 (not a 'shock' keyword) and target is in DestinationCharacterName tag (not TargetCharacter) - both checks were wrong so the hook never matched and PiShock never fired. Now correctly detects TriggerShock prefix and reads MemberNumber from DestinationCharacterName.",
                 "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
                 "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
                 "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
@@ -41867,17 +41867,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                 }
-                // Shock collar and other shock items send Type:"Action" (not Activity) - catch those too
+                // Shock collar and other shock items - PropertyShockPublishAction sends TriggerShock0/1/2
                 if (data.Type === "Action" && typeof data.Content === "string") {
                     const dict = data.Dictionary;
-                    // BC Action Dictionary uses { Tag:"TargetCharacter", MemberNumber:X } - NOT { TargetCharacter:X }
-                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
-                    const targetNum = ((_e = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["MemberNumber"]) !== null && _e !== void 0 ? _e : targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"]);
-                    if (targetNum === Player.MemberNumber) {
-                        // Content is a BC tag key like "ChatOther-ItemNeck-ShockCollarPetsuit_Light"
-                        const content = data.Content.toLowerCase();
-                        if (content.includes("shock") || content.includes("electro")) {
-                            const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                    const content = data.Content;
+                    const contentLow = content.toLowerCase();
+                    // TriggerShock0/1/2 = petsuit shock collar / forbidden chastity bra / other items using PropertyShockPublishAction
+                    const isShockAction = content.startsWith("TriggerShock") || contentLow.includes("electro");
+                    if (isShockAction) {
+                        // PropertyShockPublishAction uses DestinationCharacterName (Tag) with MemberNumber
+                        const destEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "DestinationCharacterName" || e["Tag"] === "DestinationCharacter" ||
+                            e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
+                        const targetNum = ((_e = destEntry === null || destEntry === void 0 ? void 0 : destEntry["MemberNumber"]) !== null && _e !== void 0 ? _e : destEntry === null || destEntry === void 0 ? void 0 : destEntry["TargetCharacter"]);
+                        if (targetNum === Player.MemberNumber) {
+                            const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
                             const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
                             drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger("Shock", assetGroup);
                         }
