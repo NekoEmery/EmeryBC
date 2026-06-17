@@ -23474,7 +23474,7 @@ export class EBCDrawer {
         if (document.getElementById("ebc-pishock-setup-overlay")) return;
 
         const WORKER_CODE = [
-            `const PS_URL = "https://do.pishock.com/api/apioperate";`,
+            `const PS_URL = "https://do.pishock.com/Api/apioperate"; // capital A - server is case-sensitive`,
             `const CORS = {`,
             `  "Access-Control-Allow-Origin": "*",`,
             `  "Access-Control-Allow-Headers": "Content-Type",`,

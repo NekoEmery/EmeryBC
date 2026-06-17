@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.2";
-const SAL_VERSION  = 67;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 68;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "PiShock proxy: switched setup guide from Cloudflare Workers to Deno Deploy - Cloudflare datacenter IPs are blocked by PiShock's WAF (confirmed: GET:404 from Worker). Deno Deploy runs on Google Cloud infra, not Cloudflare, so PiShock won't block it. Embedded proxy code updated to Deno.serve() syntax.",
             "PiShock proxy fix: add Deno.createHttpClient({ http2: false }) to force HTTP/1.1 - PiShock's server advertises HTTP/2 via ALPN but drops the streams immediately, causing 'http2 error: unspecific protocol error'. HTTP/1.1 bypasses this.",
             "PiShock proxy diagnostic: remove trailing slash from apioperate URL, add Accept header, re-add GET diagnostic (getCheck) to tell if the route exists (405 = exists POST-only, 404 = route gone).",
+            "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/apioperate.",
         ],
     },
     {
