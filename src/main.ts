@@ -7742,7 +7742,10 @@ function init(): void {
                     // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
                     const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
                     const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
-                    if (activityName) drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
+                    if (activityName) {
+                        drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
+                        drawer?.checkPiShockActivityTrigger(activityName, assetGroup);
+                    }
                 }
             }
         } catch { /* ignore */ }
