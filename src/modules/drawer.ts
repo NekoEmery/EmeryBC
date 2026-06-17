@@ -22341,7 +22341,7 @@ export class EBCDrawer {
                 // ── Global safety cap ─────────────────────────────────────────────
                 psContent.appendChild(psHdr("Global Safety Cap"));
                 const capNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
-                capNote.textContent = "Hard ceiling applied to every shock regardless of source.";
+                capNote.textContent = "Hard ceiling applied to shocks only (not beep or vibrate).";
                 psContent.appendChild(capNote);
                 const gCap = EBCDrawer.getPsGlobal();
                 const capRow = psRow("12px");
@@ -23044,11 +23044,13 @@ export class EBCDrawer {
                 if (op === 2 && sh.allowBeep  === false) return "not-allowed";
                 if (op === 1 && sh.allowVib   === false) return "not-allowed";
                 if (op === 0 && sh.allowShock === false) return "not-allowed";
-                intensity = Math.min(intensity, sh.maxInt ?? 100);
-                duration  = Math.min(duration,  sh.maxDur ?? 15);
-                const gCap = EBCDrawer.getPsGlobal();
-                intensity = Math.min(intensity, gCap.maxInt);
-                duration  = Math.min(duration,  gCap.maxDur);
+                if (op === 0) {
+                    intensity = Math.min(intensity, sh.maxInt ?? 100);
+                    duration  = Math.min(duration,  sh.maxDur ?? 15);
+                    const gCap = EBCDrawer.getPsGlobal();
+                    intensity = Math.min(intensity, gCap.maxInt);
+                    duration  = Math.min(duration,  gCap.maxDur);
+                }
             }
             const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             console.log("[EBC PiShock] sending payload:", { ...payload, APIKey: apikey.slice(0, 4) + "****" });
