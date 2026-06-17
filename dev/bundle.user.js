@@ -11819,6 +11819,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
+            const feedbackLink = document.createElement("a");
+            feedbackLink.href = "https://github.com/NekoEmery/EmeryBC/issues";
+            feedbackLink.target = "_blank";
+            feedbackLink.rel = "noopener noreferrer";
+            feedbackLink.title = "Report a bug or request a feature on GitHub";
+            feedbackLink.textContent = "🐛";
+            feedbackLink.style.cssText = "font-size:12px;text-decoration:none;cursor:pointer;opacity:0.6;transition:opacity 0.15s;padding:2px 4px;border-radius:3px;";
+            feedbackLink.addEventListener("mouseenter", () => { feedbackLink.style.opacity = "1"; });
+            feedbackLink.addEventListener("mouseleave", () => { feedbackLink.style.opacity = "0.6"; });
+            headerBtns.appendChild(feedbackLink);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
@@ -28970,6 +28980,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     wrap.appendChild(body);
                     return { wrap, body };
                 };
+                // Toy names known at render time — shared by phrase triggers and body-touch chips
+                const allToyNames = [
+                    ...[...this._lovConnections.values()].map(c => c.name),
+                    ...this._lovHttpToys.map(t => t.name),
+                ].filter((n, i, a) => n && a.indexOf(n) === i);
                 // ── CHAT PHRASES ─────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
                 const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
@@ -28998,7 +29013,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         r1.appendChild(phraseInp);
                         r1.appendChild(removeBtn);
                         tCard.appendChild(r1);
-                        const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+                        const r2 = mk("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;");
                         const mkOLbl = (txt) => { const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); l.textContent = txt; return l; };
                         r2.appendChild(mkOLbl("Intensity:"));
                         const iInp = lvsNumInp("def", tr.intensity !== undefined ? String(tr.intensity) : "");
@@ -29007,16 +29022,70 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const dInp = lvsNumInp("def", tr.duration !== undefined ? String(tr.duration) : "");
                         r2.appendChild(dInp);
                         r2.appendChild(mkOLbl("s"));
-                        const savePhrTr = () => {
-                            const iv = iInp.value.trim();
-                            const dv = dInp.value.trim();
-                            lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
-                            lovTriggers[idx].duration = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
-                            EBCDrawer.saveLovenseTriggers(lovTriggers);
-                        };
-                        iInp.addEventListener("change", savePhrTr);
-                        dInp.addEventListener("change", savePhrTr);
                         tCard.appendChild(r2);
+                        // Toy selection chips (mirrors body-touch chip UI)
+                        if (allToyNames.length > 0) {
+                            let activeToyNamesP = tr.toyNames;
+                            const chipStyleP = (active) => `${FONT}font-size:9px;padding:1px 6px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "rgba(180,100,160,0.25)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};white-space:nowrap;`;
+                            const r3 = mk("div", "display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-bottom:2px;");
+                            const toyLblP = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                            toyLblP.textContent = "Toy:";
+                            r3.appendChild(toyLblP);
+                            const allChipP = document.createElement("button");
+                            allChipP.textContent = "All";
+                            allChipP.style.cssText = chipStyleP(activeToyNamesP === undefined);
+                            const toyChipsP = allToyNames.map(name => {
+                                const chip = document.createElement("button");
+                                chip.textContent = name.replace(/^Lovense\s+/i, "");
+                                chip.style.cssText = chipStyleP(activeToyNamesP !== undefined && activeToyNamesP.includes(name));
+                                return { name, el: chip };
+                            });
+                            const refreshChipsP = () => {
+                                allChipP.style.cssText = chipStyleP(activeToyNamesP === undefined);
+                                for (const { name, el } of toyChipsP)
+                                    el.style.cssText = chipStyleP(activeToyNamesP !== undefined && activeToyNamesP.includes(name));
+                            };
+                            const savePhrTrWithToys = () => {
+                                const iv = iInp.value.trim();
+                                const dv = dInp.value.trim();
+                                lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
+                                lovTriggers[idx].duration = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
+                                lovTriggers[idx].toyNames = activeToyNamesP;
+                                EBCDrawer.saveLovenseTriggers(lovTriggers);
+                            };
+                            allChipP.addEventListener("click", () => { activeToyNamesP = undefined; refreshChipsP(); savePhrTrWithToys(); });
+                            for (const { name, el } of toyChipsP) {
+                                el.addEventListener("click", () => {
+                                    const cur = activeToyNamesP !== undefined ? [...activeToyNamesP] : [...allToyNames];
+                                    const idx2 = cur.indexOf(name);
+                                    if (idx2 >= 0)
+                                        cur.splice(idx2, 1);
+                                    else
+                                        cur.push(name);
+                                    activeToyNamesP = cur.length === 0 || cur.length === allToyNames.length ? undefined : cur;
+                                    refreshChipsP();
+                                    savePhrTrWithToys();
+                                });
+                            }
+                            r3.appendChild(allChipP);
+                            for (const { el } of toyChipsP)
+                                r3.appendChild(el);
+                            tCard.appendChild(r3);
+                            const savePhrTr = () => { savePhrTrWithToys(); };
+                            iInp.addEventListener("change", savePhrTr);
+                            dInp.addEventListener("change", savePhrTr);
+                        }
+                        else {
+                            const savePhrTr = () => {
+                                const iv = iInp.value.trim();
+                                const dv = dInp.value.trim();
+                                lovTriggers[idx].intensity = iv ? Math.min(20, Math.max(1, parseInt(iv, 10))) : undefined;
+                                lovTriggers[idx].duration = dv ? Math.min(60, Math.max(1, parseInt(dv, 10))) : undefined;
+                                EBCDrawer.saveLovenseTriggers(lovTriggers);
+                            };
+                            iInp.addEventListener("change", savePhrTr);
+                            dInp.addEventListener("change", savePhrTr);
+                        }
                         lovListEl.appendChild(tCard);
                     });
                     if (!lovTriggers.length) {
@@ -29033,11 +29102,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lovContent.appendChild(sep());
                 const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
                 const touchData = EBCDrawer.getTouchTriggers();
-                // Collect all toy names known at render time (BLE + HTTP)
-                const allToyNames = [
-                    ...[...this._lovConnections.values()].map(c => c.name),
-                    ...this._lovHttpToys.map(t => t.name),
-                ].filter((n, i, a) => n && a.indexOf(n) === i);
                 const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
                 for (const def of TOUCH_DEFS) {
                     const stored = touchData[def.key];
@@ -29442,47 +29506,73 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             sTop.appendChild(sName);
                             sTop.appendChild(endBtn);
                             sCard.appendChild(sTop);
-                            let vI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
-                            let vD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
-                            const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
-                            const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
-                            iL.textContent = "Intensity";
-                            const iS = document.createElement("input");
-                            iS.type = "range";
-                            iS.min = "1";
-                            iS.max = "20";
-                            iS.value = String(vI);
-                            iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                            const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
-                            iV.textContent = `${vI}/20`;
-                            iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
-                            iR.appendChild(iL);
-                            iR.appendChild(iS);
-                            iR.appendChild(iV);
-                            sCard.appendChild(iR);
-                            const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
-                            const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
-                            dL.textContent = "Duration";
-                            const dS = document.createElement("input");
-                            dS.type = "range";
-                            dS.min = "1";
-                            dS.max = "60";
-                            dS.value = String(vD);
-                            dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
-                            const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
-                            dV.textContent = `${vD}s`;
-                            dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
-                            dR.appendChild(dL);
-                            dR.appendChild(dS);
-                            dR.appendChild(dV);
-                            sCard.appendChild(dR);
-                            const vBtn = document.createElement("button");
-                            vBtn.textContent = "〜 Vibrate";
-                            vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
-                            vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
-                            vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
-                            vBtn.addEventListener("click", () => { this.sendIrlToyMsg(memberNum, "VIB", vI, vD); vBtn.disabled = true; window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000); });
-                            sCard.appendChild(vBtn);
+                            // Build per-toy remote panel(s); fall back to single "all toys" panel if no toy list
+                            const defI = typeof s["lovenseIntensity"] === "number" ? s["lovenseIntensity"] : 10;
+                            const defD = typeof s["lovenseDuration"] === "number" ? s["lovenseDuration"] : 5;
+                            const toyPanels = sess.toys && sess.toys.length > 1
+                                ? sess.toys.map(n => ({ label: n.replace(/^Lovense\s+/i, ""), toyName: n }))
+                                : [{ label: "All toys" }];
+                            for (const panel of toyPanels) {
+                                const pWrap = mk("div", toyPanels.length > 1 ? "border:1px solid var(--ebc-border);border-radius:8px;padding:8px 10px;margin-bottom:8px;" : "");
+                                if (toyPanels.length > 1) {
+                                    const pLbl = mk("div", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-accent);margin-bottom:8px;`);
+                                    pLbl.textContent = `〜 ${panel.label}`;
+                                    pWrap.appendChild(pLbl);
+                                }
+                                let vI = defI;
+                                let vD = defD;
+                                const iR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+                                const iL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
+                                iL.textContent = "Intensity";
+                                const iS = document.createElement("input");
+                                iS.type = "range";
+                                iS.min = "1";
+                                iS.max = "20";
+                                iS.value = String(vI);
+                                iS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                                const iV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
+                                iV.textContent = `${vI}/20`;
+                                iS.addEventListener("input", () => { vI = parseInt(iS.value, 10); iV.textContent = `${vI}/20`; });
+                                iR.appendChild(iL);
+                                iR.appendChild(iS);
+                                iR.appendChild(iV);
+                                pWrap.appendChild(iR);
+                                const dR = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:12px;");
+                                const dL = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-muted);min-width:76px;`);
+                                dL.textContent = "Duration";
+                                const dS = document.createElement("input");
+                                dS.type = "range";
+                                dS.min = "1";
+                                dS.max = "60";
+                                dS.value = String(vD);
+                                dS.style.cssText = "flex:1;accent-color:var(--ebc-accent);";
+                                const dV = mk("span", `${FONT}font-size:13px;color:var(--ebc-accent);min-width:52px;text-align:right;font-weight:bold;`);
+                                dV.textContent = `${vD}s`;
+                                dS.addEventListener("input", () => { vD = parseInt(dS.value, 10); dV.textContent = `${vD}s`; });
+                                dR.appendChild(dL);
+                                dR.appendChild(dS);
+                                dR.appendChild(dV);
+                                pWrap.appendChild(dR);
+                                const vBtn = document.createElement("button");
+                                vBtn.textContent = panel.toyName ? `〜 ${panel.label}` : "〜 Vibrate";
+                                vBtn.style.cssText = `${FONT}font-size:12px;font-weight:bold;padding:7px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
+                                vBtn.addEventListener("mouseenter", () => { vBtn.style.background = "var(--ebc-bg)"; });
+                                vBtn.addEventListener("mouseleave", () => { vBtn.style.background = "transparent"; });
+                                vBtn.addEventListener("click", () => {
+                                    if (panel.toyName) {
+                                        // Send targeted TOY message for this specific toy
+                                        const serverSend2 = window.ServerSend;
+                                        serverSend2 === null || serverSend2 === void 0 ? void 0 : serverSend2("ChatRoomChat", { Type: "Whisper", Content: `[EBC-IRL:TOY:${panel.toyName}:${vI}:${vD}]`, Target: memberNum });
+                                    }
+                                    else {
+                                        this.sendIrlToyMsg(memberNum, "VIB", vI, vD);
+                                    }
+                                    vBtn.disabled = true;
+                                    window.setTimeout(() => { vBtn.disabled = false; }, (vD + 0.5) * 1000);
+                                });
+                                pWrap.appendChild(vBtn);
+                                sCard.appendChild(pWrap);
+                            }
                             irlStatusArea.appendChild(sCard);
                         }
                         for (const [pendNum, pend] of this._irlPendingOut) {
@@ -30190,7 +30280,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 for (const tr of triggers) {
                     if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase()))
                         continue;
-                    this.fireLovense(tr.intensity, tr.duration).catch(() => { });
+                    this.fireLovense(tr.intensity, tr.duration, tr.toyNames).catch(() => { });
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -30276,12 +30366,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (type === "VIB" && intensity !== undefined && duration !== undefined) {
                     content = `[EBC-IRL:VIB:${intensity}:${duration}]`;
                 }
+                else if (type === "ACK") {
+                    // Include connected toy names so the requester can show per-toy controls
+                    const toyNames = [
+                        ...[...this._lovConnections.values()].map(c => c.name),
+                        ...this._lovHttpToys.map(t => t.name),
+                    ].filter(Boolean);
+                    if (toyNames.length > 1)
+                        content = `[EBC-IRL:ACK:${toyNames.join(",")}]`;
+                }
+                else if (type === "TOY" && intensity !== undefined && duration !== undefined) {
+                    // Targeted toy vibrate (not used on this side, but kept for symmetry)
+                    content = `[EBC-IRL:TOY:${intensity}:${duration}]`;
+                }
                 const serverSend = window.ServerSend;
                 serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: content, Target: targetNum });
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        handleIrlToyMsg(senderNumber, senderName, type, intensity, duration) {
+        handleIrlToyMsg(senderNumber, senderName, type, intensity, duration, toys) {
             var _a, _b;
             try {
                 if (type === "REQ") {
@@ -30296,6 +30399,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this.sendIrlToyMsg(senderNumber, "DEN");
                         return;
                     }
+                    // Auto-accept if sender is on the whitelist
+                    if (wl.includes(senderNumber)) {
+                        this._irlGrantedTo.set(senderNumber, { name: senderName });
+                        this.sendIrlToyMsg(senderNumber, "ACK");
+                        this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your Lovense.`);
+                        this.refreshToysIfActive();
+                        return;
+                    }
                     this._irlIncoming = { memberNumber: senderNumber, name: senderName };
                     this._showIrlReqPopup();
                 }
@@ -30303,7 +30414,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const pend = this._irlPendingOut.get(senderNumber);
                     if (pend) {
                         this._irlPendingOut.delete(senderNumber);
-                        this._irlCtrlSessions.set(senderNumber, { name: pend.name });
+                        this._irlCtrlSessions.set(senderNumber, { name: pend.name, toys });
                         this._showToyToast(`${pend.name} accepted Lovense control!`);
                         this.refreshToysIfActive();
                     }
@@ -30323,6 +30434,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const d = duration !== null && duration !== void 0 ? duration : 5;
                     this._showToyToast(`${senderName}: ${i}/20 for ${d}s ~`);
                     this.fireLovense(i, d).catch(() => { });
+                }
+                else if (type === "TOY") {
+                    // Targeted vibrate for a specific toy (sent by the controller)
+                    if (!this._irlGrantedTo.has(senderNumber))
+                        return;
+                    const i = intensity !== null && intensity !== void 0 ? intensity : 10;
+                    const d = duration !== null && duration !== void 0 ? duration : 5;
+                    const toyName = toys === null || toys === void 0 ? void 0 : toys[0];
+                    this._showToyToast(`${senderName}: ${toyName ? toyName.replace(/^Lovense\s+/i, "") : "toy"} ${i}/20 for ${d}s ~`);
+                    this.fireLovense(i, d, toyName ? [toyName] : undefined).catch(() => { });
                 }
                 else if (type === "REV") {
                     if (this._irlGrantedTo.has(senderNumber)) {
@@ -30395,8 +30516,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const fromFriend = ((_b = (_a = window.Player) === null || _a === void 0 ? void 0 : _a.FriendList) !== null && _b !== void 0 ? _b : []).includes(senderNumber);
                     if (!fromFriend && !wl.includes(senderNumber))
                         return;
+                    // Auto-accept if sender is on the whitelist
+                    if (wl.includes(senderNumber)) {
+                        this._toyGrantedTo.set(senderNumber, { name: senderName });
+                        this.sendGameToyMsg(senderNumber, "ACK");
+                        this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your toy.`);
+                        this.refreshToysIfActive();
+                        return;
+                    }
                     const acceptOn = s["gameToyAcceptRequests"] === true;
-                    if (!acceptOn && !wl.includes(senderNumber)) {
+                    if (!acceptOn) {
                         this.sendGameToyMsg(senderNumber, "DEN");
                         return;
                     }
@@ -32460,7 +32589,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 19; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 20; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32477,6 +32606,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
+                "Lovense: phrase triggers now have toy chips too — each chat phrase trigger can target a specific toy (or All), same as body-touch triggers.",
+                "IRL toys / Game toys: added auto-accept whitelist — if a friend is on your whitelist, their control request is accepted instantly without a popup. Whitelist is managed in the existing whitelist UI.",
+                "IRL toys: two-remote support — when your controller has multiple toys connected, their ACK carries toy names and your controller UI shows a separate vibrate panel per toy with independent Intensity/Duration sliders and a targeted Vibrate button. Single-toy sessions show the existing single panel.",
                 "Lovense: per-action toy routing — each body-touch trigger (headpat, spank, etc.) now has toy chips showing all connected toys. Click a chip to restrict that trigger to a specific toy; 'All' resets to firing everything. Works across both BLE and HTTP toys simultaneously.",
                 "Lovense HTTP: connected toys now appear as cards (matching BLE style) with a Test button and per-toy Intensity/Seconds sliders. Attempts to fetch real toy names via GetToys command; falls back to 'Lovense Connect' placeholder if unavailable.",
                 "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
@@ -38526,13 +38659,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return { type, intensity, duration };
     }
     function parseEBCIrlMsg(content) {
-        const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+        var _a;
+        // Flexible parser: [EBC-IRL:TYPE] or [EBC-IRL:TYPE:extra]
+        const m = content.match(/^\[EBC-IRL:([A-Za-z]+)(?::([^\]]*))?\]$/);
         if (!m)
             return null;
         const type = m[1];
-        const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
-        const duration = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
-        return { type, intensity, duration };
+        const extra = (_a = m[2]) !== null && _a !== void 0 ? _a : "";
+        if (type === "VIB") {
+            const nm = extra.match(/^(\d+):(\d+)$/);
+            if (nm)
+                return { type, intensity: parseInt(nm[1], 10), duration: parseInt(nm[2], 10) };
+        }
+        else if (type === "ACK") {
+            // ACK optionally carries comma-separated toy names: [EBC-IRL:ACK:ToyA,ToyB]
+            const toys = extra ? extra.split(",").map((s) => s.trim()).filter(Boolean) : [];
+            return { type, toys: toys.length > 0 ? toys : undefined };
+        }
+        else if (type === "TOY") {
+            // Targeted vibrate: [EBC-IRL:TOY:toyName:intensity:duration]
+            const lastColon = extra.lastIndexOf(":");
+            const prevColon = lastColon > 0 ? extra.lastIndexOf(":", lastColon - 1) : -1;
+            if (prevColon >= 0) {
+                const toyName = extra.slice(0, prevColon);
+                const i = parseInt(extra.slice(prevColon + 1, lastColon), 10);
+                const d = parseInt(extra.slice(lastColon + 1), 10);
+                if (toyName && !isNaN(i) && !isNaN(d))
+                    return { type, intensity: i, duration: d, toys: [toyName] };
+            }
+        }
+        return { type };
     }
     function handleKittyCommand(msg) {
         var _a, _b, _c, _d;
@@ -40226,7 +40382,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const roomChars = window.ChatRoomCharacter;
                             const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === senderNum);
                             const senderName = found ? (((_b = found.Nickname) !== null && _b !== void 0 ? _b : "").trim() || found.Name || String(senderNum)) : String(senderNum);
-                            drawer === null || drawer === void 0 ? void 0 : drawer.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration, parsed.toys);
                         }
                         return; // suppress — do not call next(args)
                     }
