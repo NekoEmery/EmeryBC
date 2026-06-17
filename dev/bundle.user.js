@@ -31130,11 +31130,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 else {
                     // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
                     // text/plain avoids preflight; response is opaque so we fire-and-forget
+                    // Try application/x-www-form-urlencoded - simple CORS type, no preflight, ASP.NET accepts both
+                    const formBody = Object.entries(payload).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join("&");
                     await fetch("https://do.pishock.com/api/apioperate/", {
                         method: "POST",
                         mode: "no-cors",
-                        headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify(payload),
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: formBody,
                     });
                     console.log("[EBC PiShock] direct no-cors sent (response opaque - verify on device)");
                     return "sent";
@@ -33721,7 +33723,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 63; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 64; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
