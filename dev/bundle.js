@@ -31003,7 +31003,7 @@
         }
         // bypass=true skips allow-toggles and limits (for test buttons)
         async firePiShock(shockerIdx, op, intensity, duration, bypass = false) {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             try {
                 const proxyUrl = (_b = (_a = localStorage.getItem("EBC_ps_proxy")) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
                 const username = (_d = (_c = localStorage.getItem("EBC_ps_user")) === null || _c === void 0 ? void 0 : _c.trim()) !== null && _d !== void 0 ? _d : "";
@@ -31027,11 +31027,20 @@
                 const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { Apikey: apikey.slice(0, 4) + "****" }));
                 const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
-                const text = (await resp.text()).trim();
-                console.log(`[EBC PiShock] response: HTTP ${resp.status}`, text || "(empty body)");
-                if (resp.ok || text.toLowerCase().includes("success"))
+                const raw = (await resp.text()).trim();
+                let psStatus = resp.status, psBody = raw;
+                try {
+                    const j = JSON.parse(raw);
+                    if (j.ps_status !== undefined) {
+                        psStatus = j.ps_status;
+                        psBody = (_j = j.ps_body) !== null && _j !== void 0 ? _j : "";
+                    }
+                }
+                catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
+                console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
+                if (psBody.toLowerCase().includes("success"))
                     return "ok";
-                return text || `HTTP ${resp.status}`;
+                return psBody || `HTTP ${psStatus}`;
             }
             catch (e) {
                 return String(e);
@@ -31639,12 +31648,15 @@
                 `        body: JSON.stringify(body),`,
                 `      });`,
                 `      const text = (await r.text()).trim();`,
-                `      return new Response(text || "HTTP " + r.status, {`,
-                `        status: r.status,`,
-                `        headers: { ...cors, "Content-Type": "text/plain" },`,
+                `      return new Response(JSON.stringify({ ps_status: r.status, ps_body: text || "(empty)" }), {`,
+                `        status: 200,`,
+                `        headers: { ...cors, "Content-Type": "application/json" },`,
                 `      });`,
                 `    } catch (e) {`,
-                `      return new Response("worker-error: " + e.message, { status: 500, headers: cors });`,
+                `      return new Response(JSON.stringify({ ps_status: 0, ps_body: "worker-error: " + e.message }), {`,
+                `        status: 200,`,
+                `        headers: { ...cors, "Content-Type": "application/json" },`,
+                `      });`,
                 `    }`,
                 `  },`,
                 `};`,
