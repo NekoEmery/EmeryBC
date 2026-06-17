@@ -22870,7 +22870,7 @@ export class EBCDrawer {
         card.appendChild(titleEl);
 
         const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-        subEl.textContent = "Anonymous — No account, no email, nothing tied to you.";
+        subEl.textContent = "No Google account or email needed — your BC member number is attached so misuse can be blocked.";
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
@@ -22928,7 +22928,8 @@ export class EBCDrawer {
         card.appendChild(stepsArea);
 
         const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
-        verNote.textContent = `EBC v${this.version ?? "?"} is attached automatically.`;
+        const _mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
+        verNote.textContent = `EBC v${this.version ?? "?"} · ${_mn} is attached automatically.`;
         card.appendChild(verNote);
 
         // ── Buttons ──────────────────────────────────────────────────
@@ -22957,11 +22958,12 @@ export class EBCDrawer {
             errEl.textContent = "";
             sendBtn.disabled = true; sendBtn.textContent = "Sending…";
 
+            const mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
             const params = new URLSearchParams();
             params.append(E_TYPE, selectedType);
             params.append(E_WHAT, what);
             params.append(E_STEPS, stepsArea.value.trim());
-            params.append(E_VER, this.version ?? "");
+            params.append(E_VER, `${this.version ?? "?"} | ${mn}`);
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
