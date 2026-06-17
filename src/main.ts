@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 28;   // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 29;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -45,8 +45,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.1.2",
         changes: [
+            "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside the panel or gets double-shrunk when zooming out.",
             "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
-            "Fix: panel content no longer bleeds outside the window when zoomed/scaled — the panel now clips to its own bounds, and the footer buttons wrap instead of overflowing.",
             "Feedback form: privacy line is now a highlighted callout reading 'Anonymous — No account, no email, nothing tied to you.'",
             "Feedback form: cleaner readable sans-serif font, unified rose colour scheme (no more pink/purple clash), and tighter spacing.",
             "Footer: moved the Tutorial and Feedback & Bugs buttons to the very bottom, beneath the online/room/bound timers.",

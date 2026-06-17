@@ -5111,7 +5111,7 @@ export class EBCDrawer {
         // slide transition never misfires - fixes the slider glitch.
         const zoomWrapper = document.createElement("div");
         zoomWrapper.className = "ebc-zoom-wrapper";
-        zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+        zoomWrapper.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
 
         // Flat flex column - applyPanelZoom always keeps width/height:100% so the
         // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
@@ -6276,27 +6276,28 @@ export class EBCDrawer {
 
     /** Scale the entire EBC panel.
      *
-     * Applies transform:scale() to .ebc-zoom-wrapper (an inner div containing
-     * all panel content), NOT to #emerybc-panel (the slide container).
-     * transform doesn't affect layout outside the wrapper, so the slide
-     * container never changes size and its transition never misfires.
+     * Uses CSS zoom (not transform:scale) on .ebc-zoom-wrapper so that
+     * overflow:hidden on .ebc-panel clips correctly at all zoom levels.
+     * transform:scale is applied after layout/clip, causing double-shrink at
+     * scale<1 and visual bleed at scale>1 — zoom avoids both.
      *
-     * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
-     * fills .ebc-panel exactly - no overflow, no clipping, no background bleed.
-     * Rapid slider changes are completely smooth since no layout reflow occurs
-     * on the outer container.
+     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's
+     * effective layout contribution to .ebc-panel exactly 100%, so the panel
+     * never changes size and the slide transition never misfires.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
         const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
         if (!wrapper) return;
         if (scale === 1) {
-            wrapper.style.transform = "";
-            wrapper.style.width     = "100%";  // must keep 100% - clearing to "" removes the
-            wrapper.style.height    = "100%";  // inline height, collapsing the wrapper to content
-        } else {                               // height and breaking flex scroll + footer layout.
-            // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
+            wrapper.style.zoom      = "";
+            wrapper.style.transform = ""; // clear any stale transform from before this fix
+            wrapper.style.width     = "100%";
+            wrapper.style.height    = "100%";
+        } else {
+            // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
             const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.zoom      = String(scale);
+            wrapper.style.transform = "";
             wrapper.style.width     = inv;
             wrapper.style.height    = inv;
         }
