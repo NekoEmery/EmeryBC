@@ -25287,14 +25287,25 @@ export class EBCDrawer {
                     nameMap.set(it.group, it.craftName ? `${it.craftName} (${it.name})` : it.name);
             } catch { /* ignore */ }
             for (const group of groups) {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
                 row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
                 row.addEventListener("mouseleave", () => { row.style.background = ""; });
+
                 const nm = document.createElement("span");
                 nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                 nm.textContent = nameMap.get(group) ?? group.replace("Item", "");
                 nm.title = group;
+
+                // ⏱ pause button - toggles duration picker inline
+                const pauseBtn = document.createElement("button");
+                pauseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;flex-shrink:0;";
+                pauseBtn.textContent = "⏱";
+                pauseBtn.title = "Temporarily pause this curse";
+
                 const liftOneBtn = document.createElement("button");
                 liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
                 liftOneBtn.textContent = "✕";
@@ -25302,7 +25313,6 @@ export class EBCDrawer {
                 liftOneBtn.addEventListener("click", () => {
                     const remaining = getCurseRecord(id).filter(g => g !== group);
                     setCurseRecord(id, remaining);
-                    // Use clear:group to precisely remove just this curse from target's record
                     sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                     const label = nameMap.get(group) ?? group.replace("Item", "");
                     const targetName4 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
@@ -25311,9 +25321,48 @@ export class EBCDrawer {
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
                     rebuildActiveCurses();
                 });
+
                 row.appendChild(nm);
+                row.appendChild(pauseBtn);
                 row.appendChild(liftOneBtn);
-                activeCursesList.appendChild(row);
+
+                // Duration picker - hidden until ⏱ clicked
+                const pickerRow = document.createElement("div");
+                pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:2px 4px 4px 4px;flex-wrap:wrap;";
+                const pickerLbl = document.createElement("span");
+                pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7090b0;white-space:nowrap;";
+                pickerLbl.textContent = "Pause for:";
+                pickerRow.appendChild(pickerLbl);
+                const PAUSE_OPTS: [string, number][] = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
+                for (const [label, mins] of PAUSE_OPTS) {
+                    const chip = document.createElement("button");
+                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                    chip.textContent = label;
+                    chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(70,100,160,0.2)"; chip.style.borderColor = "#5070a0"; });
+                    chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#3a4060"; });
+                    chip.addEventListener("click", () => {
+                        const ms = mins * 60 * 1000;
+                        sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                        const itemLabel = nameMap.get(group) ?? group.replace("Item", "");
+                        const targetName5 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
+                        appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetName5} for ${label}.`, UI.textMuted);
+                        curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
+                        window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                        pickerRow.style.display = "none";
+                        pauseBtn.style.color = "#7090b0";
+                    });
+                    pickerRow.appendChild(chip);
+                }
+
+                pauseBtn.addEventListener("click", () => {
+                    const open = pickerRow.style.display !== "none";
+                    pickerRow.style.display = open ? "none" : "flex";
+                    pauseBtn.style.color = open ? "#7090b0" : "#90b8e0";
+                });
+
+                wrap.appendChild(row);
+                wrap.appendChild(pickerRow);
+                activeCursesList.appendChild(wrap);
             }
         };
 

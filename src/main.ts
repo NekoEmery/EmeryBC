@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.3";
-const SAL_VERSION  = 75;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 76;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +48,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
             "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
             "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
+            "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
         ],
     },
     {
@@ -7574,6 +7575,14 @@ function init(): void {
     // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
     const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
     const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
+    const getCursePauseKey = (): string => `EBC_curse_pauses_${Player.MemberNumber ?? ""}`;
+    const getCursePauses = (): Record<string, number> => {
+        try { const r = localStorage.getItem(getCursePauseKey()); return r ? JSON.parse(r) as Record<string, number> : {}; } catch { return {}; }
+    };
+    const saveCursePauses = (p: Record<string, number>): void => {
+        try { localStorage.setItem(getCursePauseKey(), JSON.stringify(p)); } catch {}
+    };
+    const isCursePaused = (group: string): boolean => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
     const getCursedGroups = (): Set<string> => {
         try {
             const raw = localStorage.getItem(getCurseKey());
@@ -7608,9 +7617,19 @@ function init(): void {
             }
             saveCursedGroups(current);
             saveCurseItemMap(itemMap);
+        } else if (inner.startsWith("pause:")) {
+            const pauses = getCursePauses();
+            for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
+                if (g && ms > 0) pauses[g] = Date.now() + ms;
+            }
+            saveCursePauses(pauses);
         } else if (inner === "clear") {
             saveCursedGroups(new Set());
             saveCurseItemMap({});
+            saveCursePauses({});
         } else if (inner.startsWith("clear:")) {
             const itemMap = getCurseItemMap();
             for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
@@ -7628,7 +7647,7 @@ function init(): void {
             const [char, group] = args as [Character, string, boolean?];
             if (char === Player && typeof group === "string") {
                 const cursed = getCursedGroups();
-                if (cursed.has(group)) {
+                if (cursed.has(group) && !isCursePaused(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                     return; // block self-removal of cursed item
                 }
@@ -7650,7 +7669,7 @@ function init(): void {
             const nameVal = item.Name; // undefined = removal
             if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
                 const cursed = getCursedGroups();
-                if (cursed.has(group)) {
+                if (cursed.has(group) && !isCursePaused(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
                     // Send correction: our item is still here, push it back to the server
                     const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
