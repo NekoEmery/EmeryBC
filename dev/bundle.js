@@ -13121,7 +13121,7 @@
             // Lightning bolt = quick/fast. Open book = detailed reading.
             const SVG_BOLT = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
             const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
-            const fastCard = makeCard("Quick Tour", SVG_BOLT, "Every feature in a few bullets. Done in 2 minutes.", "5 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            const fastCard = makeCard("Quick Tour", SVG_BOLT, "Every feature in a few bullets. Done in 2 minutes.", "6 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
             const deepCard = makeCard("Full Guide", SVG_BOOK, "Full walkthrough with try-it prompts.", "13 steps", "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
             modesRow.appendChild(fastCard);
             modesRow.appendChild(deepCard);
@@ -32645,32 +32645,40 @@
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.FAST_STEPS = [
         {
-            tab: null,
-            label: "EBC at a glance",
-            text: "EBC extends Bondage Club with six feature areas.\nHit [[Next →]] for a one-screen summary of each one.",
-        },
-        {
             tab: "outfits",
-            label: "Outfits + Buttons",
-            text: "[[Outfits]] — save your full look as a preset, restore it in one click.\n• [[+ New Outfit]] saves now · [[Apply]] restores · [[Schedules]] auto-switch\n[[Buttons]] — one-tap actions, emotes or scripted multi-step sequences.\n• Link a face expression to fire automatically when you press a button",
+            label: "Outfits",
+            text: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
+            tab: "buttons",
+            label: "Action Buttons",
+            text: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))",
+            spotlight: ["[data-guide-target='btn-add-category']"],
+        },
+        {
             tab: "anims",
-            label: "Poses + Expressions",
-            text: "[[Pose combos]] — chain poses and messages, trigger with [[/name]] in chat.\n• [[+ New combo]] → add steps → type [[/name]] anywhere in BC chat\n[[Face presets]] — capture any expression, link to buttons or outfits.\n• [[Chat triggers]] fire a face automatically when your message matches a phrase",
+            label: "Poses & Animations",
+            text: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "toys",
-            label: "Toys + Users + Settings",
-            text: "[[Remote Toys]] — control a friend's in-game vibrator or real Lovense toy.\n• [[Request]] control (same room) · [[Whitelist]] friends to skip the popup\n[[Users]] — [[★]] marks friends · expand any card to whisper or view profile\n[[Settings]] (DEV) — [[Quick Preset]] themes · [[Hotkey]] · [[Visible Tabs]]",
+            label: "Remote Toys",
+            text: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.",
+        },
+        {
+            tab: "dev",
+            label: "Settings",
+            text: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))",
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
         },
         {
             tab: null,
             label: "Safewords — Always Here",
-            text: "Three safewords pinned above every tab — always one tap away.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] + [[Confirm step]] prevent accidental presses\n((That's the quick tour! Open Tutorial anytime to revisit.))",
+            text: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))",
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
     ];
@@ -32819,7 +32827,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 33; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 34; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
