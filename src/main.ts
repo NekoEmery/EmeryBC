@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.4";
-const SAL_VERSION  = 36;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "5.5.5";
+const SAL_VERSION  = 37;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "5.5.5",
+        changes: [
+            "Feedback form: privacy note simplified - removed the Google mention, just states your BC member number is attached.",
+        ],
+    },
     {
         version: "5.5.4",
         changes: [
