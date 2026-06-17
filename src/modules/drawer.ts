@@ -3383,8 +3383,8 @@ const CSS = `
     animation: ebc-guide-in 0.18s ease;
 }
 @keyframes ebc-guide-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 .ebc-guide-top {
     display: flex;
@@ -5860,8 +5860,8 @@ export class EBCDrawer {
             const c = document.createElement("div");
             c.style.cssText = `flex:1;background:#1c1020;border:1.5px solid #3a2540;border-radius:12px;padding:16px 12px 14px;cursor:pointer;text-align:center;${FONT}transition:border-color 0.14s,background 0.14s,transform 0.1s;`;
             const badgeEl = document.createElement("div");
-            badgeEl.style.cssText = `font-size:26px;margin-bottom:9px;color:${accent};font-weight:bold;`;
-            badgeEl.textContent = badge;
+            badgeEl.style.cssText = `display:flex;justify-content:center;margin-bottom:10px;color:${accent};`;
+            badgeEl.innerHTML = badge;
             const headEl = document.createElement("div");
             headEl.style.cssText = `font-size:13px;font-weight:bold;color:#f7e6ee;margin-bottom:6px;`;
             headEl.textContent = heading;
@@ -5881,9 +5881,13 @@ export class EBCDrawer {
             return c;
         };
 
+        // Lightning bolt = quick/fast. Open book = detailed reading.
+        const SVG_BOLT = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+        const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+
         const fastCard = makeCard(
             "Quick Tour",
-            "▶",
+            SVG_BOLT,
             "Every feature in a few bullets. Done in 2 minutes.",
             "5 steps",
             "#d4a020",
@@ -5891,9 +5895,9 @@ export class EBCDrawer {
         );
         const deepCard = makeCard(
             "Full Guide",
-            "◈",
+            SVG_BOOK,
             "Full walkthrough with try-it prompts.",
-            "12 steps",
+            "13 steps",
             "#cf6f98",
             () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
         );
@@ -5911,20 +5915,10 @@ export class EBCDrawer {
         const side = document.createElement("div");
         side.className = "ebc-guide-side";
 
-        // Pick a side (prefer left; fall back to right if not enough room)
-        const panelRect = this.panelEl?.getBoundingClientRect() ?? { left: 0, right: 360, top: 60, bottom: 700 };
-        const gw = 318; // panel width (310) + gap (8)
-        let left: number;
-        if (panelRect.left >= gw + 4) {
-            left = panelRect.left - gw;
-        } else {
-            left = (panelRect.right ?? 360) + 8;
-        }
-        left = Math.max(4, Math.min(window.innerWidth - gw - 4, left));
-        const top  = Math.max(4, Math.min(window.innerHeight - 60, panelRect.top ?? 60));
-
-        side.style.left = `${left}px`;
-        side.style.top  = `${top}px`;
+        // Center on screen
+        side.style.left      = "50%";
+        side.style.top       = "50%";
+        side.style.transform = "translate(-50%, -50%)";
 
         document.body.appendChild(side);
         this.guideEl             = side;
