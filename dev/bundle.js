@@ -8292,8 +8292,16 @@
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
-.ebc-feedback-btn { color: #e3b6cb; border-color: #7a3a55; font-weight: bold; }
-.ebc-feedback-btn:hover { background: #5a2c42; color: #fff0f6; border-color: #e08ab0; }
+.ebc-footer-action-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 14px; border-radius: 8px;
+    border: 1px solid #7a3a55; background: rgba(42,20,33,0.6);
+    color: #e3b6cb; font-family: "Trebuchet MS", serif;
+    font-size: 11px; font-weight: bold; cursor: pointer;
+    white-space: nowrap; transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.ebc-footer-action-btn:hover { background: #5a2c42; color: #fff0f6; border-color: #e08ab0; }
+.ebc-footer-action-btn svg { flex-shrink: 0; }
 
 @keyframes ebc-spin { to { transform: rotate(360deg); } }
 .ebc-icon-btn.spinning svg { animation: ebc-spin 0.6s linear; }
@@ -9035,7 +9043,7 @@
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 5px 8px 4px;
+    padding: 8px 8px 5px;
     border-top: 1px solid #3a1928;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -11787,17 +11795,6 @@
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
-            const feedbackBtn = document.createElement("button");
-            feedbackBtn.className = "ebc-icon-btn ebc-feedback-btn";
-            feedbackBtn.title = "Send anonymous feedback or report a bug — sent straight from in-game, no account needed";
-            // Bug-with-warning-triangle icon (matches the reference icon), themes via currentColor
-            feedbackBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
-            const fbLabel = document.createElement("span");
-            fbLabel.textContent = "Feedback & Bugs";
-            feedbackBtn.appendChild(fbLabel);
-            feedbackBtn.style.cssText += "display:inline-flex;align-items:center;gap:5px;white-space:nowrap;";
-            feedbackBtn.addEventListener("click", () => { this._openFeedbackModal(); });
-            headerBtns.appendChild(feedbackBtn);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
@@ -12436,6 +12433,30 @@
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
             footer.style.position = "relative";
+            // ── Two important action buttons at the top of the footer ────────────
+            const BUG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
+            const BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
+            const footerBtnRow = document.createElement("div");
+            footerBtnRow.style.cssText = "display:flex;gap:8px;width:100%;justify-content:center;margin-bottom:1px;";
+            const tutorialBtn = document.createElement("button");
+            tutorialBtn.className = "ebc-footer-action-btn";
+            tutorialBtn.title = "Open the interactive guide / tutorial";
+            tutorialBtn.innerHTML = BOOK_SVG;
+            const tutLbl = document.createElement("span");
+            tutLbl.textContent = "Tutorial";
+            tutorialBtn.appendChild(tutLbl);
+            tutorialBtn.addEventListener("click", () => this.startGuide());
+            const fbBtn = document.createElement("button");
+            fbBtn.className = "ebc-footer-action-btn";
+            fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
+            fbBtn.innerHTML = BUG_SVG;
+            const fbLbl = document.createElement("span");
+            fbLbl.textContent = "Feedback & Bugs";
+            fbBtn.appendChild(fbLbl);
+            fbBtn.addEventListener("click", () => this._openFeedbackModal());
+            footerBtnRow.appendChild(tutorialBtn);
+            footerBtnRow.appendChild(fbBtn);
+            footer.appendChild(footerBtnRow);
             const footerVerEl = document.createElement("span");
             footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
             footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
@@ -12443,14 +12464,6 @@
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
-            const footerGuideBtn = document.createElement("button");
-            footerGuideBtn.textContent = "?";
-            footerGuideBtn.title = "Interactive guide";
-            footerGuideBtn.style.cssText = "position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:7px;cursor:pointer;border:1.5px solid #cf6f98;background:rgba(42,20,33,0.9);color:#cf6f98;font-family:'Trebuchet MS',serif;font-size:16px;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:0;transition:background 0.15s;";
-            footerGuideBtn.addEventListener("mouseenter", () => { footerGuideBtn.style.background = "rgba(207,111,152,0.22)"; });
-            footerGuideBtn.addEventListener("mouseleave", () => { footerGuideBtn.style.background = "rgba(42,20,33,0.9)"; });
-            footerGuideBtn.addEventListener("click", () => this.startGuide());
-            footer.appendChild(footerGuideBtn);
             this.timerEl = timerEl;
             // ── EBC Tags strip - collapsible, always below safewords ─────────────
             const ebcTagsStrip = document.createElement("div");
@@ -32674,7 +32687,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 23; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 24; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32691,6 +32704,7 @@
         {
             version: "8.1.2",
             changes: [
+                "Footer redesign: 'Tutorial' and 'Feedback & Bugs' buttons now sit together at the top of the footer (above the version line) where they're easy to find. Removed the floating '?' button from the bottom corner, and moved Feedback out of the cramped header so nothing overflows when you drag the window.",
                 "Feedback: header button now shows a bug icon + 'Feedback & Bugs' label, and the in-game form submits the exact option values the backend expects (fixes the Type field not registering).",
                 "Feedback: 🐛 Feedback button now opens a form right inside EBC — pick a type, type your message, hit Send, and it's submitted anonymously without ever leaving the game. No browser tab, no account, no email.",
                 "Feedback: 🐛 button now links to an anonymous Google Form instead of GitHub — no account needed to submit a bug report or feature request.",
