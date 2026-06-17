@@ -22896,7 +22896,7 @@ export class EBCDrawer {
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const raw = (await resp.text()).trim();
             let psStatus = resp.status, psBody = raw;
-            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; } } catch { /* old worker format, use raw */ }
+            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; if (j.ps_redirected) console.log(`[EBC PiShock] redirected to: ${j.ps_url}`); } } catch { /* old worker format, use raw */ }
             console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
             if (psBody.toLowerCase().includes("success")) return "ok";
             return psBody || `HTTP ${psStatus}`;
@@ -23435,12 +23435,13 @@ export class EBCDrawer {
             `        body: JSON.stringify(body),`,
             `      });`,
             `      const text = (await r.text()).trim();`,
-            `      return new Response(JSON.stringify({ ps_status: r.status, ps_body: text || "(empty)" }), {`,
+            `      const info = { ps_status: r.status, ps_body: text || "(empty)", ps_url: r.url, ps_redirected: r.redirected };`,
+            `      return new Response(JSON.stringify(info), {`,
             `        status: 200,`,
             `        headers: { ...cors, "Content-Type": "application/json" },`,
             `      });`,
             `    } catch (e) {`,
-            `      return new Response(JSON.stringify({ ps_status: 0, ps_body: "worker-error: " + e.message }), {`,
+            `      return new Response(JSON.stringify({ ps_status: 0, ps_body: "worker-error: " + e.message, ps_url: "", ps_redirected: false }), {`,
             `        status: 200,`,
             `        headers: { ...cors, "Content-Type": "application/json" },`,
             `      });`,
