@@ -30324,6 +30324,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return inp;
                     };
                     const psRow = (gap = "6px") => mk("div", `display:flex;align-items:center;gap:${gap};margin-bottom:6px;`);
+                    // ── Safety warning ────────────────────────────────────────────────
+                    const warnBox = mk("div", `${FONT}background:rgba(180,40,40,0.13);border:1.5px solid #a03030;border-radius:8px;padding:10px 12px;margin-bottom:10px;`);
+                    const warnTitle = mk("div", `${FONT}font-size:11px;font-weight:bold;color:#e07070;margin-bottom:5px;letter-spacing:0.3px;`);
+                    warnTitle.textContent = "⚠ USE RESPONSIBLY";
+                    const warnText = mk("div", `${FONT}font-size:10px;color:#c09090;line-height:1.55;`);
+                    warnText.textContent = "Electrical shocks can cause pain, injury, or medical complications. Only use on consenting partners who are fully aware this is active. Never shock anyone in a way that could cause real harm. You are solely responsible for every action sent through this panel.";
+                    warnBox.appendChild(warnTitle);
+                    warnBox.appendChild(warnText);
+                    psContent.appendChild(warnBox);
                     // ── Proxy URL ─────────────────────────────────────────────────────
                     psContent.appendChild(psHdr("Cloudflare Worker Proxy URL"));
                     const proxyRow = psRow();
