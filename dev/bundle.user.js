@@ -11599,12 +11599,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
-    const TOUCH_DEFS = [
-        { key: "bite", label: "😬 Bite", activity: "Bite", group: undefined, dflt: false },
-        { key: "spank", label: "👋 Spank", activity: "Spank", group: "ItemButt", dflt: false },
-        { key: "slap", label: "✋ Slap", activity: "Slap", group: undefined, dflt: false },
-        { key: "pinch", label: "🤏 Pinch", activity: "Pinch", group: undefined, dflt: false },
-    ];
+    const TOUCH_DEFS = [];
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
         static getOpenBeepWindows() {
@@ -30529,6 +30524,74 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     };
                     renderLevels();
                     psContent.appendChild(levelsGrid);
+                    // ── Trusted Senders ───────────────────────────────────────────────
+                    psContent.appendChild(sep());
+                    psContent.appendChild(psHdr("Trusted Senders"));
+                    const trustNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
+                    psContent.appendChild(trustNote);
+                    const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
+                    const renderTrustList = () => {
+                        while (trustListEl.firstChild)
+                            trustListEl.removeChild(trustListEl.firstChild);
+                        const wl = EBCDrawer.getPsWhitelist();
+                        if (!wl.length) {
+                            const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
+                            none.textContent = "No trusted senders yet.";
+                            trustListEl.appendChild(none);
+                        }
+                        wl.forEach((entry, i) => {
+                            const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                            const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                            lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                            const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                            rmBtn.addEventListener("click", () => { const arr = EBCDrawer.getPsWhitelist(); arr.splice(i, 1); EBCDrawer.savePsWhitelist(arr); renderTrustList(); });
+                            row.appendChild(lbl);
+                            row.appendChild(rmBtn);
+                            trustListEl.appendChild(row);
+                        });
+                    };
+                    renderTrustList();
+                    psContent.appendChild(trustListEl);
+                    const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                    const trustNumInp = document.createElement("input");
+                    trustNumInp.type = "number";
+                    trustNumInp.placeholder = "Member #";
+                    trustNumInp.style.cssText = `${FONT}width:90px;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                    const trustNameInp = document.createElement("input");
+                    trustNameInp.type = "text";
+                    trustNameInp.placeholder = "Name (optional)";
+                    trustNameInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                    // Populate name from room characters when member # is typed
+                    trustNumInp.addEventListener("input", () => {
+                        var _a;
+                        const num = parseInt(trustNumInp.value);
+                        if (!isNaN(num)) {
+                            const roomChars = window["ChatRoomCharacter"];
+                            const found = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
+                            if (found)
+                                trustNameInp.value = ((_a = found.Nickname) !== null && _a !== void 0 ? _a : "").trim() || found.Name || "";
+                        }
+                    });
+                    const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                    addTrustBtn.addEventListener("click", () => {
+                        const num = parseInt(trustNumInp.value);
+                        if (isNaN(num) || num <= 0)
+                            return;
+                        const name = (trustNameInp.value).trim();
+                        const arr = EBCDrawer.getPsWhitelist();
+                        if (!arr.some(e => e.memberNumber === num)) {
+                            arr.push({ memberNumber: num, name });
+                            EBCDrawer.savePsWhitelist(arr);
+                        }
+                        trustNumInp.value = "";
+                        trustNameInp.value = "";
+                        renderTrustList();
+                    });
+                    addTrustRow.appendChild(trustNumInp);
+                    addTrustRow.appendChild(trustNameInp);
+                    addTrustRow.appendChild(addTrustBtn);
+                    psContent.appendChild(addTrustRow);
                     // ── Shockers ──────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Shockers"));
@@ -30599,6 +30662,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             allowRow.appendChild(mkAllow("Beep", "allowBeep"));
                             allowRow.appendChild(mkAllow("Vib", "allowVib"));
                             allowRow.appendChild(mkAllow("Shock", "allowShock"));
+                            // Trusted-only toggle
+                            const wlOn = sh.whitelistOnly === true;
+                            const wlBtn = mkBtn("🔒 Trusted only", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.12)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};`);
+                            wlBtn.title = "When on: only shocks from Trusted Senders trigger this shocker";
+                            wlBtn.addEventListener("click", () => { shockers[idx].whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                            allowRow.appendChild(wlBtn);
                             shCard.appendChild(allowRow);
                             // Per-shocker cap
                             const limRow = psRow();
@@ -31174,6 +31243,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch (_a) { }
         }
+        static getPsWhitelist() {
+            var _a;
+            try {
+                const s = JSON.parse((_a = localStorage.getItem("EBC_ps_whitelist")) !== null && _a !== void 0 ? _a : "[]");
+                return Array.isArray(s) ? s : [];
+            }
+            catch (_b) {
+                return [];
+            }
+        }
+        static savePsWhitelist(arr) {
+            try {
+                localStorage.setItem("EBC_ps_whitelist", JSON.stringify(arr));
+            }
+            catch (_a) { }
+        }
         // bypass=true skips allow-toggles and limits (for test buttons)
         async firePiShock(shockerIdx, op, intensity, duration, bypass = false) {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j;
@@ -31295,7 +31380,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_d) { /* ignore */ }
         }
-        checkPiShockActivityTrigger() {
+        checkPiShockActivityTrigger(senderNum) {
             try {
                 if (typeof Player === "undefined" || Player.MemberNumber !== EMERY_MEMBER)
                     return;
@@ -31304,7 +31389,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 const shockers = EBCDrawer.getPsShockers();
                 const levels = EBCDrawer.getPsLevels();
+                const whitelist = EBCDrawer.getPsWhitelist();
                 shockers.forEach((sh, idx) => {
+                    if (sh.whitelistOnly === true) {
+                        if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum))
+                            return;
+                    }
                     const op = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
                     if (op >= 0) {
                         this.firePiShockWithWarn(idx, op, levels[0].intensity, levels[0].duration).catch(() => { });
@@ -33868,7 +33958,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 82; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 83; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33887,6 +33977,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             changes: [
                 "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all checks were previously wrong so shock collar never fired PiShock.",
                 "PiShock BC Events configuration removed entirely - shockers now always fire automatically when BC shocks you, using Allow flags to pick the operation (Shock if allowed, else Vib, else Beep). No setup or toggles needed.",
+                "PiShock: Trusted Senders whitelist - add trusted people by member number; each shocker has a 'Trusted only' toggle that when on only fires that shocker if the person who triggered the BC shock is in the whitelist. Toggle off to let anyone trigger it.",
             ],
         },
         {
@@ -41795,9 +41886,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             e["Tag"] === "TargetCharacter" || "TargetCharacter" in e);
                         const targetNum = ((_e = destEntry === null || destEntry === void 0 ? void 0 : destEntry["MemberNumber"]) !== null && _e !== void 0 ? _e : destEntry === null || destEntry === void 0 ? void 0 : destEntry["TargetCharacter"]);
                         if (targetNum === Player.MemberNumber) {
-                            const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup");
-                            const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
-                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger();
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger(data.Sender);
                         }
                     }
                 }
