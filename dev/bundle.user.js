@@ -30774,7 +30774,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             titleEl.textContent = "Feedback & Bug Report";
             card.appendChild(titleEl);
             const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-            subEl.textContent = "Anonymous — No account, no email, nothing tied to you.";
+            subEl.textContent = "No Google account or email needed — your BC member number is attached so misuse can be blocked.";
             card.appendChild(subEl);
             const mkLabel = (txt) => {
                 const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
@@ -30829,7 +30829,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             wireFocus(stepsArea);
             card.appendChild(stepsArea);
             const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
-            verNote.textContent = `EBC v${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} is attached automatically.`;
+            const _mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
+            verNote.textContent = `EBC v${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} · ${_mn} is attached automatically.`;
             card.appendChild(verNote);
             // ── Buttons ──────────────────────────────────────────────────
             const errEl = mk("div", `${FONT}font-size:11px;color:#ff8a8a;margin-bottom:10px;min-height:14px;`);
@@ -30864,11 +30865,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 errEl.textContent = "";
                 sendBtn.disabled = true;
                 sendBtn.textContent = "Sending…";
+                const mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
                 const params = new URLSearchParams();
                 params.append(E_TYPE, selectedType);
                 params.append(E_WHAT, what);
                 params.append(E_STEPS, stepsArea.value.trim());
-                params.append(E_VER, (_a = this.version) !== null && _a !== void 0 ? _a : "");
+                params.append(E_VER, `${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} | ${mn}`);
                 // no-cors: fire-and-forget; we can't read the response but the submit goes through
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
                     .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
@@ -32862,7 +32864,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 34; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 35; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32880,6 +32882,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             version: "8.2.1",
             changes: [
                 "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
+                "Feedback form: BC member number is now silently attached to every submission (shown in the version field as '8.x.x | #12345') so spam or misuse can be blocked by member number.",
             ],
         },
         {
