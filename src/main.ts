@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 29;   // internal sub-version — shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.0";
+const SAL_VERSION  = 30;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.0",
+        changes: [
+            "Tutorial: redesigned from 16 text-heavy steps to 8 short interactive ones — each with a clear label, a pulsing spotlight on the relevant UI element, and a try-it nudge.",
+            "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside or double-shrinks when zooming out.",
+            "Feedback: new in-game anonymous form (footer Feedback & Bugs button) — pick a type, describe the issue, hit Send; no browser tab, no account, submitted silently from the game.",
+            "IRL toys: two-remote support — when multiple Lovense toys are connected, the controller shows a separate vibrate panel per toy with independent Intensity/Duration sliders.",
+            "Toy whitelist: entries now show display names beside member numbers; 'No need to ask' instant-control toggle added — OFF by default for safety.",
+        ],
+    },
     {
         version: "8.1.2",
         changes: [
