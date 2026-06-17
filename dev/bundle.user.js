@@ -30873,6 +30873,67 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         renderTriggers();
                     });
                     psContent.appendChild(addTrigBtn);
+                    // ── Dev Log ───────────────────────────────────────────────────────
+                    psContent.appendChild(sep());
+                    const devLogHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;");
+                    const devLogTitle = mk("span", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;flex:1;`);
+                    devLogTitle.textContent = "Dev Log";
+                    const devLogChev = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                    devLogChev.textContent = "▶";
+                    const devLogClear = mkBtn("Clear", `${FONT}font-size:10px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                    devLogHdr.appendChild(devLogChev);
+                    devLogHdr.appendChild(devLogTitle);
+                    devLogHdr.appendChild(devLogClear);
+                    psContent.appendChild(devLogHdr);
+                    const devLogBody = mk("div", "overflow:hidden;max-height:0;transition:max-height 0.2s ease;");
+                    const devLogInner = mk("div", `font-family:monospace;font-size:11px;overflow-y:auto;max-height:160px;margin-top:5px;padding:5px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:4px;`);
+                    devLogBody.appendChild(devLogInner);
+                    psContent.appendChild(devLogBody);
+                    let devLogOpen = false;
+                    const renderDevLog = () => {
+                        while (devLogInner.firstChild)
+                            devLogInner.removeChild(devLogInner.firstChild);
+                        if (!EBCDrawer._psLog.length) {
+                            const empty = mk("div", "color:#666;");
+                            empty.textContent = "No events yet.";
+                            devLogInner.appendChild(empty);
+                            return;
+                        }
+                        EBCDrawer._psLog.forEach(e => {
+                            const opLabel = e.op === 0 ? "Shock" : e.op === 1 ? "Vib" : "Beep";
+                            const isOk = e.result === "ok" || e.result.startsWith("sent");
+                            const isErr = !isOk && e.result !== "not-allowed";
+                            const col = isOk ? "#70c080" : isErr ? "#e07070" : "#888";
+                            const row = mk("div", "display:flex;gap:6px;align-items:baseline;padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04);");
+                            const t = mk("span", "color:#666;white-space:nowrap;");
+                            t.textContent = e.time;
+                            const op = mk("span", `color:#a8c0e0;width:36px;flex-shrink:0;`);
+                            op.textContent = opLabel;
+                            const info = mk("span", "color:#bbb;flex:1;");
+                            info.textContent = e.op === 2
+                                ? `${e.shocker}  dur:${e.duration}s`
+                                : `${e.shocker}  int:${e.intensity}%  dur:${e.duration}s`;
+                            const res = mk("span", `color:${col};white-space:nowrap;`);
+                            res.textContent = `→ ${e.result}`;
+                            row.appendChild(t);
+                            row.appendChild(op);
+                            row.appendChild(info);
+                            row.appendChild(res);
+                            devLogInner.appendChild(row);
+                        });
+                        devLogInner.scrollTop = devLogInner.scrollHeight;
+                    };
+                    EBCDrawer._psLogRenderer = renderDevLog;
+                    devLogHdr.addEventListener("click", (ev) => {
+                        if (ev.target === devLogClear)
+                            return;
+                        devLogOpen = !devLogOpen;
+                        devLogChev.textContent = devLogOpen ? "▼" : "▶";
+                        devLogBody.style.maxHeight = devLogOpen ? "200px" : "0";
+                        if (devLogOpen)
+                            renderDevLog();
+                    });
+                    devLogClear.addEventListener("click", () => { EBCDrawer._psLog = []; renderDevLog(); });
                 }
                 card.appendChild(psWrap);
             }
@@ -31311,6 +31372,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch (_a) { }
         }
+        static _pushPsLog(e) {
+            var _a;
+            EBCDrawer._psLog.push(e);
+            if (EBCDrawer._psLog.length > 50)
+                EBCDrawer._psLog.shift();
+            (_a = EBCDrawer._psLogRenderer) === null || _a === void 0 ? void 0 : _a.call(EBCDrawer);
+        }
         // bypass=true skips allow-toggles and limits (for test buttons)
         async firePiShock(shockerIdx, op, intensity, duration, bypass = false) {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j;
@@ -31341,6 +31409,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { APIKey: apikey.slice(0, 4) + "****" }));
+                const _logBase = { time: new Date().toLocaleTimeString(), shocker: sh.name || `Shocker ${shockerIdx + 1}`, op, intensity, duration };
                 if (proxyUrl) {
                     // Proxy path - can read response
                     const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
@@ -31356,9 +31425,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
                     console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
-                    if (psStatus === 204 || psBody.toLowerCase().includes("success"))
-                        return "ok";
-                    return psBody || `HTTP ${psStatus}`;
+                    const proxyResult = (psStatus === 204 || psBody.toLowerCase().includes("success")) ? "ok" : (psBody || `HTTP ${psStatus}`);
+                    EBCDrawer._pushPsLog(Object.assign(Object.assign({}, _logBase), { result: proxyResult }));
+                    return proxyResult;
                 }
                 else {
                     // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
@@ -31372,6 +31441,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         body: formBody,
                     });
                     console.log("[EBC PiShock] direct no-cors sent (response opaque - verify on device)");
+                    EBCDrawer._pushPsLog(Object.assign(Object.assign({}, _logBase), { result: "sent (no-cors)" }));
                     return "sent";
                 }
             }
@@ -33951,6 +34021,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer._psTempWhitelist = [];
+    EBCDrawer._psLog = [];
+    EBCDrawer._psLogRenderer = null;
 
     // Character bundle storage — session-memory only.
     // Dexie/IndexedDB was removed because Chrome's IDB implementation
@@ -34013,7 +34085,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 87; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 88; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
