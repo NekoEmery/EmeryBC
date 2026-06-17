@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.3";
-const SAL_VERSION  = 79;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 80;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
             "PiShock fix: shock collar Action message Content is TriggerShock0/1/2 (not a 'shock' keyword) and target is in DestinationCharacterName tag (not TargetCharacter) - both checks were wrong so the hook never matched and PiShock never fired. Now correctly detects TriggerShock prefix and reads MemberNumber from DestinationCharacterName.",
             "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
+            "PiShock: BC Events section redesigned - now a clearly bordered accent-colored panel (open by default, with lightning icon and subtitle) instead of tiny collapsed text. Reduced TOUCH_DEFS to only relevant shock/pain activities: Bite, Spank, Slap, Pinch, Shock (removed Headpat, Caress, Kiss, Lick, Tickle, Squeeze, Rub, Choke, Grab).",
             "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
             "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
         ],

@@ -3946,19 +3946,10 @@ interface LovenseTouchState {
 }
 
 const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [
-    { key: "headpat",  label: "🤚 Headpat",  activity: "Pet",     group: "ItemHead",  dflt: true  },
-    { key: "caress",   label: "🤲 Caress",   activity: "Caress",  group: undefined,   dflt: true  },
-    { key: "kiss",     label: "💋 Kiss",     activity: "Kiss",    group: "ItemMouth", dflt: true  },
-    { key: "lick",     label: "👅 Lick",     activity: "Lick",    group: undefined,   dflt: false },
     { key: "bite",     label: "😬 Bite",     activity: "Bite",    group: undefined,   dflt: false },
     { key: "spank",    label: "👋 Spank",    activity: "Spank",   group: "ItemButt",  dflt: false },
     { key: "slap",     label: "✋ Slap",     activity: "Slap",    group: undefined,   dflt: false },
-    { key: "tickle",   label: "🪶 Tickle",   activity: "Tickle",  group: undefined,   dflt: false },
     { key: "pinch",    label: "🤏 Pinch",    activity: "Pinch",   group: undefined,   dflt: false },
-    { key: "squeeze",  label: "🫸 Squeeze",  activity: "Squeeze", group: undefined,   dflt: false },
-    { key: "rub",      label: "🖐 Rub",      activity: "Rub",     group: undefined,   dflt: false },
-    { key: "choke",    label: "🤜 Choke",    activity: "Choke",   group: "ItemNeck",  dflt: false },
-    { key: "grab",     label: "✊ Grab",     activity: "Grab",    group: undefined,   dflt: false },
     { key: "shock",    label: "⚡ Shock",    activity: "Shock",   group: undefined,   dflt: false },
 ];
 
@@ -22521,13 +22512,19 @@ export class EBCDrawer {
                         // BC Events (use level names)
                         type PsEv = { enabled?: boolean; op?: "auto" | "beep" | "vib" | "shock"; levelName?: string };
                         const shBcEvents = ((sh as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>;
-                        const evHdr = mk("div", "display:flex;align-items:center;gap:4px;cursor:pointer;margin:4px 0 3px;user-select:none;");
-                        const evHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;color:var(--ebc-text-muted);text-transform:uppercase;`);
+                        const evSection = mk("div", `border:1px solid var(--ebc-accent);border-radius:6px;margin:6px 0 4px;overflow:hidden;`);
+                        const evHdr = mk("div", `display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;background:rgba(255,255,255,0.04);`);
+                        const evHdrLeft = mk("div", "display:flex;align-items:center;gap:6px;");
+                        const evHdrIcon = mk("span", `${FONT}font-size:13px;`); evHdrIcon.textContent = "⚡";
+                        const evHdrLbl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
                         evHdrLbl.textContent = "BC Events";
-                        const evArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-left:2px;`);
-                        evArrow.textContent = "▶";
-                        evHdr.appendChild(evHdrLbl); evHdr.appendChild(evArrow);
-                        const evBody = mk("div", "display:none;padding-top:2px;");
+                        const evHdrSub = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                        evHdrSub.textContent = "fire when game shocks you";
+                        evHdrLeft.appendChild(evHdrIcon); evHdrLeft.appendChild(evHdrLbl); evHdrLeft.appendChild(evHdrSub);
+                        const evArrow = mk("span", `${FONT}font-size:11px;color:var(--ebc-accent);`);
+                        evArrow.textContent = "▼";
+                        evHdr.appendChild(evHdrLeft); evHdr.appendChild(evArrow);
+                        const evBody = mk("div", "padding:6px 10px 8px;");
                         evHdr.addEventListener("click", () => {
                             const open = evBody.style.display !== "none";
                             evBody.style.display = open ? "none" : "block";
@@ -22536,8 +22533,8 @@ export class EBCDrawer {
                         TOUCH_DEFS.forEach(def => {
                             const ev = shBcEvents[def.key] ?? {};
                             const evEnabled = ev.enabled === true;
-                            const evRow = mk("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap;");
-                            const toggleChip = mkBtn(def.label, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "var(--ebc-card)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                            const evRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;");
+                            const toggleChip = mkBtn(def.label, `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "rgba(255,255,255,0.08)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-sub)"};font-weight:${evEnabled ? "bold" : "normal"};`);
                             toggleChip.addEventListener("click", () => {
                                 const arr = EBCDrawer.getPsShockers();
                                 const shEvMap = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>;
@@ -22548,12 +22545,12 @@ export class EBCDrawer {
                             evRow.appendChild(toggleChip);
                             if (evEnabled) {
                                 const opSel = document.createElement("select");
-                                opSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                opSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
                                 (["auto", "beep", "vib", "shock"] as const).forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === (ev.op ?? "auto")) o.selected = true; opSel.appendChild(o); });
                                 opSel.addEventListener("change", () => { const arr = EBCDrawer.getPsShockers(); const m = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>; m[def.key] = { ...m[def.key], op: (opSel as HTMLSelectElement).value as PsEv["op"] }; (arr[idx] as Record<string, unknown>).bcEvents = m; EBCDrawer.savePsShockers(arr); });
                                 evRow.appendChild(opSel);
                                 const evLvSel = document.createElement("select");
-                                evLvSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                evLvSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
                                 const evLvs = EBCDrawer.getPsLevels();
                                 evLvs.forEach(lv => { const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === (ev.levelName ?? evLvs[0].name)) o.selected = true; evLvSel.appendChild(o); });
                                 evLvSel.addEventListener("change", () => { const arr = EBCDrawer.getPsShockers(); const m = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>; m[def.key] = { ...m[def.key], levelName: (evLvSel as HTMLSelectElement).value }; (arr[idx] as Record<string, unknown>).bcEvents = m; EBCDrawer.savePsShockers(arr); });
@@ -22561,8 +22558,9 @@ export class EBCDrawer {
                             }
                             evBody.appendChild(evRow);
                         });
-                        shCard.appendChild(evHdr);
-                        shCard.appendChild(evBody);
+                        evSection.appendChild(evHdr);
+                        evSection.appendChild(evBody);
+                        shCard.appendChild(evSection);
 
                         // Test buttons
                         const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
