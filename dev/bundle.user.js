@@ -30398,6 +30398,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return;
                         }
                         shockers.forEach((sh, idx) => {
+                            var _a;
                             const shCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
                             // Name + share code row
                             const r1 = psRow();
@@ -30462,6 +30463,66 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             limRow.appendChild(mkLim("Max Int:", "maxInt", 1, 100));
                             limRow.appendChild(mkLim("Max Dur:", "maxDur", 1, 15));
                             shCard.appendChild(limRow);
+                            const shBcEvents = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
+                            const evHdr = mk("div", "display:flex;align-items:center;gap:4px;cursor:pointer;margin:4px 0 3px;user-select:none;");
+                            const evHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;color:var(--ebc-text-muted);text-transform:uppercase;`);
+                            evHdrLbl.textContent = "BC Events";
+                            const evArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-left:2px;`);
+                            evArrow.textContent = "▶";
+                            evHdr.appendChild(evHdrLbl);
+                            evHdr.appendChild(evArrow);
+                            const evBody = mk("div", "display:none;padding-top:2px;");
+                            evHdr.addEventListener("click", () => {
+                                const open = evBody.style.display !== "none";
+                                evBody.style.display = open ? "none" : "block";
+                                evArrow.textContent = open ? "▶" : "▼";
+                            });
+                            TOUCH_DEFS.forEach(def => {
+                                var _a;
+                                const ev = (_a = shBcEvents[def.key]) !== null && _a !== void 0 ? _a : {};
+                                const evEnabled = ev.enabled === true;
+                                const evRow = mk("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap;");
+                                const toggleChip = mkBtn(def.label, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "var(--ebc-card)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                                toggleChip.addEventListener("click", () => {
+                                    var _a;
+                                    const arr = EBCDrawer.getPsShockers();
+                                    const shEvMap = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {});
+                                    shEvMap[def.key] = Object.assign(Object.assign({}, shEvMap[def.key]), { enabled: !evEnabled });
+                                    arr[idx].bcEvents = shEvMap;
+                                    EBCDrawer.savePsShockers(arr);
+                                    renderShockers();
+                                });
+                                evRow.appendChild(toggleChip);
+                                if (evEnabled) {
+                                    const opSel = document.createElement("select");
+                                    opSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                    ["auto", "beep", "vib", "shock"].forEach(v => { var _a; const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === ((_a = ev.op) !== null && _a !== void 0 ? _a : "auto"))
+                                        o.selected = true; opSel.appendChild(o); });
+                                    opSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { op: opSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
+                                    const mkEvNum = (label, field, max) => {
+                                        var _a;
+                                        const w = mk("div", "display:flex;align-items:center;gap:3px;");
+                                        const l = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                                        l.textContent = label;
+                                        const n = document.createElement("input");
+                                        n.type = "number";
+                                        n.min = "1";
+                                        n.max = String(max);
+                                        n.value = String((_a = ev[field]) !== null && _a !== void 0 ? _a : (field === "intensity" ? 20 : 1));
+                                        n.style.cssText = `${FONT}width:36px;font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                                        n.addEventListener("input", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { [field]: Math.min(max, Math.max(1, parseInt(n.value) || 1)) }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
+                                        w.appendChild(l);
+                                        w.appendChild(n);
+                                        return w;
+                                    };
+                                    evRow.appendChild(opSel);
+                                    evRow.appendChild(mkEvNum("Int:", "intensity", 100));
+                                    evRow.appendChild(mkEvNum("Dur:", "duration", 15));
+                                }
+                                evBody.appendChild(evRow);
+                            });
+                            shCard.appendChild(evHdr);
+                            shCard.appendChild(evBody);
                             // Test buttons
                             const testRow = psRow("5px");
                             const testLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
@@ -31027,6 +31088,46 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_e) { /* ignore */ }
+        }
+        checkPiShockActivityTrigger(activityName, assetGroup) {
+            try {
+                if (typeof Player === "undefined" || Player.MemberNumber !== EMERY_MEMBER)
+                    return;
+                const s = getSettings();
+                if (s["psEnabled"] !== true)
+                    return;
+                const shockers = EBCDrawer.getPsShockers();
+                shockers.forEach((sh, idx) => {
+                    var _a, _b, _c;
+                    const events = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
+                    for (const def of TOUCH_DEFS) {
+                        if (activityName !== def.activity)
+                            continue;
+                        if (def.group && assetGroup !== def.group)
+                            continue;
+                        const ev = events[def.key];
+                        if (!(ev === null || ev === void 0 ? void 0 : ev.enabled))
+                            continue;
+                        let op;
+                        if (ev.op === "beep")
+                            op = 2;
+                        else if (ev.op === "vib")
+                            op = 1;
+                        else if (ev.op === "shock")
+                            op = 0;
+                        else { // auto - pick strongest allowed
+                            if (sh.allowShock !== false)
+                                op = 0;
+                            else if (sh.allowVib !== false)
+                                op = 1;
+                            else
+                                op = 2;
+                        }
+                        this.firePiShock(idx, op, (_b = ev.intensity) !== null && _b !== void 0 ? _b : 20, (_c = ev.duration) !== null && _c !== void 0 ? _c : 1).catch(() => { });
+                    }
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         checkLovenseActivityTrigger(activityName, assetGroup) {
             try {
@@ -41359,8 +41460,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
                         const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
                         const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
-                        if (activityName)
+                        if (activityName) {
                             drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(activityName, assetGroup);
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger(activityName, assetGroup);
+                        }
                     }
                 }
             }
