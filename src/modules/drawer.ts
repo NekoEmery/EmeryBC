@@ -22870,7 +22870,7 @@ export class EBCDrawer {
         card.appendChild(titleEl);
 
         const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-        subEl.textContent = "No Google account or email needed - your BC member number is attached so misuse can be blocked.";
+        subEl.textContent = "Your BC member number is attached so misuse can be blocked.";
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
