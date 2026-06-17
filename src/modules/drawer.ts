@@ -21600,10 +21600,23 @@ export class EBCDrawer {
                 const wlNote = mk("div", `${FONT}font-size:12px;color:var(--ebc-text-muted);margin-bottom:8px;`);
                 wlNote.textContent = "Friends can always request. Add others by member #:";
                 wlBody.appendChild(wlNote);
+
+                // "No need to ask" toggle — whitelisted people get instant control (no popup)
+                const irlInstOn = s["irlToyWhitelistInstant"] !== false;
+                const irlInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;");
+                const irlInstTog = document.createElement("input"); irlInstTog.type = "checkbox"; irlInstTog.checked = irlInstOn;
+                irlInstTog.style.cssText = "accent-color:var(--ebc-accent);width:15px;height:15px;cursor:pointer;flex-shrink:0;";
+                const irlInstLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);cursor:pointer;flex:1;line-height:1.35;`);
+                irlInstLbl.textContent = "No need to ask — whitelist gets instant control (they just click & it works)";
+                irlInstLbl.addEventListener("click", () => { irlInstTog.checked = !irlInstTog.checked; irlInstTog.dispatchEvent(new Event("change")); });
+                irlInstTog.addEventListener("change", () => { s["irlToyWhitelistInstant"] = irlInstTog.checked; syncSettings(); });
+                irlInstRow.appendChild(irlInstTog); irlInstRow.appendChild(irlInstLbl); wlBody.appendChild(irlInstRow);
+
                 for (let idx = 0; idx < irlWl.length; idx++) {
                     const num = irlWl[idx];
                     const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:5px;");
-                    const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = `#${num}`;
+                    const wlNm = this._resolveMemberName(num);
+                    const wlLbl = mk("span", `${FONT}font-size:12px;color:var(--ebc-text-bright);flex:1;`); wlLbl.textContent = wlNm ? `${wlNm} (#${num})` : `#${num}`;
                     const wlRem = document.createElement("button"); wlRem.textContent = "✗";
                     wlRem.style.cssText = `${FONT}font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid #6a2040;background:transparent;color:#e07080;`;
                     wlRem.addEventListener("click", () => { irlWl.splice(idx, 1); EBCDrawer.saveIrlToyWhitelist(irlWl); renderIrlWl(); });
@@ -21843,6 +21856,18 @@ export class EBCDrawer {
         acceptNote.textContent = "When ON, friends in the same room can request toy control. Whitelist members bypass this setting.";
         privCard.appendChild(acceptNote);
 
+        // "No need to ask" toggle — whitelisted people get instant control (no popup)
+        const gtInstEnabled = s["gameToyWhitelistInstant"] !== false;
+        const gtInstRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;");
+        const gtInstChk = document.createElement("input"); gtInstChk.type = "checkbox"; gtInstChk.checked = gtInstEnabled;
+        gtInstChk.style.cssText = "accent-color:var(--ebc-accent);cursor:pointer;margin:0;flex-shrink:0;";
+        const gtInstLbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);cursor:pointer;line-height:1.35;`);
+        gtInstLbl.textContent = "No need to ask — whitelist gets instant control";
+        gtInstLbl.addEventListener("click", () => { gtInstChk.checked = !gtInstChk.checked; gtInstChk.dispatchEvent(new Event("change")); });
+        gtInstChk.addEventListener("change", () => { s["gameToyWhitelistInstant"] = gtInstChk.checked; syncSettings(); });
+        gtInstRow.appendChild(gtInstChk); gtInstRow.appendChild(gtInstLbl);
+        privCard.appendChild(gtInstRow);
+
         const wlHdrEl = mk("div", `${FONT}font-size:10px;font-weight:bold;color:var(--ebc-text-muted);margin-bottom:5px;`);
         wlHdrEl.textContent = "WHITELIST - always allowed:";
         privCard.appendChild(wlHdrEl);
@@ -21858,9 +21883,7 @@ export class EBCDrawer {
                 wlListEl.appendChild(empty);
             } else {
                 gtWl.forEach((num, idx) => {
-                    const roomChar = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
-                    const found = roomChar?.find(c => c.MemberNumber === num);
-                    const displayName = found ? ((found.Nickname ?? "").trim() || found.Name || String(num)) : String(num);
+                    const displayName = this._resolveMemberName(num) ?? String(num);
                     const wlRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:5px;padding:5px 8px;");
                     const wlName = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
                     wlName.textContent = `${displayName} (#${num})`;
@@ -22486,6 +22509,19 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
+    /** Resolve a member number to a display name: in-room char → friend nickname → null. */
+    private _resolveMemberName(num: number): string | null {
+        const w = window as unknown as {
+            ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }>;
+            Player?: { FriendNames?: Map<number, string> };
+        };
+        const inRoom = (w.ChatRoomCharacter ?? []).find(c => c.MemberNumber === num);
+        if (inRoom) { const n = (inRoom.Nickname ?? "").trim() || (inRoom.Name ?? "").trim(); if (n) return n; }
+        const fn = w.Player?.FriendNames;
+        if (fn && typeof fn.get === "function") { const n = (fn.get(num) ?? "").trim(); if (n) return n; }
+        return null;
+    }
+
     public handleIrlToyMsg(senderNumber: number, senderName: string, type: string, intensity?: number, duration?: number, toys?: string[]): void {
         try {
             if (type === "REQ") {
@@ -22494,14 +22530,16 @@ export class EBCDrawer {
                 const wl = EBCDrawer.getIrlToyWhitelist();
                 const fromFriend = ((window as unknown as { Player?: { FriendList?: number[] } }).Player?.FriendList ?? []).includes(senderNumber);
                 if (!fromFriend && !wl.includes(senderNumber)) { this.sendIrlToyMsg(senderNumber, "DEN"); return; }
-                // Auto-accept if sender is on the whitelist
-                if (wl.includes(senderNumber)) {
+                // Auto-accept if sender is whitelisted AND "no need to ask" is enabled (default on)
+                const irlInstant = s["irlToyWhitelistInstant"] !== false;
+                if (wl.includes(senderNumber) && irlInstant) {
                     this._irlGrantedTo.set(senderNumber, { name: senderName });
                     this.sendIrlToyMsg(senderNumber, "ACK");
                     this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your Lovense.`);
                     this.refreshToysIfActive();
                     return;
                 }
+                // Whitelisted but instant off, or a non-whitelisted friend → ask via popup
                 this._irlIncoming = { memberNumber: senderNumber, name: senderName };
                 this._showIrlReqPopup();
             } else if (type === "ACK") {
@@ -22587,19 +22625,22 @@ export class EBCDrawer {
             const s = getSettings();
             if (type === "REQ") {
                 const wl = EBCDrawer.getGameToyWhitelist();
+                const isWl = wl.includes(senderNumber);
                 const fromFriend = ((window as unknown as { Player?: { FriendList?: number[] } }).Player?.FriendList ?? []).includes(senderNumber);
-                if (!fromFriend && !wl.includes(senderNumber)) return;
-                // Auto-accept if sender is on the whitelist
-                if (wl.includes(senderNumber)) {
+                if (!fromFriend && !isWl) return;
+                // Auto-accept if sender is whitelisted AND "no need to ask" is enabled (default on)
+                const gtInstant = s["gameToyWhitelistInstant"] !== false;
+                if (isWl && gtInstant) {
                     this._toyGrantedTo.set(senderNumber, { name: senderName });
                     this.sendGameToyMsg(senderNumber, "ACK");
                     this._showToyToast(`✓ Auto-allowed ${senderName} (trusted) to control your toy.`);
                     this.refreshToysIfActive();
                     return;
                 }
-                const acceptOn = s["gameToyAcceptRequests"] === true;
-                if (!acceptOn) {
-                    this.sendGameToyMsg(senderNumber, "DEN"); return;
+                // Whitelisted members can always ask via popup; non-whitelisted friends need accept-requests on
+                if (!isWl) {
+                    const acceptOn = s["gameToyAcceptRequests"] === true;
+                    if (!acceptOn) { this.sendGameToyMsg(senderNumber, "DEN"); return; }
                 }
                 this._toyIncoming = { memberNumber: senderNumber, name: senderName };
                 this._showToyReqPopup();
