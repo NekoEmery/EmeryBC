@@ -30323,39 +30323,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         renderTriggers();
                     });
                     psContent.appendChild(addTrigBtn);
-                    // ── Setup guide ───────────────────────────────────────────────────
+                    // ── Setup guide button ────────────────────────────────────────────
                     psContent.appendChild(sep());
-                    const guideToggle = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);cursor:pointer;margin-bottom:4px;user-select:none;`);
-                    guideToggle.textContent = "▶ Cloudflare Worker setup guide";
-                    const guideBox = mk("div", "display:none;");
-                    const workerCode = [
-                        `export default {`,
-                        `  async fetch(request) {`,
-                        `    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };`,
-                        `    if (request.method === "OPTIONS") return new Response(null, { headers: cors });`,
-                        `    if (request.method !== "POST") return new Response("Method not allowed", { status: 405, headers: cors });`,
-                        `    try {`,
-                        `      const body = await request.json();`,
-                        `      if (body._ping) return new Response("pong", { headers: cors });`,
-                        `      const r = await fetch("https://do.pishock.com/api/apioperate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });`,
-                        `      return new Response(await r.text(), { status: r.status, headers: { ...cors, "Content-Type": "text/plain" } });`,
-                        `    } catch (e) { return new Response("Proxy error: " + e.message, { status: 500, headers: cors }); }`,
-                        `  }`,
-                        `};`,
-                    ].join("\n");
-                    const codePre = mk("pre", `${FONT}font-size:9.5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px;overflow-x:auto;color:var(--ebc-text-sub);white-space:pre;margin:0 0 6px;`);
-                    codePre.textContent = workerCode;
-                    const copyBtn = mkBtn("Copy", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);`);
-                    copyBtn.addEventListener("click", () => { navigator.clipboard.writeText(workerCode).then(() => { copyBtn.textContent = "Copied!"; window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500); }); });
-                    guideBox.appendChild(codePre);
-                    guideBox.appendChild(copyBtn);
-                    guideToggle.addEventListener("click", () => {
-                        const open = guideBox.style.display !== "none";
-                        guideBox.style.display = open ? "none" : "block";
-                        guideToggle.textContent = (open ? "▶" : "▼") + " Cloudflare Worker setup guide";
-                    });
-                    psContent.appendChild(guideToggle);
-                    psContent.appendChild(guideBox);
+                    const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:12px;font-weight:bold;padding:7px 0;width:100%;border-radius:8px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;`);
+                    setupBtn.addEventListener("mouseenter", () => { setupBtn.style.background = "rgba(90,40,110,0.32)"; setupBtn.style.borderColor = "#8060a0"; });
+                    setupBtn.addEventListener("mouseleave", () => { setupBtn.style.background = "rgba(90,40,110,0.18)"; setupBtn.style.borderColor = "#5a4070"; });
+                    setupBtn.addEventListener("click", () => { this._openPiShockSetupModal(); });
+                    psContent.appendChild(setupBtn);
                 }
                 card.appendChild(psWrap);
             }
@@ -31291,6 +31265,149 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             document.body.appendChild(overlay);
             whatArea.focus();
+        }
+        // ─── PiShock Cloudflare Worker setup guide modal ──────────────────────────
+        _openPiShockSetupModal() {
+            if (document.getElementById("ebc-pishock-setup-overlay"))
+                return;
+            const WORKER_CODE = [
+                `export default {`,
+                `  async fetch(request) {`,
+                `    const cors = {`,
+                `      "Access-Control-Allow-Origin": "*",`,
+                `      "Access-Control-Allow-Headers": "Content-Type",`,
+                `      "Access-Control-Allow-Methods": "POST, OPTIONS",`,
+                `    };`,
+                `    if (request.method === "OPTIONS")`,
+                `      return new Response(null, { headers: cors });`,
+                `    if (request.method !== "POST")`,
+                `      return new Response("nope", { status: 405, headers: cors });`,
+                `    try {`,
+                `      const body = await request.json();`,
+                `      if (body._ping)`,
+                `        return new Response("pong", { headers: cors });`,
+                `      const r = await fetch("https://do.pishock.com/api/apioperate", {`,
+                `        method: "POST",`,
+                `        headers: { "Content-Type": "application/json" },`,
+                `        body: JSON.stringify(body),`,
+                `      });`,
+                `      return new Response(await r.text(), {`,
+                `        status: r.status,`,
+                `        headers: { ...cors, "Content-Type": "text/plain" },`,
+                `      });`,
+                `    } catch (e) {`,
+                `      return new Response("error: " + e.message, { status: 500, headers: cors });`,
+                `    }`,
+                `  },`,
+                `};`,
+            ].join("\n");
+            const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
+            const mk = (tag, css) => { const el = document.createElement(tag); if (css)
+                el.style.cssText = css; return el; };
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.82);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            overlay.id = "ebc-pishock-setup-overlay";
+            const card = mk("div", `${FONT}width:min(480px,94vw);max-height:90vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:24px 26px 20px;box-shadow:0 16px 50px rgba(0,0,0,0.65);`);
+            overlay.appendChild(card);
+            // Accent bar
+            card.appendChild(mk("div", "height:3px;border-radius:3px;background:#8060b0;margin:-8px 0 18px;"));
+            const title = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:4px;`);
+            title.textContent = "Cloudflare Worker Setup";
+            card.appendChild(title);
+            const sub = mk("div", `${FONT}font-size:12px;color:#9a86aa;margin-bottom:22px;`);
+            sub.textContent = "One-time setup - takes about 3 minutes. Free forever.";
+            card.appendChild(sub);
+            const STEPS = [
+                {
+                    num: "1",
+                    heading: "Create a free Cloudflare account",
+                    body: "Go to cloudflare.com and sign up. It's completely free - no credit card needed.",
+                    link: { label: "cloudflare.com - Sign up", url: "https://cloudflare.com" },
+                },
+                {
+                    num: "2",
+                    heading: "Open Workers & Pages",
+                    body: "Once you're logged in, click \"Workers & Pages\" in the left sidebar of your dashboard.",
+                },
+                {
+                    num: "3",
+                    heading: "Create a new Worker",
+                    body: "Click the blue \"Create\" button, then select \"Create Worker\". Give it any name you like - something like \"pishock-proxy\" works fine. Then click \"Deploy\" at the bottom.",
+                },
+                {
+                    num: "4",
+                    heading: "Replace the code",
+                    body: "After deploying, click \"Edit code\" on the next screen. Delete everything in the editor on the left, then paste the code below and click \"Deploy\" again.",
+                    code: true,
+                },
+                {
+                    num: "5",
+                    heading: "Copy your Worker URL",
+                    body: "After deploying you'll see a URL at the top of the page - it looks like \"your-name.workers.dev\". Copy the full URL.",
+                },
+                {
+                    num: "6",
+                    heading: "Paste it into EBC",
+                    body: "Go back to the PiShock section in EBC, paste the URL into the \"Proxy URL\" field, and click Test. If it says OK you're all done!",
+                },
+            ];
+            STEPS.forEach(step => {
+                const row = mk("div", "display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;");
+                const numBadge = mk("div", `${FONT}flex-shrink:0;width:26px;height:26px;border-radius:50%;background:#4a2860;border:1.5px solid #8060b0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:#c8a0e8;line-height:1;`);
+                numBadge.textContent = step.num;
+                const content = mk("div", "flex:1;min-width:0;padding-top:2px;");
+                const heading = mk("div", `${FONT}font-size:13px;font-weight:bold;color:#e8dff5;margin-bottom:4px;`);
+                heading.textContent = step.heading;
+                content.appendChild(heading);
+                const bodyEl = mk("div", `${FONT}font-size:12px;color:#9a86aa;line-height:1.55;margin-bottom:${step.link || step.code ? "8px" : "0"};`);
+                bodyEl.textContent = step.body;
+                content.appendChild(bodyEl);
+                if (step.link) {
+                    const a = document.createElement("a");
+                    a.href = step.link.url;
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.textContent = step.link.label + " ↗";
+                    a.style.cssText = `${FONT}font-size:11.5px;color:#a080d0;text-decoration:none;font-weight:bold;`;
+                    a.addEventListener("mouseenter", () => { a.style.color = "#c8a0e8"; });
+                    a.addEventListener("mouseleave", () => { a.style.color = "#a080d0"; });
+                    content.appendChild(a);
+                }
+                if (step.code) {
+                    const codeWrap = mk("div", "position:relative;");
+                    const pre = mk("pre", `${FONT}font-size:10px;background:#0f0b15;border:1px solid #2a1f38;border-radius:8px;padding:10px 12px;overflow-x:auto;color:#b09acc;white-space:pre;margin:0;line-height:1.5;`);
+                    pre.textContent = WORKER_CODE;
+                    const copyBtn = document.createElement("button");
+                    copyBtn.textContent = "Copy code";
+                    copyBtn.style.cssText = `${FONT}position:absolute;top:8px;right:8px;font-size:10.5px;font-weight:bold;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid #5a4070;background:#1e1530;color:#c8a0e8;`;
+                    copyBtn.addEventListener("click", () => {
+                        navigator.clipboard.writeText(WORKER_CODE).then(() => {
+                            copyBtn.textContent = "Copied!";
+                            copyBtn.style.background = "#3a2050";
+                            window.setTimeout(() => { copyBtn.textContent = "Copy code"; copyBtn.style.background = "#1e1530"; }, 1800);
+                        });
+                    });
+                    codeWrap.appendChild(pre);
+                    codeWrap.appendChild(copyBtn);
+                    content.appendChild(codeWrap);
+                }
+                row.appendChild(numBadge);
+                row.appendChild(content);
+                card.appendChild(row);
+            });
+            // Divider + close button
+            card.appendChild(mk("div", "border-top:1px solid #2a1f38;margin:6px 0 16px;"));
+            const doneBtn = document.createElement("button");
+            doneBtn.textContent = "Got it, close";
+            doneBtn.style.cssText = `${FONT}width:100%;font-size:13px;font-weight:bold;padding:10px;border-radius:9px;cursor:pointer;border:1px solid #8060b0;background:#4a2860;color:#e8dff5;`;
+            doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
+            doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
+            const close = () => { if (document.body.contains(overlay))
+                document.body.removeChild(overlay); };
+            doneBtn.addEventListener("click", close);
+            overlay.addEventListener("click", (e) => { if (e.target === overlay)
+                close(); });
+            card.appendChild(doneBtn);
+            document.body.appendChild(overlay);
         }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
@@ -33277,7 +33394,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 38; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 39; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
