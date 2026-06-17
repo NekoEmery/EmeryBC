@@ -30489,6 +30489,19 @@
                             shCard.appendChild(evHdr);
                             shCard.appendChild(evBody);
                             // Test buttons
+                            const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
+                            const showPsStatus = (result) => {
+                                console.log(`[EBC PiShock] shocker ${idx} response:`, result);
+                                if (result === "ok") {
+                                    psStatusEl.style.color = "#70c080";
+                                    psStatusEl.textContent = "✓ Sent successfully";
+                                }
+                                else {
+                                    psStatusEl.style.color = "#e07070";
+                                    psStatusEl.textContent = `✗ ${result}`;
+                                }
+                                psStatusEl.style.display = "block";
+                            };
                             const testRow = psRow("5px");
                             const testLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
                             testLbl.textContent = "Test:";
@@ -30498,10 +30511,10 @@
                                 b.addEventListener("click", async () => {
                                     var _a;
                                     b.textContent = "...";
+                                    psStatusEl.style.display = "none";
                                     const result = await this.firePiShock(idx, op, Math.min((_a = sh.maxInt) !== null && _a !== void 0 ? _a : 10, 10), 1, true);
-                                    b.textContent = result === "ok" ? "Sent" : (result.length < 20 ? result : "Fail");
-                                    b.title = result !== "ok" ? result : "";
-                                    window.setTimeout(() => { b.textContent = label; b.title = ""; }, 2000);
+                                    b.textContent = label;
+                                    showPsStatus(result);
                                 });
                                 return b;
                             };
@@ -30513,12 +30526,13 @@
                                 if (!window.confirm("Send a test SHOCK?"))
                                     return;
                                 shockTestBtn.textContent = "...";
+                                psStatusEl.style.display = "none";
                                 const result = await this.firePiShock(idx, 0, Math.min((_a = sh.maxInt) !== null && _a !== void 0 ? _a : 10, 10), 1, true);
-                                shockTestBtn.textContent = result === "ok" ? "Sent" : (result.length < 20 ? result : "Fail");
-                                shockTestBtn.title = result !== "ok" ? result : "";
-                                window.setTimeout(() => { shockTestBtn.textContent = "⚡ Shock"; }, 2000);
+                                shockTestBtn.textContent = "⚡ Shock";
+                                showPsStatus(result);
                             });
                             testRow.appendChild(shockTestBtn);
+                            shCard.appendChild(psStatusEl);
                             shCard.appendChild(testRow);
                             shockerListEl.appendChild(shCard);
                         });
