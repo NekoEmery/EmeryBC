@@ -31699,6 +31699,9 @@
                 `  "Access-Control-Allow-Methods": "POST, OPTIONS",`,
                 `};`,
                 ``,
+                `// PiShock's server drops HTTP/2 streams - force HTTP/1.1`,
+                `const psClient = Deno.createHttpClient({ http2: false });`,
+                ``,
                 `Deno.serve(async (req) => {`,
                 `  if (req.method === "OPTIONS")`,
                 `    return new Response(null, { headers: CORS });`,
@@ -31709,6 +31712,7 @@
                 `    if (body._ping)`,
                 `      return new Response("pong", { headers: CORS });`,
                 `    const r = await fetch(PS_URL, {`,
+                `      client: psClient,`,
                 `      method: "POST",`,
                 `      headers: {`,
                 `        "Content-Type": "application/json",`,
@@ -33682,7 +33686,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 65; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 66; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33704,6 +33708,7 @@
                 "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
                 "PiShock fix attempt: Worker now sends Origin and Referer headers spoofed as https://pishock.com when forwarding to PiShock API - CORS analysis showed PiShock only allows their own origin, so raw server-side requests get 404.",
                 "PiShock proxy: switched setup guide from Cloudflare Workers to Deno Deploy - Cloudflare datacenter IPs are blocked by PiShock's WAF (confirmed: GET:404 from Worker). Deno Deploy runs on Google Cloud infra, not Cloudflare, so PiShock won't block it. Embedded proxy code updated to Deno.serve() syntax.",
+                "PiShock proxy fix: add Deno.createHttpClient({ http2: false }) to force HTTP/1.1 - PiShock's server advertises HTTP/2 via ALPN but drops the streams immediately, causing 'http2 error: unspecific protocol error'. HTTP/1.1 bypasses this.",
             ],
         },
         {
