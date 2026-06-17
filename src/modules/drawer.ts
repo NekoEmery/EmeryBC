@@ -22432,8 +22432,9 @@ export class EBCDrawer {
                             b.addEventListener("click", async () => {
                                 b.textContent = "...";
                                 const result = await this.firePiShock(idx, op, Math.min(sh.maxInt ?? 10, 10), 1, true);
-                                b.textContent = result === "ok" ? "Sent" : "Fail";
-                                window.setTimeout(() => { b.textContent = label; }, 2000);
+                                b.textContent = result === "ok" ? "Sent" : (result.length < 20 ? result : "Fail");
+                                b.title = result !== "ok" ? result : "";
+                                window.setTimeout(() => { b.textContent = label; b.title = ""; }, 2000);
                             });
                             return b;
                         };
@@ -22444,7 +22445,8 @@ export class EBCDrawer {
                             if (!window.confirm("Send a test SHOCK?")) return;
                             shockTestBtn.textContent = "...";
                             const result = await this.firePiShock(idx, 0, Math.min(sh.maxInt ?? 10, 10), 1, true);
-                            shockTestBtn.textContent = result === "ok" ? "Sent" : "Fail";
+                            shockTestBtn.textContent = result === "ok" ? "Sent" : (result.length < 20 ? result : "Fail");
+                            shockTestBtn.title = result !== "ok" ? result : "";
                             window.setTimeout(() => { shockTestBtn.textContent = "⚡ Shock"; }, 2000);
                         });
                         testRow.appendChild(shockTestBtn);
@@ -22874,7 +22876,7 @@ export class EBCDrawer {
                 intensity = Math.min(intensity, sh.maxInt ?? 100);
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
-            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: String(op), Duration: String(duration), Intensity: String(intensity) };
+            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const text = await resp.text();
             return text.toLowerCase().includes("success") || resp.ok ? "ok" : text;
