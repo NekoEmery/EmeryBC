@@ -25660,6 +25660,43 @@ export class EBCDrawer {
                     });
                     pickerRow.appendChild(chip);
                 }
+                // Custom d/h/m/s pause duration
+                const pSepEl = document.createElement("span");
+                pSepEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                pSepEl.textContent = "|";
+                pickerRow.appendChild(pSepEl);
+                const _pIc = "font-family:'Trebuchet MS',serif;font-size:10px;width:28px;padding:1px 2px;background:#111827;border:1px solid #2a3550;color:#7090b0;border-radius:4px;text-align:center;";
+                const _pLc = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                const mkPI = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _pIc; return i; };
+                const mkPL = (tx: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _pLc; s.textContent = tx; return s; };
+                const pDays = mkPI("d"); const pHrs = mkPI("h"); const pMins = mkPI("m"); const pSecs = mkPI("s");
+                pickerRow.appendChild(pDays); pickerRow.appendChild(mkPL("d"));
+                pickerRow.appendChild(pHrs);  pickerRow.appendChild(mkPL("h"));
+                pickerRow.appendChild(pMins); pickerRow.appendChild(mkPL("m"));
+                pickerRow.appendChild(pSecs); pickerRow.appendChild(mkPL("s"));
+                const pGoBtn = document.createElement("button");
+                pGoBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                pGoBtn.textContent = "▷";
+                pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(70,100,160,0.2)"; pGoBtn.style.borderColor = "#5070a0"; });
+                pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#3a4060"; });
+                pGoBtn.addEventListener("click", () => {
+                    const d = parseInt(pDays.value) || 0, h = parseInt(pHrs.value) || 0, m = parseInt(pMins.value) || 0, s = parseInt(pSecs.value) || 0;
+                    const ms = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+                    if (ms <= 0) return;
+                    const parts: string[] = [];
+                    if (d) parts.push(`${d}d`); if (h) parts.push(`${h}h`); if (m) parts.push(`${m}m`); if (s) parts.push(`${s}s`);
+                    const customLabel = parts.join(" ");
+                    sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                    const itemLabel = nameMap.get(group) ?? group.replace("Item", "");
+                    const targetNameC = getRoomMembers().find(mm => mm.id === id)?.name ?? `#${id}`;
+                    appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetNameC} for ${customLabel}.`, UI.textMuted);
+                    curseStatus.textContent = `⏱ ${itemLabel} paused for ${customLabel}.`;
+                    window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                    pickerRow.style.display = "none";
+                    pauseBtn.style.color = "#7090b0";
+                    pDays.value = ""; pHrs.value = ""; pMins.value = ""; pSecs.value = "";
+                });
+                pickerRow.appendChild(pGoBtn);
 
                 pauseBtn.addEventListener("click", () => {
                     const open = pickerRow.style.display !== "none";
