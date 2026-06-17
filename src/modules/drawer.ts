@@ -22889,8 +22889,10 @@ export class EBCDrawer {
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
             const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            console.log("[EBC PiShock] sending payload:", { ...payload, Apikey: apikey.slice(0, 4) + "****" });
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const text = (await resp.text()).trim();
+            console.log(`[EBC PiShock] response: HTTP ${resp.status}`, text || "(empty body)");
             if (resp.ok || text.toLowerCase().includes("success")) return "ok";
             return text || `HTTP ${resp.status}`;
         } catch (e) { return String(e); }
