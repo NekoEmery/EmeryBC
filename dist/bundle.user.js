@@ -30348,6 +30348,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     proxyRow.appendChild(proxyInp);
                     proxyRow.appendChild(proxyTestBtn);
                     psContent.appendChild(proxyRow);
+                    const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:11px;font-weight:bold;padding:5px 0;width:100%;border-radius:6px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;margin-bottom:4px;`);
+                    setupBtn.addEventListener("mouseenter", () => { setupBtn.style.background = "rgba(90,40,110,0.32)"; setupBtn.style.borderColor = "#8060a0"; });
+                    setupBtn.addEventListener("mouseleave", () => { setupBtn.style.background = "rgba(90,40,110,0.18)"; setupBtn.style.borderColor = "#5a4070"; });
+                    setupBtn.addEventListener("click", () => { this._openPiShockSetupModal(); });
+                    psContent.appendChild(setupBtn);
                     // ── Credentials ───────────────────────────────────────────────────
                     psContent.appendChild(psHdr("Credentials"));
                     const userInp = psInp("PiShock username", (_g = localStorage.getItem("EBC_ps_user")) !== null && _g !== void 0 ? _g : "");
@@ -30574,13 +30579,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         renderTriggers();
                     });
                     psContent.appendChild(addTrigBtn);
-                    // ── Setup guide button ────────────────────────────────────────────
-                    psContent.appendChild(sep());
-                    const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:12px;font-weight:bold;padding:7px 0;width:100%;border-radius:8px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;`);
-                    setupBtn.addEventListener("mouseenter", () => { setupBtn.style.background = "rgba(90,40,110,0.32)"; setupBtn.style.borderColor = "#8060a0"; });
-                    setupBtn.addEventListener("mouseleave", () => { setupBtn.style.background = "rgba(90,40,110,0.18)"; setupBtn.style.borderColor = "#5a4070"; });
-                    setupBtn.addEventListener("click", () => { this._openPiShockSetupModal(); });
-                    psContent.appendChild(setupBtn);
                 }
                 card.appendChild(psWrap);
             }
