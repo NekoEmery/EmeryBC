@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 87;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 88;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
