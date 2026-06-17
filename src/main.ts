@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 81;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 82;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -45,10 +45,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.2.4",
         changes: [
-            "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all three checks were wrong before, shock collar never fired PiShock.",
-            "PiShock shock collar auto-fires using Allow flags when no BC Event is configured - Beep allowed = beeps, no extra setup needed.",
-            "BC Events section redesigned - accent-bordered panel with lightning icon, open by default, larger text; was tiny collapsed muted text.",
-            "BC Events trimmed to shock-relevant activities only: Bite, Spank, Slap, Pinch, Shock.",
+            "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all checks were previously wrong so shock collar never fired PiShock.",
+            "PiShock BC Events configuration removed entirely - shockers now always fire automatically when BC shocks you, using Allow flags to pick the operation (Shock if allowed, else Vib, else Beep). No setup or toggles needed.",
         ],
     },
     {
@@ -7792,7 +7790,6 @@ function init(): void {
                     const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
                     if (activityName) {
                         drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
-                        drawer?.checkPiShockActivityTrigger(activityName, assetGroup);
                     }
                 }
             }
@@ -7813,7 +7810,7 @@ function init(): void {
                     if (targetNum === Player.MemberNumber) {
                         const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup");
                         const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
-                        drawer?.checkPiShockActivityTrigger("Shock", assetGroup);
+                        drawer?.checkPiShockActivityTrigger();
                     }
                 }
             }

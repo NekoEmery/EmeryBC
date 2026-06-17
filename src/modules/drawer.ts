@@ -3950,7 +3950,6 @@ const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; 
     { key: "spank",    label: "👋 Spank",    activity: "Spank",   group: "ItemButt",  dflt: false },
     { key: "slap",     label: "✋ Slap",     activity: "Slap",    group: undefined,   dflt: false },
     { key: "pinch",    label: "🤏 Pinch",    activity: "Pinch",   group: undefined,   dflt: false },
-    { key: "shock",    label: "⚡ Shock",    activity: "Shock",   group: undefined,   dflt: false },
 ];
 
 export class EBCDrawer {
@@ -22509,58 +22508,6 @@ export class EBCDrawer {
                         limRow.appendChild(mkLim("Cap dur:", "maxDur", 1, 15, "s"));
                         shCard.appendChild(limRow);
 
-                        // BC Events (use level names)
-                        type PsEv = { enabled?: boolean; op?: "auto" | "beep" | "vib" | "shock"; levelName?: string };
-                        const shBcEvents = ((sh as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>;
-                        const evSection = mk("div", `border:1px solid var(--ebc-accent);border-radius:6px;margin:6px 0 4px;overflow:hidden;`);
-                        const evHdr = mk("div", `display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;background:rgba(255,255,255,0.04);`);
-                        const evHdrLeft = mk("div", "display:flex;align-items:center;gap:6px;");
-                        const evHdrIcon = mk("span", `${FONT}font-size:13px;`); evHdrIcon.textContent = "⚡";
-                        const evHdrLbl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
-                        evHdrLbl.textContent = "BC Events";
-                        const evHdrSub = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
-                        evHdrSub.textContent = "fire when game shocks you";
-                        evHdrLeft.appendChild(evHdrIcon); evHdrLeft.appendChild(evHdrLbl); evHdrLeft.appendChild(evHdrSub);
-                        const evArrow = mk("span", `${FONT}font-size:11px;color:var(--ebc-accent);`);
-                        evArrow.textContent = "▼";
-                        evHdr.appendChild(evHdrLeft); evHdr.appendChild(evArrow);
-                        const evBody = mk("div", "padding:6px 10px 8px;");
-                        evHdr.addEventListener("click", () => {
-                            const open = evBody.style.display !== "none";
-                            evBody.style.display = open ? "none" : "block";
-                            evArrow.textContent = open ? "▶" : "▼";
-                        });
-                        TOUCH_DEFS.forEach(def => {
-                            const ev = shBcEvents[def.key] ?? {};
-                            const evEnabled = ev.enabled === true;
-                            const evRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;");
-                            const toggleChip = mkBtn(def.label, `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "rgba(255,255,255,0.08)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-sub)"};font-weight:${evEnabled ? "bold" : "normal"};`);
-                            toggleChip.addEventListener("click", () => {
-                                const arr = EBCDrawer.getPsShockers();
-                                const shEvMap = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>;
-                                shEvMap[def.key] = { ...shEvMap[def.key], enabled: !evEnabled };
-                                (arr[idx] as Record<string, unknown>).bcEvents = shEvMap;
-                                EBCDrawer.savePsShockers(arr); renderShockers();
-                            });
-                            evRow.appendChild(toggleChip);
-                            if (evEnabled) {
-                                const opSel = document.createElement("select");
-                                opSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                                (["auto", "beep", "vib", "shock"] as const).forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === (ev.op ?? "auto")) o.selected = true; opSel.appendChild(o); });
-                                opSel.addEventListener("change", () => { const arr = EBCDrawer.getPsShockers(); const m = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>; m[def.key] = { ...m[def.key], op: (opSel as HTMLSelectElement).value as PsEv["op"] }; (arr[idx] as Record<string, unknown>).bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                evRow.appendChild(opSel);
-                                const evLvSel = document.createElement("select");
-                                evLvSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
-                                const evLvs = EBCDrawer.getPsLevels();
-                                evLvs.forEach(lv => { const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === (ev.levelName ?? evLvs[0].name)) o.selected = true; evLvSel.appendChild(o); });
-                                evLvSel.addEventListener("change", () => { const arr = EBCDrawer.getPsShockers(); const m = ((arr[idx] as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>; m[def.key] = { ...m[def.key], levelName: (evLvSel as HTMLSelectElement).value }; (arr[idx] as Record<string, unknown>).bcEvents = m; EBCDrawer.savePsShockers(arr); });
-                                evRow.appendChild(evLvSel);
-                            }
-                            evBody.appendChild(evRow);
-                        });
-                        evSection.appendChild(evHdr);
-                        evSection.appendChild(evBody);
-                        shCard.appendChild(evSection);
 
                         // Test buttons
                         const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
@@ -23101,41 +23048,17 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
-    public checkPiShockActivityTrigger(activityName: string, assetGroup?: string): void {
+    public checkPiShockActivityTrigger(): void {
         try {
             if (typeof Player === "undefined" || (Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
-            type PsEv = { enabled?: boolean; op?: string; levelName?: string };
             const shockers = EBCDrawer.getPsShockers();
             const levels = EBCDrawer.getPsLevels();
             shockers.forEach((sh, idx) => {
-                const events = ((sh as Record<string, unknown>).bcEvents ?? {}) as Record<string, PsEv>;
-                for (const def of TOUCH_DEFS) {
-                    if (activityName !== def.activity) continue;
-                    if (def.group && assetGroup !== def.group) continue;
-                    const ev = events[def.key];
-                    if (!ev?.enabled) {
-                        // Shock events auto-fire using allow flags when no BC Event is configured
-                        if (def.key === "shock") {
-                            const fallbackOp = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
-                            if (fallbackOp >= 0) {
-                                this.firePiShockWithWarn(idx, fallbackOp, levels[0].intensity, levels[0].duration).catch(() => { /* ignore */ });
-                            }
-                        }
-                        continue;
-                    }
-                    let op: number;
-                    if (ev.op === "beep")       op = 2;
-                    else if (ev.op === "vib")   op = 1;
-                    else if (ev.op === "shock") op = 0;
-                    else {
-                        if (sh.allowShock !== false)    op = 0;
-                        else if (sh.allowVib !== false) op = 1;
-                        else                            op = 2;
-                    }
-                    const lv = levels.find(l => l.name === ev.levelName) ?? levels[0];
-                    this.firePiShockWithWarn(idx, op, lv.intensity, lv.duration).catch(() => { /* ignore */ });
+                const op = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
+                if (op >= 0) {
+                    this.firePiShockWithWarn(idx, op, levels[0].intensity, levels[0].duration).catch(() => { /* ignore */ });
                 }
             });
         } catch { /* ignore */ }
