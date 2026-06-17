@@ -30535,8 +30535,45 @@
                                 showPsStatus(result);
                             });
                             testRow.appendChild(shockTestBtn);
+                            // Direct bypass test - fires straight at PiShock, no proxy
+                            const directTestRow = psRow("3px");
+                            const directBtn = mkBtn("🔍 Direct (no proxy)", `${FONT}font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px dashed var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                            directBtn.title = "Send beep directly to PiShock bypassing the Cloudflare proxy - check F12 Network tab for result";
+                            directBtn.addEventListener("click", () => {
+                                var _a, _b, _c, _d;
+                                const u = (_b = (_a = localStorage.getItem("EBC_ps_user")) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
+                                const k = (_d = (_c = localStorage.getItem("EBC_ps_key")) === null || _c === void 0 ? void 0 : _c.trim()) !== null && _d !== void 0 ? _d : "";
+                                if (!u || !k || !sh.code) {
+                                    showPsStatus("missing-creds");
+                                    return;
+                                }
+                                const payload = { Username: u, Apikey: k, Sharecode: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                                console.log("[EBC PiShock] DIRECT test payload:", Object.assign(Object.assign({}, payload), { Apikey: k.slice(0, 4) + "****" }));
+                                console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
+                                psStatusEl.style.color = "var(--ebc-text-muted)";
+                                psStatusEl.textContent = "Direct request sent - check F12 Network tab";
+                                psStatusEl.style.display = "block";
+                                fetch("https://do.pishock.com/api/apioperate", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify(payload),
+                                }).then(r => {
+                                    console.log(`[EBC PiShock] Direct response: HTTP ${r.status} | url: ${r.url}`);
+                                    return r.text().then(t => {
+                                        console.log("[EBC PiShock] Direct body:", t || "(empty)");
+                                        psStatusEl.textContent = `Direct: HTTP ${r.status} - ${t || "(empty)"}`;
+                                        psStatusEl.style.color = t.toLowerCase().includes("success") ? "#70c080" : "#e07070";
+                                    });
+                                }).catch((e) => {
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    console.log("[EBC PiShock] Direct request error (CORS expected if BC blocks it):", msg);
+                                    psStatusEl.textContent = `Direct error: ${msg}`;
+                                });
+                            });
+                            directTestRow.appendChild(directBtn);
                             shCard.appendChild(psStatusEl);
                             shCard.appendChild(testRow);
+                            shCard.appendChild(directTestRow);
                             shockerListEl.appendChild(shCard);
                         });
                     };
@@ -31034,8 +31071,7 @@
                     if (j.ps_status !== undefined) {
                         psStatus = j.ps_status;
                         psBody = (_j = j.ps_body) !== null && _j !== void 0 ? _j : "";
-                        if (j.ps_redirected)
-                            console.log(`[EBC PiShock] redirected to: ${j.ps_url}`);
+                        console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected}`);
                     }
                 }
                 catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
@@ -33613,7 +33649,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 55; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 57; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33632,6 +33668,7 @@
             changes: [
                 "i18n: all new UI strings are now fully translated - Tutorial mode selector and step labels, Feedback form, PiShock setup modal, Toys tab headers and controls, and the Tutorial/Feedback footer buttons. Switch language mid-session and everything updates instantly.",
                 "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
+                "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
             ],
         },
         {
