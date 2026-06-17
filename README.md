@@ -1,6 +1,6 @@
-# EBC — EmeryBC
+# EBC - EmeryBC
 
-A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, expression presets, toys integration, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
+A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** - outfits, action buttons, expression presets, toys integration, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
 
 ---
 
@@ -13,7 +13,7 @@ A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfit
    - **Stable** → [Install EBC](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
    - **Dev** → [Install EBC (dev)](https://raw.githubusercontent.com/NekoEmery/EmeryBC/dev/loader-dev.user.js)
 3. Confirm the install prompt
-4. Load Bondage Club — the EBC drawer appears on the right side of the chat screen
+4. Load Bondage Club - the EBC drawer appears on the right side of the chat screen
 
 ### FUSAM
 
@@ -66,26 +66,26 @@ Save full outfit sets and load them with a custom `/command` in chat.
 3. Fill in a command (e.g. `dom`), display name, and optional announce text
 4. Click **+ Save Current Appearance as New Outfit**
 
-**Using an outfit** — type `/dom` (or whatever command you set) in chat. The outfit loads instantly and sends the announce emote to the room.
+**Using an outfit** - type `/dom` (or whatever command you set) in chat. The outfit loads instantly and sends the announce emote to the room.
 
 **Per-outfit options**
-- **Preserve restraints** — keep whatever restraints you're wearing when loading; off = swap restraints too
-- **Preserve clothing** — keep current clothing layers when loading a restraint-focused outfit
-- **Announce text** — emote sent to the room on load, e.g. `switches into dom mode`
-- **Nickname / Title override** — automatically change your displayed name and title when the outfit loads
-- **Expression preset** — link a face preset so your expression changes automatically when the outfit loads
-- **Outfit tags** — colour-coded labels to organise outfits (e.g. "casual", "formal", "scene")
+- **Preserve restraints** - keep whatever restraints you're wearing when loading; off = swap restraints too
+- **Preserve clothing** - keep current clothing layers when loading a restraint-focused outfit
+- **Announce text** - emote sent to the room on load, e.g. `switches into dom mode`
+- **Nickname / Title override** - automatically change your displayed name and title when the outfit loads
+- **Expression preset** - link a face preset so your expression changes automatically when the outfit loads
+- **Outfit tags** - colour-coded labels to organise outfits (e.g. "casual", "formal", "scene")
 
 **Other outfit tools**
-- **Save Current** — overwrite an existing outfit with your current appearance
-- **Export / Import** — share outfits as JSON or load from a BC outfit code
-- **Reorder** — move outfits up/down in the list
+- **Save Current** - overwrite an existing outfit with your current appearance
+- **Export / Import** - share outfits as JSON or load from a BC outfit code
+- **Reorder** - move outfits up/down in the list
 
 ---
 
 ## ⛓️ Restraint Sets
 
-Separate from outfits — save and apply restraint-only presets without touching clothing.
+Separate from outfits - save and apply restraint-only presets without touching clothing.
 
 Same options as outfits: command, display name, announce text, tags, reorder, export/import.
 
@@ -98,17 +98,17 @@ Up to 20 configurable quick-action buttons drawn on the side of the chatroom. Th
 Each button sends an action or emote to the room when clicked.
 
 **Per-button settings**
-- **Label** — up to 16 characters, displayed on the button (text is auto-scaled to fit)
-- **Hex color** — custom background colour per button
-- **Action text** — what comes after your name, e.g. `waves goodbye`
-- **Style** — `action` `( )`, `emote` `* *`, or `sequence` (pipe-separated multi-step)
-- **Expression preset** — optionally fire a face preset alongside the action, with an optional revert timer
-- **Name in announce** — include or exclude your name from the message (action style only)
+- **Label** - up to 16 characters, displayed on the button (text is auto-scaled to fit)
+- **Hex color** - custom background colour per button
+- **Action text** - what comes after your name, e.g. `waves goodbye`
+- **Style** - `action` `( )`, `emote` `* *`, or `sequence` (pipe-separated multi-step)
+- **Expression preset** - optionally fire a face preset alongside the action, with an optional revert timer
+- **Name in announce** - include or exclude your name from the message (action style only)
 - **Enable / disable** toggle
 
-**Sequences** — pipe-separate multiple steps to chain poses and messages with delays. Steps can be pose names, `!action text`, `*emote text`, or `leaveroom`.
+**Sequences** - pipe-separate multiple steps to chain poses and messages with delays. Steps can be pose names, `!action text`, `*emote text`, or `leaveroom`.
 
-**Categories** — group buttons into named tabs and switch between them with the arrow chips on the sidebar. Each category has its own set of buttons and slot count.
+**Categories** - group buttons into named tabs and switch between them with the arrow chips on the sidebar. Each category has its own set of buttons and slot count.
 
 ---
 
@@ -123,16 +123,16 @@ Save your facial expressions as named presets and apply them instantly.
 3. Type a name and click **💾 Save face**
 
 **Managing presets**
-- **Apply** — restore that face immediately
-- **Update** — overwrite the preset with your current expression
-- **Default** — mark one preset as your default face
+- **Apply** - restore that face immediately
+- **Update** - overwrite the preset with your current expression
+- **Default** - mark one preset as your default face
   - The **↺ Reset face** button always jumps back to the default
   - Enable **Auto-apply on room join** so your default face loads automatically every time you enter a room
 
 **Using presets elsewhere**
-- Link a preset to an **outfit** — the face changes when you load the outfit
-- Add a preset step to an **action button** — the face fires when you press the button (with optional revert timer)
-- Use presets inside **expression sequences** — chain multiple face changes with delays
+- Link a preset to an **outfit** - the face changes when you load the outfit
+- Add a preset step to an **action button** - the face fires when you press the button (with optional revert timer)
+- Use presets inside **expression sequences** - chain multiple face changes with delays
 - Trigger presets automatically with **Chat Triggers**
 
 ### Chat Triggers
@@ -141,9 +141,9 @@ Automatically apply a face preset when your outgoing chat message contains a mat
 
 1. Open EBC → **Anims** tab → **Expressions** section → **＋ New Trigger**
 2. Fill in:
-   - **Contains** — the phrase that fires it (case-insensitive, e.g. `>:3`, `>_<`)
-   - **Apply** — which preset activates
-   - **Hold** — how long the face stays before reverting (0 = keep forever)
+   - **Contains** - the phrase that fires it (case-insensitive, e.g. `>:3`, `>_<`)
+   - **Apply** - which preset activates
+   - **Hold** - how long the face stays before reverting (0 = keep forever)
 
 Type the phrase naturally in chat and the face swaps with it instantly. Works on actions, emotes, and regular chat messages.
 
@@ -161,7 +161,7 @@ Found in the **Buttons** tab of the EBC drawer.
 | **Beep Mute** | Silences all incoming beeps globally. |
 | **Suppress Native Beep** | Stops plain beeps from also showing in BC's main chat log when EBC's IM handles them. |
 
-**Per-person beep muting** — inside any IM / beep conversation window, tap the 🔔 icon in the header to mute that specific person. Tap again (🔇) to unmute. Session-only.
+**Per-person beep muting** - inside any IM / beep conversation window, tap the 🔔 icon in the header to mute that specific person. Tap again (🔇) to unmute. Session-only.
 
 ---
 
@@ -170,8 +170,8 @@ Found in the **Buttons** tab of the EBC drawer.
 Automatically remove any restraint applied to you by someone else.
 
 - Toggle on/off from the **Buttons** tab
-- **Protected Items** — items on the whitelist are always kept, even if applied by others. Add items from the settings panel.
-- **Confirm dialog** — shows a prompt before auto-escaping so you can choose to accept the restraint
+- **Protected Items** - items on the whitelist are always kept, even if applied by others. Add items from the settings panel.
+- **Confirm dialog** - shows a prompt before auto-escaping so you can choose to accept the restraint
 - Covers all restraint slots including collar and neck
 - Retries removal up to 2 times per slot before giving up on locked items
 - Sends a glare emote to the room after a successful escape
@@ -180,13 +180,13 @@ Automatically remove any restraint applied to you by someone else.
 
 ## 🧍 Poses & Animations
 
-Quick-access pose combo buttons — apply a full set of BC poses in one click.
+Quick-access pose combo buttons - apply a full set of BC poses in one click.
 
 - Create named combos from any combination of BC poses
 - Apply combos from the drawer or define a slash command for each
 - Edit and delete combos
 
-**Expression sequences** — chain multiple face presets together with configurable delays per step. Assign a `/command` name and trigger them from chat. Useful for animated facial reactions.
+**Expression sequences** - chain multiple face presets together with configurable delays per step. Assign a `/command` name and trigger them from chat. Useful for animated facial reactions.
 
 ---
 
@@ -194,11 +194,11 @@ Quick-access pose combo buttons — apply a full set of BC poses in one click.
 
 Save and reapply color schemes across your character.
 
-- **Outfit palettes** — capture your current outfit colors and restore them later
-- **Restraint palettes** — same for restraint-slot items
-- **Custom color library** — save individual hex colors as swatches for quick access
-- **Apply to group** — paint a single color across all zones of a body group
-- **Restraint presets** — save a restraint color configuration and reapply it to matching items
+- **Outfit palettes** - capture your current outfit colors and restore them later
+- **Restraint palettes** - same for restraint-slot items
+- **Custom color library** - save individual hex colors as swatches for quick access
+- **Apply to group** - paint a single color across all zones of a body group
+- **Restraint presets** - save a restraint color configuration and reapply it to matching items
 
 ---
 
@@ -207,11 +207,11 @@ Save and reapply color schemes across your character.
 Scripted multi-step sequences you can trigger with a slash command.
 
 **Step types**
-- **Emote** — send a `/me` action to the room
-- **Outfit** — load one of your saved outfits
-- **Restraints** — apply a restraint set
-- **Pose** — apply a pose combo
-- **Delay** — wait N seconds before the next step
+- **Emote** - send a `/me` action to the room
+- **Outfit** - load one of your saved outfits
+- **Restraints** - apply a restraint set
+- **Pose** - apply a pose combo
+- **Delay** - wait N seconds before the next step
 
 Build scenes in the **Scenes** tab, assign a command, and run them with `/yourcommand` in chat. Export and import scenes as JSON.
 
@@ -227,18 +227,18 @@ Collapsible panel showing everyone currently in the chat room:
 - Relationship badge (Owner, Lover, etc.)
 - EBC version badge (if they're running EBC)
 - Friend tags
-- **Profile** button — opens the BC information sheet
-- **Beep** button — opens the EBC IM window (friends only)
-- **Copy ID** button — copies the member number to clipboard
+- **Profile** button - opens the BC information sheet
+- **Beep** button - opens the EBC IM window (friends only)
+- **Copy ID** button - copies the member number to clipboard
 
 ### Friends List
 Your BC friends list with expandable rows. Click a friend row to expand:
 
 - 🤝 **Friends since** date
 - 🕑 **Last seen** timestamp (tracked across sessions)
-- **Tags** — add custom colour-coded labels (e.g. "dominant", "close friend")
-- **Note** — inline text editor for personal notes. Auto-saves 800ms after you stop typing
-- **📌 Pin** — pin a friend to the top of the list
+- **Tags** - add custom colour-coded labels (e.g. "dominant", "close friend")
+- **Note** - inline text editor for personal notes. Auto-saves 800ms after you stop typing
+- **📌 Pin** - pin a friend to the top of the list
 
 Friends are sorted: pinned first → alphabetical. Unread beep badge shows on the friend row.
 
@@ -257,7 +257,7 @@ Notes can also be written directly from the Friends list expand panel without sw
 
 ## 🌐 People Met
 
-Everyone you've ever shared a room with — saved server-side and synced across devices. Capped at 2 000 entries (oldest evicted first).
+Everyone you've ever shared a room with - saved server-side and synced across devices. Capped at 2 000 entries (oldest evicted first).
 
 - Browse in the **People Met** section of the Users tab
 - Includes name, member number, and a Profile button
@@ -273,10 +273,10 @@ Found in the **Toys** tab of the EBC drawer. Split into Game Toys (in-BC mechani
 
 Control the BC vibrator system from EBC.
 
-- **Enable / Disable** — master toggle for the BC vibrator item interaction
-- **Vibrator mode** — choose Tease, Deny, Orgasm, or Edge to set the toy's behavior pattern
-- **Privacy** — hide game-toy activity from other room members
-- **Whitelist** — restrict who can interact with your BC toys to a list of specific member numbers
+- **Enable / Disable** - master toggle for the BC vibrator item interaction
+- **Vibrator mode** - choose Tease, Deny, Orgasm, or Edge to set the toy's behavior pattern
+- **Privacy** - hide game-toy activity from other room members
+- **Whitelist** - restrict who can interact with your BC toys to a list of specific member numbers
 
 ### IRL Toys / Lovense
 
@@ -306,11 +306,11 @@ Lists all room members currently running EBC and their version number.
 Copy another room member's current restraints onto yourself.
 - Select a member from the dropdown
 - Preview which restraints will be copied before confirming
-- Lock data is stripped — you own the items freely
+- Lock data is stripped - you own the items freely
 - Only the copied slots are replaced; your other restraints are untouched
 
 ### Character Inspector
-Dump raw appearance and property data for any room member — useful for debugging item states, craft names, and property values.
+Dump raw appearance and property data for any room member - useful for debugging item states, craft names, and property values.
 
 ### Addons Loaded
 Lists all `bcModSdk` mods currently active in the session, with their version and hooked functions.
@@ -338,16 +338,16 @@ Customisation options found in the **Dev** tab under *Drawer Appearance*.
 
 ## ✨ Quality of Life
 
-**Overhead EBC badge** — broadcasts a small `EBC` tag above your character's head to other EBC users. Optionally show your version number. Both toggleable from Settings.
+**Overhead EBC badge** - broadcasts a small `EBC` tag above your character's head to other EBC users. Optionally show your version number. Both toggleable from Settings.
 
-**IM / Beep window** — threaded beep conversations with message history, unread badges, timestamps, and per-person mute (🔔/🔇) per person.
+**IM / Beep window** - threaded beep conversations with message history, unread badges, timestamps, and per-person mute (🔔/🔇) per person.
 
-**Timers** — passive counters in the drawer:
+**Timers** - passive counters in the drawer:
 - ⏱ Time online this session
 - 🚪 Time in current room
 - ⛓ Time wearing current restraints
 
-**Update notifications** — EBC checks GitHub for a newer version 30 seconds after load, then every hour. Silence with `/ebc updates off`.
+**Update notifications** - EBC checks GitHub for a newer version 30 seconds after load, then every hour. Silence with `/ebc updates off`.
 
 ---
 
@@ -370,9 +370,9 @@ Each step spotlights the relevant UI element and explains what it does. Advance 
 
 Click **Feedback & Bugs** in the EBC footer to submit a report without leaving the game.
 
-- **Type** — Bug report, Feature request, or Other
-- **Summary** — what happened or what you'd like
-- **Steps / detail** — reproduction steps, context, or extra info
+- **Type** - Bug report, Feature request, or Other
+- **Summary** - what happened or what you'd like
+- **Steps / detail** - reproduction steps, context, or extra info
 
 Reports are submitted anonymously via a Google Form. Your EBC version and member number are attached automatically to help with debugging. You never leave the game - the form submits in the background and shows a confirmation toast when done.
 
@@ -398,13 +398,13 @@ Outfit, restraint set, pose combo, and scene commands are defined per-item in th
 
 ## Credits
 
-The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design! ♥
+The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** - thank you for the open design! ♥
 
 ---
 
 ## License
 
-[MIT](LICENSE) — © Emery
+[MIT](LICENSE) - © Emery
 
 ---
 
@@ -413,5 +413,5 @@ The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRAB
 *Want your stamp here? Find Emery in-game at the **EmeryBC HQ** room and ask her! ♥*
 
 <p align="center">
-  <img src="assets/stamp.png" alt="Vei — Good Addon · >w7" width="420">
+  <img src="assets/stamp.png" alt="Vei - Good Addon · >w7" width="420">
 </p>
