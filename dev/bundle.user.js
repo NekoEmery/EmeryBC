@@ -11820,10 +11820,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
             const feedbackLink = document.createElement("a");
-            feedbackLink.href = "https://github.com/NekoEmery/EmeryBC/issues";
+            feedbackLink.href = `https://docs.google.com/forms/d/e/1FAIpQLSe6lNI5Q4wHX7llKvU6SlvwzR1G7xiYOYrx8NTciGzAW3izhw/viewform`;
             feedbackLink.target = "_blank";
             feedbackLink.rel = "noopener noreferrer";
-            feedbackLink.title = "Report a bug or request a feature on GitHub";
+            feedbackLink.title = "Report a bug or request a feature (anonymous form)";
             feedbackLink.textContent = "🐛";
             feedbackLink.style.cssText = "font-size:12px;text-decoration:none;cursor:pointer;opacity:0.6;transition:opacity 0.15s;padding:2px 4px;border-radius:3px;";
             feedbackLink.addEventListener("mouseenter", () => { feedbackLink.style.opacity = "1"; });
@@ -32589,7 +32589,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 20; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 21; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32606,6 +32606,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Feedback: 🐛 button now links to an anonymous Google Form instead of GitHub — no account needed to submit a bug report or feature request.",
                 "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
                 "Lovense: phrase triggers now have toy chips too — each chat phrase trigger can target a specific toy (or All), same as body-touch triggers.",
                 "IRL toys / Game toys: added auto-accept whitelist — if a friend is on your whitelist, their control request is accepted instantly without a popup. Whitelist is managed in the existing whitelist UI.",
