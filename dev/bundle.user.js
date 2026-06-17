@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.0
+// @version      8.2.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -10967,12 +10967,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 /* Detached from the main panel so the full menu stays visible while reading. */
 .ebc-guide-side {
     position: fixed;
-    width: 240px;
+    width: 310px;
     background: #170810;
     border: 2px solid #cf6f98;
     border-left: 4px solid #cf6f98;
     border-radius: 10px;
-    padding: 11px 13px 10px;
+    padding: 13px 14px 12px;
     box-shadow: 0 6px 32px rgba(0,0,0,0.9), 0 0 0 1px rgba(207,111,152,0.12);
     z-index: 10010;
     font-family: "Trebuchet MS", serif;
@@ -11582,6 +11582,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.resetLocationBtn = null;
             // Interactive guide overlay
             this.guideEl = null;
+            this.guideMode = null;
             this.guideStep = 0;
             this.guideSpotlightIndex = 0; // which spotlight in the current step is active
             // Category dropdown in quick actions bar
@@ -13101,6 +13102,63 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_f) { /* ignore */ }
         }
+        renderGuideModeSelect() {
+            const card = this.guideEl;
+            if (!card)
+                return;
+            card.innerHTML = "";
+            const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
+            // Top row: title + close
+            const topRow = document.createElement("div");
+            topRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
+            const titleEl = document.createElement("span");
+            titleEl.style.cssText = `${FONT}font-size:15px;font-weight:bold;color:#f7e6ee;`;
+            titleEl.textContent = "EBC Tutorial";
+            const closeX = document.createElement("button");
+            closeX.className = "ebc-guide-close-btn";
+            closeX.textContent = "✕";
+            closeX.title = "Close";
+            closeX.addEventListener("click", () => this.closeGuide());
+            topRow.appendChild(titleEl);
+            topRow.appendChild(closeX);
+            card.appendChild(topRow);
+            const subEl = document.createElement("div");
+            subEl.style.cssText = `${FONT}font-size:12px;color:#9a7080;margin-bottom:16px;`;
+            subEl.textContent = "How do you want to explore EBC?";
+            card.appendChild(subEl);
+            // Mode cards
+            const modesRow = document.createElement("div");
+            modesRow.style.cssText = "display:flex;gap:10px;";
+            const makeCard = (heading, badge, desc, detail, accent, onClick) => {
+                const c = document.createElement("div");
+                c.style.cssText = `flex:1;background:#1c1020;border:1.5px solid #3a2540;border-radius:12px;padding:16px 12px 14px;cursor:pointer;text-align:center;${FONT}transition:border-color 0.14s,background 0.14s,transform 0.1s;`;
+                const badgeEl = document.createElement("div");
+                badgeEl.style.cssText = `font-size:26px;margin-bottom:9px;color:${accent};font-weight:bold;`;
+                badgeEl.textContent = badge;
+                const headEl = document.createElement("div");
+                headEl.style.cssText = `font-size:13px;font-weight:bold;color:#f7e6ee;margin-bottom:6px;`;
+                headEl.textContent = heading;
+                const descEl = document.createElement("div");
+                descEl.style.cssText = `font-size:11px;color:#9a7888;line-height:1.45;margin-bottom:10px;`;
+                descEl.textContent = desc;
+                const detailEl = document.createElement("div");
+                detailEl.style.cssText = `font-size:10px;font-weight:bold;color:${accent};border:1px solid ${accent}55;border-radius:6px;padding:4px 0;letter-spacing:0.3px;`;
+                detailEl.textContent = detail;
+                c.appendChild(badgeEl);
+                c.appendChild(headEl);
+                c.appendChild(descEl);
+                c.appendChild(detailEl);
+                c.addEventListener("mouseenter", () => { c.style.borderColor = accent; c.style.background = "#24152e"; c.style.transform = "translateY(-2px)"; });
+                c.addEventListener("mouseleave", () => { c.style.borderColor = "#3a2540"; c.style.background = "#1c1020"; c.style.transform = ""; });
+                c.addEventListener("click", onClick);
+                return c;
+            };
+            const fastCard = makeCard("Quick Tour", "▶", "Every feature in a few bullets. Done in 2 minutes.", "5 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            const deepCard = makeCard("Full Guide", "◈", "Full walkthrough with try-it prompts.", "12 steps", "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            modesRow.appendChild(fastCard);
+            modesRow.appendChild(deepCard);
+            card.appendChild(modesRow);
+        }
         startGuide() {
             var _a, _b, _c, _d;
             // Tear down any previous instance
@@ -13113,7 +13171,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             side.className = "ebc-guide-side";
             // Pick a side (prefer left; fall back to right if not enough room)
             const panelRect = (_b = (_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect()) !== null && _b !== void 0 ? _b : { left: 0, right: 360, top: 60};
-            const gw = 248; // panel width + gap
+            const gw = 318; // panel width (310) + gap (8)
             let left;
             if (panelRect.left >= gw + 4) {
                 left = panelRect.left - gw;
@@ -13127,9 +13185,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             side.style.top = `${top}px`;
             document.body.appendChild(side);
             this.guideEl = side;
+            this.guideMode = null;
             this.guideStep = 0;
             this.guideSpotlightIndex = 0;
-            this.renderGuideStep();
+            this.renderGuideModeSelect();
         }
         // Parses simple inline markup in guide text:
         //   [[text]]   → <span class="ebc-guide-hl">text</span>  (pink chip highlight)
@@ -13177,7 +13236,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const card = this.guideEl;
             if (!card)
                 return;
-            const steps = EBCDrawer.GUIDE_STEPS;
+            const steps = this.guideMode === "fast" ? EBCDrawer.FAST_STEPS : EBCDrawer.INDEPTH_STEPS;
             const step = steps[this.guideStep];
             if (!step)
                 return;
@@ -13197,7 +13256,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             topRow.className = "ebc-guide-top";
             const stepLbl = document.createElement("span");
             stepLbl.className = "ebc-guide-step-lbl";
-            stepLbl.textContent = `${this.guideStep + 1} of ${steps.length}`;
+            const modeLabel = this.guideMode === "fast" ? "Quick Tour" : "Full Guide";
+            stepLbl.textContent = `${modeLabel} · ${this.guideStep + 1} of ${steps.length}`;
             const closeX = document.createElement("button");
             closeX.className = "ebc-guide-close-btn";
             closeX.textContent = "✕";
@@ -32626,54 +32686,111 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    EBCDrawer.GUIDE_STEPS = [
+    EBCDrawer.FAST_STEPS = [
         {
             tab: null,
-            label: "Welcome to EBC",
-            text: "EBC extends Bondage Club with outfits, action buttons, animations, toys and more.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
+            label: "EBC at a glance",
+            text: "EBC extends Bondage Club with six feature areas.\nHit [[Next →]] for a one-screen summary of each one.",
         },
         {
             tab: "outfits",
-            label: "Outfits",
-            text: "Save and restore your full look in one click.\n• [[+ New Outfit]] → saves everything you're wearing right now\n• [[Apply]] on any card → restores that look instantly\n• [[Tags]] and [[Schedules]] let you organise and auto-switch outfits\n((Try clicking the highlighted button to save an outfit right now!))",
+            label: "Outfits + Buttons",
+            text: "[[Outfits]] — save your full look as a preset, restore it in one click.\n• [[+ New Outfit]] saves now · [[Apply]] restores · [[Schedules]] auto-switch\n[[Buttons]] — one-tap actions, emotes or scripted multi-step sequences.\n• Link a face expression to fire automatically when you press a button",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
+            tab: "anims",
+            label: "Poses + Expressions",
+            text: "[[Pose combos]] — chain poses and messages, trigger with [[/name]] in chat.\n• [[+ New combo]] → add steps → type [[/name]] anywhere in BC chat\n[[Face presets]] — capture any expression, link to buttons or outfits.\n• [[Chat triggers]] fire a face automatically when your message matches a phrase",
+            spotlight: ["[data-guide-target='btn-new-combo']"],
+        },
+        {
+            tab: "toys",
+            label: "Toys + Users + Settings",
+            text: "[[Remote Toys]] — control a friend's in-game vibrator or real Lovense toy.\n• [[Request]] control (same room) · [[Whitelist]] friends to skip the popup\n[[Users]] — [[★]] marks friends · expand any card to whisper or view profile\n[[Settings]] (DEV) — [[Quick Preset]] themes · [[Hotkey]] · [[Visible Tabs]]",
+        },
+        {
+            tab: null,
+            label: "Safewords — Always Here",
+            text: "Three safewords pinned above every tab — always one tap away.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] + [[Confirm step]] prevent accidental presses\n((That's the quick tour! Open Tutorial anytime to revisit.))",
+            spotlight: ["[data-guide-target='strip-safewords']"],
+        },
+    ];
+    EBCDrawer.INDEPTH_STEPS = [
+        {
+            tab: null,
+            label: "Welcome to EBC",
+            text: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
+        },
+        {
+            tab: null,
+            label: "Moving & Resizing",
+            text: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))",
+            spotlight: ["[data-guide-target='resize-corner']"],
+        },
+        {
+            tab: "outfits",
+            label: "Saving & Applying Outfits",
+            text: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))",
+            spotlight: ["[data-guide-target='btn-new-outfit']"],
+            autoExpand: ["btn-new-outfit"],
+        },
+        {
+            tab: "outfits",
+            label: "Tags, Schedules & Sharing",
+            text: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.",
+            spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
+            autoExpand: ["section-outfit-tags", "section-schedules"],
+        },
+        {
             tab: "buttons",
             label: "Action Buttons",
-            text: "One-tap shortcuts for actions, emotes and multi-step sequences.\n• [[Action]] → /me text · [[Emote]] → *text* · [[Sequence]] → multi-step\n• Link a face expression to fire automatically when you press the button\n• [[Categories]] group buttons into named tabs for easy switching",
+            text: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "anims",
-            label: "Poses & Expressions",
-            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add steps → type [[/name]] in chat to trigger anywhere\n• Save face presets and link them to buttons, outfits or chat phrases\n((Try clicking the highlighted button to create your first combo!))",
+            label: "Pose Combos",
+            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
+        },
+        {
+            tab: "anims",
+            label: "Expressions & Chat Triggers",
+            text: "[[Face presets]] save any expression — set it with BC's face controls, then click [[Save face]].\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n[[Chat triggers]] fire a preset when your message contains a set phrase.\n• [[Contains]] → phrase · [[Apply]] → which preset · [[Hold]] → duration (0 = keep forever)",
+            spotlight: ["[data-guide-target='btn-save-face']", "[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
             label: "Users & Friends",
-            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their ID or view their profile\n((People Met in DEV → Logs saves everyone permanently across sessions.))",
+            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))",
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
             tab: "toys",
             label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\n• [[GAME TOYS]] / [[IRL TOYS]] → hit [[Request]] (both must be in the same room)\n• Set [[Intensity]] and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
+            text: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
         },
         {
             tab: "dev",
-            label: "Settings",
-            text: "Customise EBC in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme in one click\n• [[Hotkey]] → open/close the menu from anywhere with one key\n• [[Visible Tabs]] → hide tabs you don't use to keep things clean",
+            label: "Settings & Themes",
+            text: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
+            tab: "dev",
+            label: "Logs & History",
+            text: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered",
+            spotlight: ["[data-guide-target='section-dev-logs']"],
+            autoExpand: ["section-dev-logs"],
+        },
+        {
             tab: null,
             label: "Safewords — Always On Top",
-            text: "Three safewords pinned above every tab — always one tap away.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] and [[Confirm step]] prevent accidental presses",
+            text: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))",
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
     ];
@@ -32738,8 +32855,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.0";
-    const SAL_VERSION = 30; // internal sub-version — shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.1";
+    const SAL_VERSION = 31; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32753,6 +32870,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.1",
+            changes: [
+                "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
+            ],
+        },
         {
             version: "8.2.0",
             changes: [
