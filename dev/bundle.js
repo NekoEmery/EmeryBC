@@ -33562,6 +33562,8 @@
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
                 for (const group of groups) {
+                    const wrap = document.createElement("div");
+                    wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
                     row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
@@ -33570,6 +33572,11 @@
                     nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                     nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                     nm.title = group;
+                    // ⏱ pause button - toggles duration picker inline
+                    const pauseBtn = document.createElement("button");
+                    pauseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;flex-shrink:0;";
+                    pauseBtn.textContent = "⏱";
+                    pauseBtn.title = "Temporarily pause this curse";
                     const liftOneBtn = document.createElement("button");
                     liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
                     liftOneBtn.textContent = "✕";
@@ -33578,7 +33585,6 @@
                         var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
                         setCurseRecord(id, remaining);
-                        // Use clear:group to precisely remove just this curse from target's record
                         sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                         const label = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                         const targetName4 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
@@ -33588,8 +33594,44 @@
                         rebuildActiveCurses();
                     });
                     row.appendChild(nm);
+                    row.appendChild(pauseBtn);
                     row.appendChild(liftOneBtn);
-                    activeCursesList.appendChild(row);
+                    // Duration picker - hidden until ⏱ clicked
+                    const pickerRow = document.createElement("div");
+                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:2px 4px 4px 4px;flex-wrap:wrap;";
+                    const pickerLbl = document.createElement("span");
+                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7090b0;white-space:nowrap;";
+                    pickerLbl.textContent = "Pause for:";
+                    pickerRow.appendChild(pickerLbl);
+                    const PAUSE_OPTS = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
+                    for (const [label, mins] of PAUSE_OPTS) {
+                        const chip = document.createElement("button");
+                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                        chip.textContent = label;
+                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(70,100,160,0.2)"; chip.style.borderColor = "#5070a0"; });
+                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#3a4060"; });
+                        chip.addEventListener("click", () => {
+                            var _a, _b, _c;
+                            const ms = mins * 60 * 1000;
+                            sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                            const itemLabel = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
+                            const targetName5 = (_c = (_b = getRoomMembers().find(m => m.id === id)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${id}`;
+                            appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetName5} for ${label}.`, UI.textMuted);
+                            curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
+                            window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                            pickerRow.style.display = "none";
+                            pauseBtn.style.color = "#7090b0";
+                        });
+                        pickerRow.appendChild(chip);
+                    }
+                    pauseBtn.addEventListener("click", () => {
+                        const open = pickerRow.style.display !== "none";
+                        pickerRow.style.display = open ? "none" : "flex";
+                        pauseBtn.style.color = open ? "#7090b0" : "#90b8e0";
+                    });
+                    wrap.appendChild(row);
+                    wrap.appendChild(pickerRow);
+                    activeCursesList.appendChild(wrap);
                 }
             };
             cursePanel.appendChild(activeCursesEl);
@@ -33875,7 +33917,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 75; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 76; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33895,6 +33937,7 @@
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
                 "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
                 "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
+                "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
             ],
         },
         {
@@ -41536,6 +41579,23 @@
         // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
         const getCurseKey = () => { var _a; return `EBC_curses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
         const getCurseItemKey = () => { var _a; return `EBC_curseItems_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+        const getCursePauseKey = () => { var _a; return `EBC_curse_pauses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+        const getCursePauses = () => {
+            try {
+                const r = localStorage.getItem(getCursePauseKey());
+                return r ? JSON.parse(r) : {};
+            }
+            catch (_a) {
+                return {};
+            }
+        };
+        const saveCursePauses = (p) => {
+            try {
+                localStorage.setItem(getCursePauseKey(), JSON.stringify(p));
+            }
+            catch (_a) { }
+        };
+        const isCursePaused = (group) => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
         const getCursedGroups = () => {
             try {
                 const raw = localStorage.getItem(getCurseKey());
@@ -41587,9 +41647,21 @@
                 saveCursedGroups(current);
                 saveCurseItemMap(itemMap);
             }
+            else if (inner.startsWith("pause:")) {
+                const pauses = getCursePauses();
+                for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
+                    const eqIdx = entry.indexOf("=");
+                    const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                    const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
+                    if (g && ms > 0)
+                        pauses[g] = Date.now() + ms;
+                }
+                saveCursePauses(pauses);
+            }
             else if (inner === "clear") {
                 saveCursedGroups(new Set());
                 saveCurseItemMap({});
+                saveCursePauses({});
             }
             else if (inner.startsWith("clear:")) {
                 const itemMap = getCurseItemMap();
@@ -41607,7 +41679,7 @@
                 const [char, group] = args;
                 if (char === Player && typeof group === "string") {
                     const cursed = getCursedGroups();
-                    if (cursed.has(group)) {
+                    if (cursed.has(group) && !isCursePaused(group)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                         return; // block self-removal of cursed item
                     }
@@ -41630,7 +41702,7 @@
                 const nameVal = item.Name; // undefined = removal
                 if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
                     const cursed = getCursedGroups();
-                    if (cursed.has(group)) {
+                    if (cursed.has(group) && !isCursePaused(group)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
                         // Send correction: our item is still here, push it back to the server
                         const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
