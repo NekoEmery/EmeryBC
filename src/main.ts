@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 26;   // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 27;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -46,6 +46,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         version: "8.1.2",
         changes: [
             "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
+            "Feedback form: cleaner readable sans-serif font, unified rose colour scheme (no more pink/purple clash), and tighter spacing.",
+            "Footer: moved the Tutorial and Feedback & Bugs buttons to the very bottom, beneath the online/room/bound timers.",
             "Feedback form redesign: cleaner layout, no emoji, segmented Type selector, focus highlights on the text fields, and polished Send/Cancel buttons.",
             "Toy whitelist: added a 'No need to ask' toggle (IRL + game toys). OFF by default for safety — whitelisted friends still send a request you approve. Turn it ON to let trusted friends take instant control with no popup.",
             "Footer redesign: 'Tutorial' and 'Feedback & Bugs' buttons now sit together at the top of the footer (above the version line) where they're easy to find. Removed the floating '?' button from the bottom corner, and moved Feedback out of the cramped header so nothing overflows when you drag the window.",

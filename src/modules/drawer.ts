@@ -5056,12 +5056,12 @@ export class EBCDrawer {
         footer.className = "ebc-footer";
         footer.style.position = "relative";
 
-        // ── Two important action buttons at the top of the footer ────────────
+        // ── Two important action buttons at the bottom of the footer ─────────
         const BUG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
         const BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
 
         const footerBtnRow = document.createElement("div");
-        footerBtnRow.style.cssText = "display:flex;gap:8px;width:100%;justify-content:center;margin-bottom:1px;";
+        footerBtnRow.style.cssText = "display:flex;gap:8px;width:100%;justify-content:center;margin-top:6px;";
 
         const tutorialBtn = document.createElement("button");
         tutorialBtn.className = "ebc-footer-action-btn";
@@ -5081,7 +5081,6 @@ export class EBCDrawer {
 
         footerBtnRow.appendChild(tutorialBtn);
         footerBtnRow.appendChild(fbBtn);
-        footer.appendChild(footerBtnRow);
 
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
@@ -5092,6 +5091,9 @@ export class EBCDrawer {
         timerEl.className = "ebc-timer";
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
+
+        // Action buttons sit at the very bottom, under the online/room/bound timers
+        footer.appendChild(footerBtnRow);
 
 
         // ── EBC Tags strip - collapsible, always below safewords ─────────────
@@ -22739,35 +22741,35 @@ export class EBCDrawer {
         const E_STEPS = "entry.1724725225";
         const E_VER = "entry.1112839188";
 
-        const FONT = "font-family:'Palatino Linotype','Book Antiqua',serif;";
+        const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
         const mk = (tag: string, css?: string): HTMLElement => { const el = document.createElement(tag); if (css) el.style.cssText = css; return el; };
 
         const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
         overlay.id = "ebc-feedback-overlay";
 
-        const card = mk("div", `${FONT}width:min(440px,92vw);max-height:88vh;overflow-y:auto;background:linear-gradient(165deg,#1c1029,#130a1c);border:1px solid #6e4a8c;border-radius:14px;padding:20px 22px;box-shadow:0 12px 50px rgba(0,0,0,0.65),0 0 0 1px rgba(154,111,208,0.08);`);
+        const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
         overlay.appendChild(card);
 
         // Thin accent bar at the top for a bit of polish
-        card.appendChild(mk("div", "height:3px;border-radius:3px;background:linear-gradient(90deg,#cf6f98,#9a6fd0);margin:-4px 0 16px;"));
+        card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
 
-        const titleEl = mk("div", `${FONT}font-size:18px;font-weight:bold;color:#f0e2fa;letter-spacing:0.3px;margin-bottom:5px;`);
+        const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
         titleEl.textContent = "Feedback & Bug Report";
         card.appendChild(titleEl);
 
-        const subEl = mk("div", `${FONT}font-size:11.5px;color:#9a86ad;margin-bottom:18px;line-height:1.5;`);
+        const subEl = mk("div", `${FONT}font-size:12px;color:#9b8fa6;margin-bottom:20px;line-height:1.55;`);
         subEl.textContent = "Anonymous — sent straight from the game. No account, no email, nothing tied to you.";
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
-            const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;color:#b98fd0;margin-bottom:8px;`);
+            const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
             l.textContent = txt; return l;
         };
         const wireFocus = (el: HTMLElement): void => {
-            el.addEventListener("focus", () => { el.style.borderColor = "#9a6fd0"; el.style.boxShadow = "0 0 0 3px rgba(154,111,208,0.15)"; });
-            el.addEventListener("blur", () => { el.style.borderColor = "#3d2433"; el.style.boxShadow = "none"; });
+            el.addEventListener("focus", () => { el.style.borderColor = "#cf6f98"; el.style.boxShadow = "0 0 0 3px rgba(207,111,152,0.16)"; });
+            el.addEventListener("blur", () => { el.style.borderColor = "#33283c"; el.style.boxShadow = "none"; });
         };
-        const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0e0718;border:1px solid #3d2433;border-radius:9px;color:#e9d4f5;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
+        const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
 
         // ── Type — segmented control (no emoji; value = exact Google Form string) ──
         card.appendChild(mkLabel("Type"));
@@ -22782,15 +22784,14 @@ export class EBCDrawer {
         const paintChips = (): void => {
             typeChips.forEach((chip, i) => {
                 const on = TYPES[i].value === selectedType;
-                chip.style.background = on ? "linear-gradient(160deg,#5a2c46,#3f2036)" : "rgba(255,255,255,0.02)";
-                chip.style.borderColor = on ? "#e08ab0" : "#3d2433";
-                chip.style.color = on ? "#fff0f6" : "#9a86ad";
+                chip.style.background = on ? "#c2628a" : "transparent";
+                chip.style.borderColor = on ? "#cf6f98" : "#33283c";
+                chip.style.color = on ? "#ffffff" : "#9b8fa6";
                 chip.style.fontWeight = on ? "bold" : "normal";
-                chip.style.boxShadow = on ? "0 0 0 1px rgba(224,138,176,0.25)" : "none";
             });
         };
         TYPES.forEach((tp) => {
-            const chip = mk("button", `${FONT}flex:1;font-size:12px;padding:9px 6px;border-radius:9px;border:1px solid #3d2433;cursor:pointer;transition:all 0.14s;`);
+            const chip = mk("button", `${FONT}flex:1;font-size:12px;padding:9px 6px;border-radius:8px;border:1px solid #33283c;cursor:pointer;transition:all 0.14s;`);
             chip.textContent = tp.label;
             chip.addEventListener("click", () => { selectedType = tp.value; paintChips(); });
             typeRow.appendChild(chip); typeChips.push(chip);
@@ -22823,14 +22824,14 @@ export class EBCDrawer {
         card.appendChild(errEl);
 
         const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
-        const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #3d2433;background:transparent;color:#9a86ad;transition:all 0.14s;`);
+        const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #33283c;background:transparent;color:#9b8fa6;transition:all 0.14s;`);
         cancelBtn.textContent = "Cancel";
-        cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#c9b4d8"; });
-        cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9a86ad"; });
-        const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.4px;padding:9px 26px;border-radius:9px;cursor:pointer;border:1px solid #b07fd8;background:linear-gradient(160deg,#5a2f7e,#3a1f52);color:#f5ebff;transition:all 0.14s;`) as HTMLButtonElement;
+        cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#cbbdd6"; });
+        cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9b8fa6"; });
+        const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.3px;padding:9px 28px;border-radius:9px;cursor:pointer;border:1px solid #cf6f98;background:#c2628a;color:#ffffff;transition:all 0.14s;`) as HTMLButtonElement;
         sendBtn.textContent = "Send";
-        sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled) sendBtn.style.background = "linear-gradient(160deg,#6d3a96,#48285f)"; });
-        sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled) sendBtn.style.background = "linear-gradient(160deg,#5a2f7e,#3a1f52)"; });
+        sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled) sendBtn.style.background = "#d278a0"; });
+        sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled) sendBtn.style.background = "#c2628a"; });
         btnRow.appendChild(cancelBtn); btnRow.appendChild(sendBtn);
         card.appendChild(btnRow);
 
