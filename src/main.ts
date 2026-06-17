@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 88;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 89;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -7594,6 +7594,13 @@ function init(): void {
         try { localStorage.setItem(getCursePauseKey(), JSON.stringify(p)); } catch {}
     };
     const isCursePaused = (group: string): boolean => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
+    const getCurseExpiryKey = (): string => `EBC_curse_expiry_${Player.MemberNumber ?? ""}`;
+    const getCurseExpiry = (): number | null => {
+        try { const r = localStorage.getItem(getCurseExpiryKey()); return r ? parseInt(r) : null; } catch { return null; }
+    };
+    const saveCurseExpiry = (ts: number | null): void => {
+        try { if (ts == null) localStorage.removeItem(getCurseExpiryKey()); else localStorage.setItem(getCurseExpiryKey(), String(ts)); } catch {}
+    };
     const getCursedGroups = (): Set<string> => {
         try {
             const raw = localStorage.getItem(getCurseKey());
@@ -7623,8 +7630,9 @@ function init(): void {
             for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
                 const eqIdx = entry.indexOf("=");
                 const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const itemName = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
-                if (g) { current.add(g); if (itemName) itemMap[g] = itemName; }
+                const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                if (g === "expiry") { saveCurseExpiry(parseInt(val) || null); continue; }
+                if (g) { current.add(g); if (val) itemMap[g] = val; }
             }
             saveCursedGroups(current);
             saveCurseItemMap(itemMap);
@@ -7641,6 +7649,7 @@ function init(): void {
             saveCursedGroups(new Set());
             saveCurseItemMap({});
             saveCursePauses({});
+            saveCurseExpiry(null);
         } else if (inner.startsWith("clear:")) {
             const itemMap = getCurseItemMap();
             for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
@@ -7651,6 +7660,17 @@ function init(): void {
             saveCurseItemMap(itemMap);
         }
     };
+
+    // Auto-lift timed curses when expiry is reached (checked every 30s)
+    window.setInterval(() => {
+        try {
+            const expiry = getCurseExpiry();
+            if (expiry !== null && Date.now() >= expiry && getCursedGroups().size > 0) {
+                handleCurseCommand("[EBC-CURSE:clear]");
+                appendLocalLogLine("[EBC] ⏰ Timed curse expired - curses lifted automatically.", UI.textMuted);
+            }
+        } catch { /* ignore */ }
+    }, 30_000);
 
     // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
@@ -7842,8 +7862,18 @@ function init(): void {
                     const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
                     const inner = beep.Message.slice("[EBC-CURSE:".length).replace(/\]$/, "");
                     if (inner.startsWith("apply:")) {
-                        const groups = inner.slice("apply:".length).split(",").filter(Boolean).map(g => g.replace("Item", ""));
-                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you: ${groups.join(", ")}`, UI.accent);
+                        const parts = inner.slice("apply:".length).split(",").filter(Boolean);
+                        const groups = parts.filter(p => !p.startsWith("expiry=")).map(g => g.split("=")[0].replace("Item", ""));
+                        const expiryPart = parts.find(p => p.startsWith("expiry="));
+                        const expiryMs = expiryPart ? parseInt(expiryPart.slice("expiry=".length)) : 0;
+                        let durStr = "";
+                        if (expiryMs > Date.now()) {
+                            const rem = expiryMs - Date.now();
+                            const h = Math.floor(rem / 3600000);
+                            const m = Math.floor((rem % 3600000) / 60000);
+                            durStr = h > 0 ? ` for ${h}h${m > 0 ? ` ${m}m` : ""}` : ` for ${m}m`;
+                        }
+                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you${durStr}: ${groups.join(", ")}`, UI.accent);
                     } else if (inner === "clear") {
                         appendLocalLogLine(`[EBC] ✓ ${senderName} lifted all your curses.`, UI.textMuted);
                     }

@@ -6876,6 +6876,27 @@ export class EBCDrawer {
         let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
         if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
         if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
+        try {
+            const mn = (Player as { MemberNumber?: number }).MemberNumber;
+            if (mn) {
+                const curseRaw = localStorage.getItem(`EBC_curses_${mn}`);
+                const isCursed = curseRaw ? (JSON.parse(curseRaw) as unknown[]).length > 0 : false;
+                if (isCursed) {
+                    const expiryRaw = localStorage.getItem(`EBC_curse_expiry_${mn}`);
+                    if (expiryRaw) {
+                        const rem = parseInt(expiryRaw) - Date.now();
+                        if (rem > 0) {
+                            const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
+                            text += `  🔒 Cursed: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
+                        } else {
+                            text += `  🔒 Cursed`;
+                        }
+                    } else {
+                        text += `  🔒 Cursed`;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
         this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
@@ -20375,46 +20396,92 @@ export class EBCDrawer {
 
         // ── CURSE ─────────────────────────────────────────────────────────────────
         const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
-        const CURSE_GROUPS: [string, string][] = [
-            ["Arms",    "ItemArms"],
-            ["Hands",   "ItemHands"],
-            ["Legs",    "ItemLegs"],
-            ["Feet",    "ItemFeet"],
-            ["Neck",    "ItemNeck"],
-            ["Mouth",   "ItemMouth"],
-            ["Head",    "ItemHead"],
-            ["Torso",   "ItemTorso"],
-            ["Pelvis",  "ItemPelvis"],
-            ["Breasts", "ItemBreast"],
-            ["Boots",   "ItemBoots"],
-        ];
-        const selectedCurseGroups = new Set<string>();
-        const chipRow = document.createElement("div");
-        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
-        const setChipStyle = (btn: HTMLButtonElement, sel: boolean): void => {
-            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+        const kittySelGroups = new Set<string>();
+
+        // Item list - shows Emery's actual worn items
+        const kittyItemsEl = document.createElement("div");
+        kittyItemsEl.style.cssText = "display:flex;flex-direction:column;gap:2px;max-height:130px;overflow-y:auto;margin-bottom:6px;";
+        const kittyBuildList = (): void => {
+            while (kittyItemsEl.firstChild) kittyItemsEl.removeChild(kittyItemsEl.firstChild);
+            kittySelGroups.clear();
+            const items = getRoomMemberItems(EMERY_MEMBER);
+            if (!items.length) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                empty.textContent = "No items visible (not in same room?).";
+                kittyItemsEl.appendChild(empty); return;
+            }
+            for (const it of items) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;cursor:pointer;";
+                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                const cb = document.createElement("input") as HTMLInputElement; cb.type = "checkbox";
+                cb.style.cssText = "accent-color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                const nm = document.createElement("span");
+                nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nm.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
+                const sl = document.createElement("span");
+                sl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                sl.textContent = it.group.replace("Item", "");
+                cb.addEventListener("change", () => { if (cb.checked) kittySelGroups.add(it.group); else kittySelGroups.delete(it.group); });
+                row.addEventListener("click", (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); } });
+                row.appendChild(cb); row.appendChild(nm); row.appendChild(sl);
+                kittyItemsEl.appendChild(row);
+            }
         };
-        for (const [label, group] of CURSE_GROUPS) {
-            const chip = document.createElement("button");
-            chip.textContent = label;
-            setChipStyle(chip, false);
-            chip.addEventListener("click", () => {
-                const sel = selectedCurseGroups.has(group);
-                if (sel) selectedCurseGroups.delete(group); else selectedCurseGroups.add(group);
-                setChipStyle(chip, !sel);
-            });
-            chipRow.appendChild(chip);
+        kittyBuildList();
+        // Rebuild item list when section is opened
+        const curseCh = curseWrap2.firstChild as HTMLElement | null;
+        curseCh?.addEventListener("click", () => { window.setTimeout(kittyBuildList, 50); });
+
+        // Duration picker
+        let kittyDurMs = 0;
+        const kittyDurRow = document.createElement("div");
+        kittyDurRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px;";
+        const kittyDurLbl = document.createElement("span");
+        kittyDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;";
+        kittyDurLbl.textContent = "Duration:";
+        kittyDurRow.appendChild(kittyDurLbl);
+        const KITTY_DUR_OPTS: [string, number][] = [["Forever", 0], ["30m", 30*60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
+        const kittyDurBtns: Array<[HTMLButtonElement, number]> = [];
+        const setKittyDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
+        };
+        for (const [label, ms] of KITTY_DUR_OPTS) {
+            const btn = document.createElement("button");
+            btn.textContent = label;
+            setKittyDurStyle(btn, ms === 0);
+            btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); (kittyCustomInp as HTMLInputElement).value = ""; });
+            kittyDurBtns.push([btn, ms]);
+            kittyDurRow.appendChild(btn);
         }
+        const kittyCustomInp = document.createElement("input") as HTMLInputElement;
+        kittyCustomInp.type = "number"; kittyCustomInp.min = "1"; kittyCustomInp.placeholder = "min";
+        kittyCustomInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+        kittyCustomInp.addEventListener("input", () => {
+            const v = parseInt(kittyCustomInp.value);
+            if (!isNaN(v) && v > 0) { kittyDurMs = v * 60000; kittyDurBtns.forEach(([b]) => setKittyDurStyle(b, false)); }
+        });
+        kittyDurRow.appendChild(kittyCustomInp);
+        const kittyDurM = document.createElement("span"); kittyDurM.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;"; kittyDurM.textContent = "m";
+        kittyDurRow.appendChild(kittyDurM);
+
         const curseActionRow = document.createElement("div");
         curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
         curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
-            if (selectedCurseGroups.size === 0) return;
-            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+            if (kittySelGroups.size === 0) return;
+            const items = getRoomMemberItems(EMERY_MEMBER);
+            const nameMap = new Map(items.map(it => [it.group, it.name]));
+            const entries = [...kittySelGroups].map(g => { const n = nameMap.get(g); return n ? `${g}=${n}` : g; });
+            if (kittyDurMs > 0) entries.push(`expiry=${Date.now() + kittyDurMs}`);
+            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${entries.join(",")}]`);
         }, 2000));
-        curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+        curseActionRow.appendChild(makePill("✓ Clear All", "#4080a0", () => {
             sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
         }, 2000));
-        curseCBody.appendChild(chipRow);
+        curseCBody.appendChild(kittyItemsEl);
+        curseCBody.appendChild(kittyDurRow);
         curseCBody.appendChild(curseActionRow);
         body.appendChild(curseWrap2);
     }
@@ -25300,6 +25367,39 @@ export class EBCDrawer {
         const curseStatus = document.createElement("div");
         curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
 
+        // Duration picker
+        let curseDurMs = 0;
+        const durRow = document.createElement("div");
+        durRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px;";
+        const durLbl = document.createElement("span");
+        durLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;";
+        durLbl.textContent = "Duration:";
+        durRow.appendChild(durLbl);
+        const DUR_OPTS: [string, number][] = [["Forever", 0], ["30m", 30*60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
+        const durBtns: Array<[HTMLButtonElement, number]> = [];
+        const setDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
+        };
+        for (const [label, ms] of DUR_OPTS) {
+            const btn = document.createElement("button");
+            btn.textContent = label;
+            setDurStyle(btn, ms === 0);
+            btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); (customDurInp as HTMLInputElement).value = ""; });
+            durBtns.push([btn, ms]);
+            durRow.appendChild(btn);
+        }
+        const customDurInp = document.createElement("input");
+        (customDurInp as HTMLInputElement).type = "number"; (customDurInp as HTMLInputElement).min = "1"; (customDurInp as HTMLInputElement).placeholder = "min";
+        customDurInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+        customDurInp.addEventListener("input", () => {
+            const v = parseInt((customDurInp as HTMLInputElement).value);
+            if (!isNaN(v) && v > 0) { curseDurMs = v * 60000; durBtns.forEach(([b]) => setDurStyle(b, false)); }
+        });
+        durRow.appendChild(customDurInp);
+        const customDurLbl = document.createElement("span"); customDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;"; customDurLbl.textContent = "m";
+        durRow.appendChild(customDurLbl);
+        cursePanel.appendChild(durRow);
+
         const curseBtnRow = document.createElement("div");
         curseBtnRow.style.cssText = "display:flex;gap:5px;";
         const applyCurseBtn = document.createElement("button");
@@ -25328,6 +25428,22 @@ export class EBCDrawer {
             if (groups.length === 0) delete dc[String(memberId)]; else dc[String(memberId)] = groups;
             syncSettings();
         };
+        const getDomCurseExpiry = (memberId: number): number | null => {
+            const ex = (getSettings().domCurseExpiries ?? {}) as Record<string, number>;
+            return ex[String(memberId)] ?? null;
+        };
+        const setDomCurseExpiry = (memberId: number, ts: number | null): void => {
+            const s = getSettings();
+            if (!s.domCurseExpiries) s.domCurseExpiries = {};
+            const ex = s.domCurseExpiries as Record<string, number>;
+            if (ts == null) delete ex[String(memberId)]; else ex[String(memberId)] = ts;
+            syncSettings();
+        };
+        const fmtRem = (ms: number): string => {
+            if (ms <= 0) return "expired";
+            const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+            return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+        };
 
         applyCurseBtn.addEventListener("click", () => {
             const id = parseInt(qtSel.value, 10);
@@ -25336,15 +25452,19 @@ export class EBCDrawer {
             const newGroups = [...curseSelGroups];
             const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
             setCurseRecord(id, merged);
+            const expiry = curseDurMs > 0 ? Date.now() + curseDurMs : null;
+            setDomCurseExpiry(id, expiry);
             // Include item name so the target can restore the exact item if it gets removed
             const roomItems = getRoomMemberItems(id);
             const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
             const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+            if (expiry) beepEntries.push(`expiry=${expiry}`);
             sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
             const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
-            appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
-            curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
+            const durStr = curseDurMs > 0 ? ` for ${fmtRem(curseDurMs)}` : "";
+            appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}${durStr}: ${shortGroups}`, UI.accent);
+            curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s)${durStr}.`;
             window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
 
@@ -25353,6 +25473,7 @@ export class EBCDrawer {
             if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
             const targetName3 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             setCurseRecord(id, []);
+            setDomCurseExpiry(id, null);
             sendBeep(id, "[EBC-CURSE:clear]");
             appendLocalLogLine(`[EBC] ✓ Lifted all curses on ${targetName3}.`, UI.textMuted);
             curseStatus.textContent = "✓ All curses lifted.";
@@ -25384,6 +25505,13 @@ export class EBCDrawer {
             const groups = getCurseRecord(id);
             if (groups.length === 0) { activeCursesEl.style.display = "none"; return; }
             activeCursesEl.style.display = "flex";
+            const expiry = getDomCurseExpiry(id);
+            if (expiry) {
+                const rem = expiry - Date.now();
+                activeCursesHdr.textContent = rem > 0 ? `Active Curses - expires in ${fmtRem(rem)}` : "Active Curses - expired";
+            } else {
+                activeCursesHdr.textContent = "Active Curses";
+            }
             // Try to resolve item names from current room appearance
             const nameMap = new Map<string, string>();
             try {
@@ -25417,6 +25545,7 @@ export class EBCDrawer {
                 liftOneBtn.addEventListener("click", () => {
                     const remaining = getCurseRecord(id).filter(g => g !== group);
                     setCurseRecord(id, remaining);
+                    if (remaining.length === 0) setDomCurseExpiry(id, null);
                     sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                     const label = nameMap.get(group) ?? group.replace("Item", "");
                     const targetName4 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
