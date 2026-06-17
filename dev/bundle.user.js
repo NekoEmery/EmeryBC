@@ -10982,8 +10982,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     animation: ebc-guide-in 0.18s ease;
 }
 @keyframes ebc-guide-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 .ebc-guide-top {
     display: flex;
@@ -13133,8 +13133,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const c = document.createElement("div");
                 c.style.cssText = `flex:1;background:#1c1020;border:1.5px solid #3a2540;border-radius:12px;padding:16px 12px 14px;cursor:pointer;text-align:center;${FONT}transition:border-color 0.14s,background 0.14s,transform 0.1s;`;
                 const badgeEl = document.createElement("div");
-                badgeEl.style.cssText = `font-size:26px;margin-bottom:9px;color:${accent};font-weight:bold;`;
-                badgeEl.textContent = badge;
+                badgeEl.style.cssText = `display:flex;justify-content:center;margin-bottom:10px;color:${accent};`;
+                badgeEl.innerHTML = badge;
                 const headEl = document.createElement("div");
                 headEl.style.cssText = `font-size:13px;font-weight:bold;color:#f7e6ee;margin-bottom:6px;`;
                 headEl.textContent = heading;
@@ -13153,14 +13153,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 c.addEventListener("click", onClick);
                 return c;
             };
-            const fastCard = makeCard("Quick Tour", "▶", "Every feature in a few bullets. Done in 2 minutes.", "5 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
-            const deepCard = makeCard("Full Guide", "◈", "Full walkthrough with try-it prompts.", "12 steps", "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            // Lightning bolt = quick/fast. Open book = detailed reading.
+            const SVG_BOLT = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+            const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+            const fastCard = makeCard("Quick Tour", SVG_BOLT, "Every feature in a few bullets. Done in 2 minutes.", "5 steps", "#d4a020", () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
+            const deepCard = makeCard("Full Guide", SVG_BOOK, "Full walkthrough with try-it prompts.", "13 steps", "#cf6f98", () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); });
             modesRow.appendChild(fastCard);
             modesRow.appendChild(deepCard);
             card.appendChild(modesRow);
         }
         startGuide() {
-            var _a, _b, _c, _d;
             // Tear down any previous instance
             if (this.guideEl) {
                 this.guideEl.remove();
@@ -13169,20 +13171,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Create the floating side panel and position it beside the EBC panel
             const side = document.createElement("div");
             side.className = "ebc-guide-side";
-            // Pick a side (prefer left; fall back to right if not enough room)
-            const panelRect = (_b = (_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect()) !== null && _b !== void 0 ? _b : { left: 0, right: 360, top: 60};
-            const gw = 318; // panel width (310) + gap (8)
-            let left;
-            if (panelRect.left >= gw + 4) {
-                left = panelRect.left - gw;
-            }
-            else {
-                left = ((_c = panelRect.right) !== null && _c !== void 0 ? _c : 360) + 8;
-            }
-            left = Math.max(4, Math.min(window.innerWidth - gw - 4, left));
-            const top = Math.max(4, Math.min(window.innerHeight - 60, (_d = panelRect.top) !== null && _d !== void 0 ? _d : 60));
-            side.style.left = `${left}px`;
-            side.style.top = `${top}px`;
+            // Center on screen
+            side.style.left = "50%";
+            side.style.top = "50%";
+            side.style.transform = "translate(-50%, -50%)";
             document.body.appendChild(side);
             this.guideEl = side;
             this.guideMode = null;
@@ -32862,7 +32854,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 32; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 33; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
