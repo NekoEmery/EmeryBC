@@ -31717,7 +31717,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 `        return new Response("pong", { headers: cors });`,
                 `      const r = await fetch("https://do.pishock.com/api/apioperate", {`,
                 `        method: "POST",`,
-                `        headers: { "Content-Type": "application/json" },`,
+                `        headers: {`,
+                `          "Content-Type": "application/json",`,
+                `          "Origin": "https://pishock.com",`,
+                `          "Referer": "https://pishock.com/",`,
+                `        },`,
                 `        body: JSON.stringify(body),`,
                 `      });`,
                 `      const text = (await r.text()).trim();`,
@@ -33684,7 +33688,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 57; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 58; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33704,6 +33708,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "i18n: all new UI strings are now fully translated - Tutorial mode selector and step labels, Feedback form, PiShock setup modal, Toys tab headers and controls, and the Tutorial/Feedback footer buttons. Switch language mid-session and everything updates instantly.",
                 "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
                 "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
+                "PiShock fix attempt: Worker now sends Origin and Referer headers spoofed as https://pishock.com when forwarding to PiShock API - CORS analysis showed PiShock only allows their own origin, so raw server-side requests get 404.",
             ],
         },
         {
