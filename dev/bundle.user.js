@@ -12514,7 +12514,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // slide transition never misfires - fixes the slider glitch.
             const zoomWrapper = document.createElement("div");
             zoomWrapper.className = "ebc-zoom-wrapper";
-            zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+            zoomWrapper.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
             // Flat flex column - applyPanelZoom always keeps width/height:100% so the
             // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
             // real constraint and making overflow-y:auto scroll correctly.
@@ -13594,15 +13594,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         /** Scale the entire EBC panel.
          *
-         * Applies transform:scale() to .ebc-zoom-wrapper (an inner div containing
-         * all panel content), NOT to #emerybc-panel (the slide container).
-         * transform doesn't affect layout outside the wrapper, so the slide
-         * container never changes size and its transition never misfires.
+         * Uses CSS zoom (not transform:scale) on .ebc-zoom-wrapper so that
+         * overflow:hidden on .ebc-panel clips correctly at all zoom levels.
+         * transform:scale is applied after layout/clip, causing double-shrink at
+         * scale<1 and visual bleed at scale>1 — zoom avoids both.
          *
-         * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
-         * fills .ebc-panel exactly - no overflow, no clipping, no background bleed.
-         * Rapid slider changes are completely smooth since no layout reflow occurs
-         * on the outer container.
+         * Inverse sizing (width/height = 100/scale %) keeps the wrapper's
+         * effective layout contribution to .ebc-panel exactly 100%, so the panel
+         * never changes size and the slide transition never misfires.
          */
         applyPanelZoom(scale = loadPanelZoom()) {
             var _a;
@@ -13610,14 +13609,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!wrapper)
                 return;
             if (scale === 1) {
-                wrapper.style.transform = "";
-                wrapper.style.width = "100%"; // must keep 100% - clearing to "" removes the
-                wrapper.style.height = "100%"; // inline height, collapsing the wrapper to content
+                wrapper.style.zoom = "";
+                wrapper.style.transform = ""; // clear any stale transform from before this fix
+                wrapper.style.width = "100%";
+                wrapper.style.height = "100%";
             }
-            else { // height and breaking flex scroll + footer layout.
-                // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
+            else {
+                // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
                 const inv = (100 / scale).toFixed(4) + "%";
-                wrapper.style.transform = `scale(${scale})`;
+                wrapper.style.zoom = String(scale);
+                wrapper.style.transform = "";
                 wrapper.style.width = inv;
                 wrapper.style.height = inv;
             }
@@ -32787,7 +32788,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 28; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 29; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32804,8 +32805,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Fix: panel zoom now works correctly at all scale levels — switched from CSS transform:scale to CSS zoom so content never bleeds outside the panel or gets double-shrunk when zooming out.",
                 "Toy whitelist: entries now show the friend's display name beside their member number (resolved from the room or your friend nicknames), for both IRL and game toys.",
-                "Fix: panel content no longer bleeds outside the window when zoomed/scaled — the panel now clips to its own bounds, and the footer buttons wrap instead of overflowing.",
                 "Feedback form: privacy line is now a highlighted callout reading 'Anonymous — No account, no email, nothing tied to you.'",
                 "Feedback form: cleaner readable sans-serif font, unified rose colour scheme (no more pink/purple clash), and tighter spacing.",
                 "Footer: moved the Tutorial and Feedback & Bugs buttons to the very bottom, beneath the online/room/bound timers.",
