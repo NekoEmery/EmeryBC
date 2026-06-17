@@ -22266,9 +22266,12 @@ export class EBCDrawer {
                 psContent.appendChild(warnBox);
 
                 // ── Proxy URL ─────────────────────────────────────────────────────
-                psContent.appendChild(psHdr("Cloudflare Worker Proxy URL"));
+                psContent.appendChild(psHdr("Proxy URL (optional)"));
+                const proxyOptNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                proxyOptNote.textContent = "Leave blank to send directly from your browser (recommended). Only needed if direct mode stops working.";
+                psContent.appendChild(proxyOptNote);
                 const proxyRow = psRow();
-                const proxyInp = psInp("https://your-worker.workers.dev", localStorage.getItem("EBC_ps_proxy") ?? "");
+                const proxyInp = psInp("https://your-worker.workers.dev (optional)", localStorage.getItem("EBC_ps_proxy") ?? "");
                 proxyInp.style.flex = "1";
                 proxyInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_proxy", (proxyInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
                 const proxyTestBtn = mkBtn("Test", `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);flex-shrink:0;`);
@@ -22436,6 +22439,9 @@ export class EBCDrawer {
                             if (result === "ok") {
                                 psStatusEl.style.color = "#70c080";
                                 psStatusEl.textContent = "✓ Sent successfully";
+                            } else if (result === "sent") {
+                                psStatusEl.style.color = "#a0c8f0";
+                                psStatusEl.textContent = "~ Sent (no proxy - verify on device)";
                             } else {
                                 psStatusEl.style.color = "#e07070";
                                 psStatusEl.textContent = `✗ ${result}`;
@@ -22918,7 +22924,7 @@ export class EBCDrawer {
             const proxyUrl = localStorage.getItem("EBC_ps_proxy")?.trim() ?? "";
             const username  = localStorage.getItem("EBC_ps_user")?.trim()  ?? "";
             const apikey    = localStorage.getItem("EBC_ps_key")?.trim()   ?? "";
-            if (!proxyUrl || !username || !apikey) return "missing-creds";
+            if (!username || !apikey) return "missing-creds";
             const shockers = EBCDrawer.getPsShockers();
             const sh = shockers[shockerIdx];
             if (!sh?.code) return "missing-shocker";
@@ -22931,13 +22937,27 @@ export class EBCDrawer {
             }
             const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             console.log("[EBC PiShock] sending payload:", { ...payload, Apikey: apikey.slice(0, 4) + "****" });
-            const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
-            const raw = (await resp.text()).trim();
-            let psStatus = resp.status, psBody = raw;
-            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean; getCheck?: string }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`); } } catch { /* old worker format, use raw */ }
-            console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
-            if (psBody.toLowerCase().includes("success")) return "ok";
-            return psBody || `HTTP ${psStatus}`;
+            if (proxyUrl) {
+                // Proxy path - can read response
+                const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
+                const raw = (await resp.text()).trim();
+                let psStatus = resp.status, psBody = raw;
+                try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean; getCheck?: string }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`); } } catch { /* old worker format, use raw */ }
+                console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
+                if (psBody.toLowerCase().includes("success")) return "ok";
+                return psBody || `HTTP ${psStatus}`;
+            } else {
+                // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
+                // text/plain avoids preflight; response is opaque so we fire-and-forget
+                await fetch("https://do.pishock.com/api/apioperate", {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify(payload),
+                });
+                console.log("[EBC PiShock] direct no-cors sent (response opaque - verify on device)");
+                return "sent";
+            }
         } catch (e) { return String(e); }
     }
 

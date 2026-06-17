@@ -30334,9 +30334,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     warnBox.appendChild(warnText);
                     psContent.appendChild(warnBox);
                     // ── Proxy URL ─────────────────────────────────────────────────────
-                    psContent.appendChild(psHdr("Cloudflare Worker Proxy URL"));
+                    psContent.appendChild(psHdr("Proxy URL (optional)"));
+                    const proxyOptNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                    proxyOptNote.textContent = "Leave blank to send directly from your browser (recommended). Only needed if direct mode stops working.";
+                    psContent.appendChild(proxyOptNote);
                     const proxyRow = psRow();
-                    const proxyInp = psInp("https://your-worker.workers.dev", (_f = localStorage.getItem("EBC_ps_proxy")) !== null && _f !== void 0 ? _f : "");
+                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_f = localStorage.getItem("EBC_ps_proxy")) !== null && _f !== void 0 ? _f : "");
                     proxyInp.style.flex = "1";
                     proxyInp.addEventListener("input", () => { try {
                         localStorage.setItem("EBC_ps_proxy", proxyInp.value.trim());
@@ -30536,6 +30539,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 if (result === "ok") {
                                     psStatusEl.style.color = "#70c080";
                                     psStatusEl.textContent = "✓ Sent successfully";
+                                }
+                                else if (result === "sent") {
+                                    psStatusEl.style.color = "#a0c8f0";
+                                    psStatusEl.textContent = "~ Sent (no proxy - verify on device)";
                                 }
                                 else {
                                     psStatusEl.style.color = "#e07070";
@@ -31083,7 +31090,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const proxyUrl = (_b = (_a = localStorage.getItem("EBC_ps_proxy")) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
                 const username = (_d = (_c = localStorage.getItem("EBC_ps_user")) === null || _c === void 0 ? void 0 : _c.trim()) !== null && _d !== void 0 ? _d : "";
                 const apikey = (_f = (_e = localStorage.getItem("EBC_ps_key")) === null || _e === void 0 ? void 0 : _e.trim()) !== null && _f !== void 0 ? _f : "";
-                if (!proxyUrl || !username || !apikey)
+                if (!username || !apikey)
                     return "missing-creds";
                 const shockers = EBCDrawer.getPsShockers();
                 const sh = shockers[shockerIdx];
@@ -31101,22 +31108,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { Apikey: apikey.slice(0, 4) + "****" }));
-                const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
-                const raw = (await resp.text()).trim();
-                let psStatus = resp.status, psBody = raw;
-                try {
-                    const j = JSON.parse(raw);
-                    if (j.ps_status !== undefined) {
-                        psStatus = j.ps_status;
-                        psBody = (_j = j.ps_body) !== null && _j !== void 0 ? _j : "";
-                        console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`);
+                if (proxyUrl) {
+                    // Proxy path - can read response
+                    const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
+                    const raw = (await resp.text()).trim();
+                    let psStatus = resp.status, psBody = raw;
+                    try {
+                        const j = JSON.parse(raw);
+                        if (j.ps_status !== undefined) {
+                            psStatus = j.ps_status;
+                            psBody = (_j = j.ps_body) !== null && _j !== void 0 ? _j : "";
+                            console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`);
+                        }
                     }
+                    catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
+                    console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
+                    if (psBody.toLowerCase().includes("success"))
+                        return "ok";
+                    return psBody || `HTTP ${psStatus}`;
                 }
-                catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
-                console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
-                if (psBody.toLowerCase().includes("success"))
-                    return "ok";
-                return psBody || `HTTP ${psStatus}`;
+                else {
+                    // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
+                    // text/plain avoids preflight; response is opaque so we fire-and-forget
+                    await fetch("https://do.pishock.com/api/apioperate", {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify(payload),
+                    });
+                    console.log("[EBC PiShock] direct no-cors sent (response opaque - verify on device)");
+                    return "sent";
+                }
             }
             catch (e) {
                 return String(e);
@@ -33699,7 +33721,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 60; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 61; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
