@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.1.2";
-const SAL_VERSION  = 19;   // internal sub-version — shown when Emery Versioning is ON
+const SAL_VERSION  = 20;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -45,6 +45,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.1.2",
         changes: [
+            "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
+            "Lovense: phrase triggers now have toy chips too — each chat phrase trigger can target a specific toy (or All), same as body-touch triggers.",
+            "IRL toys / Game toys: added auto-accept whitelist — if a friend is on your whitelist, their control request is accepted instantly without a popup. Whitelist is managed in the existing whitelist UI.",
+            "IRL toys: two-remote support — when your controller has multiple toys connected, their ACK carries toy names and your controller UI shows a separate vibrate panel per toy with independent Intensity/Duration sliders and a targeted Vibrate button. Single-toy sessions show the existing single panel.",
             "Lovense: per-action toy routing — each body-touch trigger (headpat, spank, etc.) now has toy chips showing all connected toys. Click a chip to restrict that trigger to a specific toy; 'All' resets to firing everything. Works across both BLE and HTTP toys simultaneously.",
             "Lovense HTTP: connected toys now appear as cards (matching BLE style) with a Test button and per-toy Intensity/Seconds sliders. Attempts to fetch real toy names via GetToys command; falls back to 'Lovense Connect' placeholder if unavailable.",
             "Lovense HTTP: toy sliders now labelled 'Intensity' and 'Seconds' instead of 'I:' and 'D:'. Updated setup instructions to correctly describe External Control → Allow Control. 'Connected (0 toys)' now shows a targeted hint to enable Allow Control.",
@@ -6094,13 +6098,31 @@ function parseEBCToyMsg(content: string): { type: string; intensity?: number; du
     const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
     return { type, intensity, duration };
 }
-function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number } | null {
-    const m = content.match(/^\[EBC-IRL:([A-Z]+)(?::(\d+):(\d+))?\]$/);
+function parseEBCIrlMsg(content: string): { type: string; intensity?: number; duration?: number; toys?: string[] } | null {
+    // Flexible parser: [EBC-IRL:TYPE] or [EBC-IRL:TYPE:extra]
+    const m = content.match(/^\[EBC-IRL:([A-Za-z]+)(?::([^\]]*))?\]$/);
     if (!m) return null;
     const type = m[1];
-    const intensity = m[2] !== undefined ? parseInt(m[2], 10) : undefined;
-    const duration  = m[3] !== undefined ? parseInt(m[3], 10) : undefined;
-    return { type, intensity, duration };
+    const extra = m[2] ?? "";
+    if (type === "VIB") {
+        const nm = extra.match(/^(\d+):(\d+)$/);
+        if (nm) return { type, intensity: parseInt(nm[1], 10), duration: parseInt(nm[2], 10) };
+    } else if (type === "ACK") {
+        // ACK optionally carries comma-separated toy names: [EBC-IRL:ACK:ToyA,ToyB]
+        const toys = extra ? extra.split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+        return { type, toys: toys.length > 0 ? toys : undefined };
+    } else if (type === "TOY") {
+        // Targeted vibrate: [EBC-IRL:TOY:toyName:intensity:duration]
+        const lastColon = extra.lastIndexOf(":");
+        const prevColon = lastColon > 0 ? extra.lastIndexOf(":", lastColon - 1) : -1;
+        if (prevColon >= 0) {
+            const toyName = extra.slice(0, prevColon);
+            const i = parseInt(extra.slice(prevColon + 1, lastColon), 10);
+            const d = parseInt(extra.slice(lastColon + 1), 10);
+            if (toyName && !isNaN(i) && !isNaN(d)) return { type, intensity: i, duration: d, toys: [toyName] };
+        }
+    }
+    return { type };
 }
 
 function handleKittyCommand(msg: string): void {
@@ -7661,7 +7683,7 @@ function init(): void {
                         const roomChars = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
                         const found = roomChars?.find(c => c.MemberNumber === senderNum);
                         const senderName = found ? ((found.Nickname ?? "").trim() || found.Name || String(senderNum)) : String(senderNum);
-                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration);
+                        drawer?.handleIrlToyMsg(senderNum, senderName, parsed.type, parsed.intensity, parsed.duration, parsed.toys);
                     }
                     return; // suppress — do not call next(args)
                 }
