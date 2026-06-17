@@ -30348,6 +30348,9 @@
                     keyRow.appendChild(keyInp);
                     keyRow.appendChild(eyeBtn);
                     psContent.appendChild(keyRow);
+                    const keyHint = mk("div", `${FONT}font-size:9.5px;color:var(--ebc-text-muted);margin:-2px 0 6px;`);
+                    keyHint.textContent = "API key from pishock.com/Account - not your login password";
+                    psContent.appendChild(keyHint);
                     // ── Shockers ──────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Shockers"));
@@ -31635,12 +31638,13 @@
                 `        headers: { "Content-Type": "application/json" },`,
                 `        body: JSON.stringify(body),`,
                 `      });`,
-                `      return new Response(await r.text(), {`,
+                `      const text = (await r.text()).trim();`,
+                `      return new Response(text || "HTTP " + r.status, {`,
                 `        status: r.status,`,
                 `        headers: { ...cors, "Content-Type": "text/plain" },`,
                 `      });`,
                 `    } catch (e) {`,
-                `      return new Response("error: " + e.message, { status: 500, headers: cors });`,
+                `      return new Response("worker-error: " + e.message, { status: 500, headers: cors });`,
                 `    }`,
                 `  },`,
                 `};`,
