@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.2";
-const SAL_VERSION  = 64;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 65;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
             "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
             "PiShock fix attempt: Worker now sends Origin and Referer headers spoofed as https://pishock.com when forwarding to PiShock API - CORS analysis showed PiShock only allows their own origin, so raw server-side requests get 404.",
+            "PiShock proxy: switched setup guide from Cloudflare Workers to Deno Deploy - Cloudflare datacenter IPs are blocked by PiShock's WAF (confirmed: GET:404 from Worker). Deno Deploy runs on Google Cloud infra, not Cloudflare, so PiShock won't block it. Embedded proxy code updated to Deno.serve() syntax.",
         ],
     },
     {
