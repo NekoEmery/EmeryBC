@@ -30343,7 +30343,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const proxySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
                     proxySubLbl.textContent = "Proxy URL (optional)";
                     connBody.appendChild(proxySubLbl);
-                    const proxyOptNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                    const proxyOptNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:4px;`);
                     proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
                     connBody.appendChild(proxyOptNote);
                     const proxyRow = psRow();
@@ -30390,7 +30390,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
                     });
                     connBody.appendChild(userInp);
-                    const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                    const userHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:6px;`);
                     userHint.textContent = "Your pishock.com account name - not your BC name";
                     connBody.appendChild(userHint);
                     // API key
@@ -30415,13 +30415,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     keyRow.appendChild(keyInp);
                     keyRow.appendChild(eyeBtn);
                     connBody.appendChild(keyRow);
-                    const keyHint = mk("div", `${FONT}font-size:9.5px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
+                    const keyHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
                     keyHint.textContent = "API key from pishock.com/Account - not your login password";
                     connBody.appendChild(keyHint);
                     psContent.appendChild(connBox);
                     // ── Global safety cap ─────────────────────────────────────────────
                     psContent.appendChild(psHdr("Global Safety Cap"));
-                    const capNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    const capNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                     capNote.textContent = "Hard ceiling applied to shocks only (not beep or vibrate).";
                     psContent.appendChild(capNote);
                     const gCap = EBCDrawer.getPsGlobal();
@@ -30450,7 +30450,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ── Pre-shock warning chain ────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Pre-Shock Warning"));
-                    const warnChainNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    const warnChainNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                     warnChainNote.textContent = "Fire these automatically before every shock (1s gap each).";
                     psContent.appendChild(warnChainNote);
                     const psWarnCfg = EBCDrawer.getPsWarn();
@@ -30527,7 +30527,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ── Trusted Senders ───────────────────────────────────────────────
                     psContent.appendChild(sep());
                     psContent.appendChild(psHdr("Trusted Senders"));
-                    const trustNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                    const trustNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                     trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
                     psContent.appendChild(trustNote);
                     const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
@@ -33966,7 +33966,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 85; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 86; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
