@@ -22291,10 +22291,13 @@ export class EBCDrawer {
 
                 // ── Credentials ───────────────────────────────────────────────────
                 psContent.appendChild(psHdr("Credentials"));
-                const userInp = psInp("PiShock username", localStorage.getItem("EBC_ps_user") ?? "");
-                userInp.style.marginBottom = "5px";
+                const userInp = psInp("PiShock username (pishock.com login name)", localStorage.getItem("EBC_ps_user") ?? "");
+                userInp.style.marginBottom = "2px";
                 userInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_user", (userInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
                 psContent.appendChild(userInp);
+                const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:5px;`);
+                userHint.textContent = "Your pishock.com account name - not your BC name";
+                psContent.appendChild(userHint);
 
                 const keyRow = psRow();
                 const keyInp = psInp("API key", localStorage.getItem("EBC_ps_key") ?? "", true);
@@ -22473,7 +22476,7 @@ export class EBCDrawer {
                             const u = localStorage.getItem("EBC_ps_user")?.trim() ?? "";
                             const k = localStorage.getItem("EBC_ps_key")?.trim() ?? "";
                             if (!u || !k || !sh.code) { showPsStatus("missing-creds"); return; }
-                            const payload = { Username: u, Apikey: k, Sharecode: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                            const payload = { Username: u, Apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
                             console.log("[EBC PiShock] DIRECT test payload:", { ...payload, Apikey: k.slice(0, 4) + "****" });
                             console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
                             psStatusEl.style.color = "var(--ebc-text-muted)";
@@ -22926,7 +22929,7 @@ export class EBCDrawer {
                 intensity = Math.min(intensity, sh.maxInt ?? 100);
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
-            const payload = { Username: username, Apikey: apikey, Sharecode: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             console.log("[EBC PiShock] sending payload:", { ...payload, Apikey: apikey.slice(0, 4) + "****" });
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const raw = (await resp.text()).trim();

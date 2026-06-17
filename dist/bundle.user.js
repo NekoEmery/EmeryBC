@@ -30364,13 +30364,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     psContent.appendChild(setupBtn);
                     // ── Credentials ───────────────────────────────────────────────────
                     psContent.appendChild(psHdr("Credentials"));
-                    const userInp = psInp("PiShock username", (_g = localStorage.getItem("EBC_ps_user")) !== null && _g !== void 0 ? _g : "");
-                    userInp.style.marginBottom = "5px";
+                    const userInp = psInp("PiShock username (pishock.com login name)", (_g = localStorage.getItem("EBC_ps_user")) !== null && _g !== void 0 ? _g : "");
+                    userInp.style.marginBottom = "2px";
                     userInp.addEventListener("input", () => { try {
                         localStorage.setItem("EBC_ps_user", userInp.value.trim());
                     }
                     catch ( /* ignore */_a) { /* ignore */ } });
                     psContent.appendChild(userInp);
+                    const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:5px;`);
+                    userHint.textContent = "Your pishock.com account name - not your BC name";
+                    psContent.appendChild(userHint);
                     const keyRow = psRow();
                     const keyInp = psInp("API key", (_h = localStorage.getItem("EBC_ps_key")) !== null && _h !== void 0 ? _h : "", true);
                     keyInp.style.flex = "1";
@@ -30582,7 +30585,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     showPsStatus("missing-creds");
                                     return;
                                 }
-                                const payload = { Username: u, Apikey: k, Sharecode: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                                const payload = { Username: u, Apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
                                 console.log("[EBC PiShock] DIRECT test payload:", Object.assign(Object.assign({}, payload), { Apikey: k.slice(0, 4) + "****" }));
                                 console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
                                 psStatusEl.style.color = "var(--ebc-text-muted)";
@@ -31096,7 +31099,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
                     duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
                 }
-                const payload = { Username: username, Apikey: apikey, Sharecode: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+                const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { Apikey: apikey.slice(0, 4) + "****" }));
                 const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
                 const raw = (await resp.text()).trim();
@@ -33696,7 +33699,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 59; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 60; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
