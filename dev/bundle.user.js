@@ -31727,14 +31727,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (document.getElementById("ebc-pishock-setup-overlay"))
                 return;
             const WORKER_CODE = [
-                `const PS_URL = "https://do.pishock.com/Api/ApiOperate"; // PascalCase - matches Swagger route pattern`,
+                `const API_BASE = "https://api.pishock.com";`,
                 `const CORS = {`,
                 `  "Access-Control-Allow-Origin": "*",`,
                 `  "Access-Control-Allow-Headers": "Content-Type",`,
                 `  "Access-Control-Allow-Methods": "POST, OPTIONS",`,
                 `};`,
-                ``,
-                `// PiShock server drops HTTP/2 streams - force HTTP/1.1`,
                 `const psClient = Deno.createHttpClient({ http2: false });`,
                 ``,
                 `Deno.serve(async (req) => {`,
@@ -31746,37 +31744,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 `    const body = await req.json();`,
                 `    if (body._ping)`,
                 `      return new Response("pong", { headers: CORS });`,
-                `    let getCheck = "skipped";`,
-                `    try {`,
-                `      const g = await fetch(PS_URL, { method: "GET", client: psClient,`,
-                `        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" } });`,
-                `      const gt = (await g.text()).trim().slice(0, 200);`,
-                `      getCheck = "GET:" + g.status + (gt ? " " + gt : " (empty)");`,
-                `    } catch (ge) { getCheck = "GET-err:" + ge.message; }`,
-                `    const r = await fetch(PS_URL, {`,
-                `      client: psClient,`,
-                `      method: "POST",`,
+                `    const { Username, APIKey, Code, Op, Duration, Intensity } = body;`,
+                `    const r = await fetch(API_BASE + "/Shockers/" + encodeURIComponent(Code), {`,
+                `      method: "POST", client: psClient,`,
                 `      headers: {`,
+                `        "X-PiShock-Api-Key": APIKey,`,
+                `        "X-PiShock-Username": Username,`,
                 `        "Content-Type": "application/json",`,
                 `        "Accept": "application/json",`,
-                `        "Origin": "https://pishock.com",`,
-                `        "Referer": "https://pishock.com/",`,
-                `        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",`,
                 `      },`,
-                `      body: JSON.stringify(body),`,
+                `      body: JSON.stringify({ Operation: Op, Duration: Duration * 1000, Intensity }),`,
                 `    });`,
                 `    const text = (await r.text()).trim();`,
-                `    return new Response(JSON.stringify({`,
-                `      ps_status: r.status,`,
-                `      ps_body: text || "(empty)",`,
-                `      ps_url: r.url,`,
-                `      ps_redirected: r.redirected,`,
-                `      getCheck,`,
-                `    }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });`,
-                `  } catch (e) {`,
+                `    console.log("/Shockers/" + Code + " -> " + r.status + ": " + text.slice(0, 200));`,
+                `    return new Response(JSON.stringify({ ps_status: r.status, ps_body: text || "(empty)" }), {`,
+                `      status: 200, headers: { ...CORS, "Content-Type": "application/json" },`,
+                `    });`,
+                `  } catch(e) {`,
                 `    return new Response(JSON.stringify({ ps_status: 0, ps_body: "proxy-error: " + e.message }), {`,
-                `      status: 200,`,
-                `      headers: { ...CORS, "Content-Type": "application/json" },`,
+                `      status: 200, headers: { ...CORS, "Content-Type": "application/json" },`,
                 `    });`,
                 `  }`,
                 `});`,
@@ -33730,7 +33716,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 69; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 70; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33755,6 +33741,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "PiShock proxy fix: add Deno.createHttpClient({ http2: false }) to force HTTP/1.1 - PiShock's server advertises HTTP/2 via ALPN but drops the streams immediately, causing 'http2 error: unspecific protocol error'. HTTP/1.1 bypasses this.",
                 "PiShock proxy diagnostic: remove trailing slash from apioperate URL, add Accept header, re-add GET diagnostic (getCheck) to tell if the route exists (405 = exists POST-only, 404 = route gone).",
                 "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/ApiOperate (PascalCase matching Swagger route pattern /Api/GetLastLogs).",
+                "PiShock API migration: do.pishock.com Legacy API Swagger confirms apioperate endpoint is completely absent - removed from server. Full Swagger probe revealed new 'PiShock Public API v1' at api.pishock.com. Updated proxy code: now POSTs to api.pishock.com/Shockers/{Code} with X-PiShock-Api-Key + X-PiShock-Username headers (auth moved from body to headers), Duration converted from seconds to milliseconds (new API requirement), Op renamed to Operation.",
             ],
         },
         {
