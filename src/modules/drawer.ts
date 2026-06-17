@@ -22890,8 +22890,9 @@ export class EBCDrawer {
             }
             const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
-            const text = await resp.text();
-            return text.toLowerCase().includes("success") || resp.ok ? "ok" : text;
+            const text = (await resp.text()).trim();
+            if (resp.ok || text.toLowerCase().includes("success")) return "ok";
+            return text || `HTTP ${resp.status}`;
         } catch (e) { return String(e); }
     }
 
