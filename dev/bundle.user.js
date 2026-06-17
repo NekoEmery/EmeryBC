@@ -11600,19 +11600,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     const TOUCH_DEFS = [
-        { key: "headpat", label: "🤚 Headpat", activity: "Pet", group: "ItemHead", dflt: true },
-        { key: "caress", label: "🤲 Caress", activity: "Caress", group: undefined, dflt: true },
-        { key: "kiss", label: "💋 Kiss", activity: "Kiss", group: "ItemMouth", dflt: true },
-        { key: "lick", label: "👅 Lick", activity: "Lick", group: undefined, dflt: false },
         { key: "bite", label: "😬 Bite", activity: "Bite", group: undefined, dflt: false },
         { key: "spank", label: "👋 Spank", activity: "Spank", group: "ItemButt", dflt: false },
         { key: "slap", label: "✋ Slap", activity: "Slap", group: undefined, dflt: false },
-        { key: "tickle", label: "🪶 Tickle", activity: "Tickle", group: undefined, dflt: false },
         { key: "pinch", label: "🤏 Pinch", activity: "Pinch", group: undefined, dflt: false },
-        { key: "squeeze", label: "🫸 Squeeze", activity: "Squeeze", group: undefined, dflt: false },
-        { key: "rub", label: "🖐 Rub", activity: "Rub", group: undefined, dflt: false },
-        { key: "choke", label: "🤜 Choke", activity: "Choke", group: "ItemNeck", dflt: false },
-        { key: "grab", label: "✊ Grab", activity: "Grab", group: undefined, dflt: false },
         { key: "shock", label: "⚡ Shock", activity: "Shock", group: undefined, dflt: false },
     ];
     class EBCDrawer {
@@ -30637,14 +30628,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             limRow.appendChild(mkLim("Cap dur:", "maxDur", 1, 15, "s"));
                             shCard.appendChild(limRow);
                             const shBcEvents = ((_a = sh.bcEvents) !== null && _a !== void 0 ? _a : {});
-                            const evHdr = mk("div", "display:flex;align-items:center;gap:4px;cursor:pointer;margin:4px 0 3px;user-select:none;");
-                            const evHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;color:var(--ebc-text-muted);text-transform:uppercase;`);
+                            const evSection = mk("div", `border:1px solid var(--ebc-accent);border-radius:6px;margin:6px 0 4px;overflow:hidden;`);
+                            const evHdr = mk("div", `display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;background:rgba(255,255,255,0.04);`);
+                            const evHdrLeft = mk("div", "display:flex;align-items:center;gap:6px;");
+                            const evHdrIcon = mk("span", `${FONT}font-size:13px;`);
+                            evHdrIcon.textContent = "⚡";
+                            const evHdrLbl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:0.5px;`);
                             evHdrLbl.textContent = "BC Events";
-                            const evArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-left:2px;`);
-                            evArrow.textContent = "▶";
-                            evHdr.appendChild(evHdrLbl);
+                            const evHdrSub = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`);
+                            evHdrSub.textContent = "fire when game shocks you";
+                            evHdrLeft.appendChild(evHdrIcon);
+                            evHdrLeft.appendChild(evHdrLbl);
+                            evHdrLeft.appendChild(evHdrSub);
+                            const evArrow = mk("span", `${FONT}font-size:11px;color:var(--ebc-accent);`);
+                            evArrow.textContent = "▼";
+                            evHdr.appendChild(evHdrLeft);
                             evHdr.appendChild(evArrow);
-                            const evBody = mk("div", "display:none;padding-top:2px;");
+                            const evBody = mk("div", "padding:6px 10px 8px;");
                             evHdr.addEventListener("click", () => {
                                 const open = evBody.style.display !== "none";
                                 evBody.style.display = open ? "none" : "block";
@@ -30654,8 +30654,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 var _a;
                                 const ev = (_a = shBcEvents[def.key]) !== null && _a !== void 0 ? _a : {};
                                 const evEnabled = ev.enabled === true;
-                                const evRow = mk("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap;");
-                                const toggleChip = mkBtn(def.label, `${FONT}font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "var(--ebc-card)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                                const evRow = mk("div", "display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;");
+                                const toggleChip = mkBtn(def.label, `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid ${evEnabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${evEnabled ? "rgba(255,255,255,0.08)" : "transparent"};color:${evEnabled ? "var(--ebc-accent)" : "var(--ebc-text-sub)"};font-weight:${evEnabled ? "bold" : "normal"};`);
                                 toggleChip.addEventListener("click", () => {
                                     var _a;
                                     const arr = EBCDrawer.getPsShockers();
@@ -30668,13 +30668,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 evRow.appendChild(toggleChip);
                                 if (evEnabled) {
                                     const opSel = document.createElement("select");
-                                    opSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                    opSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
                                     ["auto", "beep", "vib", "shock"].forEach(v => { var _a; const o = document.createElement("option"); o.value = v; o.textContent = v; if (v === ((_a = ev.op) !== null && _a !== void 0 ? _a : "auto"))
                                         o.selected = true; opSel.appendChild(o); });
                                     opSel.addEventListener("change", () => { var _a; const arr = EBCDrawer.getPsShockers(); const m = ((_a = arr[idx].bcEvents) !== null && _a !== void 0 ? _a : {}); m[def.key] = Object.assign(Object.assign({}, m[def.key]), { op: opSel.value }); arr[idx].bcEvents = m; EBCDrawer.savePsShockers(arr); });
                                     evRow.appendChild(opSel);
                                     const evLvSel = document.createElement("select");
-                                    evLvSel.style.cssText = `${FONT}font-size:10px;padding:2px 3px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                                    evLvSel.style.cssText = `${FONT}font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
                                     const evLvs = EBCDrawer.getPsLevels();
                                     evLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = ev.levelName) !== null && _a !== void 0 ? _a : evLvs[0].name))
                                         o.selected = true; evLvSel.appendChild(o); });
@@ -30683,8 +30683,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 }
                                 evBody.appendChild(evRow);
                             });
-                            shCard.appendChild(evHdr);
-                            shCard.appendChild(evBody);
+                            evSection.appendChild(evHdr);
+                            evSection.appendChild(evBody);
+                            shCard.appendChild(evSection);
                             // Test buttons
                             const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
                             const showPsStatus = (result) => {
@@ -33960,7 +33961,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 79; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 80; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33981,6 +33982,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
                 "PiShock fix: shock collar Action message Content is TriggerShock0/1/2 (not a 'shock' keyword) and target is in DestinationCharacterName tag (not TargetCharacter) - both checks were wrong so the hook never matched and PiShock never fired. Now correctly detects TriggerShock prefix and reads MemberNumber from DestinationCharacterName.",
                 "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
+                "PiShock: BC Events section redesigned - now a clearly bordered accent-colored panel (open by default, with lightning icon and subtitle) instead of tiny collapsed text. Reduced TOUCH_DEFS to only relevant shock/pain activities: Bite, Spank, Slap, Pinch, Shock (removed Headpat, Caress, Kiss, Lick, Tickle, Squeeze, Rub, Choke, Grab).",
                 "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
                 "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
             ],
