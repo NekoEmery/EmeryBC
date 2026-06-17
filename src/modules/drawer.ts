@@ -3959,6 +3959,7 @@ const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; 
     { key: "rub",      label: "🖐 Rub",      activity: "Rub",     group: undefined,   dflt: false },
     { key: "choke",    label: "🤜 Choke",    activity: "Choke",   group: "ItemNeck",  dflt: false },
     { key: "grab",     label: "✊ Grab",     activity: "Grab",    group: undefined,   dflt: false },
+    { key: "shock",    label: "⚡ Shock",    activity: "Shock",   group: undefined,   dflt: false },
 ];
 
 export class EBCDrawer {
