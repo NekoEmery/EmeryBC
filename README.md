@@ -1,6 +1,6 @@
 # EBC — EmeryBC
 
-A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, expression presets, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
+A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, expression presets, toys integration, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
 
 ---
 
@@ -46,9 +46,12 @@ Builds are deployed automatically via GitHub Actions on every push.
 - [👥 Users & Friends](#-users--friends)
 - [📝 Notes](#-notes)
 - [🌐 People Met](#-people-met)
+- [🪆 Toys](#-toys)
 - [🛠️ Dev Tools](#️-dev-tools)
 - [🖼️ Drawer Appearance](#️-drawer-appearance)
 - [✨ Quality of Life](#-quality-of-life)
+- [🎓 Tutorial](#-tutorial)
+- [💌 Feedback & Bug Reports](#-feedback--bug-reports)
 - [⌨️ Slash Commands](#️-slash-commands)
 
 ---
@@ -153,7 +156,7 @@ Found in the **Buttons** tab of the EBC drawer.
 | Toggle | What it does |
 |---|---|
 | **OOC Mode** | Prefixes every chat message with `(` so it reads as out-of-character. Commands, emotes, and already-OOC messages are never modified. |
-| **Safeword** | One-click safeword button. Configure the word in settings. |
+| **Safeword** | One-click safeword button that sends your configured safeword to the room. Set the word in the Settings panel. |
 | **AFK Auto-Reply** | Sends a custom beep reply when someone messages you after X minutes of inactivity (default 10 min). 30-minute cooldown per sender to avoid spam. |
 | **Beep Mute** | Silences all incoming beeps globally. |
 | **Suppress Native Beep** | Stops plain beeps from also showing in BC's main chat log when EBC's IM handles them. |
@@ -262,6 +265,36 @@ Everyone you've ever shared a room with — saved server-side and synced across 
 
 ---
 
+## 🪆 Toys
+
+Found in the **Toys** tab of the EBC drawer. Split into Game Toys (in-BC mechanics) and IRL Toys (hardware integration).
+
+### Game Toys
+
+Control the BC vibrator system from EBC.
+
+- **Enable / Disable** — master toggle for the BC vibrator item interaction
+- **Vibrator mode** — choose Tease, Deny, Orgasm, or Edge to set the toy's behavior pattern
+- **Privacy** — hide game-toy activity from other room members
+- **Whitelist** — restrict who can interact with your BC toys to a list of specific member numbers
+
+### IRL Toys / Lovense
+
+Connect a real Lovense toy so it responds to BC events. Two connection paths are supported:
+
+**BLE Direct** - use the Lovense browser extension or app to connect over Bluetooth from the same browser tab.
+- Click **Connect Toy** to scan and pair a nearby Lovense device
+- Set intensity and duration per device with the sliders
+
+**HTTP (Lovense App)** - connect via the Lovense mobile app's local HTTP server.
+- Enter your Lovense app HTTP URL in the field
+- Click **Test Connection** to verify the link before using it
+- Individual toys in the list each have their own intensity and duration sliders and a test button
+
+Both modes respond to BC arousal and vibrator events in real time.
+
+---
+
 ## 🛠️ Dev Tools
 
 Found in the **Dev** tab (bottom of the drawer).
@@ -315,6 +348,33 @@ Customisation options found in the **Dev** tab under *Drawer Appearance*.
 - ⛓ Time wearing current restraints
 
 **Update notifications** — EBC checks GitHub for a newer version 30 seconds after load, then every hour. Silence with `/ebc updates off`.
+
+---
+
+## 🎓 Tutorial
+
+EBC includes a built-in guided tour. Click **Tutorial** in the EBC footer to open the mode selector.
+
+Two modes to choose from:
+
+| Mode | Steps | What it covers |
+|---|---|---|
+| **Quick Tour** | 6 | Core features - new outfit, load outfit, action buttons, expressions, drawer appearance, version info |
+| **Full Guide** | 13 | Everything in the Quick Tour plus friends, notes, anti-restraint, scenes, palettes, and more |
+
+Each step spotlights the relevant UI element and explains what it does. Advance at your own pace with the Next button, or close the guide at any time.
+
+---
+
+## 💌 Feedback & Bug Reports
+
+Click **Feedback & Bugs** in the EBC footer to submit a report without leaving the game.
+
+- **Type** — Bug report, Feature request, or Other
+- **Summary** — what happened or what you'd like
+- **Steps / detail** — reproduction steps, context, or extra info
+
+Reports are submitted anonymously via a Google Form. Your EBC version and member number are attached automatically to help with debugging. You never leave the game - the form submits in the background and shows a confirmation toast when done.
 
 ---
 

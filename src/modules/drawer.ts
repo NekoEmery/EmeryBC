@@ -4097,6 +4097,9 @@ export class EBCDrawer {
         qaConfirmLbl?: HTMLSpanElement;
         qaConfirmToggle?: HTMLButtonElement;
         pickBtn?: HTMLButtonElement;
+        // footer buttons
+        footerTutLbl?: HTMLSpanElement;
+        footerFbLbl?: HTMLSpanElement;
     } = {};
 
     constructor(version = "", isDev = false, salVersion = 0) {
@@ -4442,8 +4445,8 @@ export class EBCDrawer {
         const toysTabBtn = document.createElement("button");
         toysTabBtn.className = "ebc-tab-btn";
         toysTabBtn.id = "ebc-tab-toys";
-        toysTabBtn.textContent = "TOYS";
-        toysTabBtn.title = "Toys & Integrations";
+        toysTabBtn.textContent = t("tabs.toys");
+        toysTabBtn.title = t("tabs.toysTitle");
         toysTabBtn.style.display = "none"; // Emery-only - revealed in open()
 
 
@@ -5068,7 +5071,8 @@ export class EBCDrawer {
         tutorialBtn.className = "ebc-footer-action-btn";
         tutorialBtn.title = "Open the interactive guide / tutorial";
         tutorialBtn.innerHTML = BOOK_SVG;
-        const tutLbl = document.createElement("span"); tutLbl.textContent = "Tutorial";
+        const tutLbl = document.createElement("span"); tutLbl.textContent = t("footer.tutorial");
+        this._i18nRefs.footerTutLbl = tutLbl;
         tutorialBtn.appendChild(tutLbl);
         tutorialBtn.addEventListener("click", () => this.startGuide());
 
@@ -5076,7 +5080,8 @@ export class EBCDrawer {
         fbBtn.className = "ebc-footer-action-btn";
         fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
         fbBtn.innerHTML = BUG_SVG;
-        const fbLbl = document.createElement("span"); fbLbl.textContent = "Feedback & Bugs";
+        const fbLbl = document.createElement("span"); fbLbl.textContent = t("footer.feedbackBugs");
+        this._i18nRefs.footerFbLbl = fbLbl;
         fbBtn.appendChild(fbLbl);
         fbBtn.addEventListener("click", () => this._openFeedbackModal());
 
@@ -5690,141 +5695,133 @@ export class EBCDrawer {
     private static readonly SVG_CHEV_UP   = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     private static readonly SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-    private static readonly FAST_STEPS: Array<{
-        tab: DrawerTab | null;
-        label: string;
-        text: string;
-        spotlight?: string[];
-        autoExpand?: string[];
-    }> = [
+    private static get FAST_STEPS() {
+        return [
         {
             tab: "outfits",
-            label: "Outfits",
-            text: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))",
+            label: t("guide.fast.s1.label"),
+            text: t("guide.fast.s1.text"),
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))",
+            label: t("guide.fast.s2.label"),
+            text: t("guide.fast.s2.text"),
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "anims",
-            label: "Poses & Animations",
-            text: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))",
+            label: t("guide.fast.s3.label"),
+            text: t("guide.fast.s3.text"),
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.",
+            label: t("guide.fast.s4.label"),
+            text: t("guide.fast.s4.text"),
         },
         {
             tab: "dev",
-            label: "Settings",
-            text: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))",
+            label: t("guide.fast.s5.label"),
+            text: t("guide.fast.s5.text"),
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: null,
-            label: "Safewords — Always Here",
-            text: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))",
+            label: t("guide.fast.s6.label"),
+            text: t("guide.fast.s6.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ];
+    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    }
 
-    private static readonly INDEPTH_STEPS: Array<{
-        tab: DrawerTab | null;
-        label: string;
-        text: string;
-        spotlight?: string[];
-        autoExpand?: string[];
-    }> = [
+    private static get INDEPTH_STEPS() {
+        return [
         {
             tab: null,
-            label: "Welcome to EBC",
-            text: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
+            label: t("guide.deep.s1.label"),
+            text: t("guide.deep.s1.text"),
         },
         {
             tab: null,
-            label: "Moving & Resizing",
-            text: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))",
+            label: t("guide.deep.s2.label"),
+            text: t("guide.deep.s2.text"),
             spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
-            label: "Saving & Applying Outfits",
-            text: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))",
+            label: t("guide.deep.s3.label"),
+            text: t("guide.deep.s3.text"),
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
-            label: "Tags, Schedules & Sharing",
-            text: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.",
+            label: t("guide.deep.s4.label"),
+            text: t("guide.deep.s4.text"),
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
             autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips",
+            label: t("guide.deep.s5.label"),
+            text: t("guide.deep.s5.text"),
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "anims",
-            label: "Pose Combos",
-            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))",
+            label: t("guide.deep.s6.label"),
+            text: t("guide.deep.s6.text"),
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "anims",
-            label: "Face Presets",
-            text: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))",
+            label: t("guide.deep.s7.label"),
+            text: t("guide.deep.s7.text"),
             spotlight: ["[data-guide-target='btn-save-face']"],
         },
         {
             tab: "anims",
-            label: "Chat Triggers",
-            text: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))",
+            label: t("guide.deep.s8.label"),
+            text: t("guide.deep.s8.text"),
             spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
-            label: "Users & Friends",
-            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))",
+            label: t("guide.deep.s9.label"),
+            text: t("guide.deep.s9.text"),
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
             tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
+            label: t("guide.deep.s10.label"),
+            text: t("guide.deep.s10.text"),
         },
         {
             tab: "dev",
-            label: "Settings & Themes",
-            text: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean",
+            label: t("guide.deep.s11.label"),
+            text: t("guide.deep.s11.text"),
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
-            label: "Logs & History",
-            text: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered",
+            label: t("guide.deep.s12.label"),
+            text: t("guide.deep.s12.text"),
             spotlight: ["[data-guide-target='section-dev-logs']"],
             autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
-            label: "Safewords — Always On Top",
-            text: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))",
+            label: t("guide.deep.s13.label"),
+            text: t("guide.deep.s13.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ];
+    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    }
 
     private renderGuideModeSelect(): void {
         const card = this.guideEl;
@@ -5838,11 +5835,11 @@ export class EBCDrawer {
         topRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
         const titleEl = document.createElement("span");
         titleEl.style.cssText = `${FONT}font-size:15px;font-weight:bold;color:#f7e6ee;`;
-        titleEl.textContent = "EBC Tutorial";
+        titleEl.textContent = t("guide.title");
         const closeX = document.createElement("button");
         closeX.className = "ebc-guide-close-btn";
         closeX.textContent = "✕";
-        closeX.title = "Close";
+        closeX.title = t("guide.close");
         closeX.addEventListener("click", () => this.closeGuide());
         topRow.appendChild(titleEl);
         topRow.appendChild(closeX);
@@ -5850,7 +5847,7 @@ export class EBCDrawer {
 
         const subEl = document.createElement("div");
         subEl.style.cssText = `${FONT}font-size:12px;color:#9a7080;margin-bottom:16px;`;
-        subEl.textContent = "How do you want to explore EBC?";
+        subEl.textContent = t("guide.subtitle");
         card.appendChild(subEl);
 
         // Mode cards
@@ -5894,18 +5891,18 @@ export class EBCDrawer {
         const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
 
         const fastCard = makeCard(
-            "Quick Tour",
+            t("guide.quickTourTitle"),
             SVG_BOLT,
-            "Every feature in a few bullets. Done in 2 minutes.",
-            "6 steps",
+            t("guide.quickTourDesc"),
+            t("guide.quickTourBadge"),
             "#d4a020",
             () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
         );
         const deepCard = makeCard(
-            "Full Guide",
+            t("guide.fullGuideTitle"),
             SVG_BOOK,
-            "Full walkthrough with try-it prompts.",
-            "13 steps",
+            t("guide.fullGuideDesc"),
+            t("guide.fullGuideBadge"),
             "#cf6f98",
             () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
         );
@@ -6007,13 +6004,13 @@ export class EBCDrawer {
 
         const stepLbl = document.createElement("span");
         stepLbl.className = "ebc-guide-step-lbl";
-        const modeLabel = this.guideMode === "fast" ? "Quick Tour" : "Full Guide";
-        stepLbl.textContent = `${modeLabel} · ${this.guideStep + 1} of ${steps.length}`;
+        const modeLabel = this.guideMode === "fast" ? t("guide.quickTourTitle") : t("guide.fullGuideTitle");
+        stepLbl.textContent = t("guide.ofN", { mode: modeLabel, step: String(this.guideStep + 1), total: String(steps.length) });
 
         const closeX = document.createElement("button");
         closeX.className = "ebc-guide-close-btn";
         closeX.textContent = "✕";
-        closeX.title = "Close guide";
+        closeX.title = t("guide.closeGuide");
         closeX.addEventListener("click", () => this.closeGuide());
 
         topRow.appendChild(stepLbl);
@@ -6060,7 +6057,7 @@ export class EBCDrawer {
 
         const prevBtn = document.createElement("button");
         prevBtn.className = "ebc-guide-nav-prev";
-        prevBtn.textContent = "← Back";
+        prevBtn.textContent = t("guide.back");
         // Back is disabled on the very first spotlight of the very first step
         if (this.guideStep === 0 && spotIdx === 0) prevBtn.disabled = true;
         prevBtn.addEventListener("click", () => {
@@ -6081,16 +6078,16 @@ export class EBCDrawer {
         const nextBtn = document.createElement("button");
         nextBtn.className = "ebc-guide-nav-next";
         if (isLastStep && isLastSpot) {
-            nextBtn.textContent = "Done ✓";
+            nextBtn.textContent = t("guide.done");
             nextBtn.addEventListener("click", () => this.closeGuide(true));
         } else if (!isLastSpot) {
-            nextBtn.textContent = "Next →";
+            nextBtn.textContent = t("guide.next");
             nextBtn.addEventListener("click", () => {
                 this.guideSpotlightIndex++;
                 this.renderGuideStep();
             });
         } else {
-            nextBtn.textContent = "Next →";
+            nextBtn.textContent = t("guide.next");
             nextBtn.addEventListener("click", () => {
                 this.guideStep++;
                 this.guideSpotlightIndex = 0;
@@ -6457,6 +6454,7 @@ export class EBCDrawer {
             if (lbl) lbl.textContent = t("tabs.users");
             r.tabNotes.title = t("tabs.usersTitle");
         }
+        if (r.tabToys)    { r.tabToys.textContent = t("tabs.toys"); r.tabToys.title = t("tabs.toysTitle"); }
         if (r.tabThanks)  { r.tabThanks.textContent = t("tabs.credits"); r.tabThanks.title = t("tabs.creditsTitle"); }
         if (r.tabDev)     { r.tabDev.textContent = t("tabs.dev"); r.tabDev.title = t("tabs.devTitle"); }
         if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
@@ -6468,6 +6466,9 @@ export class EBCDrawer {
         if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
         if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
+        // Footer buttons
+        if (r.footerTutLbl) r.footerTutLbl.textContent = t("footer.tutorial");
+        if (r.footerFbLbl)  r.footerFbLbl.textContent  = t("footer.feedbackBugs");
         // EBC tags strip is a persistent DOM section - rebuild it so all labels re-translate
         this.rebuildEbcTagsStrip();
     }
@@ -20965,7 +20966,7 @@ export class EBCDrawer {
             chevron.textContent = collapsed ? "▶" : "▼";
             const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
             titleEl.textContent = icon ? `${icon} ${title}` : title;
-            const eBtn = mkBtn(enabled ? "ON" : "OFF",
+            const eBtn = mkBtn(enabled ? t("core.on") : t("core.off"),
                 `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
             eBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -20987,11 +20988,11 @@ export class EBCDrawer {
         };
 
         const lovEnabled = s.lovenseEnabled === true;
-        const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS (lovense)", "lovenseEnabled", "EBC_ui_lovense_open");
+        const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open");
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-            offNote.textContent = "Enable Lovense above to configure.";
+            offNote.textContent = t("toys.enableAbove");
             lovContent.appendChild(offNote);
         } else {
             const lvsHdr = (txt: string): HTMLElement => {
@@ -21006,7 +21007,7 @@ export class EBCDrawer {
             };
 
             // ── CONNECTION ──────────────────────────────────────────────────────
-            lovContent.appendChild(lvsHdr("CONNECTION"));
+            lovContent.appendChild(lvsHdr(t("toys.connection")));
 
             const nav = navigator as unknown as Record<string, unknown>;
             const btApi = nav["bluetooth"] as { requestDevice: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
@@ -21015,7 +21016,7 @@ export class EBCDrawer {
             if (btApi) {
                 const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
                 const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
-                bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                bleHdrRow.textContent = t("toys.bleDirect");
                 connCard.appendChild(bleHdrRow);
 
                 const toyListEl = mk("div", "margin-bottom:8px;");
@@ -21033,7 +21034,7 @@ export class EBCDrawer {
                     while (toyListEl.firstChild) toyListEl.removeChild(toyListEl.firstChild);
                     if (this._lovConnections.size === 0) {
                         const noToys = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                        noToys.textContent = "No toys connected.";
+                        noToys.textContent = t("toys.noToys");
                         toyListEl.appendChild(noToys);
                     } else {
                         for (const [key, conn] of this._lovConnections) {
@@ -21069,10 +21070,10 @@ export class EBCDrawer {
                                     wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
                                     return wrap;
                                 };
-                                sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
                                 const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
                                 sRow.appendChild(divider);
-                                sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, conn.duration, "s", v => { conn.duration = v; }));
                                 tCard.appendChild(sRow);
                             }
                             toyListEl.appendChild(tCard);
@@ -21084,13 +21085,13 @@ export class EBCDrawer {
 
                 const connBtnRow = mk("div", "display:flex;justify-content:center;margin-bottom:8px;");
                 const lovConnBtn = document.createElement("button");
-                lovConnBtn.textContent = "＋ Connect Toy";
+                lovConnBtn.textContent = t("toys.connectToy");
                 lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:6px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                 lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                 lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
 
                 lovConnBtn.addEventListener("click", () => {
-                    lovConnBtn.disabled = true; lovConnBtn.textContent = "🔄 Opening…";
+                    lovConnBtn.disabled = true; lovConnBtn.textContent = t("toys.opening");
                     btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
@@ -21103,7 +21104,7 @@ export class EBCDrawer {
                                 if (existing) { existing.char = null; }
                                 renderToyList();
                             });
-                            lovConnBtn.textContent = "🔄 Connecting…";
+                            lovConnBtn.textContent = t("toys.connecting");
                             type GattServer = { getPrimaryServices: () => Promise<Svc[]>; getPrimaryService: (uuid: string) => Promise<Svc> };
                             const server = await device.gatt!.connect() as GattServer;
                             let services: Svc[] = [];
@@ -21138,11 +21139,11 @@ export class EBCDrawer {
                             const toyDefI = typeof connS.lovenseIntensity === "number" ? (connS.lovenseIntensity as number) : 10;
                             const toyDefD = typeof connS.lovenseDuration  === "number" ? (connS.lovenseDuration  as number) : 5;
                             this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
-                            lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
+                            lovConnBtn.textContent = t("toys.connectToy"); lovConnBtn.disabled = false;
                             renderToyList();
                         })
                         .catch((err: unknown) => {
-                            lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
+                            lovConnBtn.textContent = t("toys.connectToy"); lovConnBtn.disabled = false;
                             if (!(err instanceof Error && err.name === "NotFoundError")) {
                                 console.warn("[EBC Lovense] Connect error:", err);
                             }
@@ -21166,7 +21167,7 @@ export class EBCDrawer {
                 let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
                 const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
                 const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
-                httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                httpHdrLabel.textContent = t("toys.lovHttpHdr");
                 const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
                 httpChevron.textContent = httpCollapsed ? "▶" : "▼";
                 httpHdrRow.appendChild(httpHdrLabel); httpHdrRow.appendChild(httpChevron);
@@ -21197,12 +21198,12 @@ export class EBCDrawer {
 
                 const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                 const httpTestBtn = document.createElement("button");
-                httpTestBtn.textContent = "Test Connection";
+                httpTestBtn.textContent = t("toys.testConnection");
                 httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
                 const httpStatus = mk("span", `${FONT}font-size:11px;`);
                 httpStatus.textContent = this._lovHttpConnected
                     ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
-                    : "⚫ Not tested";
+                    : t("toys.notTested");
                 httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
                 httpBtnRow.appendChild(httpTestBtn); httpBtnRow.appendChild(httpStatus);
                 httpBody.appendChild(httpBtnRow);
@@ -21242,7 +21243,7 @@ export class EBCDrawer {
                         const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = "🟢";
                         const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;color:#c8e0c8;`);
                         tName.textContent = toy.name;
-                        const testBtn = document.createElement("button"); testBtn.textContent = "Test";
+                        const testBtn = document.createElement("button"); testBtn.textContent = t("toys.testBtn");
                         testBtn.style.cssText = `${FONT}font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                         testBtn.addEventListener("click", () => {
                             testBtn.disabled = true;
@@ -21253,10 +21254,10 @@ export class EBCDrawer {
                         tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(testBtn);
                         tCard.appendChild(tRow);
                         const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
-                        sRow.appendChild(mkTinySlider("Intensity", 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
+                        sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
                         const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
                         sRow.appendChild(divider);
-                        sRow.appendChild(mkTinySlider("Seconds", 1, 60, toy.duration, "s", v => { toy.duration = v; }));
+                        sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, toy.duration, "s", v => { toy.duration = v; }));
                         tCard.appendChild(sRow);
                         httpToyListEl.appendChild(tCard);
                     }
@@ -21269,7 +21270,7 @@ export class EBCDrawer {
                     syncSettings();
                     this._lovHttpUrl = rawUrl;
                     httpTestBtn.disabled = true;
-                    httpStatus.textContent = "🔄 Testing…";
+                    httpStatus.textContent = t("toys.testing");
                     httpStatus.style.color = "var(--ebc-text-sub)";
                     this._lovHttpPing().then(ok => {
                         httpTestBtn.disabled = false;
@@ -23188,11 +23189,11 @@ export class EBCDrawer {
         card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
 
         const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
-        titleEl.textContent = "Feedback & Bug Report";
+        titleEl.textContent = t("feedback.title");
         card.appendChild(titleEl);
 
         const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-        subEl.textContent = "Your BC member number is attached so misuse can be blocked.";
+        subEl.textContent = t("feedback.subtitle");
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
@@ -23206,12 +23207,12 @@ export class EBCDrawer {
         const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
 
         // ── Type — segmented control (no emoji; value = exact Google Form string) ──
-        card.appendChild(mkLabel("Type"));
+        card.appendChild(mkLabel(t("feedback.typeLabel")));
         const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:18px;");
         const TYPES = [
-            { label: "Bug report", value: "Bug report" },
-            { label: "Feature request", value: "Feature request" },
-            { label: "Other", value: "Other" },
+            { label: t("feedback.bugReport"), value: "Bug report" },
+            { label: t("feedback.featureReq"), value: "Feature request" },
+            { label: t("feedback.other"), value: "Other" },
         ];
         let selectedType = TYPES[0].value;
         const typeChips: HTMLElement[] = [];
@@ -23234,24 +23235,24 @@ export class EBCDrawer {
         card.appendChild(typeRow);
 
         // ── "What" textarea (required) ───────────────────────────────
-        card.appendChild(mkLabel("What happened / what do you want?"));
+        card.appendChild(mkLabel(t("feedback.whatLabel")));
         const whatArea = document.createElement("textarea");
-        whatArea.placeholder = "Describe the bug, or the feature you'd like…";
+        whatArea.placeholder = t("feedback.whatPH");
         whatArea.style.cssText = taCss + "min-height:84px;margin-bottom:18px;";
         wireFocus(whatArea);
         card.appendChild(whatArea);
 
         // ── Steps textarea (optional) ────────────────────────────────
-        card.appendChild(mkLabel("Steps to reproduce — optional"));
+        card.appendChild(mkLabel(t("feedback.stepsLabel")));
         const stepsArea = document.createElement("textarea");
-        stepsArea.placeholder = "What were you doing when it broke?";
+        stepsArea.placeholder = t("feedback.stepsPH");
         stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
         wireFocus(stepsArea);
         card.appendChild(stepsArea);
 
         const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
         const _mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
-        verNote.textContent = `EBC v${this.version ?? "?"} · ${_mn} is attached automatically.`;
+        verNote.textContent = t("feedback.verNote", { v: this.version ?? "?", mn: _mn });
         card.appendChild(verNote);
 
         // ── Buttons ──────────────────────────────────────────────────
@@ -23260,11 +23261,11 @@ export class EBCDrawer {
 
         const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
         const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #33283c;background:transparent;color:#9b8fa6;transition:all 0.14s;`);
-        cancelBtn.textContent = "Cancel";
+        cancelBtn.textContent = t("feedback.cancel");
         cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#cbbdd6"; });
         cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9b8fa6"; });
         const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.3px;padding:9px 28px;border-radius:9px;cursor:pointer;border:1px solid #cf6f98;background:#c2628a;color:#ffffff;transition:all 0.14s;`) as HTMLButtonElement;
-        sendBtn.textContent = "Send";
+        sendBtn.textContent = t("feedback.send");
         sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled) sendBtn.style.background = "#d278a0"; });
         sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled) sendBtn.style.background = "#c2628a"; });
         btnRow.appendChild(cancelBtn); btnRow.appendChild(sendBtn);
@@ -23276,9 +23277,9 @@ export class EBCDrawer {
 
         sendBtn.addEventListener("click", () => {
             const what = whatArea.value.trim();
-            if (!what) { errEl.textContent = "Please describe the bug or request first."; whatArea.focus(); return; }
+            if (!what) { errEl.textContent = t("feedback.errEmpty"); whatArea.focus(); return; }
             errEl.textContent = "";
-            sendBtn.disabled = true; sendBtn.textContent = "Sending…";
+            sendBtn.disabled = true; sendBtn.textContent = t("feedback.sending");
 
             const mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
             const params = new URLSearchParams();
@@ -23289,8 +23290,8 @@ export class EBCDrawer {
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
-                .catch(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); });
+                .then(() => { close(); this._showToyToast(t("feedback.toast")); })
+                .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
         });
 
         document.body.appendChild(overlay);
@@ -23346,46 +23347,20 @@ export class EBCDrawer {
         card.appendChild(mk("div", "height:3px;border-radius:3px;background:#8060b0;margin:-8px 0 18px;"));
 
         const title = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:4px;`);
-        title.textContent = "Cloudflare Worker Setup";
+        title.textContent = t("pishock.setupTitle");
         card.appendChild(title);
 
         const sub = mk("div", `${FONT}font-size:12px;color:#9a86aa;margin-bottom:22px;`);
-        sub.textContent = "One-time setup - takes about 3 minutes. Free forever.";
+        sub.textContent = t("pishock.setupSub");
         card.appendChild(sub);
 
         const STEPS: Array<{ num: string; heading: string; body: string; link?: { label: string; url: string }; code?: true }> = [
-            {
-                num: "1",
-                heading: "Create a free Cloudflare account",
-                body: "Go to cloudflare.com and sign up. It's completely free - no credit card needed.",
-                link: { label: "cloudflare.com - Sign up", url: "https://cloudflare.com" },
-            },
-            {
-                num: "2",
-                heading: "Open Workers & Pages",
-                body: "Once you're logged in, click \"Workers & Pages\" in the left sidebar of your dashboard.",
-            },
-            {
-                num: "3",
-                heading: "Create a new Worker",
-                body: "Click the blue \"Create\" button, then select \"Create Worker\". Give it any name you like - something like \"pishock-proxy\" works fine. Then click \"Deploy\" at the bottom.",
-            },
-            {
-                num: "4",
-                heading: "Replace the code",
-                body: "After deploying, click \"Edit code\" on the next screen. Delete everything in the editor on the left, then paste the code below and click \"Deploy\" again.",
-                code: true,
-            },
-            {
-                num: "5",
-                heading: "Copy your Worker URL",
-                body: "After deploying you'll see a URL at the top of the page - it looks like \"your-name.workers.dev\". Copy the full URL.",
-            },
-            {
-                num: "6",
-                heading: "Paste it into EBC",
-                body: "Go back to the PiShock section in EBC, paste the URL into the \"Proxy URL\" field, and click Test. If it says OK you're all done!",
-            },
+            { num: "1", heading: t("pishock.step1Head"), body: t("pishock.step1Body"), link: { label: t("pishock.step1Link"), url: "https://cloudflare.com" } },
+            { num: "2", heading: t("pishock.step2Head"), body: t("pishock.step2Body") },
+            { num: "3", heading: t("pishock.step3Head"), body: t("pishock.step3Body") },
+            { num: "4", heading: t("pishock.step4Head"), body: t("pishock.step4Body"), code: true },
+            { num: "5", heading: t("pishock.step5Head"), body: t("pishock.step5Body") },
+            { num: "6", heading: t("pishock.step6Head"), body: t("pishock.step6Body") },
         ];
 
         STEPS.forEach(step => {
@@ -23421,13 +23396,13 @@ export class EBCDrawer {
                 const pre = mk("pre", `${FONT}font-size:10px;background:#0f0b15;border:1px solid #2a1f38;border-radius:8px;padding:10px 12px;overflow-x:auto;color:#b09acc;white-space:pre;margin:0;line-height:1.5;`);
                 pre.textContent = WORKER_CODE;
                 const copyBtn = document.createElement("button");
-                copyBtn.textContent = "Copy code";
+                copyBtn.textContent = t("pishock.copyCode");
                 copyBtn.style.cssText = `${FONT}position:absolute;top:8px;right:8px;font-size:10.5px;font-weight:bold;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid #5a4070;background:#1e1530;color:#c8a0e8;`;
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(WORKER_CODE).then(() => {
-                        copyBtn.textContent = "Copied!";
+                        copyBtn.textContent = t("pishock.copied");
                         copyBtn.style.background = "#3a2050";
-                        window.setTimeout(() => { copyBtn.textContent = "Copy code"; copyBtn.style.background = "#1e1530"; }, 1800);
+                        window.setTimeout(() => { copyBtn.textContent = t("pishock.copyCode"); copyBtn.style.background = "#1e1530"; }, 1800);
                     });
                 });
                 codeWrap.appendChild(pre);
@@ -23443,7 +23418,7 @@ export class EBCDrawer {
         // Divider + close button
         card.appendChild(mk("div", "border-top:1px solid #2a1f38;margin:6px 0 16px;"));
         const doneBtn = document.createElement("button");
-        doneBtn.textContent = "Got it, close";
+        doneBtn.textContent = t("pishock.gotItClose");
         doneBtn.style.cssText = `${FONT}width:100%;font-size:13px;font-weight:bold;padding:10px;border-radius:9px;cursor:pointer;border:1px solid #8060b0;background:#4a2860;color:#e8dff5;`;
         doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
         doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
