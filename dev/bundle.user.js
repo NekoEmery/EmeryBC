@@ -5843,7 +5843,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a;
         // Queue the message for re-delivery if the recipient is currently offline.
         // BC drops beeps to offline players, so we resend when they come online.
-        markPendingMessage(memberNumber, message);
+        // Don't queue or record EBC protocol messages - they are silent channel commands
+        // and must never appear in the IM conversation window
+        const isProtocol = message.startsWith("[EBC-");
+        if (!isProtocol)
+            markPendingMessage(memberNumber, message);
         try {
             // IsSecret: false tells the BC server to include the sender's current room
             // in the beep it delivers to the recipient, so they see "in room X" with a
@@ -5852,12 +5856,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
         }
         catch ( /* ignore */_b) { /* ignore */ }
-        addBeepEntry({
-            from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
-            to: memberNumber,
-            message,
-            ts: Date.now(),
-        });
+        if (!isProtocol)
+            addBeepEntry({
+                from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
+                to: memberNumber,
+                message,
+                ts: Date.now(),
+            });
     }
     // In-session group message history (not persisted — groups definitions are)
     const _groupHistory = new Map();
@@ -34245,7 +34250,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 89; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 90; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42229,8 +42234,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     handleKittyCommand(beep.Message);
                     return; // suppress notification
                 }
-                // Curse commands from any EBC user — runs on the receiver's client.
-                // Only accepted from friends to prevent random abuse.
+                // EBC protocol messages are always silent - never shown in IM or BC notification.
+                // Curse commands only processed if sender is a friend (to prevent abuse).
                 if (typeof beep.Message === "string" &&
                     beep.Message.startsWith("[EBC-CURSE:")) {
                     const senderNum = typeof beep.MemberNumber === "number"
@@ -42260,6 +42265,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                         return; // suppress notification
                     }
+                    return; // sender not a friend - still suppress, just don't process
                 }
                 // Skip non-IM beep types (grief reports, game invites, etc.).
                 // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -42420,7 +42426,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 const [target, msg] = args;
                 const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
-                if (toNum && typeof msg === "string" && msg.trim()) {
+                if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {
                     const clean = stripBeepMetadata(msg.trim());
                     if (clean) {
                         addBeepEntry({ from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, to: toNum, message: clean, ts: Date.now() });
