@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.0";
-const SAL_VERSION  = 30;   // internal sub-version — shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.1";
+const SAL_VERSION  = 31;   // internal sub-version — shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.1",
+        changes: [
+            "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
+        ],
+    },
     {
         version: "8.2.0",
         changes: [
