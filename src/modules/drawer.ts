@@ -674,7 +674,7 @@ const CSS = `
     width: 100%;
     flex: 1;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden; /* clip content to the panel box so nothing bleeds outside when zoomed/scaled */
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -5061,7 +5061,7 @@ export class EBCDrawer {
         const BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
 
         const footerBtnRow = document.createElement("div");
-        footerBtnRow.style.cssText = "display:flex;gap:8px;width:100%;justify-content:center;margin-top:6px;";
+        footerBtnRow.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;width:100%;justify-content:center;margin-top:6px;";
 
         const tutorialBtn = document.createElement("button");
         tutorialBtn.className = "ebc-footer-action-btn";
@@ -22757,8 +22757,8 @@ export class EBCDrawer {
         titleEl.textContent = "Feedback & Bug Report";
         card.appendChild(titleEl);
 
-        const subEl = mk("div", `${FONT}font-size:12px;color:#9b8fa6;margin-bottom:20px;line-height:1.55;`);
-        subEl.textContent = "Anonymous — sent straight from the game. No account, no email, nothing tied to you.";
+        const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
+        subEl.textContent = "Anonymous — No account, no email, nothing tied to you.";
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
