@@ -30557,13 +30557,13 @@
                                     showPsStatus("missing-creds");
                                     return;
                                 }
-                                const payload = { Username: u, apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
-                                console.log("[EBC PiShock] DIRECT test payload:", Object.assign(Object.assign({}, payload), { apikey: k.slice(0, 4) + "****" }));
+                                const payload = { Username: u, APIKey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                                console.log("[EBC PiShock] DIRECT test payload:", Object.assign(Object.assign({}, payload), { APIKey: k.slice(0, 4) + "****" }));
                                 console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
                                 psStatusEl.style.color = "var(--ebc-text-muted)";
                                 psStatusEl.textContent = "Direct request sent - check F12 Network tab";
                                 psStatusEl.style.display = "block";
-                                fetch("https://do.pishock.com/api/apioperate", {
+                                fetch("https://do.pishock.com/api/apioperate/", {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify(payload),
@@ -31071,8 +31071,8 @@
                     intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
                     duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
                 }
-                const payload = { Username: username, apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
-                console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { apikey: apikey.slice(0, 4) + "****" }));
+                const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+                console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { APIKey: apikey.slice(0, 4) + "****" }));
                 if (proxyUrl) {
                     // Proxy path - can read response
                     const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
@@ -31095,7 +31095,7 @@
                 else {
                     // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
                     // text/plain avoids preflight; response is opaque so we fire-and-forget
-                    await fetch("https://do.pishock.com/api/apioperate", {
+                    await fetch("https://do.pishock.com/api/apioperate/", {
                         method: "POST",
                         mode: "no-cors",
                         headers: { "Content-Type": "text/plain" },
@@ -31705,7 +31705,7 @@
                 `      const body = await request.json();`,
                 `      if (body._ping)`,
                 `        return new Response("pong", { headers: cors });`,
-                `      const PS_URL = "https://do.pishock.com/api/apioperate";`,
+                `      const PS_URL = "https://do.pishock.com/api/apioperate/";`,
                 `      const psHeaders = {`,
                 `        "Content-Type": "application/json",`,
                 `        "Origin": "https://pishock.com",`,
@@ -33686,7 +33686,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 62; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 63; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
