@@ -31338,8 +31338,16 @@
                         if (def.group && assetGroup !== def.group)
                             continue;
                         const ev = events[def.key];
-                        if (!(ev === null || ev === void 0 ? void 0 : ev.enabled))
+                        if (!(ev === null || ev === void 0 ? void 0 : ev.enabled)) {
+                            // Shock events auto-fire using allow flags when no BC Event is configured
+                            if (def.key === "shock") {
+                                const fallbackOp = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
+                                if (fallbackOp >= 0) {
+                                    this.firePiShockWithWarn(idx, fallbackOp, levels[0].intensity, levels[0].duration).catch(() => { });
+                                }
+                            }
                             continue;
+                        }
                         let op;
                         if (ev.op === "beep")
                             op = 2;
@@ -33917,7 +33925,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 77; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 78; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33937,6 +33945,7 @@
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
                 "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
                 "PiShock fix: Action message Dictionary uses { Tag:'TargetCharacter', MemberNumber:X } format - previous check used 'TargetCharacter' as a direct key which never matched, so target check always failed silently and shock collar never triggered PiShock.",
+                "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
                 "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
                 "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
             ],
