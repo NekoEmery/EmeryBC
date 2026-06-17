@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.4
+// @version      8.2.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28318,6 +28318,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Rebuild item list when section is opened
             const curseCh = curseWrap2.firstChild;
             curseCh === null || curseCh === void 0 ? void 0 : curseCh.addEventListener("click", () => { window.setTimeout(kittyBuildList, 50); });
+            // Local curse record (Lucy tracks what she applied to Emery)
+            const kittyLsKey = `EBC_kitty_curses_${EMERY_MEMBER}`;
+            const getKittyCurseRecord = () => {
+                try {
+                    const r = localStorage.getItem(kittyLsKey);
+                    return r ? JSON.parse(r) : [];
+                }
+                catch (_a) {
+                    return [];
+                }
+            };
+            const setKittyCurseRecord = (arr) => {
+                try {
+                    localStorage.setItem(kittyLsKey, JSON.stringify(arr));
+                }
+                catch (_a) { }
+            };
             // Duration picker
             let kittyDurMs = 0;
             const kittyDurRow = document.createElement("div");
@@ -28331,34 +28348,88 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const setKittyDurStyle = (btn, sel) => {
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
             };
+            let clearKittyCustom = () => { };
             for (const [label, ms] of KITTY_DUR_OPTS) {
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 setKittyDurStyle(btn, ms === 0);
-                btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); kittyCustomInp.value = ""; });
+                btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); clearKittyCustom(); });
                 kittyDurBtns.push([btn, ms]);
                 kittyDurRow.appendChild(btn);
             }
-            const kittyCustomInp = document.createElement("input");
-            kittyCustomInp.type = "number";
-            kittyCustomInp.min = "1";
-            kittyCustomInp.placeholder = "min";
-            kittyCustomInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-            kittyCustomInp.addEventListener("input", () => {
-                const v = parseInt(kittyCustomInp.value);
-                if (!isNaN(v) && v > 0) {
-                    kittyDurMs = v * 60000;
+            const _kdc = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+            const _kdl = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+            const mkKittyInp = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _kdc; return i; };
+            const mkKittyLbl = (t) => { const s = document.createElement("span"); s.style.cssText = _kdl; s.textContent = t; return s; };
+            const kkDays = mkKittyInp("d");
+            const kkHrs = mkKittyInp("h");
+            const kkMins = mkKittyInp("m");
+            const kkSecs = mkKittyInp("s");
+            clearKittyCustom = () => { kkDays.value = ""; kkHrs.value = ""; kkMins.value = ""; kkSecs.value = ""; };
+            const onKittyDurCustom = () => {
+                const d = parseInt(kkDays.value) || 0, h = parseInt(kkHrs.value) || 0, m = parseInt(kkMins.value) || 0, s = parseInt(kkSecs.value) || 0;
+                const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+                if (total > 0) {
+                    kittyDurMs = total;
                     kittyDurBtns.forEach(([b]) => setKittyDurStyle(b, false));
                 }
-            });
-            kittyDurRow.appendChild(kittyCustomInp);
-            const kittyDurM = document.createElement("span");
-            kittyDurM.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
-            kittyDurM.textContent = "m";
-            kittyDurRow.appendChild(kittyDurM);
+            };
+            [kkDays, kkHrs, kkMins, kkSecs].forEach(i => i.addEventListener("input", onKittyDurCustom));
+            kittyDurRow.appendChild(kkDays);
+            kittyDurRow.appendChild(mkKittyLbl("d"));
+            kittyDurRow.appendChild(kkHrs);
+            kittyDurRow.appendChild(mkKittyLbl("h"));
+            kittyDurRow.appendChild(kkMins);
+            kittyDurRow.appendChild(mkKittyLbl("m"));
+            kittyDurRow.appendChild(kkSecs);
+            kittyDurRow.appendChild(mkKittyLbl("s"));
+            // Active curses list (per-item lift)
+            const kittyActiveCursesEl = document.createElement("div");
+            kittyActiveCursesEl.style.cssText = "display:none;flex-direction:column;gap:2px;margin-top:6px;border-top:1px solid #2a1421;padding-top:6px;";
+            const rebuildKittyActiveCurses = () => {
+                while (kittyActiveCursesEl.firstChild)
+                    kittyActiveCursesEl.removeChild(kittyActiveCursesEl.firstChild);
+                const record = getKittyCurseRecord();
+                if (!record.length) {
+                    kittyActiveCursesEl.style.display = "none";
+                    return;
+                }
+                kittyActiveCursesEl.style.display = "flex";
+                const ahdr = document.createElement("div");
+                ahdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:3px;";
+                ahdr.textContent = "Active Curses";
+                kittyActiveCursesEl.appendChild(ahdr);
+                record.forEach((entry, idx) => {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;";
+                    row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                    row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nm.textContent = entry.name;
+                    const liftBtn = document.createElement("button");
+                    liftBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    liftBtn.textContent = "✕";
+                    liftBtn.title = "Lift this curse";
+                    liftBtn.addEventListener("click", () => {
+                        const arr = getKittyCurseRecord();
+                        arr.splice(idx, 1);
+                        setKittyCurseRecord(arr);
+                        sendBeep(EMERY_MEMBER, `[EBC-CURSE:clear:${entry.group}]`);
+                        rebuildKittyActiveCurses();
+                    });
+                    row.appendChild(nm);
+                    row.appendChild(liftBtn);
+                    kittyActiveCursesEl.appendChild(row);
+                });
+            };
+            rebuildKittyActiveCurses();
+            // Refresh active curses list whenever the section is opened
+            curseCh === null || curseCh === void 0 ? void 0 : curseCh.addEventListener("click", () => { window.setTimeout(rebuildKittyActiveCurses, 50); });
             const curseActionRow = document.createElement("div");
             curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
             curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
+                var _a;
                 if (kittySelGroups.size === 0)
                     return;
                 const items = getRoomMemberItems(EMERY_MEMBER);
@@ -28367,13 +28438,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (kittyDurMs > 0)
                     entries.push(`expiry=${Date.now() + kittyDurMs}`);
                 sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${entries.join(",")}]`);
+                const existing = getKittyCurseRecord();
+                for (const g of kittySelGroups) {
+                    if (!existing.some(e => e.group === g)) {
+                        const n = (_a = nameMap.get(g)) !== null && _a !== void 0 ? _a : g.replace("Item", "");
+                        existing.push({ group: g, name: n });
+                    }
+                }
+                setKittyCurseRecord(existing);
+                rebuildKittyActiveCurses();
             }, 2000));
             curseActionRow.appendChild(makePill("✓ Clear All", "#4080a0", () => {
+                setKittyCurseRecord([]);
                 sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+                rebuildKittyActiveCurses();
             }, 2000));
             curseCBody.appendChild(kittyItemsEl);
             curseCBody.appendChild(kittyDurRow);
             curseCBody.appendChild(curseActionRow);
+            curseCBody.appendChild(kittyActiveCursesEl);
             body.appendChild(curseWrap2);
         }
         renderExpressions(container) {
@@ -33718,31 +33801,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const setDurStyle = (btn, sel) => {
                 btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
             };
+            let clearDurCustom = () => { };
             for (const [label, ms] of DUR_OPTS) {
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 setDurStyle(btn, ms === 0);
-                btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); customDurInp.value = ""; });
+                btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); clearDurCustom(); });
                 durBtns.push([btn, ms]);
                 durRow.appendChild(btn);
             }
-            const customDurInp = document.createElement("input");
-            customDurInp.type = "number";
-            customDurInp.min = "1";
-            customDurInp.placeholder = "min";
-            customDurInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-            customDurInp.addEventListener("input", () => {
-                const v = parseInt(customDurInp.value);
-                if (!isNaN(v) && v > 0) {
-                    curseDurMs = v * 60000;
+            const _durInpCss = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+            const _durLblCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+            const mkDurInp = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _durInpCss; return i; };
+            const mkDurLbl = (t) => { const s = document.createElement("span"); s.style.cssText = _durLblCss; s.textContent = t; return s; };
+            const cdDays = mkDurInp("d");
+            const cdHrs = mkDurInp("h");
+            const cdMins = mkDurInp("m");
+            const cdSecs = mkDurInp("s");
+            clearDurCustom = () => { cdDays.value = ""; cdHrs.value = ""; cdMins.value = ""; cdSecs.value = ""; };
+            const onDurCustom = () => {
+                const d = parseInt(cdDays.value) || 0, h = parseInt(cdHrs.value) || 0, m = parseInt(cdMins.value) || 0, s = parseInt(cdSecs.value) || 0;
+                const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+                if (total > 0) {
+                    curseDurMs = total;
                     durBtns.forEach(([b]) => setDurStyle(b, false));
                 }
-            });
-            durRow.appendChild(customDurInp);
-            const customDurLbl = document.createElement("span");
-            customDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
-            customDurLbl.textContent = "m";
-            durRow.appendChild(customDurLbl);
+            };
+            [cdDays, cdHrs, cdMins, cdSecs].forEach(i => i.addEventListener("input", onDurCustom));
+            durRow.appendChild(cdDays);
+            durRow.appendChild(mkDurLbl("d"));
+            durRow.appendChild(cdHrs);
+            durRow.appendChild(mkDurLbl("h"));
+            durRow.appendChild(cdMins);
+            durRow.appendChild(mkDurLbl("m"));
+            durRow.appendChild(cdSecs);
+            durRow.appendChild(mkDurLbl("s"));
             cursePanel.appendChild(durRow);
             const curseBtnRow = document.createElement("div");
             curseBtnRow.style.cssText = "display:flex;gap:5px;";
@@ -34249,8 +34342,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 90; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.5";
+    const SAL_VERSION = 91; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34264,6 +34357,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.5",
+            changes: [
+                "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
+                "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
+            ],
+        },
         {
             version: "8.2.4",
             changes: [
