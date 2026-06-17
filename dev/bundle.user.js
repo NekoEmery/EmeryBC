@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.3
+// @version      8.2.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -33960,8 +33960,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 80; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.4";
+    const SAL_VERSION = 81; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33975,6 +33975,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.4",
+            changes: [
+                "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all three checks were wrong before, shock collar never fired PiShock.",
+                "PiShock shock collar auto-fires using Allow flags when no BC Event is configured - Beep allowed = beeps, no extra setup needed.",
+                "BC Events section redesigned - accent-bordered panel with lightning icon, open by default, larger text; was tiny collapsed muted text.",
+                "BC Events trimmed to shock-relevant activities only: Bite, Spank, Slap, Pinch, Shock.",
+            ],
+        },
         {
             version: "8.2.3",
             changes: [
