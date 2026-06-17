@@ -31088,7 +31088,7 @@
                     }
                     catch ( /* old worker format, use raw */_k) { /* old worker format, use raw */ }
                     console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
-                    if (psBody.toLowerCase().includes("success"))
+                    if (psStatus === 204 || psBody.toLowerCase().includes("success"))
                         return "ok";
                     return psBody || `HTTP ${psStatus}`;
                 }
@@ -31700,21 +31700,24 @@
                 `  "Access-Control-Allow-Methods": "POST, OPTIONS",`,
                 `};`,
                 `const psClient = Deno.createHttpClient({ http2: false });`,
-                `const codeCache = new Map();`,
+                `const idCache = new Map();`,
                 ``,
-                `// Resolve share code -> shocker UUID via legacy API`,
-                `const resolveUuid = async (Username, Apikey, Code) => {`,
-                `  if (codeCache.has(Code)) return codeCache.get(Code);`,
-                `  const r = await fetch(LEGACY + "/Api/GetKeyFromShort", {`,
+                `// Resolve share code -> integer shockerId via legacy GetShareCodes`,
+                `const resolveId = async (Username, Apikey, Code) => {`,
+                `  const cacheKey = Apikey + ":" + Code;`,
+                `  if (idCache.has(cacheKey)) return idCache.get(cacheKey);`,
+                `  const r = await fetch(LEGACY + "/Api/GetShareCodes", {`,
                 `    method: "POST", client: psClient,`,
                 `    headers: { "Content-Type": "application/json", "Accept": "application/json" },`,
-                `    body: JSON.stringify({ Username, Apikey, Code }),`,
+                `    body: JSON.stringify({ Username, Apikey }),`,
                 `  });`,
-                `  if (!r.ok) throw new Error("lookup failed: " + r.status);`,
-                `  const uuid = atob(await r.json()).split("::")[1];`,
-                `  if (!uuid) throw new Error("no UUID in lookup response");`,
-                `  codeCache.set(Code, uuid);`,
-                `  return uuid;`,
+                `  if (!r.ok) throw new Error("GetShareCodes failed: " + r.status);`,
+                `  const shares = await r.json();`,
+                `  const share = shares.find(s => s.linkCode === Code);`,
+                `  if (!share) throw new Error("share code not found: " + Code);`,
+                `  const id = String(share.shockerId);`,
+                `  idCache.set(cacheKey, id);`,
+                `  return id;`,
                 `};`,
                 ``,
                 `Deno.serve(async (req) => {`,
@@ -31727,8 +31730,8 @@
                 `    if (body._ping)`,
                 `      return new Response("pong", { headers: CORS });`,
                 `    const { Username, APIKey, Code, Op, Duration, Intensity } = body;`,
-                `    const uuid = await resolveUuid(Username, APIKey, Code);`,
-                `    const r = await fetch(API_BASE + "/Shockers/" + uuid, {`,
+                `    const shockerId = await resolveId(Username, APIKey, Code);`,
+                `    const r = await fetch(API_BASE + "/Shockers/" + shockerId, {`,
                 `      method: "POST", client: psClient,`,
                 `      headers: {`,
                 `        "X-PiShock-Api-Key": APIKey,`,
@@ -31739,10 +31742,11 @@
                 `      body: JSON.stringify({ Operation: Op, Duration: Duration * 1000, Intensity }),`,
                 `    });`,
                 `    const text = (await r.text()).trim();`,
-                `    console.log("/Shockers/" + uuid + " -> " + r.status + ": " + text.slice(0, 200));`,
-                `    return new Response(JSON.stringify({ ps_status: r.status, ps_body: text || "(empty)" }), {`,
-                `      status: 200, headers: { ...CORS, "Content-Type": "application/json" },`,
-                `    });`,
+                `    console.log("/Shockers/" + shockerId + " -> " + r.status + ": " + (text || "(empty)"));`,
+                `    return new Response(JSON.stringify({`,
+                `      ps_status: r.status,`,
+                `      ps_body: r.status === 204 ? "success" : (text || "(empty)"),`,
+                `    }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });`,
                 `  } catch(e) {`,
                 `    console.log("Error:", e.message);`,
                 `    return new Response(JSON.stringify({ ps_status: 0, ps_body: "proxy-error: " + e.message }), {`,
@@ -33700,7 +33704,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.2";
-    const SAL_VERSION = 71; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 72; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33727,6 +33731,7 @@
                 "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/ApiOperate (PascalCase matching Swagger route pattern /Api/GetLastLogs).",
                 "PiShock API migration: do.pishock.com Legacy API Swagger confirms apioperate endpoint is completely absent - removed from server. Full Swagger probe revealed new 'PiShock Public API v1' at api.pishock.com. Updated proxy code: now POSTs to api.pishock.com/Shockers/{Code} with X-PiShock-Api-Key + X-PiShock-Username headers (auth moved from body to headers), Duration converted from seconds to milliseconds (new API requirement), Op renamed to Operation.",
                 "PiShock UUID bridge: new API requires UUID as ShockerId (not share code). Legacy do.pishock.com/Api/GetKeyFromShort returns base64(shareCode::UUID) - proxy now decodes this to extract the UUID, then operates via api.pishock.com/Shockers/{UUID}. UUID cached in-memory per Deno instance to avoid repeated lookups.",
+                "PiShock WORKING: new API ShockerId is the integer shockerId from GetShareCodes (not a UUID). Proxy now calls GetShareCodes, finds share by linkCode match, extracts integer shockerId, calls api.pishock.com/Shockers/{shockerId} - returns HTTP 204 on success. firePiShock updated to treat ps_status 204 as ok. Beep/vibrate/shock confirmed working end-to-end.",
             ],
         },
         {
