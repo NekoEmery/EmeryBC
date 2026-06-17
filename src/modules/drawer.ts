@@ -3945,12 +3945,7 @@ interface LovenseTouchState {
     toyNames?: string[]; // undefined = all toys; specific names = only those toys
 }
 
-const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [
-    { key: "bite",     label: "😬 Bite",     activity: "Bite",    group: undefined,   dflt: false },
-    { key: "spank",    label: "👋 Spank",    activity: "Spank",   group: "ItemButt",  dflt: false },
-    { key: "slap",     label: "✋ Slap",     activity: "Slap",    group: undefined,   dflt: false },
-    { key: "pinch",    label: "🤏 Pinch",    activity: "Pinch",   group: undefined,   dflt: false },
-];
+const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [];
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -22428,6 +22423,63 @@ export class EBCDrawer {
                 renderLevels();
                 psContent.appendChild(levelsGrid);
 
+                // ── Trusted Senders ───────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Trusted Senders"));
+                const trustNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
+                psContent.appendChild(trustNote);
+                const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
+                const renderTrustList = (): void => {
+                    while (trustListEl.firstChild) trustListEl.removeChild(trustListEl.firstChild);
+                    const wl = EBCDrawer.getPsWhitelist();
+                    if (!wl.length) {
+                        const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
+                        none.textContent = "No trusted senders yet.";
+                        trustListEl.appendChild(none);
+                    }
+                    wl.forEach((entry, i) => {
+                        const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                        const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                        const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                        rmBtn.addEventListener("click", () => { const arr = EBCDrawer.getPsWhitelist(); arr.splice(i, 1); EBCDrawer.savePsWhitelist(arr); renderTrustList(); });
+                        row.appendChild(lbl); row.appendChild(rmBtn);
+                        trustListEl.appendChild(row);
+                    });
+                };
+                renderTrustList();
+                psContent.appendChild(trustListEl);
+                const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                const trustNumInp = document.createElement("input");
+                trustNumInp.type = "number"; trustNumInp.placeholder = "Member #";
+                trustNumInp.style.cssText = `${FONT}width:90px;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                const trustNameInp = document.createElement("input");
+                trustNameInp.type = "text"; trustNameInp.placeholder = "Name (optional)";
+                trustNameInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;`;
+                // Populate name from room characters when member # is typed
+                trustNumInp.addEventListener("input", () => {
+                    const num = parseInt((trustNumInp as HTMLInputElement).value);
+                    if (!isNaN(num)) {
+                        const roomChars = (window as Record<string, unknown>)["ChatRoomCharacter"] as Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                        const found = roomChars?.find(c => c.MemberNumber === num);
+                        if (found) (trustNameInp as HTMLInputElement).value = (found.Nickname ?? "").trim() || found.Name || "";
+                    }
+                });
+                const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                addTrustBtn.addEventListener("click", () => {
+                    const num = parseInt((trustNumInp as HTMLInputElement).value);
+                    if (isNaN(num) || num <= 0) return;
+                    const name = ((trustNameInp as HTMLInputElement).value).trim();
+                    const arr = EBCDrawer.getPsWhitelist();
+                    if (!arr.some(e => e.memberNumber === num)) { arr.push({ memberNumber: num, name }); EBCDrawer.savePsWhitelist(arr); }
+                    (trustNumInp as HTMLInputElement).value = "";
+                    (trustNameInp as HTMLInputElement).value = "";
+                    renderTrustList();
+                });
+                addTrustRow.appendChild(trustNumInp); addTrustRow.appendChild(trustNameInp); addTrustRow.appendChild(addTrustBtn);
+                psContent.appendChild(addTrustRow);
+
                 // ── Shockers ──────────────────────────────────────────────────────
                 psContent.appendChild(sep());
                 psContent.appendChild(psHdr("Shockers"));
@@ -22489,6 +22541,12 @@ export class EBCDrawer {
                         allowRow.appendChild(mkAllow("Beep", "allowBeep"));
                         allowRow.appendChild(mkAllow("Vib", "allowVib"));
                         allowRow.appendChild(mkAllow("Shock", "allowShock"));
+                        // Trusted-only toggle
+                        const wlOn = (sh as Record<string, unknown>).whitelistOnly === true;
+                        const wlBtn = mkBtn("🔒 Trusted only", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.12)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};`);
+                        wlBtn.title = "When on: only shocks from Trusted Senders trigger this shocker";
+                        wlBtn.addEventListener("click", () => { (shockers[idx] as Record<string, unknown>).whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                        allowRow.appendChild(wlBtn);
                         shCard.appendChild(allowRow);
 
                         // Per-shocker cap
@@ -22960,6 +23018,12 @@ export class EBCDrawer {
     static savePsGlobal(g: { maxInt: number; maxDur: number }): void {
         try { localStorage.setItem("EBC_ps_global", JSON.stringify(g)); } catch {}
     }
+    static getPsWhitelist(): Array<{ memberNumber: number; name: string }> {
+        try { const s = JSON.parse(localStorage.getItem("EBC_ps_whitelist") ?? "[]"); return Array.isArray(s) ? s as Array<{ memberNumber: number; name: string }> : []; } catch { return []; }
+    }
+    static savePsWhitelist(arr: Array<{ memberNumber: number; name: string }>): void {
+        try { localStorage.setItem("EBC_ps_whitelist", JSON.stringify(arr)); } catch {}
+    }
 
     // bypass=true skips allow-toggles and limits (for test buttons)
     public async firePiShock(shockerIdx: number, op: number, intensity: number, duration: number, bypass = false): Promise<string> {
@@ -23048,14 +23112,18 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
-    public checkPiShockActivityTrigger(): void {
+    public checkPiShockActivityTrigger(senderNum?: number): void {
         try {
             if (typeof Player === "undefined" || (Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
             const shockers = EBCDrawer.getPsShockers();
             const levels = EBCDrawer.getPsLevels();
+            const whitelist = EBCDrawer.getPsWhitelist();
             shockers.forEach((sh, idx) => {
+                if ((sh as Record<string, unknown>).whitelistOnly === true) {
+                    if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum)) return;
+                }
                 const op = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
                 if (op >= 0) {
                     this.firePiShockWithWarn(idx, op, levels[0].intensity, levels[0].duration).catch(() => { /* ignore */ });

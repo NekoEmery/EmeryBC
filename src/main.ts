@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 82;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 83;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all checks were previously wrong so shock collar never fired PiShock.",
             "PiShock BC Events configuration removed entirely - shockers now always fire automatically when BC shocks you, using Allow flags to pick the operation (Shock if allowed, else Vib, else Beep). No setup or toggles needed.",
+            "PiShock: Trusted Senders whitelist - add trusted people by member number; each shocker has a 'Trusted only' toggle that when on only fires that shocker if the person who triggered the BC shock is in the whitelist. Toggle off to let anyone trigger it.",
         ],
     },
     {
@@ -7808,9 +7809,7 @@ function init(): void {
                     );
                     const targetNum = (destEntry?.["MemberNumber"] ?? destEntry?.["TargetCharacter"]) as number | undefined;
                     if (targetNum === Player.MemberNumber) {
-                        const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup");
-                        const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
-                        drawer?.checkPiShockActivityTrigger();
+                        drawer?.checkPiShockActivityTrigger(data.Sender as number | undefined);
                     }
                 }
             }
