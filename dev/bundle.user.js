@@ -31565,6 +31565,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.82);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
             overlay.id = "ebc-pishock-setup-overlay";
             const card = mk("div", `${FONT}width:min(480px,94vw);max-height:90vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:24px 26px 20px;box-shadow:0 16px 50px rgba(0,0,0,0.65);`);
+            card.id = "ebc-pishock-setup-card";
             overlay.appendChild(card);
             // Accent bar
             card.appendChild(mk("div", "height:3px;border-radius:3px;background:#8060b0;margin:-8px 0 18px;"));
@@ -31633,8 +31634,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             doneBtn.style.cssText = `${FONT}width:100%;font-size:13px;font-weight:bold;padding:10px;border-radius:9px;cursor:pointer;border:1px solid #8060b0;background:#4a2860;color:#e8dff5;`;
             doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
             doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
+            const sbStyle = document.createElement("style");
+            sbStyle.textContent = `#ebc-pishock-setup-card::-webkit-scrollbar{width:5px}#ebc-pishock-setup-card::-webkit-scrollbar-track{background:transparent}#ebc-pishock-setup-card::-webkit-scrollbar-thumb{background:#5a3a7a;border-radius:3px}#ebc-pishock-setup-card::-webkit-scrollbar-thumb:hover{background:#8060b0}`;
+            document.head.appendChild(sbStyle);
             const close = () => { if (document.body.contains(overlay))
-                document.body.removeChild(overlay); };
+                document.body.removeChild(overlay); sbStyle.remove(); };
             doneBtn.addEventListener("click", close);
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 close(); });
