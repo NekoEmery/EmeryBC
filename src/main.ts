@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.2";
-const SAL_VERSION  = 71;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 72;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -55,6 +55,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/ApiOperate (PascalCase matching Swagger route pattern /Api/GetLastLogs).",
             "PiShock API migration: do.pishock.com Legacy API Swagger confirms apioperate endpoint is completely absent - removed from server. Full Swagger probe revealed new 'PiShock Public API v1' at api.pishock.com. Updated proxy code: now POSTs to api.pishock.com/Shockers/{Code} with X-PiShock-Api-Key + X-PiShock-Username headers (auth moved from body to headers), Duration converted from seconds to milliseconds (new API requirement), Op renamed to Operation.",
             "PiShock UUID bridge: new API requires UUID as ShockerId (not share code). Legacy do.pishock.com/Api/GetKeyFromShort returns base64(shareCode::UUID) - proxy now decodes this to extract the UUID, then operates via api.pishock.com/Shockers/{UUID}. UUID cached in-memory per Deno instance to avoid repeated lookups.",
+            "PiShock WORKING: new API ShockerId is the integer shockerId from GetShareCodes (not a UUID). Proxy now calls GetShareCodes, finds share by linkCode match, extracts integer shockerId, calls api.pishock.com/Shockers/{shockerId} - returns HTTP 204 on success. firePiShock updated to treat ps_status 204 as ok. Beep/vibrate/shock confirmed working end-to-end.",
         ],
     },
     {
