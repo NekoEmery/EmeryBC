@@ -22274,7 +22274,7 @@ export class EBCDrawer {
                 const proxySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
                 proxySubLbl.textContent = "Proxy URL (optional)";
                 connBody.appendChild(proxySubLbl);
-                const proxyOptNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                const proxyOptNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:4px;`);
                 proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
                 connBody.appendChild(proxyOptNote);
                 const proxyRow = psRow();
@@ -22312,7 +22312,7 @@ export class EBCDrawer {
                     connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
                 });
                 connBody.appendChild(userInp);
-                const userHint = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                const userHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:6px;`);
                 userHint.textContent = "Your pishock.com account name - not your BC name";
                 connBody.appendChild(userHint);
 
@@ -22333,14 +22333,14 @@ export class EBCDrawer {
                 eyeBtn.addEventListener("click", () => { (keyInp as HTMLInputElement).type = (keyInp as HTMLInputElement).type === "password" ? "text" : "password"; });
                 keyRow.appendChild(keyInp); keyRow.appendChild(eyeBtn);
                 connBody.appendChild(keyRow);
-                const keyHint = mk("div", `${FONT}font-size:9.5px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
+                const keyHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
                 keyHint.textContent = "API key from pishock.com/Account - not your login password";
                 connBody.appendChild(keyHint);
                 psContent.appendChild(connBox);
 
                 // ── Global safety cap ─────────────────────────────────────────────
                 psContent.appendChild(psHdr("Global Safety Cap"));
-                const capNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                const capNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                 capNote.textContent = "Hard ceiling applied to shocks only (not beep or vibrate).";
                 psContent.appendChild(capNote);
                 const gCap = EBCDrawer.getPsGlobal();
@@ -22362,7 +22362,7 @@ export class EBCDrawer {
                 // ── Pre-shock warning chain ────────────────────────────────────────
                 psContent.appendChild(sep());
                 psContent.appendChild(psHdr("Pre-Shock Warning"));
-                const warnChainNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                const warnChainNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                 warnChainNote.textContent = "Fire these automatically before every shock (1s gap each).";
                 psContent.appendChild(warnChainNote);
                 const psWarnCfg = EBCDrawer.getPsWarn();
@@ -22426,7 +22426,7 @@ export class EBCDrawer {
                 // ── Trusted Senders ───────────────────────────────────────────────
                 psContent.appendChild(sep());
                 psContent.appendChild(psHdr("Trusted Senders"));
-                const trustNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                const trustNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
                 trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
                 psContent.appendChild(trustNote);
                 const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
