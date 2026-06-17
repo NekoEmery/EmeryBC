@@ -11825,8 +11825,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const feedbackBtn = document.createElement("button");
             feedbackBtn.className = "ebc-icon-btn ebc-feedback-btn";
             feedbackBtn.title = "Send anonymous feedback or report a bug — sent straight from in-game, no account needed";
-            feedbackBtn.textContent = "🐛 Feedback";
-            feedbackBtn.style.whiteSpace = "nowrap";
+            // Bug-with-warning-triangle icon (matches the reference icon), themes via currentColor
+            feedbackBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5q1 2 2 2.6"/><path d="M12.5 3.5q-1 2 -2 2.6"/><path d="M7.3 7q2.7-2.4 5.4 0"/><ellipse cx="10" cy="11" rx="4.6" ry="6"/><line x1="10" y1="5.4" x2="10" y2="17"/><line x1="5.4" y1="8.4" x2="2.4" y2="6.8"/><line x1="5.4" y1="11.2" x2="2" y2="11.2"/><line x1="5.4" y1="14" x2="2.6" y2="15.8"/><line x1="14.6" y1="8.4" x2="17.6" y2="6.8"/><line x1="14.6" y1="11.2" x2="17.8" y2="11"/><path d="M15.8 12.2 22.4 22 9.4 22Z"/><line x1="16" y1="15.8" x2="16" y2="18.4"/><line x1="16" y1="20" x2="16" y2="20.1"/></svg>';
+            const fbLabel = document.createElement("span");
+            fbLabel.textContent = "Feedback & Bugs";
+            feedbackBtn.appendChild(fbLabel);
+            feedbackBtn.style.cssText += "display:inline-flex;align-items:center;gap:5px;white-space:nowrap;";
             feedbackBtn.addEventListener("click", () => { this._openFeedbackModal(); });
             headerBtns.appendChild(feedbackBtn);
             headerBtns.appendChild(refreshBtn);
@@ -30658,12 +30662,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             typeLbl.textContent = "Type";
             card.appendChild(typeLbl);
             const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;");
-            const TYPES = ["🐛 Bug report", "✨ Feature request", "💬 Other"];
-            let selectedType = TYPES[0];
+            // label = shown in-game (with emoji); value = exact string the Google Form expects
+            const TYPES = [
+                { label: "🐛 Bug report", value: "Bug report" },
+                { label: "✨ Feature request", value: "Feature request" },
+                { label: "💬 Other", value: "Other" },
+            ];
+            let selectedType = TYPES[0].value;
             const typeChips = [];
             const paintChips = () => {
                 typeChips.forEach((chip, i) => {
-                    const on = TYPES[i] === selectedType;
+                    const on = TYPES[i].value === selectedType;
                     chip.style.background = on ? "#4c2537" : "transparent";
                     chip.style.borderColor = on ? "#e08ab0" : "#4c2537";
                     chip.style.color = on ? "#fff0f6" : "#a98fb8";
@@ -30671,8 +30680,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             TYPES.forEach((tp) => {
                 const chip = mk("button", `${FONT}font-size:12px;padding:6px 12px;border-radius:14px;border:1px solid #4c2537;cursor:pointer;transition:all 0.12s;`);
-                chip.textContent = tp;
-                chip.addEventListener("click", () => { selectedType = tp; paintChips(); });
+                chip.textContent = tp.label;
+                chip.addEventListener("click", () => { selectedType = tp.value; paintChips(); });
                 typeRow.appendChild(chip);
                 typeChips.push(chip);
             });
@@ -32700,7 +32709,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 22; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 23; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32717,6 +32726,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Feedback: header button now shows a bug icon + 'Feedback & Bugs' label, and the in-game form submits the exact option values the backend expects (fixes the Type field not registering).",
                 "Feedback: 🐛 Feedback button now opens a form right inside EBC — pick a type, type your message, hit Send, and it's submitted anonymously without ever leaving the game. No browser tab, no account, no email.",
                 "Feedback: 🐛 button now links to an anonymous Google Form instead of GitHub — no account needed to submit a bug report or feature request.",
                 "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
