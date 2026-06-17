@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.2";
-const SAL_VERSION  = 55;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 57;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "i18n: all new UI strings are now fully translated - Tutorial mode selector and step labels, Feedback form, PiShock setup modal, Toys tab headers and controls, and the Tutorial/Feedback footer buttons. Switch language mid-session and everything updates instantly.",
             "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
+            "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
         ],
     },
     {

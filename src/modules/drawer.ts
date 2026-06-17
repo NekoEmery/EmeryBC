@@ -22464,8 +22464,43 @@ export class EBCDrawer {
                             showPsStatus(result);
                         });
                         testRow.appendChild(shockTestBtn);
+
+                        // Direct bypass test - fires straight at PiShock, no proxy
+                        const directTestRow = psRow("3px");
+                        const directBtn = mkBtn("🔍 Direct (no proxy)", `${FONT}font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px dashed var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                        directBtn.title = "Send beep directly to PiShock bypassing the Cloudflare proxy - check F12 Network tab for result";
+                        directBtn.addEventListener("click", () => {
+                            const u = localStorage.getItem("EBC_ps_user")?.trim() ?? "";
+                            const k = localStorage.getItem("EBC_ps_key")?.trim() ?? "";
+                            if (!u || !k || !sh.code) { showPsStatus("missing-creds"); return; }
+                            const payload = { Username: u, Apikey: k, Sharecode: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                            console.log("[EBC PiShock] DIRECT test payload:", { ...payload, Apikey: k.slice(0, 4) + "****" });
+                            console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
+                            psStatusEl.style.color = "var(--ebc-text-muted)";
+                            psStatusEl.textContent = "Direct request sent - check F12 Network tab";
+                            psStatusEl.style.display = "block";
+                            fetch("https://do.pishock.com/api/apioperate", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload),
+                            }).then(r => {
+                                console.log(`[EBC PiShock] Direct response: HTTP ${r.status} | url: ${r.url}`);
+                                return r.text().then(t => {
+                                    console.log("[EBC PiShock] Direct body:", t || "(empty)");
+                                    psStatusEl.textContent = `Direct: HTTP ${r.status} - ${t || "(empty)"}`;
+                                    psStatusEl.style.color = t.toLowerCase().includes("success") ? "#70c080" : "#e07070";
+                                });
+                            }).catch((e: unknown) => {
+                                const msg = e instanceof Error ? e.message : String(e);
+                                console.log("[EBC PiShock] Direct request error (CORS expected if BC blocks it):", msg);
+                                psStatusEl.textContent = `Direct error: ${msg}`;
+                            });
+                        });
+                        directTestRow.appendChild(directBtn);
+
                         shCard.appendChild(psStatusEl);
                         shCard.appendChild(testRow);
+                        shCard.appendChild(directTestRow);
 
                         shockerListEl.appendChild(shCard);
                     });
@@ -22896,7 +22931,7 @@ export class EBCDrawer {
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const raw = (await resp.text()).trim();
             let psStatus = resp.status, psBody = raw;
-            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; if (j.ps_redirected) console.log(`[EBC PiShock] redirected to: ${j.ps_url}`); } } catch { /* old worker format, use raw */ }
+            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected}`); } } catch { /* old worker format, use raw */ }
             console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
             if (psBody.toLowerCase().includes("success")) return "ok";
             return psBody || `HTTP ${psStatus}`;
