@@ -31024,7 +31024,7 @@
                     intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
                     duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
                 }
-                const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+                const payload = { Username: username, Apikey: apikey, Sharecode: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { Apikey: apikey.slice(0, 4) + "****" }));
                 const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
                 const raw = (await resp.text()).trim();
