@@ -22482,8 +22482,8 @@ export class EBCDrawer {
                             const u = localStorage.getItem("EBC_ps_user")?.trim() ?? "";
                             const k = localStorage.getItem("EBC_ps_key")?.trim() ?? "";
                             if (!u || !k || !sh.code) { showPsStatus("missing-creds"); return; }
-                            const payload = { Username: u, Apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
-                            console.log("[EBC PiShock] DIRECT test payload:", { ...payload, Apikey: k.slice(0, 4) + "****" });
+                            const payload = { Username: u, apikey: k, Code: sh.code, Name: "EBC-Direct", Op: 2, Duration: 1, Intensity: 1 };
+                            console.log("[EBC PiShock] DIRECT test payload:", { ...payload, apikey: k.slice(0, 4) + "****" });
                             console.log("[EBC PiShock] Direct test - check Network tab for 'apioperate' response");
                             psStatusEl.style.color = "var(--ebc-text-muted)";
                             psStatusEl.textContent = "Direct request sent - check F12 Network tab";
@@ -22935,8 +22935,8 @@ export class EBCDrawer {
                 intensity = Math.min(intensity, sh.maxInt ?? 100);
                 duration  = Math.min(duration,  sh.maxDur ?? 15);
             }
-            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
-            console.log("[EBC PiShock] sending payload:", { ...payload, Apikey: apikey.slice(0, 4) + "****" });
+            const payload = { Username: username, apikey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            console.log("[EBC PiShock] sending payload:", { ...payload, apikey: apikey.slice(0, 4) + "****" });
             if (proxyUrl) {
                 // Proxy path - can read response
                 const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
