@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.1";
-const SAL_VERSION  = 37;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 38;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
             "Feedback form: BC member number is now silently attached to every submission (shown in the version field as '8.x.x | #12345') so spam or misuse can be blocked by member number.",
+            "PiShock (Emery-only dev): re-added to TOYS tab. Per-user Cloudflare Worker proxy - credentials never leave your own Worker. Supports multiple shockers, per-shocker allow toggles, max intensity/duration limits, test buttons, and chat phrase triggers. Worker code included in-panel with a Copy button.",
         ],
     },
     {
@@ -7719,6 +7720,7 @@ function init(): void {
             if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
                 drawer?.checkLovenseTriggers(data.Content as string);
+                drawer?.checkPiShockTriggers(data.Content as string);
             }
             if (data.Type === "Activity" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {

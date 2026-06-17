@@ -22230,6 +22230,287 @@ export class EBCDrawer {
         // GAME TOYS on top, IRL TOYS below
         card.appendChild(gtWrap);
         card.appendChild(lovWrap);
+
+        // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
+        if (typeof Player !== "undefined" && Player?.MemberNumber === EMERY_MEMBER) {
+            const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
+            const psEnabled = s["psEnabled"] === true;
+
+            if (!psEnabled) {
+                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                offNote.textContent = "Enable PiShock above to configure.";
+                psContent.appendChild(offNote);
+            } else {
+                const psHdr = (txt: string): HTMLElement => {
+                    const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:6px 0 5px;text-transform:uppercase;`);
+                    d.textContent = txt; return d;
+                };
+                const psInp = (placeholder: string, value: string, pw = false): HTMLInputElement => {
+                    const inp = document.createElement("input");
+                    inp.type = pw ? "password" : "text";
+                    inp.placeholder = placeholder; inp.value = value;
+                    inp.style.cssText = `${FONT}width:100%;box-sizing:border-box;font-size:11px;padding:4px 7px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;`;
+                    return inp;
+                };
+                const psRow = (gap = "6px"): HTMLElement => mk("div", `display:flex;align-items:center;gap:${gap};margin-bottom:6px;`);
+
+                // ── Proxy URL ─────────────────────────────────────────────────────
+                psContent.appendChild(psHdr("Cloudflare Worker Proxy URL"));
+                const proxyRow = psRow();
+                const proxyInp = psInp("https://your-worker.workers.dev", localStorage.getItem("EBC_ps_proxy") ?? "");
+                proxyInp.style.flex = "1";
+                proxyInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_proxy", (proxyInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
+                const proxyTestBtn = mkBtn("Test", `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);flex-shrink:0;`);
+                proxyTestBtn.addEventListener("click", async () => {
+                    proxyTestBtn.textContent = "...";
+                    try {
+                        const r = await fetch((proxyInp as HTMLInputElement).value.trim(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _ping: true }) });
+                        proxyTestBtn.textContent = r.ok || r.status === 400 ? "OK" : `${r.status}`;
+                    } catch { proxyTestBtn.textContent = "Fail"; }
+                    window.setTimeout(() => { proxyTestBtn.textContent = "Test"; }, 2000);
+                });
+                proxyRow.appendChild(proxyInp); proxyRow.appendChild(proxyTestBtn);
+                psContent.appendChild(proxyRow);
+
+                // ── Credentials ───────────────────────────────────────────────────
+                psContent.appendChild(psHdr("Credentials"));
+                const userInp = psInp("PiShock username", localStorage.getItem("EBC_ps_user") ?? "");
+                userInp.style.marginBottom = "5px";
+                userInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_user", (userInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
+                psContent.appendChild(userInp);
+
+                const keyRow = psRow();
+                const keyInp = psInp("API key", localStorage.getItem("EBC_ps_key") ?? "", true);
+                keyInp.style.flex = "1";
+                keyInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_key", (keyInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
+                const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                eyeBtn.addEventListener("click", () => { (keyInp as HTMLInputElement).type = (keyInp as HTMLInputElement).type === "password" ? "text" : "password"; });
+                keyRow.appendChild(keyInp); keyRow.appendChild(eyeBtn);
+                psContent.appendChild(keyRow);
+
+                // ── Shockers ──────────────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Shockers"));
+                const shockerListEl = mk("div");
+
+                const renderShockers = (): void => {
+                    while (shockerListEl.firstChild) shockerListEl.removeChild(shockerListEl.firstChild);
+                    const shockers = EBCDrawer.getPsShockers();
+                    if (!shockers.length) {
+                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
+                        empty.textContent = "No shockers added yet.";
+                        shockerListEl.appendChild(empty);
+                        return;
+                    }
+                    shockers.forEach((sh, idx) => {
+                        const shCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
+
+                        // Name + share code row
+                        const r1 = psRow();
+                        const nameInp = psInp("Name", sh.name); nameInp.style.flex = "1";
+                        nameInp.addEventListener("input", () => { shockers[idx].name = (nameInp as HTMLInputElement).value; EBCDrawer.savePsShockers(shockers); });
+                        const codeInp = psInp("Share code", sh.code); codeInp.style.flex = "1.4";
+                        codeInp.addEventListener("input", () => {
+                            let v = (codeInp as HTMLInputElement).value.trim();
+                            // Strip full share URLs down to just the code
+                            const m = v.match(/[?&]sharecode=([^&]+)/i) ?? v.match(/Control\?([A-Za-z0-9]+)/i);
+                            if (m) { v = m[1]; (codeInp as HTMLInputElement).value = v; }
+                            shockers[idx].code = v;
+                            EBCDrawer.savePsShockers(shockers);
+                        });
+                        const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        rmBtn.addEventListener("click", () => { shockers.splice(idx, 1); EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                        r1.appendChild(nameInp); r1.appendChild(codeInp); r1.appendChild(rmBtn);
+                        shCard.appendChild(r1);
+
+                        // Allow toggles
+                        const allowRow = psRow("4px");
+                        allowRow.style.marginBottom = "6px";
+                        const mkAllow = (label: string, key: "allowBeep" | "allowVib" | "allowShock"): HTMLButtonElement => {
+                            const on = sh[key] !== false;
+                            const b = mkBtn(label, `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${on ? "var(--ebc-card)" : "transparent"};color:${on ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                            b.addEventListener("click", () => { shockers[idx][key] = !on; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                            return b;
+                        };
+                        const allowLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); allowLbl.textContent = "Allow:";
+                        allowRow.appendChild(allowLbl);
+                        allowRow.appendChild(mkAllow("Beep", "allowBeep"));
+                        allowRow.appendChild(mkAllow("Vib", "allowVib"));
+                        allowRow.appendChild(mkAllow("Shock", "allowShock"));
+                        shCard.appendChild(allowRow);
+
+                        // Max intensity + duration
+                        const limRow = psRow();
+                        limRow.style.marginBottom = "6px";
+                        const mkLim = (label: string, key: "maxInt" | "maxDur", min: number, max: number): HTMLElement => {
+                            const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`); lbl.textContent = label;
+                            const inp = document.createElement("input"); inp.type = "number";
+                            inp.min = String(min); inp.max = String(max); inp.value = String(sh[key] ?? max);
+                            inp.style.cssText = `${FONT}width:44px;font-size:11px;padding:3px 4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                            inp.addEventListener("input", () => { shockers[idx][key] = Math.min(max, Math.max(min, parseInt((inp as HTMLInputElement).value) || min)); EBCDrawer.savePsShockers(shockers); });
+                            wrap.appendChild(lbl); wrap.appendChild(inp); return wrap;
+                        };
+                        limRow.appendChild(mkLim("Max Int:", "maxInt", 1, 100));
+                        limRow.appendChild(mkLim("Max Dur:", "maxDur", 1, 15));
+                        shCard.appendChild(limRow);
+
+                        // Test buttons
+                        const testRow = psRow("5px");
+                        const testLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); testLbl.textContent = "Test:";
+                        testRow.appendChild(testLbl);
+                        const mkTest = (label: string, op: number): HTMLButtonElement => {
+                            const b = mkBtn(label, `${FONT}font-size:10px;padding:2px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);`);
+                            b.addEventListener("click", async () => {
+                                b.textContent = "...";
+                                const result = await this.firePiShock(idx, op, Math.min(sh.maxInt ?? 10, 10), 1, true);
+                                b.textContent = result === "ok" ? "Sent" : "Fail";
+                                window.setTimeout(() => { b.textContent = label; }, 2000);
+                            });
+                            return b;
+                        };
+                        testRow.appendChild(mkTest("🔔 Beep", 2));
+                        testRow.appendChild(mkTest("〜 Vib", 1));
+                        const shockTestBtn = mkBtn("⚡ Shock", `${FONT}font-size:10px;padding:2px 9px;border-radius:4px;cursor:pointer;border:1px solid #c04040;background:transparent;color:#e07070;`);
+                        shockTestBtn.addEventListener("click", async () => {
+                            if (!window.confirm("Send a test SHOCK?")) return;
+                            shockTestBtn.textContent = "...";
+                            const result = await this.firePiShock(idx, 0, Math.min(sh.maxInt ?? 10, 10), 1, true);
+                            shockTestBtn.textContent = result === "ok" ? "Sent" : "Fail";
+                            window.setTimeout(() => { shockTestBtn.textContent = "⚡ Shock"; }, 2000);
+                        });
+                        testRow.appendChild(shockTestBtn);
+                        shCard.appendChild(testRow);
+
+                        shockerListEl.appendChild(shCard);
+                    });
+                };
+                renderShockers();
+                psContent.appendChild(shockerListEl);
+
+                const addShockerBtn = mkBtn("+ Add Shocker", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
+                addShockerBtn.addEventListener("click", () => {
+                    const arr = EBCDrawer.getPsShockers();
+                    arr.push({ name: "", code: "", allowBeep: true, allowVib: true, allowShock: false, maxInt: 20, maxDur: 5 });
+                    EBCDrawer.savePsShockers(arr);
+                    renderShockers();
+                });
+                psContent.appendChild(addShockerBtn);
+
+                // ── Chat Triggers ─────────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Chat Triggers"));
+                const trigListEl = mk("div");
+
+                const renderTriggers = (): void => {
+                    while (trigListEl.firstChild) trigListEl.removeChild(trigListEl.firstChild);
+                    const trigs = EBCDrawer.getPsTriggers();
+                    const shNames = EBCDrawer.getPsShockers().map((s, i) => s.name || `Shocker ${i + 1}`);
+                    if (!trigs.length) {
+                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
+                        empty.textContent = "No triggers set up yet.";
+                        trigListEl.appendChild(empty);
+                        return;
+                    }
+                    trigs.forEach((tr, idx) => {
+                        const tCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
+
+                        const r1 = psRow();
+                        const phraseInp = psInp("Trigger phrase", tr.phrase); phraseInp.style.flex = "1";
+                        phraseInp.addEventListener("input", () => { trigs[idx].phrase = (phraseInp as HTMLInputElement).value.trim().toLowerCase(); EBCDrawer.savePsTriggers(trigs); });
+
+                        const shSel = document.createElement("select");
+                        shSel.style.cssText = GTSel + "flex:0.8;min-width:80px;";
+                        shNames.forEach((n, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = n; if (i === (tr.shockerIdx ?? 0)) o.selected = true; shSel.appendChild(o); });
+                        shSel.addEventListener("change", () => { trigs[idx].shockerIdx = parseInt((shSel as HTMLSelectElement).value); EBCDrawer.savePsTriggers(trigs); });
+
+                        const opSel = document.createElement("select");
+                        opSel.style.cssText = GTSel + "flex:0.7;min-width:65px;";
+                        [["auto", "Auto"], ["beep", "Beep"], ["vib", "Vib"], ["shock", "Shock"]].forEach(([v, l]) => {
+                            const o = document.createElement("option"); o.value = v; o.textContent = l;
+                            if (v === (tr.op ?? "auto")) o.selected = true;
+                            opSel.appendChild(o);
+                        });
+                        opSel.addEventListener("change", () => { trigs[idx].op = (opSel as HTMLSelectElement).value as "auto" | "beep" | "vib" | "shock"; EBCDrawer.savePsTriggers(trigs); });
+
+                        const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        rmBtn.addEventListener("click", () => { trigs.splice(idx, 1); EBCDrawer.savePsTriggers(trigs); renderTriggers(); });
+
+                        r1.appendChild(phraseInp); r1.appendChild(shSel); r1.appendChild(opSel); r1.appendChild(rmBtn);
+                        tCard.appendChild(r1);
+
+                        // Optional intensity + duration overrides
+                        const r2 = psRow();
+                        const mkOvr = (label: string, key: "intensity" | "duration", max: number): HTMLElement => {
+                            const w = mk("div", "display:flex;align-items:center;gap:4px;");
+                            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`); lbl.textContent = label;
+                            const inp = document.createElement("input"); inp.type = "number"; inp.min = "1"; inp.max = String(max);
+                            inp.value = tr[key] !== undefined ? String(tr[key]) : "";
+                            inp.placeholder = "default";
+                            inp.style.cssText = `${FONT}width:52px;font-size:11px;padding:3px 4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                            inp.addEventListener("input", () => {
+                                const n = parseInt((inp as HTMLInputElement).value);
+                                trigs[idx][key] = isNaN(n) ? undefined : Math.min(max, Math.max(1, n));
+                                EBCDrawer.savePsTriggers(trigs);
+                            });
+                            w.appendChild(lbl); w.appendChild(inp); return w;
+                        };
+                        r2.appendChild(mkOvr("Int:", "intensity", 100));
+                        r2.appendChild(mkOvr("Dur:", "duration", 15));
+                        tCard.appendChild(r2);
+                        trigListEl.appendChild(tCard);
+                    });
+                };
+                renderTriggers();
+                psContent.appendChild(trigListEl);
+
+                const addTrigBtn = mkBtn("+ Add Trigger", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
+                addTrigBtn.addEventListener("click", () => {
+                    const arr = EBCDrawer.getPsTriggers();
+                    arr.push({ phrase: "", shockerIdx: 0, op: "auto" });
+                    EBCDrawer.savePsTriggers(arr);
+                    renderTriggers();
+                });
+                psContent.appendChild(addTrigBtn);
+
+                // ── Setup guide ───────────────────────────────────────────────────
+                psContent.appendChild(sep());
+                const guideToggle = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);cursor:pointer;margin-bottom:4px;user-select:none;`);
+                guideToggle.textContent = "▶ Cloudflare Worker setup guide";
+                const guideBox = mk("div", "display:none;");
+                const workerCode = [
+                    `export default {`,
+                    `  async fetch(request) {`,
+                    `    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };`,
+                    `    if (request.method === "OPTIONS") return new Response(null, { headers: cors });`,
+                    `    if (request.method !== "POST") return new Response("Method not allowed", { status: 405, headers: cors });`,
+                    `    try {`,
+                    `      const body = await request.json();`,
+                    `      if (body._ping) return new Response("pong", { headers: cors });`,
+                    `      const r = await fetch("https://do.pishock.com/api/apioperate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });`,
+                    `      return new Response(await r.text(), { status: r.status, headers: { ...cors, "Content-Type": "text/plain" } });`,
+                    `    } catch (e) { return new Response("Proxy error: " + e.message, { status: 500, headers: cors }); }`,
+                    `  }`,
+                    `};`,
+                ].join("\n");
+                const codePre = mk("pre", `${FONT}font-size:9.5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:6px;padding:8px;overflow-x:auto;color:var(--ebc-text-sub);white-space:pre;margin:0 0 6px;`);
+                codePre.textContent = workerCode;
+                const copyBtn = mkBtn("Copy", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);`);
+                copyBtn.addEventListener("click", () => { navigator.clipboard.writeText(workerCode).then(() => { copyBtn.textContent = "Copied!"; window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500); }); });
+                guideBox.appendChild(codePre);
+                guideBox.appendChild(copyBtn);
+                guideToggle.addEventListener("click", () => {
+                    const open = guideBox.style.display !== "none";
+                    guideBox.style.display = open ? "none" : "block";
+                    guideToggle.textContent = (open ? "▶" : "▼") + " Cloudflare Worker setup guide";
+                });
+                psContent.appendChild(guideToggle);
+                psContent.appendChild(guideBox);
+            }
+
+            card.appendChild(psWrap);
+        }
+
         body.appendChild(card);
     }
 
@@ -22523,6 +22804,73 @@ export class EBCDrawer {
             for (const tr of triggers) {
                 if (!tr.phrase || !lower.includes(tr.phrase.toLowerCase())) continue;
                 this.fireLovense(tr.intensity, tr.duration, tr.toyNames).catch(() => { /* silently ignore */ });
+            }
+        } catch { /* ignore */ }
+    }
+
+    // ── PiShock static helpers ────────────────────────────────────────────────
+    static getPsShockers(): Array<{ name: string; code: string; allowBeep: boolean; allowVib: boolean; allowShock: boolean; maxInt: number; maxDur: number }> {
+        try { return JSON.parse(localStorage.getItem("EBC_ps_shockers") ?? "[]") as ReturnType<typeof EBCDrawer.getPsShockers>; } catch { return []; }
+    }
+    static savePsShockers(arr: ReturnType<typeof EBCDrawer.getPsShockers>): void {
+        try { localStorage.setItem("EBC_ps_shockers", JSON.stringify(arr)); } catch { /* ignore */ }
+    }
+    static getPsTriggers(): Array<{ phrase: string; shockerIdx: number; op: "auto" | "beep" | "vib" | "shock"; intensity?: number; duration?: number }> {
+        try { return JSON.parse(localStorage.getItem("EBC_ps_triggers") ?? "[]") as ReturnType<typeof EBCDrawer.getPsTriggers>; } catch { return []; }
+    }
+    static savePsTriggers(arr: ReturnType<typeof EBCDrawer.getPsTriggers>): void {
+        try { localStorage.setItem("EBC_ps_triggers", JSON.stringify(arr)); } catch { /* ignore */ }
+    }
+
+    // bypass=true skips allow-toggles and limits (for test buttons)
+    public async firePiShock(shockerIdx: number, op: number, intensity: number, duration: number, bypass = false): Promise<string> {
+        try {
+            const proxyUrl = localStorage.getItem("EBC_ps_proxy")?.trim() ?? "";
+            const username  = localStorage.getItem("EBC_ps_user")?.trim()  ?? "";
+            const apikey    = localStorage.getItem("EBC_ps_key")?.trim()   ?? "";
+            if (!proxyUrl || !username || !apikey) return "missing-creds";
+            const shockers = EBCDrawer.getPsShockers();
+            const sh = shockers[shockerIdx];
+            if (!sh?.code) return "missing-shocker";
+            if (!bypass) {
+                if (op === 2 && sh.allowBeep  === false) return "not-allowed";
+                if (op === 1 && sh.allowVib   === false) return "not-allowed";
+                if (op === 0 && sh.allowShock === false) return "not-allowed";
+                intensity = Math.min(intensity, sh.maxInt ?? 100);
+                duration  = Math.min(duration,  sh.maxDur ?? 15);
+            }
+            const payload = { Username: username, Apikey: apikey, Code: sh.code, Name: "EBC", Op: String(op), Duration: String(duration), Intensity: String(intensity) };
+            const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
+            const text = await resp.text();
+            return text.toLowerCase().includes("success") || resp.ok ? "ok" : text;
+        } catch (e) { return String(e); }
+    }
+
+    public checkPiShockTriggers(content: string): void {
+        try {
+            if (typeof Player === "undefined" || Player?.MemberNumber !== EMERY_MEMBER) return;
+            const s = getSettings();
+            if (s["psEnabled"] !== true) return;
+            const lower = content.toLowerCase();
+            const triggers = EBCDrawer.getPsTriggers();
+            const shockers = EBCDrawer.getPsShockers();
+            for (const tr of triggers) {
+                if (!tr.phrase || !lower.includes(tr.phrase)) continue;
+                const sh = shockers[tr.shockerIdx ?? 0];
+                if (!sh) continue;
+                let op: number;
+                if (tr.op === "beep")  op = 2;
+                else if (tr.op === "vib")   op = 1;
+                else if (tr.op === "shock") op = 0;
+                else {
+                    // auto - pick strongest allowed
+                    if (sh.allowShock !== false) op = 0;
+                    else if (sh.allowVib !== false) op = 1;
+                    else op = 2;
+                }
+                const intensity = tr.intensity ?? 10;
+                const duration  = tr.duration  ?? 1;
+                this.firePiShock(tr.shockerIdx ?? 0, op, intensity, duration).catch(() => { /* ignore */ });
             }
         } catch { /* ignore */ }
     }
