@@ -11578,6 +11578,7 @@
         { key: "rub", label: "🖐 Rub", activity: "Rub", group: undefined, dflt: false },
         { key: "choke", label: "🤜 Choke", activity: "Choke", group: "ItemNeck", dflt: false },
         { key: "grab", label: "✊ Grab", activity: "Grab", group: undefined, dflt: false },
+        { key: "shock", label: "⚡ Shock", activity: "Shock", group: undefined, dflt: false },
     ];
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
@@ -33874,7 +33875,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.3";
-    const SAL_VERSION = 73; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 74; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -33892,6 +33893,7 @@
             version: "8.2.3",
             changes: [
                 "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
+                "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
             ],
         },
         {
@@ -41743,6 +41745,21 @@
                         if (activityName) {
                             drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseActivityTrigger(activityName, assetGroup);
                             drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger(activityName, assetGroup);
+                        }
+                    }
+                }
+                // Shock collar and other shock items send Type:"Action" (not Activity) - catch those too
+                if (data.Type === "Action" && typeof data.Content === "string") {
+                    const dict = data.Dictionary;
+                    const targetEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => "TargetCharacter" in e);
+                    const targetNum = targetEntry === null || targetEntry === void 0 ? void 0 : targetEntry["TargetCharacter"];
+                    if (targetNum === Player.MemberNumber) {
+                        // Content is a BC tag key like "ChatOther-ItemNeck-ShockCollarPetsuit_Light"
+                        const content = data.Content.toLowerCase();
+                        if (content.includes("shock") || content.includes("electro")) {
+                            const groupEntry = dict === null || dict === void 0 ? void 0 : dict.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
+                            const assetGroup = groupEntry === null || groupEntry === void 0 ? void 0 : groupEntry["FocusGroupName"];
+                            drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockActivityTrigger("Shock", assetGroup);
                         }
                     }
                 }
