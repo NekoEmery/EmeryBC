@@ -4341,9 +4341,9 @@ export class EBCDrawer {
         this._i18nRefs.closeBtn    = closeBtn;
 
         const feedbackLink = document.createElement("a");
-        feedbackLink.href = "https://github.com/NekoEmery/EmeryBC/issues";
+        feedbackLink.href = `https://docs.google.com/forms/d/e/1FAIpQLSe6lNI5Q4wHX7llKvU6SlvwzR1G7xiYOYrx8NTciGzAW3izhw/viewform`;
         feedbackLink.target = "_blank"; feedbackLink.rel = "noopener noreferrer";
-        feedbackLink.title = "Report a bug or request a feature on GitHub";
+        feedbackLink.title = "Report a bug or request a feature (anonymous form)";
         feedbackLink.textContent = "🐛";
         feedbackLink.style.cssText = "font-size:12px;text-decoration:none;cursor:pointer;opacity:0.6;transition:opacity 0.15s;padding:2px 4px;border-radius:3px;";
         feedbackLink.addEventListener("mouseenter", () => { feedbackLink.style.opacity = "1"; });
