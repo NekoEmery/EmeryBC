@@ -23117,7 +23117,16 @@ export class EBCDrawer {
                     if (activityName !== def.activity) continue;
                     if (def.group && assetGroup !== def.group) continue;
                     const ev = events[def.key];
-                    if (!ev?.enabled) continue;
+                    if (!ev?.enabled) {
+                        // Shock events auto-fire using allow flags when no BC Event is configured
+                        if (def.key === "shock") {
+                            const fallbackOp = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
+                            if (fallbackOp >= 0) {
+                                this.firePiShockWithWarn(idx, fallbackOp, levels[0].intensity, levels[0].duration).catch(() => { /* ignore */ });
+                            }
+                        }
+                        continue;
+                    }
                     let op: number;
                     if (ev.op === "beep")       op = 2;
                     else if (ev.op === "vib")   op = 1;
