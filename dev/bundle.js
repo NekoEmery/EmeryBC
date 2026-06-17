@@ -32722,9 +32722,15 @@
         },
         {
             tab: "anims",
-            label: "Expressions & Chat Triggers",
-            text: "[[Face presets]] save any expression — set it with BC's face controls, then click [[Save face]].\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n[[Chat triggers]] fire a preset when your message contains a set phrase.\n• [[Contains]] → phrase · [[Apply]] → which preset · [[Hold]] → duration (0 = keep forever)",
-            spotlight: ["[data-guide-target='btn-save-face']", "[data-guide-target='btn-new-trigger']"],
+            label: "Face Presets",
+            text: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))",
+            spotlight: ["[data-guide-target='btn-save-face']"],
+        },
+        {
+            tab: "anims",
+            label: "Chat Triggers",
+            text: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))",
+            spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
@@ -32821,7 +32827,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.1";
-    const SAL_VERSION = 31; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 32; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
