@@ -8327,6 +8327,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
+.ebc-feedback-btn { color: #e3b6cb; border-color: #7a3a55; font-weight: bold; }
+.ebc-feedback-btn:hover { background: #5a2c42; color: #fff0f6; border-color: #e08ab0; }
+
 @keyframes ebc-spin { to { transform: rotate(360deg); } }
 .ebc-icon-btn.spinning svg { animation: ebc-spin 0.6s linear; }
 
@@ -11819,16 +11822,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
-            const feedbackLink = document.createElement("a");
-            feedbackLink.href = `https://docs.google.com/forms/d/e/1FAIpQLSe6lNI5Q4wHX7llKvU6SlvwzR1G7xiYOYrx8NTciGzAW3izhw/viewform`;
-            feedbackLink.target = "_blank";
-            feedbackLink.rel = "noopener noreferrer";
-            feedbackLink.title = "Report a bug or request a feature (anonymous form)";
-            feedbackLink.textContent = "🐛";
-            feedbackLink.style.cssText = "font-size:12px;text-decoration:none;cursor:pointer;opacity:0.6;transition:opacity 0.15s;padding:2px 4px;border-radius:3px;";
-            feedbackLink.addEventListener("mouseenter", () => { feedbackLink.style.opacity = "1"; });
-            feedbackLink.addEventListener("mouseleave", () => { feedbackLink.style.opacity = "0.6"; });
-            headerBtns.appendChild(feedbackLink);
+            const feedbackBtn = document.createElement("button");
+            feedbackBtn.className = "ebc-icon-btn ebc-feedback-btn";
+            feedbackBtn.title = "Send anonymous feedback or report a bug — sent straight from in-game, no account needed";
+            feedbackBtn.textContent = "🐛 Feedback";
+            feedbackBtn.style.whiteSpace = "nowrap";
+            feedbackBtn.addEventListener("click", () => { this._openFeedbackModal(); });
+            headerBtns.appendChild(feedbackBtn);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
@@ -30626,6 +30626,117 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => { if (document.body.contains(toast))
                 document.body.removeChild(toast); }, 3500);
         }
+        // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
+        _openFeedbackModal() {
+            var _a;
+            // Don't stack copies if it's already open
+            if (document.getElementById("ebc-feedback-overlay"))
+                return;
+            const FORM_ID = "1FAIpQLSe6lNI5Q4wHX7llKvU6SlvwzR1G7xiYOYrx8NTciGzAW3izhw";
+            const SUBMIT_URL = `https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`;
+            const E_TYPE = "entry.440441484";
+            const E_WHAT = "entry.747044937";
+            const E_STEPS = "entry.1724725225";
+            const E_VER = "entry.1112839188";
+            const FONT = "font-family:'Palatino Linotype','Book Antiqua',serif;";
+            const mk = (tag, css) => { const el = document.createElement(tag); if (css)
+                el.style.cssText = css; return el; };
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.72);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            overlay.id = "ebc-feedback-overlay";
+            const card = mk("div", `${FONT}width:min(440px,92vw);max-height:88vh;overflow-y:auto;background:#160b22;border:1px solid #9a6fd0;border-radius:12px;padding:18px 20px;box-shadow:0 8px 40px rgba(0,0,0,0.6);`);
+            overlay.appendChild(card);
+            const titleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:4px;");
+            const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#e9d4f5;flex:1;`);
+            titleEl.textContent = "🐛 Feedback & Bug Report";
+            titleRow.appendChild(titleEl);
+            card.appendChild(titleRow);
+            const subEl = mk("div", `${FONT}font-size:11px;color:#9a86ad;margin-bottom:14px;line-height:1.4;`);
+            subEl.textContent = "Anonymous — sent straight from the game. No account, no email, nothing tied to you.";
+            card.appendChild(subEl);
+            // ── Type chips ───────────────────────────────────────────────
+            const typeLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
+            typeLbl.textContent = "Type";
+            card.appendChild(typeLbl);
+            const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;");
+            const TYPES = ["🐛 Bug report", "✨ Feature request", "💬 Other"];
+            let selectedType = TYPES[0];
+            const typeChips = [];
+            const paintChips = () => {
+                typeChips.forEach((chip, i) => {
+                    const on = TYPES[i] === selectedType;
+                    chip.style.background = on ? "#4c2537" : "transparent";
+                    chip.style.borderColor = on ? "#e08ab0" : "#4c2537";
+                    chip.style.color = on ? "#fff0f6" : "#a98fb8";
+                });
+            };
+            TYPES.forEach((tp) => {
+                const chip = mk("button", `${FONT}font-size:12px;padding:6px 12px;border-radius:14px;border:1px solid #4c2537;cursor:pointer;transition:all 0.12s;`);
+                chip.textContent = tp;
+                chip.addEventListener("click", () => { selectedType = tp; paintChips(); });
+                typeRow.appendChild(chip);
+                typeChips.push(chip);
+            });
+            paintChips();
+            card.appendChild(typeRow);
+            // ── "What" textarea (required) ───────────────────────────────
+            const whatLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
+            whatLbl.textContent = "What happened / what do you want? *";
+            card.appendChild(whatLbl);
+            const whatArea = document.createElement("textarea");
+            whatArea.placeholder = "Describe the bug, or the feature you'd like…";
+            whatArea.style.cssText = `${FONT}width:100%;box-sizing:border-box;min-height:80px;resize:vertical;background:#0e0718;border:1px solid #4c2537;border-radius:7px;color:#e9d4f5;font-size:13px;padding:8px 10px;margin-bottom:14px;`;
+            card.appendChild(whatArea);
+            // ── Steps textarea (optional) ────────────────────────────────
+            const stepsLbl = mk("div", `${FONT}font-size:12px;color:#c9a8ff;margin-bottom:6px;`);
+            stepsLbl.textContent = "Steps to reproduce (optional — for bugs)";
+            card.appendChild(stepsLbl);
+            const stepsArea = document.createElement("textarea");
+            stepsArea.placeholder = "What were you doing when it broke?";
+            stepsArea.style.cssText = `${FONT}width:100%;box-sizing:border-box;min-height:56px;resize:vertical;background:#0e0718;border:1px solid #4c2537;border-radius:7px;color:#e9d4f5;font-size:13px;padding:8px 10px;margin-bottom:10px;`;
+            card.appendChild(stepsArea);
+            const verNote = mk("div", `${FONT}font-size:10px;color:#7a6a8a;margin-bottom:16px;`);
+            verNote.textContent = `EBC v${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} is attached automatically.`;
+            card.appendChild(verNote);
+            // ── Buttons ──────────────────────────────────────────────────
+            const errEl = mk("div", `${FONT}font-size:11px;color:#e88;margin-bottom:8px;min-height:14px;`);
+            card.appendChild(errEl);
+            const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;");
+            const cancelBtn = mk("button", `${FONT}font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#a98fb8;`);
+            cancelBtn.textContent = "Cancel";
+            const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;padding:8px 22px;border-radius:8px;cursor:pointer;border:1px solid #9a6fd0;background:#3a1f52;color:#f0e0ff;`);
+            sendBtn.textContent = "Send";
+            btnRow.appendChild(cancelBtn);
+            btnRow.appendChild(sendBtn);
+            card.appendChild(btnRow);
+            const close = () => { if (document.body.contains(overlay))
+                document.body.removeChild(overlay); };
+            cancelBtn.addEventListener("click", close);
+            overlay.addEventListener("click", (e) => { if (e.target === overlay)
+                close(); });
+            sendBtn.addEventListener("click", () => {
+                var _a;
+                const what = whatArea.value.trim();
+                if (!what) {
+                    errEl.textContent = "Please describe the bug or request first.";
+                    whatArea.focus();
+                    return;
+                }
+                errEl.textContent = "";
+                sendBtn.disabled = true;
+                sendBtn.textContent = "Sending…";
+                const params = new URLSearchParams();
+                params.append(E_TYPE, selectedType);
+                params.append(E_WHAT, what);
+                params.append(E_STEPS, stepsArea.value.trim());
+                params.append(E_VER, (_a = this.version) !== null && _a !== void 0 ? _a : "");
+                // no-cors: fire-and-forget; we can't read the response but the submit goes through
+                fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
+                    .then(() => { close(); this._showToyToast("✓ Thanks! Your feedback was sent."); })
+                    .catch(() => { close(); this._showToyToast("✓ Thanks! Your feedback was sent."); });
+            });
+            document.body.appendChild(overlay);
+            whatArea.focus();
+        }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
             var _a;
@@ -32589,7 +32700,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.1.2";
-    const SAL_VERSION = 21; // internal sub-version — shown when Emery Versioning is ON
+    const SAL_VERSION = 22; // internal sub-version — shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -32606,6 +32717,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.1.2",
             changes: [
+                "Feedback: 🐛 Feedback button now opens a form right inside EBC — pick a type, type your message, hit Send, and it's submitted anonymously without ever leaving the game. No browser tab, no account, no email.",
                 "Feedback: 🐛 button now links to an anonymous Google Form instead of GitHub — no account needed to submit a bug report or feature request.",
                 "Feedback: added 🐛 button in the EBC panel header — opens the GitHub issue tracker to report bugs or request features.",
                 "Lovense: phrase triggers now have toy chips too — each chat phrase trigger can target a specific toy (or All), same as body-touch triggers.",
