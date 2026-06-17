@@ -30422,7 +30422,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ── Global safety cap ─────────────────────────────────────────────
                     psContent.appendChild(psHdr("Global Safety Cap"));
                     const capNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
-                    capNote.textContent = "Hard ceiling applied to every shock regardless of source.";
+                    capNote.textContent = "Hard ceiling applied to shocks only (not beep or vibrate).";
                     psContent.appendChild(capNote);
                     const gCap = EBCDrawer.getPsGlobal();
                     const capRow = psRow("12px");
@@ -31285,11 +31285,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return "not-allowed";
                     if (op === 0 && sh.allowShock === false)
                         return "not-allowed";
-                    intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
-                    duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
-                    const gCap = EBCDrawer.getPsGlobal();
-                    intensity = Math.min(intensity, gCap.maxInt);
-                    duration = Math.min(duration, gCap.maxDur);
+                    if (op === 0) {
+                        intensity = Math.min(intensity, (_g = sh.maxInt) !== null && _g !== void 0 ? _g : 100);
+                        duration = Math.min(duration, (_h = sh.maxDur) !== null && _h !== void 0 ? _h : 15);
+                        const gCap = EBCDrawer.getPsGlobal();
+                        intensity = Math.min(intensity, gCap.maxInt);
+                        duration = Math.min(duration, gCap.maxDur);
+                    }
                 }
                 const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
                 console.log("[EBC PiShock] sending payload:", Object.assign(Object.assign({}, payload), { APIKey: apikey.slice(0, 4) + "****" }));
@@ -33964,7 +33966,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.4";
-    const SAL_VERSION = 84; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 85; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
