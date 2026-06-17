@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.4";
-const SAL_VERSION  = 90;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.5";
+const SAL_VERSION  = 91;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.5",
+        changes: [
+            "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
+            "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
+        ],
+    },
     {
         version: "8.2.4",
         changes: [

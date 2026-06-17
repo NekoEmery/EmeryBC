@@ -20435,6 +20435,15 @@ export class EBCDrawer {
         const curseCh = curseWrap2.firstChild as HTMLElement | null;
         curseCh?.addEventListener("click", () => { window.setTimeout(kittyBuildList, 50); });
 
+        // Local curse record (Lucy tracks what she applied to Emery)
+        const kittyLsKey = `EBC_kitty_curses_${EMERY_MEMBER}`;
+        const getKittyCurseRecord = (): Array<{group: string; name: string}> => {
+            try { const r = localStorage.getItem(kittyLsKey); return r ? JSON.parse(r) as Array<{group: string; name: string}> : []; } catch { return []; }
+        };
+        const setKittyCurseRecord = (arr: Array<{group: string; name: string}>): void => {
+            try { localStorage.setItem(kittyLsKey, JSON.stringify(arr)); } catch {}
+        };
+
         // Duration picker
         let kittyDurMs = 0;
         const kittyDurRow = document.createElement("div");
@@ -20448,24 +20457,70 @@ export class EBCDrawer {
         const setKittyDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
             btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
         };
+        let clearKittyCustom = (): void => { /* set after inputs */ };
         for (const [label, ms] of KITTY_DUR_OPTS) {
             const btn = document.createElement("button");
             btn.textContent = label;
             setKittyDurStyle(btn, ms === 0);
-            btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); (kittyCustomInp as HTMLInputElement).value = ""; });
+            btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); clearKittyCustom(); });
             kittyDurBtns.push([btn, ms]);
             kittyDurRow.appendChild(btn);
         }
-        const kittyCustomInp = document.createElement("input") as HTMLInputElement;
-        kittyCustomInp.type = "number"; kittyCustomInp.min = "1"; kittyCustomInp.placeholder = "min";
-        kittyCustomInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-        kittyCustomInp.addEventListener("input", () => {
-            const v = parseInt(kittyCustomInp.value);
-            if (!isNaN(v) && v > 0) { kittyDurMs = v * 60000; kittyDurBtns.forEach(([b]) => setKittyDurStyle(b, false)); }
-        });
-        kittyDurRow.appendChild(kittyCustomInp);
-        const kittyDurM = document.createElement("span"); kittyDurM.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;"; kittyDurM.textContent = "m";
-        kittyDurRow.appendChild(kittyDurM);
+        const _kdc = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+        const _kdl = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+        const mkKittyInp = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _kdc; return i; };
+        const mkKittyLbl = (t: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _kdl; s.textContent = t; return s; };
+        const kkDays = mkKittyInp("d"); const kkHrs = mkKittyInp("h"); const kkMins = mkKittyInp("m"); const kkSecs = mkKittyInp("s");
+        clearKittyCustom = () => { kkDays.value = ""; kkHrs.value = ""; kkMins.value = ""; kkSecs.value = ""; };
+        const onKittyDurCustom = (): void => {
+            const d = parseInt(kkDays.value) || 0, h = parseInt(kkHrs.value) || 0, m = parseInt(kkMins.value) || 0, s = parseInt(kkSecs.value) || 0;
+            const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+            if (total > 0) { kittyDurMs = total; kittyDurBtns.forEach(([b]) => setKittyDurStyle(b, false)); }
+        };
+        [kkDays, kkHrs, kkMins, kkSecs].forEach(i => i.addEventListener("input", onKittyDurCustom));
+        kittyDurRow.appendChild(kkDays); kittyDurRow.appendChild(mkKittyLbl("d"));
+        kittyDurRow.appendChild(kkHrs);  kittyDurRow.appendChild(mkKittyLbl("h"));
+        kittyDurRow.appendChild(kkMins); kittyDurRow.appendChild(mkKittyLbl("m"));
+        kittyDurRow.appendChild(kkSecs); kittyDurRow.appendChild(mkKittyLbl("s"));
+
+        // Active curses list (per-item lift)
+        const kittyActiveCursesEl = document.createElement("div");
+        kittyActiveCursesEl.style.cssText = "display:none;flex-direction:column;gap:2px;margin-top:6px;border-top:1px solid #2a1421;padding-top:6px;";
+        const rebuildKittyActiveCurses = (): void => {
+            while (kittyActiveCursesEl.firstChild) kittyActiveCursesEl.removeChild(kittyActiveCursesEl.firstChild);
+            const record = getKittyCurseRecord();
+            if (!record.length) { kittyActiveCursesEl.style.display = "none"; return; }
+            kittyActiveCursesEl.style.display = "flex";
+            const ahdr = document.createElement("div");
+            ahdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:3px;";
+            ahdr.textContent = "Active Curses";
+            kittyActiveCursesEl.appendChild(ahdr);
+            record.forEach((entry, idx) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;";
+                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nm.textContent = entry.name;
+                const liftBtn = document.createElement("button");
+                liftBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                liftBtn.textContent = "✕";
+                liftBtn.title = "Lift this curse";
+                liftBtn.addEventListener("click", () => {
+                    const arr = getKittyCurseRecord();
+                    arr.splice(idx, 1);
+                    setKittyCurseRecord(arr);
+                    sendBeep(EMERY_MEMBER, `[EBC-CURSE:clear:${entry.group}]`);
+                    rebuildKittyActiveCurses();
+                });
+                row.appendChild(nm); row.appendChild(liftBtn);
+                kittyActiveCursesEl.appendChild(row);
+            });
+        };
+        rebuildKittyActiveCurses();
+        // Refresh active curses list whenever the section is opened
+        curseCh?.addEventListener("click", () => { window.setTimeout(rebuildKittyActiveCurses, 50); });
 
         const curseActionRow = document.createElement("div");
         curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
@@ -20476,13 +20531,25 @@ export class EBCDrawer {
             const entries = [...kittySelGroups].map(g => { const n = nameMap.get(g); return n ? `${g}=${n}` : g; });
             if (kittyDurMs > 0) entries.push(`expiry=${Date.now() + kittyDurMs}`);
             sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${entries.join(",")}]`);
+            const existing = getKittyCurseRecord();
+            for (const g of kittySelGroups) {
+                if (!existing.some(e => e.group === g)) {
+                    const n = nameMap.get(g) ?? g.replace("Item", "");
+                    existing.push({ group: g, name: n });
+                }
+            }
+            setKittyCurseRecord(existing);
+            rebuildKittyActiveCurses();
         }, 2000));
         curseActionRow.appendChild(makePill("✓ Clear All", "#4080a0", () => {
+            setKittyCurseRecord([]);
             sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+            rebuildKittyActiveCurses();
         }, 2000));
         curseCBody.appendChild(kittyItemsEl);
         curseCBody.appendChild(kittyDurRow);
         curseCBody.appendChild(curseActionRow);
+        curseCBody.appendChild(kittyActiveCursesEl);
         body.appendChild(curseWrap2);
     }
 
@@ -25380,24 +25447,31 @@ export class EBCDrawer {
         const setDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
             btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
         };
+        let clearDurCustom = (): void => { /* set after inputs */ };
         for (const [label, ms] of DUR_OPTS) {
             const btn = document.createElement("button");
             btn.textContent = label;
             setDurStyle(btn, ms === 0);
-            btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); (customDurInp as HTMLInputElement).value = ""; });
+            btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); clearDurCustom(); });
             durBtns.push([btn, ms]);
             durRow.appendChild(btn);
         }
-        const customDurInp = document.createElement("input");
-        (customDurInp as HTMLInputElement).type = "number"; (customDurInp as HTMLInputElement).min = "1"; (customDurInp as HTMLInputElement).placeholder = "min";
-        customDurInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;width:44px;padding:1px 4px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-        customDurInp.addEventListener("input", () => {
-            const v = parseInt((customDurInp as HTMLInputElement).value);
-            if (!isNaN(v) && v > 0) { curseDurMs = v * 60000; durBtns.forEach(([b]) => setDurStyle(b, false)); }
-        });
-        durRow.appendChild(customDurInp);
-        const customDurLbl = document.createElement("span"); customDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;"; customDurLbl.textContent = "m";
-        durRow.appendChild(customDurLbl);
+        const _durInpCss = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+        const _durLblCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+        const mkDurInp = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _durInpCss; return i; };
+        const mkDurLbl = (t: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _durLblCss; s.textContent = t; return s; };
+        const cdDays = mkDurInp("d"); const cdHrs = mkDurInp("h"); const cdMins = mkDurInp("m"); const cdSecs = mkDurInp("s");
+        clearDurCustom = () => { cdDays.value = ""; cdHrs.value = ""; cdMins.value = ""; cdSecs.value = ""; };
+        const onDurCustom = (): void => {
+            const d = parseInt(cdDays.value) || 0, h = parseInt(cdHrs.value) || 0, m = parseInt(cdMins.value) || 0, s = parseInt(cdSecs.value) || 0;
+            const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+            if (total > 0) { curseDurMs = total; durBtns.forEach(([b]) => setDurStyle(b, false)); }
+        };
+        [cdDays, cdHrs, cdMins, cdSecs].forEach(i => i.addEventListener("input", onDurCustom));
+        durRow.appendChild(cdDays); durRow.appendChild(mkDurLbl("d"));
+        durRow.appendChild(cdHrs);  durRow.appendChild(mkDurLbl("h"));
+        durRow.appendChild(cdMins); durRow.appendChild(mkDurLbl("m"));
+        durRow.appendChild(cdSecs); durRow.appendChild(mkDurLbl("s"));
         cursePanel.appendChild(durRow);
 
         const curseBtnRow = document.createElement("div");
