@@ -22931,7 +22931,7 @@ export class EBCDrawer {
             const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
             const raw = (await resp.text()).trim();
             let psStatus = resp.status, psBody = raw;
-            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected}`); } } catch { /* old worker format, use raw */ }
+            try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean; getCheck?: string }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`); } } catch { /* old worker format, use raw */ }
             console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
             if (psBody.toLowerCase().includes("success")) return "ok";
             return psBody || `HTTP ${psStatus}`;
@@ -23464,17 +23464,25 @@ export class EBCDrawer {
             `      const body = await request.json();`,
             `      if (body._ping)`,
             `        return new Response("pong", { headers: cors });`,
-            `      const r = await fetch("https://do.pishock.com/api/apioperate", {`,
+            `      const PS_URL = "https://do.pishock.com/api/apioperate";`,
+            `      const psHeaders = {`,
+            `        "Content-Type": "application/json",`,
+            `        "Origin": "https://pishock.com",`,
+            `        "Referer": "https://pishock.com/",`,
+            `        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",`,
+            `      };`,
+            `      let getCheck = "skipped";`,
+            `      try {`,
+            `        const g = await fetch(PS_URL, { method: "GET", headers: psHeaders });`,
+            `        getCheck = "GET:" + g.status;`,
+            `      } catch (ge) { getCheck = "GET-err:" + ge.message; }`,
+            `      const r = await fetch(PS_URL, {`,
             `        method: "POST",`,
-            `        headers: {`,
-            `          "Content-Type": "application/json",`,
-            `          "Origin": "https://pishock.com",`,
-            `          "Referer": "https://pishock.com/",`,
-            `        },`,
+            `        headers: psHeaders,`,
             `        body: JSON.stringify(body),`,
             `      });`,
             `      const text = (await r.text()).trim();`,
-            `      const info = { ps_status: r.status, ps_body: text || "(empty)", ps_url: r.url, ps_redirected: r.redirected };`,
+            `      const info = { ps_status: r.status, ps_body: text || "(empty)", ps_url: r.url, ps_redirected: r.redirected, getCheck };`,
             `      return new Response(JSON.stringify(info), {`,
             `        status: 200,`,
             `        headers: { ...cors, "Content-Type": "application/json" },`,
