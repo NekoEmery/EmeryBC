@@ -30393,6 +30393,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                             sessCard.appendChild(rowEl);
                         }
+                        // Direct intensity slider - sends [EBC-TOY:LV:n:0] to the friend's
+                        // Lovense toy continuously at the chosen level, bypassing BC modes.
+                        const sliderRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;padding:6px 2px 2px;border-top:1px solid rgba(160,120,220,0.18);");
+                        const sliderLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        sliderLbl.textContent = "Direct:";
+                        const lvSlider = document.createElement("input");
+                        lvSlider.type = "range";
+                        lvSlider.min = "0";
+                        lvSlider.max = "20";
+                        lvSlider.value = "0";
+                        lvSlider.style.cssText = "flex:1;accent-color:#c050a0;cursor:pointer;";
+                        const lvVal = mk("span", `${FONT}font-size:11px;font-weight:bold;color:#d080c0;min-width:32px;text-align:right;flex-shrink:0;`);
+                        lvVal.textContent = "off";
+                        let _lvDebounce = null;
+                        const sendLv = () => {
+                            const n = parseInt(lvSlider.value);
+                            this.sendGameToyMsg(memberNum, "LV", n, 0);
+                        };
+                        lvSlider.addEventListener("input", () => {
+                            const n = parseInt(lvSlider.value);
+                            lvVal.textContent = n === 0 ? "off" : `${n}/20`;
+                            if (_lvDebounce !== null)
+                                window.clearTimeout(_lvDebounce);
+                            _lvDebounce = window.setTimeout(sendLv, 120);
+                        });
+                        lvSlider.addEventListener("change", () => { if (_lvDebounce !== null) {
+                            window.clearTimeout(_lvDebounce);
+                            _lvDebounce = null;
+                        } sendLv(); });
+                        sliderRow.appendChild(sliderLbl);
+                        sliderRow.appendChild(lvSlider);
+                        sliderRow.appendChild(lvVal);
+                        sessCard.appendChild(sliderRow);
                         statusArea.appendChild(sessCard);
                     }
                     for (const [pendNum, pend] of this._toyPendingOut) {
@@ -31738,10 +31771,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             this.renderToys();
         }
-        sendGameToyMsg(targetNum, type) {
+        sendGameToyMsg(targetNum, type, intensity, duration) {
             try {
                 const serverSend = window.ServerSend;
-                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: `[EBC-TOY:${type}]`, Target: targetNum });
+                const payload = (intensity !== undefined && duration !== undefined)
+                    ? `[EBC-TOY:${type}:${intensity}:${duration}]`
+                    : `[EBC-TOY:${type}]`;
+                serverSend === null || serverSend === void 0 ? void 0 : serverSend("ChatRoomChat", { Type: "Whisper", Content: payload, Target: targetNum });
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -31993,6 +32029,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this._showToyToast(`${pend.name} declined toy control.`);
                         this.refreshToysIfActive();
                     }
+                }
+                else if (type === "LV") {
+                    if (!this._toyGrantedTo.has(senderNumber))
+                        return;
+                    const lvl = Math.max(0, Math.min(20, intensity !== null && intensity !== void 0 ? intensity : 0));
+                    this._showToyToast(`${senderName}: ${lvl > 0 ? `♬ ${lvl}/20` : "♬ off"}`);
+                    this._lovWriteLevel(lvl).catch(() => { });
                 }
                 else if (["Off", "Low", "Medium", "High", "Maximum", "Random", "Escalate", "Tease", "Deny", "Edge"].includes(type)) {
                     if (!this._toyGrantedTo.has(senderNumber))
@@ -34406,7 +34449,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.5";
-    const SAL_VERSION = 94; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 95; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34426,6 +34469,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
                 "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
                 "Active Curses pause picker now has d/h/m/s custom inputs alongside the preset chips - type any combination and hit the play button to send a custom pause duration.",
+                "Game Toys - Control a Friend: added Direct intensity slider (0-20) below the mode buttons. Dragging it sends [EBC-TOY:LV:n:0] to the friend, which their client forwards straight to Lovense at that exact level (continuous, bypasses BC mode system). Slider shows 'off' at 0, 'n/20' otherwise; sends on mouse-release plus a 120ms debounce while dragging.",
                 "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
                 "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
             ],
