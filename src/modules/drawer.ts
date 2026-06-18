@@ -20556,7 +20556,7 @@ export class EBCDrawer {
         const peWrap = document.createElement("div");
         peWrap.style.cssText = "margin-top:8px;";
         peWrap.appendChild(makePill("🍆 Penis Enlargement", "#e06060", () => {
-            sendKittyCmd("penisEnlarge");
+            appendLocalLogLine("🍆 A warm tingly wave washes over you from somewhere below the waist. You are now 3cm larger. Side effects: confusion, flushing, mild delusion of grandeur.", "#e06060");
         }, 3000));
         body.appendChild(peWrap);
     }
