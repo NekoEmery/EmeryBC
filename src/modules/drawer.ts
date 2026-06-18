@@ -20551,6 +20551,14 @@ export class EBCDrawer {
         curseCBody.appendChild(curseActionRow);
         curseCBody.appendChild(kittyActiveCursesEl);
         body.appendChild(curseWrap2);
+
+        // Special button - Lucy requested it, no further questions asked
+        const peWrap = document.createElement("div");
+        peWrap.style.cssText = "margin-top:8px;";
+        peWrap.appendChild(makePill("🍆 Penis Enlargement", "#e06060", () => {
+            sendKittyCmd("penisEnlarge");
+        }, 3000));
+        body.appendChild(peWrap);
     }
 
     private renderExpressions(container?: HTMLElement): void {

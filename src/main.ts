@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.5";
-const SAL_VERSION  = 95;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 96;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +51,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Game Toys - Control a Friend: added Direct intensity slider (0-20) below the mode buttons. Dragging it sends [EBC-TOY:LV:n:0] to the friend, which their client forwards straight to Lovense at that exact level (continuous, bypasses BC mode system). Slider shows 'off' at 0, 'n/20' otherwise; sends on mouse-release plus a 120ms debounce while dragging.",
             "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
             "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
+            "Kitty menu: added 🍆 Penis Enlargement button at the bottom - sends a room emote from Emery. No further questions asked.",
         ],
     },
     {
@@ -6265,6 +6266,17 @@ function handleKittyCommand(msg: string): void {
                         ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
                     } catch { /* ignore */ }
                 }
+                break;
+            }
+            case "penisEnlarge": {
+                // Lucy's button - sends a funny room emote from Emery
+                try {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Emote",
+                        Content: "feels a mysterious tingly sensation and stares down with wide, baffled eyes~ ...Lucy what did you DO to me~~",
+                        Dictionary: [],
+                    });
+                } catch { /* ignore */ }
                 break;
             }
             case "tighten":
