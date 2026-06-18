@@ -23012,11 +23012,24 @@ export class EBCDrawer {
             if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
                 this.stopBCLiveSync(); return;
             }
-            type ArousalT = { VibratorLevel?: number };
-            const player = (window as unknown as { Player?: { ArousalSettings?: ArousalT } }).Player;
-            const bcLevel = player?.ArousalSettings?.VibratorLevel ?? 0; // BC's 0–4 scale
             const cap = typeof s["lovenseBcSyncCap"] === "number" ? (s["lovenseBcSyncCap"] as number) : 20;
-            const lovTarget = Math.min(cap, Math.round(bcLevel * 5)); // map 0–4 → 0–20
+            // Read the actual current vibration intensity directly from worn items.
+            // Item.Property.Intensity: -1 = egged/off, 0 = Low, 1 = Medium, 2 = High, 3 = Maximum.
+            // All modes (static and dynamic: Escalate, Tease, Edge, etc.) write their live
+            // intensity here every scriptDraw tick - this is always the correct source.
+            // ArousalSettings.VibratorLevel is a secondary derived value used by the arousal
+            // meter, modified by zone preference factors - NOT the item intensity.
+            type AppItem = { Property?: { Intensity?: number; Mode?: string } };
+            const appearance = (Player as unknown as { Appearance?: AppItem[] }).Appearance ?? [];
+            let maxIntensity = -1;
+            for (const item of appearance) {
+                const { Intensity: intensity, Mode: mode } = item?.Property ?? {};
+                if (mode && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                    maxIntensity = intensity;
+                }
+            }
+            // Map BC intensity 0–3 → Lovense 5–20 (steps of 5), off → 0
+            const lovTarget = maxIntensity < 0 ? 0 : Math.min(cap, (maxIntensity + 1) * 5);
             if (lovTarget === this._bcLiveSyncLevel) return;
             this._bcLiveSyncLevel = lovTarget;
             this._lovWriteLevel(lovTarget).catch(() => {});
