@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.5";
-const SAL_VERSION  = 96;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 97;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
             "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
             "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
+            "PiShock: removed Chat Triggers section and the chat-message trigger listener - only shock collar (TriggerShock BC action) and test buttons remain.",
+            "Fix: BC TOY SYNC now detects vibrating chastity belts, vibrating plugs, and other built-in-vibe items by also checking Asset.Archetype === 'vibrating', in addition to the Property.Mode check. Previously those items were skipped if Mode was undefined.",
         ],
     },
     {
@@ -7826,7 +7828,6 @@ function init(): void {
             if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
                 typeof data.Sender === "number") {
                 if (data.Sender !== Player.MemberNumber) drawer?.checkLovenseTriggers(data.Content as string);
-                drawer?.checkPiShockTriggers(data.Content as string);
             }
             if (data.Type === "Activity" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {

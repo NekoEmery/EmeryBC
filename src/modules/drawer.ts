@@ -22823,72 +22823,6 @@ export class EBCDrawer {
                 });
                 psContent.appendChild(addShockerBtn);
 
-                // ── Chat Triggers ─────────────────────────────────────────────────
-                psContent.appendChild(sep());
-                psContent.appendChild(psHdr("Chat Triggers"));
-                const trigListEl = mk("div");
-
-                const renderTriggers = (): void => {
-                    while (trigListEl.firstChild) trigListEl.removeChild(trigListEl.firstChild);
-                    const trigs = EBCDrawer.getPsTriggers();
-                    const shNames = EBCDrawer.getPsShockers().map((s, i) => s.name || `Shocker ${i + 1}`);
-                    const trigLvs = EBCDrawer.getPsLevels();
-                    if (!trigs.length) {
-                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                        empty.textContent = "No triggers set up yet.";
-                        trigListEl.appendChild(empty);
-                        return;
-                    }
-                    trigs.forEach((tr, idx) => {
-                        const tCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
-
-                        const r1 = psRow();
-                        const phraseInp = psInp("Trigger phrase", tr.phrase); phraseInp.style.flex = "1";
-                        phraseInp.addEventListener("input", () => { trigs[idx].phrase = (phraseInp as HTMLInputElement).value.trim().toLowerCase(); EBCDrawer.savePsTriggers(trigs); });
-
-                        const shSel = document.createElement("select");
-                        shSel.style.cssText = GTSel + "flex:0.8;min-width:80px;";
-                        shNames.forEach((n, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = n; if (i === (tr.shockerIdx ?? 0)) o.selected = true; shSel.appendChild(o); });
-                        shSel.addEventListener("change", () => { trigs[idx].shockerIdx = parseInt((shSel as HTMLSelectElement).value); EBCDrawer.savePsTriggers(trigs); });
-
-                        const opSel = document.createElement("select");
-                        opSel.style.cssText = GTSel + "flex:0.7;min-width:65px;";
-                        [["auto", "Auto"], ["beep", "Beep"], ["vib", "Vib"], ["shock", "Shock"]].forEach(([v, l]) => {
-                            const o = document.createElement("option"); o.value = v; o.textContent = l;
-                            if (v === (tr.op ?? "auto")) o.selected = true;
-                            opSel.appendChild(o);
-                        });
-                        opSel.addEventListener("change", () => { trigs[idx].op = (opSel as HTMLSelectElement).value as "auto" | "beep" | "vib" | "shock"; EBCDrawer.savePsTriggers(trigs); });
-
-                        const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
-                        rmBtn.addEventListener("click", () => { trigs.splice(idx, 1); EBCDrawer.savePsTriggers(trigs); renderTriggers(); });
-
-                        r1.appendChild(phraseInp); r1.appendChild(shSel); r1.appendChild(opSel); r1.appendChild(rmBtn);
-                        tCard.appendChild(r1);
-
-                        // Level picker
-                        const lvRow = psRow("6px");
-                        const lvLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`); lvLbl.textContent = "Level:";
-                        const lvSel = document.createElement("select");
-                        lvSel.style.cssText = GTSel + "flex:1;";
-                        trigLvs.forEach(lv => { const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((tr as Record<string, unknown>).levelName ?? trigLvs[0].name)) o.selected = true; lvSel.appendChild(o); });
-                        lvSel.addEventListener("change", () => { (trigs[idx] as Record<string, unknown>).levelName = (lvSel as HTMLSelectElement).value; EBCDrawer.savePsTriggers(trigs); });
-                        lvRow.appendChild(lvLbl); lvRow.appendChild(lvSel);
-                        tCard.appendChild(lvRow);
-                        trigListEl.appendChild(tCard);
-                    });
-                };
-                renderTriggers();
-                psContent.appendChild(trigListEl);
-
-                const addTrigBtn = mkBtn("+ Add Trigger", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
-                addTrigBtn.addEventListener("click", () => {
-                    const arr = EBCDrawer.getPsTriggers();
-                    arr.push({ phrase: "", shockerIdx: 0, op: "auto" });
-                    EBCDrawer.savePsTriggers(arr); renderTriggers();
-                });
-                psContent.appendChild(addTrigBtn);
-
                 // ── Dev Log ───────────────────────────────────────────────────────
                 psContent.appendChild(sep());
                 const devLogHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;");
@@ -23053,12 +22987,16 @@ export class EBCDrawer {
             // intensity here every scriptDraw tick - this is always the correct source.
             // ArousalSettings.VibratorLevel is a secondary derived value used by the arousal
             // meter, modified by zone preference factors - NOT the item intensity.
-            type AppItem = { Property?: { Intensity?: number; Mode?: string } };
+            type AppItem = { Asset?: { Archetype?: string }; Property?: { Intensity?: number; Mode?: unknown } };
             const appearance = (Player as unknown as { Appearance?: AppItem[] }).Appearance ?? [];
             let maxIntensity = -1;
             for (const item of appearance) {
                 const { Intensity: intensity, Mode: mode } = item?.Property ?? {};
-                if (mode && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                // Detect vibrating items by archetype (covers chastity/plug/egg with built-in vibes)
+                // or by Mode being set (traditional vibrators). Both types write live intensity to
+                // Property.Intensity every scriptDraw tick.
+                const isVibrating = item?.Asset?.Archetype === "vibrating" || mode != null;
+                if (isVibrating && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
                     maxIntensity = intensity;
                 }
             }
