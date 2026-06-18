@@ -30978,77 +30978,6 @@
                         renderShockers();
                     });
                     psContent.appendChild(addShockerBtn);
-                    // ── Chat Triggers ─────────────────────────────────────────────────
-                    psContent.appendChild(sep());
-                    psContent.appendChild(psHdr("Chat Triggers"));
-                    const trigListEl = mk("div");
-                    const renderTriggers = () => {
-                        while (trigListEl.firstChild)
-                            trigListEl.removeChild(trigListEl.firstChild);
-                        const trigs = EBCDrawer.getPsTriggers();
-                        const shNames = EBCDrawer.getPsShockers().map((s, i) => s.name || `Shocker ${i + 1}`);
-                        const trigLvs = EBCDrawer.getPsLevels();
-                        if (!trigs.length) {
-                            const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                            empty.textContent = "No triggers set up yet.";
-                            trigListEl.appendChild(empty);
-                            return;
-                        }
-                        trigs.forEach((tr, idx) => {
-                            const tCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
-                            const r1 = psRow();
-                            const phraseInp = psInp("Trigger phrase", tr.phrase);
-                            phraseInp.style.flex = "1";
-                            phraseInp.addEventListener("input", () => { trigs[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.savePsTriggers(trigs); });
-                            const shSel = document.createElement("select");
-                            shSel.style.cssText = GTSel + "flex:0.8;min-width:80px;";
-                            shNames.forEach((n, i) => { var _a; const o = document.createElement("option"); o.value = String(i); o.textContent = n; if (i === ((_a = tr.shockerIdx) !== null && _a !== void 0 ? _a : 0))
-                                o.selected = true; shSel.appendChild(o); });
-                            shSel.addEventListener("change", () => { trigs[idx].shockerIdx = parseInt(shSel.value); EBCDrawer.savePsTriggers(trigs); });
-                            const opSel = document.createElement("select");
-                            opSel.style.cssText = GTSel + "flex:0.7;min-width:65px;";
-                            [["auto", "Auto"], ["beep", "Beep"], ["vib", "Vib"], ["shock", "Shock"]].forEach(([v, l]) => {
-                                var _a;
-                                const o = document.createElement("option");
-                                o.value = v;
-                                o.textContent = l;
-                                if (v === ((_a = tr.op) !== null && _a !== void 0 ? _a : "auto"))
-                                    o.selected = true;
-                                opSel.appendChild(o);
-                            });
-                            opSel.addEventListener("change", () => { trigs[idx].op = opSel.value; EBCDrawer.savePsTriggers(trigs); });
-                            const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
-                            rmBtn.addEventListener("click", () => { trigs.splice(idx, 1); EBCDrawer.savePsTriggers(trigs); renderTriggers(); });
-                            r1.appendChild(phraseInp);
-                            r1.appendChild(shSel);
-                            r1.appendChild(opSel);
-                            r1.appendChild(rmBtn);
-                            tCard.appendChild(r1);
-                            // Level picker
-                            const lvRow = psRow("6px");
-                            const lvLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
-                            lvLbl.textContent = "Level:";
-                            const lvSel = document.createElement("select");
-                            lvSel.style.cssText = GTSel + "flex:1;";
-                            trigLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = tr.levelName) !== null && _a !== void 0 ? _a : trigLvs[0].name))
-                                o.selected = true; lvSel.appendChild(o); });
-                            lvSel.addEventListener("change", () => { trigs[idx].levelName = lvSel.value; EBCDrawer.savePsTriggers(trigs); });
-                            lvRow.appendChild(lvLbl);
-                            lvRow.appendChild(lvSel);
-                            tCard.appendChild(lvRow);
-                            trigListEl.appendChild(tCard);
-                        });
-                    };
-                    renderTriggers();
-                    psContent.appendChild(trigListEl);
-                    const addTrigBtn = mkBtn("+ Add Trigger", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
-                    addTrigBtn.addEventListener("click", () => {
-                        const arr = EBCDrawer.getPsTriggers();
-                        arr.push({ phrase: "", shockerIdx: 0, op: "auto" });
-                        EBCDrawer.savePsTriggers(arr);
-                        renderTriggers();
-                    });
-                    psContent.appendChild(addTrigBtn);
                     // ── Dev Log ───────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     const devLogHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;");
@@ -31212,7 +31141,7 @@
             }
         }
         _tickBCLiveSync() {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const s = getSettings();
                 if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
@@ -31224,7 +31153,11 @@
                 let maxIntensity = -1;
                 for (const item of appearance) {
                     const { Intensity: intensity, Mode: mode } = (_b = item === null || item === void 0 ? void 0 : item.Property) !== null && _b !== void 0 ? _b : {};
-                    if (mode && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                    // Detect vibrating items by archetype (covers chastity/plug/egg with built-in vibes)
+                    // or by Mode being set (traditional vibrators). Both types write live intensity to
+                    // Property.Intensity every scriptDraw tick.
+                    const isVibrating = ((_c = item === null || item === void 0 ? void 0 : item.Asset) === null || _c === void 0 ? void 0 : _c.Archetype) === "vibrating" || mode != null;
+                    if (isVibrating && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
                         maxIntensity = intensity;
                     }
                 }
@@ -31235,7 +31168,7 @@
                 this._bcLiveSyncLevel = lovTarget;
                 this._lovWriteLevel(lovTarget).catch(() => { });
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         async _lovWriteLevel(intensity) {
             const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
@@ -34421,7 +34354,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.5";
-    const SAL_VERSION = 96; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 97; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34445,6 +34378,8 @@
                 "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
                 "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
                 "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
+                "PiShock: removed Chat Triggers section and the chat-message trigger listener - only shock collar (TriggerShock BC action) and test buttons remain.",
+                "Fix: BC TOY SYNC now detects vibrating chastity belts, vibrating plugs, and other built-in-vibe items by also checking Asset.Archetype === 'vibrating', in addition to the Property.Mode check. Previously those items were skipped if Mode was undefined.",
             ],
         },
         {
@@ -42387,7 +42322,6 @@
                     typeof data.Sender === "number") {
                     if (data.Sender !== Player.MemberNumber)
                         drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
-                    drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockTriggers(data.Content);
                 }
                 if (data.Type === "Activity" && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
