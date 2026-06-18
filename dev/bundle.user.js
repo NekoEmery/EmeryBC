@@ -31214,10 +31214,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.stopBCLiveSync();
                     return;
                 }
-                const player = window.Player;
-                const bcLevel = (_b = (_a = player === null || player === void 0 ? void 0 : player.ArousalSettings) === null || _a === void 0 ? void 0 : _a.VibratorLevel) !== null && _b !== void 0 ? _b : 0; // BC's 0–4 scale
                 const cap = typeof s["lovenseBcSyncCap"] === "number" ? s["lovenseBcSyncCap"] : 20;
-                const lovTarget = Math.min(cap, Math.round(bcLevel * 5)); // map 0–4 → 0–20
+                const appearance = (_a = Player.Appearance) !== null && _a !== void 0 ? _a : [];
+                let maxIntensity = -1;
+                for (const item of appearance) {
+                    const { Intensity: intensity, Mode: mode } = (_b = item === null || item === void 0 ? void 0 : item.Property) !== null && _b !== void 0 ? _b : {};
+                    if (mode && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                        maxIntensity = intensity;
+                    }
+                }
+                // Map BC intensity 0–3 → Lovense 5–20 (steps of 5), off → 0
+                const lovTarget = maxIntensity < 0 ? 0 : Math.min(cap, (maxIntensity + 1) * 5);
                 if (lovTarget === this._bcLiveSyncLevel)
                     return;
                 this._bcLiveSyncLevel = lovTarget;
@@ -34399,7 +34406,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.5";
-    const SAL_VERSION = 93; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 94; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34419,6 +34426,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
                 "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
                 "Active Curses pause picker now has d/h/m/s custom inputs alongside the preset chips - type any combination and hit the play button to send a custom pause duration.",
+                "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
                 "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
             ],
         },
