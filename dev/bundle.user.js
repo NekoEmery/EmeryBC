@@ -28462,7 +28462,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const peWrap = document.createElement("div");
             peWrap.style.cssText = "margin-top:8px;";
             peWrap.appendChild(makePill("🍆 Penis Enlargement", "#e06060", () => {
-                sendKittyCmd("penisEnlarge");
+                appendLocalLogLine("🍆 A warm tingly wave washes over you from somewhere below the waist. You are now 3cm larger. Side effects: confusion, flushing, mild delusion of grandeur.", "#e06060");
             }, 3000));
             body.appendChild(peWrap);
         }
@@ -34479,7 +34479,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Game Toys - Control a Friend: added Direct intensity slider (0-20) below the mode buttons. Dragging it sends [EBC-TOY:LV:n:0] to the friend, which their client forwards straight to Lovense at that exact level (continuous, bypasses BC mode system). Slider shows 'off' at 0, 'n/20' otherwise; sends on mouse-release plus a 120ms debounce while dragging.",
                 "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
                 "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
-                "Kitty menu: added 🍆 Penis Enlargement button at the bottom - sends a room emote from Emery. No further questions asked.",
+                "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
             ],
         },
         {
@@ -40697,18 +40697,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     break;
                 }
-                case "penisEnlarge": {
-                    // Lucy's button - sends a funny room emote from Emery
-                    try {
-                        ServerSend("ChatRoomChat", {
-                            Type: "Emote",
-                            Content: "feels a mysterious tingly sensation and stares down with wide, baffled eyes~ ...Lucy what did you DO to me~~",
-                            Dictionary: [],
-                        });
-                    }
-                    catch ( /* ignore */_h) { /* ignore */ }
-                    break;
-                }
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
@@ -40754,7 +40742,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }));
                         }
                     }
-                    catch ( /* ignore */_j) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
                 case "expression": {
@@ -40792,12 +40780,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         }
                     }
-                    catch ( /* ignore */_k) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_l) { /* ignore */ }
+        catch ( /* ignore */_k) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b;
