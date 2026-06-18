@@ -22292,6 +22292,32 @@ export class EBCDrawer {
                         }
                         sessCard.appendChild(rowEl);
                     }
+
+                    // Direct intensity slider - sends [EBC-TOY:LV:n:0] to the friend's
+                    // Lovense toy continuously at the chosen level, bypassing BC modes.
+                    const sliderRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;padding:6px 2px 2px;border-top:1px solid rgba(160,120,220,0.18);");
+                    const sliderLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    sliderLbl.textContent = "Direct:";
+                    const lvSlider = document.createElement("input") as HTMLInputElement;
+                    lvSlider.type = "range"; lvSlider.min = "0"; lvSlider.max = "20"; lvSlider.value = "0";
+                    lvSlider.style.cssText = "flex:1;accent-color:#c050a0;cursor:pointer;";
+                    const lvVal = mk("span", `${FONT}font-size:11px;font-weight:bold;color:#d080c0;min-width:32px;text-align:right;flex-shrink:0;`);
+                    lvVal.textContent = "off";
+                    let _lvDebounce: ReturnType<typeof window.setTimeout> | null = null;
+                    const sendLv = (): void => {
+                        const n = parseInt(lvSlider.value);
+                        this.sendGameToyMsg(memberNum, "LV", n, 0);
+                    };
+                    lvSlider.addEventListener("input", () => {
+                        const n = parseInt(lvSlider.value);
+                        lvVal.textContent = n === 0 ? "off" : `${n}/20`;
+                        if (_lvDebounce !== null) window.clearTimeout(_lvDebounce);
+                        _lvDebounce = window.setTimeout(sendLv, 120);
+                    });
+                    lvSlider.addEventListener("change", () => { if (_lvDebounce !== null) { window.clearTimeout(_lvDebounce); _lvDebounce = null; } sendLv(); });
+                    sliderRow.appendChild(sliderLbl); sliderRow.appendChild(lvSlider); sliderRow.appendChild(lvVal);
+                    sessCard.appendChild(sliderRow);
+
                     statusArea.appendChild(sessCard);
                 }
 
@@ -23413,10 +23439,13 @@ export class EBCDrawer {
         this.renderToys();
     }
 
-    private sendGameToyMsg(targetNum: number, type: string): void {
+    private sendGameToyMsg(targetNum: number, type: string, intensity?: number, duration?: number): void {
         try {
             const serverSend = (window as unknown as { ServerSend?: (msg: string, data: unknown) => void }).ServerSend;
-            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: `[EBC-TOY:${type}]`, Target: targetNum });
+            const payload = (intensity !== undefined && duration !== undefined)
+                ? `[EBC-TOY:${type}:${intensity}:${duration}]`
+                : `[EBC-TOY:${type}]`;
+            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: payload, Target: targetNum });
         } catch { /* ignore */ }
     }
 
@@ -23631,6 +23660,11 @@ export class EBCDrawer {
                     this._showToyToast(`${pend.name} declined toy control.`);
                     this.refreshToysIfActive();
                 }
+            } else if (type === "LV") {
+                if (!this._toyGrantedTo.has(senderNumber)) return;
+                const lvl = Math.max(0, Math.min(20, intensity ?? 0));
+                this._showToyToast(`${senderName}: ${lvl > 0 ? `♬ ${lvl}/20` : "♬ off"}`);
+                this._lovWriteLevel(lvl).catch(() => {});
             } else if (["Off","Low","Medium","High","Maximum","Random","Escalate","Tease","Deny","Edge"].includes(type)) {
                 if (!this._toyGrantedTo.has(senderNumber)) return;
                 const modeLabel = type === "Maximum" ? "Max" : type;
