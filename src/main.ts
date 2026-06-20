@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 110;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 111;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
             "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
             "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
+            "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
         ],
     },
     {
@@ -8047,9 +8048,10 @@ function init(): void {
     });
 
 
-    // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
-    // enrich the room info chips.
-    // Primary: modAPI hook (fails silently in BC R128 where the function is module-scoped).
+    // Relay ChatRoomSearchResult to the bcUtils callback so drawer.ts can
+    // use it for room info chips and the HQ live badge scanner.
+    // Primary: modAPI hook (works if BC exposes ChatRoomSearchResult as a global;
+    // silently no-ops in BC R128 where the function is module-scoped).
     tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
         try {
             const list = args[0] as Array<Record<string, unknown>>;
@@ -8057,25 +8059,18 @@ function init(): void {
         } catch { /* ignore */ }
         return next(args);
     });
-    // Fallback: access BC's live socket via the socket.io manager internals.
-    // window.ServerSocket is module-scoped in BC R128, but window.io.managers
-    // exposes the underlying Socket instance we can attach a listener to.
+    // Reliable fallback: ServerSocket is declared as a top-level `var` in BC's
+    // classic (non-module) Server.js, so it lives on window. The previous approach
+    // used window.io.managers which does not exist in socket.io v4 (v2-era API),
+    // causing the listener to silently never register.
     try {
-        const ioFn = (window as unknown as Record<string, unknown>).io as Record<string, unknown> | undefined;
-        const managers = ioFn?.managers;
-        if (managers && typeof managers === "object") {
-            const firstMgr = Object.values(managers as Record<string, unknown>)[0] as Record<string, unknown> | undefined;
-            const nsps = firstMgr?.nsps;
-            if (nsps && typeof nsps === "object") {
-                const firstNsp = Object.values(nsps as Record<string, unknown>)[0] as
-                    { on?(e: string, h: (d: unknown) => void): void } | undefined;
-                firstNsp?.on?.("ChatRoomSearchResult", (list: unknown) => {
-                    try {
-                        if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
-                    } catch { /* ignore */ }
-                });
-            }
-        }
+        const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+            { on?(e: string, h: (d: unknown) => void): void } | undefined;
+        sock?.on?.("ChatRoomSearchResult", (list: unknown) => {
+            try {
+                if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
+            } catch { /* ignore */ }
+        });
     } catch { /* ignore */ }
 
     // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
