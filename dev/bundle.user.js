@@ -20100,22 +20100,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     || e.target === roomInviteBtn)
                     return;
                 e.preventDefault();
-                // transform:scale (applied in applyPanelZoom) does not distort event
-                // clientX/Y, so start.clientX is in true viewport coordinates.
-                // transform-origin:bottom left keeps rect.left = layout left and
-                // rect.bottom = layout bottom (the two anchored corners), so the
-                // offset math below is correct at any scale.
-                const rect = win.getBoundingClientRect();
-                const ox = start.clientX - rect.left;
-                const vh = window.innerHeight;
-                const oyFromBottom = rect.bottom - start.clientY;
+                // getComputedStyle resolves right:X into an equivalent left px value and
+                // always returns layout-space coordinates - never affected by transforms.
+                // Tracking delta from start.clientX/Y (viewport coords with transform:scale)
+                // avoids any dependency on getBoundingClientRect, which has ambiguous
+                // behaviour for scaled elements depending on the transform origin.
+                const cs = window.getComputedStyle(win);
+                const initLeft = parseFloat(cs.left) || 0;
+                const initBottom = parseFloat(cs.bottom) || 80;
+                const startX = start.clientX;
+                const startY = start.clientY;
                 addPointerTracking((pos) => {
-                    const rawL = pos.clientX - ox;
-                    const rawB = vh - pos.clientY - oyFromBottom;
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
                     const winW = win.offsetWidth || 300;
                     const winH = win.offsetHeight || 380;
-                    win.style.left = `${Math.max(0, Math.min(rawL, window.innerWidth - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
+                    win.style.left = `${Math.max(0, Math.min(initLeft + dx, window.innerWidth - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(initBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right = "";
                     win.style.top = "";
                 }, () => {
@@ -34634,7 +34635,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 112; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 113; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34656,7 +34657,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
                 "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
                 "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
-                "Fix: beep/group window drag no longer snaps at scale != 1. Root cause: CSS zoom (used in the previous attempt) distorts event clientX/Y for mousedown events inside a zoomed element in Chrome (divides by zoom factor), and also makes getBoundingClientRect.bottom wrong relative to the layout bottom anchor. Fix: switched beep/group windows from CSS zoom to transform:scale with transform-origin:bottom-left (beep) and top-left (group), so event coords are always true viewport coords and the rect anchors match the layout anchors.",
+                "Fix: beep window drag no longer snaps at scale != 1. Root cause: CSS zoom distorts event clientX/Y inside a zoomed element (Chrome divides by zoom factor). getBoundingClientRect also has ambiguous values for scaled elements depending on the transform origin, making offset-based drag calculations brittle. Fix: switched beep/group windows from CSS zoom to transform:scale (event coords are always true viewport coords). Drag now uses getComputedStyle to read the initial layout-space left/bottom (resolving right:X correctly and never affected by transforms), then tracks a simple clientX/Y delta from the mousedown position.",
             ],
         },
         {
