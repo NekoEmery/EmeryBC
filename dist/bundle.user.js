@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.6
+// @version      8.2.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -320,8 +320,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }, 300);
     }
+    let _roomSearchCb = null;
+    function setRoomSearchCallback(cb) { _roomSearchCb = cb; }
     function fireRoomSearchResult(list) {
-        return;
+        const cb = _roomSearchCb;
+        if (!cb)
+            return;
+        _roomSearchCb = null; // auto-clear (one-shot)
+        try {
+            cb(list);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // ---------------------------------------------------------------------------
     let _currentRoomName = "";
@@ -8265,6 +8274,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     100% { background-position: 0% 50%; }
 }
 
+@keyframes ebc-hq-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+}
+
 /* Toast notification */
 .ebc-toast {
     position: fixed;
@@ -11713,6 +11727,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._irlPendingOut = new Map();
             this._irlGrantedTo = new Map();
             this._irlIncoming = null;
+            this._hqLiveEl = null;
+            this._hqScanTimer = null;
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -11950,6 +11966,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (e.target.closest("button, select, input, a"))
                     return;
                 e.preventDefault();
+                // CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired
+                // on elements inside it (Chromium behaviour), but document-level mousemove
+                // events are not affected. Correct the mousedown origin by the zoom factor
+                // so both coordinates are in the same viewport space, preventing a snap.
+                const zoom = loadPanelZoom();
+                const startX = start.clientX * zoom;
+                const startY = start.clientY * zoom;
                 const panelEl = slideContainer;
                 const startRect = panelEl.getBoundingClientRect();
                 let inFreeMode = this.panelPosition !== null;
@@ -11957,8 +11980,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 let startPanelY = inFreeMode ? this.panelPosition.y : startRect.top;
                 let hasDragged = false;
                 addPointerTracking((pos) => {
-                    const dx = pos.clientX - start.clientX;
-                    const dy = pos.clientY - start.clientY;
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
                     if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
                         return;
                     if (!hasDragged) {
@@ -12597,8 +12620,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.footerFbLbl = fbLbl;
             fbBtn.appendChild(fbLbl);
             fbBtn.addEventListener("click", () => this._openFeedbackModal());
+            const hqLiveEl = document.createElement("span");
+            hqLiveEl.style.cssText = "display:none;color:#40ff80;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;cursor:pointer;white-space:nowrap;padding:2px 6px;border-radius:4px;border:1px solid #1a6630;background:#0a2010;animation:ebc-hq-pulse 1.4s ease-in-out infinite;align-self:center;";
+            hqLiveEl.textContent = "● Live support";
+            hqLiveEl.title = "EBC HQ support room is open - click to join";
+            hqLiveEl.addEventListener("click", () => {
+                showConfirmOverlay("EmeryBC (EBC) HQ is live!\n\nJoin the room to chat with Emery or get help with the addon.", "Later", "Join room", () => { try {
+                    ServerSend("ChatRoomJoin", { Name: "EmeryBC (EBC) HQ", Invite: "" });
+                }
+                catch ( /* ignore */_a) { /* ignore */ } });
+            });
+            this._hqLiveEl = hqLiveEl;
+            this._startHQScanner();
             footerBtnRow.appendChild(tutorialBtn);
             footerBtnRow.appendChild(fbBtn);
+            footerBtnRow.appendChild(hqLiveEl);
             const footerVerEl = document.createElement("span");
             footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
             footerVerEl.style.cssText = "font-size:11px;color:#7a5a6a;";
@@ -25420,12 +25456,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             sidebarRow.appendChild(sidebarLbl);
             sidebarRow.appendChild(sidebarToggle);
             body.appendChild(sidebarRow);
-            // ── Explain EBC whisper (credited users only) ─────────────────────────
-            if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
-                const EBC_EXPLAIN_MSG = "🐾 Hey! So you asked about EBC - it's a custom Bondage Club addon I use. " +
-                    "Think of it as a control panel: instant outfit saves & scheduling, one-click emotes & actions, " +
-                    "Lovense sync that actually works with chastity belts and plugs, curse tools that lock items so " +
-                    "they literally can't be removed while the addon's loaded, pose presets, and a bunch of other stuff. " +
+            // ── Explain EBC (Emery only) ──────────────────────────────────────────────
+            if (Player.MemberNumber === EMERY_MEMBER) {
+                const EBC_EXPLAIN_MSG = "Hey~ So you asked about EBC - it's a custom Bondage Club addon I use called EmeryBC. " +
+                    "It adds outfit saves & quick-swap, one-click emotes and actions, timers, " +
+                    "and a bunch of extra tools that make BC more fun to use. " +
                     "It's private and not publicly available - but now you know it exists~ ✨";
                 const explainWrap = document.createElement("div");
                 explainWrap.style.cssText = "padding:5px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
@@ -25453,14 +25488,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 };
                 refreshExplainSel();
-                const explainBtn = document.createElement("button");
-                explainBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
-                explainBtn.textContent = "✉ Whisper";
-                explainBtn.addEventListener("mouseenter", () => { explainBtn.style.background = "#4a0e30"; explainBtn.style.borderColor = "#a04060"; });
-                explainBtn.addEventListener("mouseleave", () => { explainBtn.style.background = "#300820"; explainBtn.style.borderColor = "#7a2848"; });
+                const btnStyle = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
+                const whisperBtn = document.createElement("button");
+                whisperBtn.style.cssText = btnStyle;
+                whisperBtn.textContent = "✉ Whisper";
+                whisperBtn.addEventListener("mouseenter", () => { whisperBtn.style.background = "#4a0e30"; whisperBtn.style.borderColor = "#a04060"; });
+                whisperBtn.addEventListener("mouseleave", () => { whisperBtn.style.background = "#300820"; whisperBtn.style.borderColor = "#7a2848"; });
+                const chatBtn = document.createElement("button");
+                chatBtn.style.cssText = btnStyle;
+                chatBtn.textContent = "💬 Chat";
+                chatBtn.addEventListener("mouseenter", () => { chatBtn.style.background = "#4a0e30"; chatBtn.style.borderColor = "#a04060"; });
+                chatBtn.addEventListener("mouseleave", () => { chatBtn.style.background = "#300820"; chatBtn.style.borderColor = "#7a2848"; });
                 const explainStatus = document.createElement("div");
                 explainStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:var(--ebc-text-muted);min-height:12px;margin-top:3px;";
-                explainBtn.addEventListener("click", () => {
+                whisperBtn.addEventListener("click", () => {
                     var _a, _b;
                     const targetId = parseInt(explainSel.value, 10);
                     if (!targetId) {
@@ -25473,13 +25514,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ChatRoomSendWhisper(targetId, EBC_EXPLAIN_MSG);
                     }
                     catch ( /* ignore */_c) { /* ignore */ }
-                    appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName}.`, UI.textMuted);
-                    explainStatus.textContent = `✓ Sent to ${targetName}.`;
+                    appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName} (whisper).`, UI.textMuted);
+                    explainStatus.textContent = `✓ Whispered to ${targetName}.`;
                     window.setTimeout(() => { explainStatus.textContent = ""; explainSel.value = ""; }, 3000);
+                });
+                chatBtn.addEventListener("click", () => {
+                    try {
+                        ServerSend("ChatRoomChat", { Content: EBC_EXPLAIN_MSG, Type: "Chat" });
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    appendLocalLogLine("[EBC] 💬 Explained EBC in room chat.", UI.textMuted);
+                    explainStatus.textContent = "✓ Sent to room chat.";
+                    window.setTimeout(() => { explainStatus.textContent = ""; }, 3000);
                 });
                 explainTopRow.appendChild(explainLbl);
                 explainTopRow.appendChild(explainSel);
-                explainTopRow.appendChild(explainBtn);
+                explainTopRow.appendChild(whisperBtn);
+                explainTopRow.appendChild(chatBtn);
                 explainWrap.appendChild(explainTopRow);
                 explainWrap.appendChild(explainStatus);
                 body.appendChild(explainWrap);
@@ -32125,6 +32176,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => { if (document.body.contains(toast))
                 document.body.removeChild(toast); }, 3500);
         }
+        // ─── HQ Room Scanner - checks periodically if the EBC HQ support room is live ─
+        _startHQScanner() {
+            if (this._hqScanTimer !== null)
+                return;
+            const HQ_NAME = "EmeryBC (EBC) HQ";
+            const doScan = () => {
+                try {
+                    setRoomSearchCallback((list) => {
+                        const found = list.some(r => {
+                            var _a, _b;
+                            const name = String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "");
+                            const desc = String((_b = r["Description"]) !== null && _b !== void 0 ? _b : "").toLowerCase();
+                            return name === HQ_NAME && desc.includes("come and talk about the addon");
+                        });
+                        this._setHQLive(found);
+                    });
+                    ServerSend("ChatRoomSearch", { Name: HQ_NAME });
+                }
+                catch ( /* ignore - network not ready */_a) { /* ignore - network not ready */ }
+            };
+            window.setTimeout(doScan, 8000);
+            this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
+        }
+        _setHQLive(live) {
+            if (this._hqLiveEl)
+                this._hqLiveEl.style.display = live ? "" : "none";
+        }
         // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
         _openFeedbackModal() {
             var _a;
@@ -34432,6 +34510,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
             this.stopCrabsPoller();
             this.stopTimerPoller();
+            if (this._hqScanTimer !== null) {
+                clearInterval(this._hqScanTimer);
+                this._hqScanTimer = null;
+            }
             for (const { el } of this.beepWins.values()) {
                 try {
                     el.remove();
@@ -34519,8 +34601,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.6";
-    const SAL_VERSION = 102; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.7";
+    const SAL_VERSION = 103; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34534,6 +34616,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.7",
+            changes: [
+                "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is not 100%. Root cause: CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired on elements inside it (Chromium behaviour), but document-level mousemove events are not affected - multiplying the mousedown origin by the zoom factor corrects both to viewport space.",
+                "Buttons tab: Explain EBC tool is now Emery-only (was all credited users). Added a Chat button alongside Whisper - Whisper sends privately to the selected person, Chat broadcasts to the room. Message simplified to not mention private-only features.",
+                "Footer: shows a flashing green [Live support] badge next to Suggestions & Bugs when the EmeryBC (EBC) HQ room is open. Badge scans every 2 minutes; clicking it offers to join the room.",
+            ],
+        },
         {
             version: "8.2.6",
             changes: [

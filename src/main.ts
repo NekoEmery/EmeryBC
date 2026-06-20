@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.6";
-const SAL_VERSION  = 102;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.7";
+const SAL_VERSION  = 103;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.7",
+        changes: [
+            "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is not 100%. Root cause: CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired on elements inside it (Chromium behaviour), but document-level mousemove events are not affected - multiplying the mousedown origin by the zoom factor corrects both to viewport space.",
+            "Buttons tab: Explain EBC tool is now Emery-only (was all credited users). Added a Chat button alongside Whisper - Whisper sends privately to the selected person, Chat broadcasts to the room. Message simplified to not mention private-only features.",
+            "Footer: shows a flashing green [Live support] badge next to Suggestions & Bugs when the EmeryBC (EBC) HQ room is open. Badge scans every 2 minutes; clicking it offers to join the room.",
+        ],
+    },
     {
         version: "8.2.6",
         changes: [

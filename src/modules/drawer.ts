@@ -100,7 +100,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, setRoomSearchCallback } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -545,6 +545,11 @@ const CSS = `
     0%   { background-position: 0% 50%; }
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+}
+
+@keyframes ebc-hq-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
 }
 
 /* Toast notification */
@@ -4054,6 +4059,8 @@ export class EBCDrawer {
     private _irlPendingOut    = new Map<number, { name: string }>();
     private _irlGrantedTo     = new Map<number, { name: string }>();
     private _irlIncoming: { memberNumber: number; name: string } | null = null;
+    private _hqLiveEl: HTMLElement | null = null;
+    private _hqScanTimer: ReturnType<typeof setInterval> | null = null;
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
@@ -4356,6 +4363,14 @@ export class EBCDrawer {
             if ((e.target as HTMLElement).closest("button, select, input, a")) return;
             e.preventDefault();
 
+            // CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired
+            // on elements inside it (Chromium behaviour), but document-level mousemove
+            // events are not affected. Correct the mousedown origin by the zoom factor
+            // so both coordinates are in the same viewport space, preventing a snap.
+            const zoom = loadPanelZoom();
+            const startX = start.clientX * zoom;
+            const startY = start.clientY * zoom;
+
             const panelEl = slideContainer;
             const startRect = panelEl.getBoundingClientRect();
             let inFreeMode = this.panelPosition !== null;
@@ -4365,8 +4380,8 @@ export class EBCDrawer {
 
             addPointerTracking(
                 (pos) => {
-                    const dx = pos.clientX - start.clientX;
-                    const dy = pos.clientY - start.clientY;
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
                     if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
                     if (!hasDragged) {
                         hasDragged = true;
@@ -5071,8 +5086,23 @@ export class EBCDrawer {
         fbBtn.appendChild(fbLbl);
         fbBtn.addEventListener("click", () => this._openFeedbackModal());
 
+        const hqLiveEl = document.createElement("span");
+        hqLiveEl.style.cssText = "display:none;color:#40ff80;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;cursor:pointer;white-space:nowrap;padding:2px 6px;border-radius:4px;border:1px solid #1a6630;background:#0a2010;animation:ebc-hq-pulse 1.4s ease-in-out infinite;align-self:center;";
+        hqLiveEl.textContent = "● Live support";
+        hqLiveEl.title = "EBC HQ support room is open - click to join";
+        hqLiveEl.addEventListener("click", () => {
+            showConfirmOverlay(
+                "EmeryBC (EBC) HQ is live!\n\nJoin the room to chat with Emery or get help with the addon.",
+                "Later", "Join room",
+                () => { try { ServerSend("ChatRoomJoin", { Name: "EmeryBC (EBC) HQ", Invite: "" }); } catch { /* ignore */ } },
+            );
+        });
+        this._hqLiveEl = hqLiveEl;
+        this._startHQScanner();
+
         footerBtnRow.appendChild(tutorialBtn);
         footerBtnRow.appendChild(fbBtn);
+        footerBtnRow.appendChild(hqLiveEl);
 
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
@@ -17981,13 +18011,12 @@ export class EBCDrawer {
         sidebarRow.appendChild(sidebarToggle);
         body.appendChild(sidebarRow);
 
-        // ── Explain EBC whisper (credited users only) ─────────────────────────
-        if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
+        // ── Explain EBC (Emery only) ──────────────────────────────────────────────
+        if (Player.MemberNumber === EMERY_MEMBER) {
             const EBC_EXPLAIN_MSG =
-                "🐾 Hey! So you asked about EBC - it's a custom Bondage Club addon I use. " +
-                "Think of it as a control panel: instant outfit saves & scheduling, one-click emotes & actions, " +
-                "Lovense sync that actually works with chastity belts and plugs, curse tools that lock items so " +
-                "they literally can't be removed while the addon's loaded, pose presets, and a bunch of other stuff. " +
+                "Hey~ So you asked about EBC - it's a custom Bondage Club addon I use called EmeryBC. " +
+                "It adds outfit saves & quick-swap, one-click emotes and actions, timers, " +
+                "and a bunch of extra tools that make BC more fun to use. " +
                 "It's private and not publicly available - but now you know it exists~ ✨";
 
             const explainWrap = document.createElement("div");
@@ -18016,16 +18045,24 @@ export class EBCDrawer {
             };
             refreshExplainSel();
 
-            const explainBtn = document.createElement("button");
-            explainBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
-            explainBtn.textContent = "✉ Whisper";
-            explainBtn.addEventListener("mouseenter", () => { explainBtn.style.background = "#4a0e30"; explainBtn.style.borderColor = "#a04060"; });
-            explainBtn.addEventListener("mouseleave", () => { explainBtn.style.background = "#300820"; explainBtn.style.borderColor = "#7a2848"; });
+            const btnStyle = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
+
+            const whisperBtn = document.createElement("button");
+            whisperBtn.style.cssText = btnStyle;
+            whisperBtn.textContent = "✉ Whisper";
+            whisperBtn.addEventListener("mouseenter", () => { whisperBtn.style.background = "#4a0e30"; whisperBtn.style.borderColor = "#a04060"; });
+            whisperBtn.addEventListener("mouseleave", () => { whisperBtn.style.background = "#300820"; whisperBtn.style.borderColor = "#7a2848"; });
+
+            const chatBtn = document.createElement("button");
+            chatBtn.style.cssText = btnStyle;
+            chatBtn.textContent = "💬 Chat";
+            chatBtn.addEventListener("mouseenter", () => { chatBtn.style.background = "#4a0e30"; chatBtn.style.borderColor = "#a04060"; });
+            chatBtn.addEventListener("mouseleave", () => { chatBtn.style.background = "#300820"; chatBtn.style.borderColor = "#7a2848"; });
 
             const explainStatus = document.createElement("div");
             explainStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:var(--ebc-text-muted);min-height:12px;margin-top:3px;";
 
-            explainBtn.addEventListener("click", () => {
+            whisperBtn.addEventListener("click", () => {
                 const targetId = parseInt(explainSel.value, 10);
                 if (!targetId) {
                     explainStatus.textContent = "Pick someone first.";
@@ -18034,14 +18071,22 @@ export class EBCDrawer {
                 }
                 const targetName = getRoomMembers().find(m => m.id === targetId)?.name ?? `#${targetId}`;
                 try { (ChatRoomSendWhisper as unknown as (t: number, m: string) => void)(targetId, EBC_EXPLAIN_MSG); } catch { /* ignore */ }
-                appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName}.`, UI.textMuted);
-                explainStatus.textContent = `✓ Sent to ${targetName}.`;
+                appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName} (whisper).`, UI.textMuted);
+                explainStatus.textContent = `✓ Whispered to ${targetName}.`;
                 window.setTimeout(() => { explainStatus.textContent = ""; explainSel.value = ""; }, 3000);
+            });
+
+            chatBtn.addEventListener("click", () => {
+                try { ServerSend("ChatRoomChat", { Content: EBC_EXPLAIN_MSG, Type: "Chat" }); } catch { /* ignore */ }
+                appendLocalLogLine("[EBC] 💬 Explained EBC in room chat.", UI.textMuted);
+                explainStatus.textContent = "✓ Sent to room chat.";
+                window.setTimeout(() => { explainStatus.textContent = ""; }, 3000);
             });
 
             explainTopRow.appendChild(explainLbl);
             explainTopRow.appendChild(explainSel);
-            explainTopRow.appendChild(explainBtn);
+            explainTopRow.appendChild(whisperBtn);
+            explainTopRow.appendChild(chatBtn);
             explainWrap.appendChild(explainTopRow);
             explainWrap.appendChild(explainStatus);
             body.appendChild(explainWrap);
@@ -23751,6 +23796,31 @@ export class EBCDrawer {
         window.setTimeout(() => { if (document.body.contains(toast)) document.body.removeChild(toast); }, 3500);
     }
 
+    // ─── HQ Room Scanner - checks periodically if the EBC HQ support room is live ─
+    private _startHQScanner(): void {
+        if (this._hqScanTimer !== null) return;
+        const HQ_NAME = "EmeryBC (EBC) HQ";
+        const doScan = (): void => {
+            try {
+                setRoomSearchCallback((list) => {
+                    const found = list.some(r => {
+                        const name = String(r["Name"] ?? "");
+                        const desc = String(r["Description"] ?? "").toLowerCase();
+                        return name === HQ_NAME && desc.includes("come and talk about the addon");
+                    });
+                    this._setHQLive(found);
+                });
+                ServerSend("ChatRoomSearch", { Name: HQ_NAME });
+            } catch { /* ignore - network not ready */ }
+        };
+        window.setTimeout(doScan, 8000);
+        this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
+    }
+
+    private _setHQLive(live: boolean): void {
+        if (this._hqLiveEl) this._hqLiveEl.style.display = live ? "" : "none";
+    }
+
     // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
     private _openFeedbackModal(): void {
         // Don't stack copies if it's already open
@@ -26016,6 +26086,7 @@ export class EBCDrawer {
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
         this.stopTimerPoller();
+        if (this._hqScanTimer !== null) { clearInterval(this._hqScanTimer); this._hqScanTimer = null; }
         for (const { el } of this.beepWins.values()) { try { el.remove(); } catch { /* ignore */ } }
         this.beepWins.clear();
         this.rootEl?.remove();
