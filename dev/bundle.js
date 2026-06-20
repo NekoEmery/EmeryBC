@@ -20099,8 +20099,12 @@
                 replyBar.style.display = "none";
             };
             const setReply = (text) => {
-                replyText = text;
-                replyBarSpan.textContent = text;
+                // Only keep the first line of the quoted text. If the quoted message
+                // is multi-line, the raw stored format is "> quote\nreply". The parser
+                // splits on the FIRST \n only, so any extra newlines in the quote would
+                // bleed into the reply body and render as part of the reply's own text.
+                replyText = text.split("\n")[0].slice(0, 80);
+                replyBarSpan.textContent = replyText;
                 replyBar.style.display = "flex";
                 input.focus();
             };
@@ -34647,7 +34651,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 118; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 119; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34676,6 +34680,7 @@
                 "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
                 "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
                 "Fix: Live support badge no longer disappears while EBC HQ is still open. Root cause: once() per scan consumed any ChatRoomSearchResult event - if BC's own room search UI or another addon fired one first, our once fired with the wrong data (no HQ room found) and hid the badge. Fix: single permanent on() listener registered on first scan, guarded by a 10 s timestamp window so only results from our own ServerSend are trusted.",
+                "Fix: replying to a multi-line message no longer bleeds extra lines into the reply body. Root cause: setReply stored the full multi-line quoted text; the parser splits on the first newline only, so subsequent lines of the quote appeared as part of the reply's own message. Fix: setReply now only keeps the first line of the quoted text.",
             ],
         },
         {
