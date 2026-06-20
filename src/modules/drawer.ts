@@ -12712,23 +12712,24 @@ export class EBCDrawer {
             if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
                 || e.target === roomInviteBtn) return;
             e.preventDefault();
-            // transform:scale (applied in applyPanelZoom) does not distort event
-            // clientX/Y, so start.clientX is in true viewport coordinates.
-            // transform-origin:bottom left keeps rect.left = layout left and
-            // rect.bottom = layout bottom (the two anchored corners), so the
-            // offset math below is correct at any scale.
-            const rect = win.getBoundingClientRect();
-            const ox          = start.clientX - rect.left;
-            const vh          = window.innerHeight;
-            const oyFromBottom = rect.bottom   - start.clientY;
+            // getComputedStyle resolves right:X into an equivalent left px value and
+            // always returns layout-space coordinates - never affected by transforms.
+            // Tracking delta from start.clientX/Y (viewport coords with transform:scale)
+            // avoids any dependency on getBoundingClientRect, which has ambiguous
+            // behaviour for scaled elements depending on the transform origin.
+            const cs        = window.getComputedStyle(win);
+            const initLeft   = parseFloat(cs.left)   || 0;
+            const initBottom = parseFloat(cs.bottom) || 80;
+            const startX = start.clientX;
+            const startY = start.clientY;
             addPointerTracking(
                 (pos) => {
-                    const rawL = pos.clientX - ox;
-                    const rawB = vh - pos.clientY - oyFromBottom;
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
                     const winW = win.offsetWidth  || 300;
                     const winH = win.offsetHeight || 380;
-                    win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
+                    win.style.left   = `${Math.max(0, Math.min(initLeft   + dx, window.innerWidth  - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(initBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },
