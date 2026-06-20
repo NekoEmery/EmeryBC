@@ -12692,24 +12692,38 @@ export class EBCDrawer {
         // Make header draggable - anchored by bottom so expanding grows upward.
         // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
-        addPointerDown(header, (start, e) => {
+        addPointerDown(header, (_start, e) => {
             if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
                 || e.target === roomInviteBtn) return;
             e.preventDefault();
-            const rect = win.getBoundingClientRect();
-            const ox = start.clientX - rect.left;
+            // Anchor from the first document-level move event, not from mousedown.
+            // Chrome scales clientX/Y for mousedown events fired on children of a
+            // CSS-zoomed element (divides by zoom factor), making ox/oyFromBottom
+            // wrong at scale != 1 and causing a snap on first move. Document-level
+            // events are always in true viewport coordinates regardless of any zoom.
             const vh = window.innerHeight;
-            const oyFromBottom = rect.bottom - start.clientY;
+            let anchorX: number | null = null;
+            let anchorY: number | null = null;
+            let startLeft   = 0;
+            let startBottom = 0;
             addPointerTracking(
                 (pos) => {
-                    const rawL  = pos.clientX - ox;
-                    const rawB  = vh - pos.clientY - oyFromBottom;
-                    // Clamp so the full window stays within the viewport (use winH, not hdrH -
-                    // using hdrH let the window be dragged almost entirely off the top edge).
-                    const winW  = win.offsetWidth  || 300;
-                    const winH  = win.offsetHeight || 380;
-                    win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
+                    if (anchorX === null) {
+                        anchorX = pos.clientX;
+                        anchorY = pos.clientY;
+                        const rect = win.getBoundingClientRect();
+                        const zoom = parseFloat(win.style.zoom) || 1;
+                        // rect.left = visual left = layout left (CSS zoom anchors from top-left)
+                        startLeft   = rect.left;
+                        // rect.height = layout height x zoom; divide to get layout height
+                        startBottom = vh - rect.top - rect.height / zoom;
+                    }
+                    const dx =  pos.clientX - anchorX!;
+                    const dy =  pos.clientY - anchorY!;
+                    const winW = win.offsetWidth  || 300;
+                    const winH = win.offsetHeight || 380;
+                    win.style.left   = `${Math.max(0, Math.min(startLeft   + dx, window.innerWidth  - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(startBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },

@@ -20047,24 +20047,38 @@
             // Make header draggable - anchored by bottom so expanding grows upward.
             // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
-            addPointerDown(header, (start, e) => {
+            addPointerDown(header, (_start, e) => {
                 if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
                     || e.target === roomInviteBtn)
                     return;
                 e.preventDefault();
-                const rect = win.getBoundingClientRect();
-                const ox = start.clientX - rect.left;
+                // Anchor from the first document-level move event, not from mousedown.
+                // Chrome scales clientX/Y for mousedown events fired on children of a
+                // CSS-zoomed element (divides by zoom factor), making ox/oyFromBottom
+                // wrong at scale != 1 and causing a snap on first move. Document-level
+                // events are always in true viewport coordinates regardless of any zoom.
                 const vh = window.innerHeight;
-                const oyFromBottom = rect.bottom - start.clientY;
+                let anchorX = null;
+                let anchorY = null;
+                let startLeft = 0;
+                let startBottom = 0;
                 addPointerTracking((pos) => {
-                    const rawL = pos.clientX - ox;
-                    const rawB = vh - pos.clientY - oyFromBottom;
-                    // Clamp so the full window stays within the viewport (use winH, not hdrH -
-                    // using hdrH let the window be dragged almost entirely off the top edge).
+                    if (anchorX === null) {
+                        anchorX = pos.clientX;
+                        anchorY = pos.clientY;
+                        const rect = win.getBoundingClientRect();
+                        const zoom = parseFloat(win.style.zoom) || 1;
+                        // rect.left = visual left = layout left (CSS zoom anchors from top-left)
+                        startLeft = rect.left;
+                        // rect.height = layout height x zoom; divide to get layout height
+                        startBottom = vh - rect.top - rect.height / zoom;
+                    }
+                    const dx = pos.clientX - anchorX;
+                    const dy = pos.clientY - anchorY;
                     const winW = win.offsetWidth || 300;
                     const winH = win.offsetHeight || 380;
-                    win.style.left = `${Math.max(0, Math.min(rawL, window.innerWidth - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
+                    win.style.left = `${Math.max(0, Math.min(startLeft + dx, window.innerWidth - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(startBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right = "";
                     win.style.top = "";
                 }, () => {
@@ -34581,7 +34595,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 109; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 110; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34601,6 +34615,7 @@
                 "Fix: text size scaling above 100% no longer shows dead space at the bottom of the panel. Root cause: Chrome's flex algorithm does not account for CSS zoom when computing a flex child's main-axis contribution - at scale>1 the zoom wrapper's layout size was under 100% of the panel height, leaving visible dark space. Fix: switched from CSS zoom to transform:scale on the zoom wrapper. transform changes only the visual rendering and does not affect layout, so flex always sees the raw inv% size and the visual exactly fills the panel.",
                 "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
                 "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
+                "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
             ],
         },
         {
