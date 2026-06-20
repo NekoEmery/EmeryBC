@@ -13893,19 +13893,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const wrapper = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-zoom-wrapper");
             if (!wrapper)
                 return;
+            wrapper.style.transform = "";
             if (scale === 1) {
                 wrapper.style.zoom = "";
-                wrapper.style.transform = ""; // clear any stale transform from before this fix
                 wrapper.style.width = "100%";
                 wrapper.style.height = "100%";
             }
-            else {
-                // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
+            else if (scale > 1) {
+                // Scale up: shrink wrapper so zoomed content fills the panel exactly (inv% × zoom = 100%).
                 const inv = (100 / scale).toFixed(4) + "%";
                 wrapper.style.zoom = String(scale);
-                wrapper.style.transform = "";
                 wrapper.style.width = inv;
                 wrapper.style.height = inv;
+            }
+            else {
+                // Scale down: keep wrapper at 100% so the flex layout stays stable.
+                // inv% would exceed 100% here, making children overflow the panel and break layout.
+                // Scaled content is simply smaller; empty space shows at the edges, which is fine.
+                wrapper.style.zoom = String(scale);
+                wrapper.style.width = "100%";
+                wrapper.style.height = "100%";
             }
             // Apply matching zoom to any open beep/group windows.
             const zoomStr = scale === 1 ? "" : String(scale);
@@ -34513,7 +34520,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.6";
-    const SAL_VERSION = 101; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 102; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34536,6 +34543,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: Action buttons sidebar (emote side menu) now defaults to OFF on accounts where it has not been explicitly enabled - previously it defaulted to ON on every new/alt account.",
                 "Renamed footer button and modal title from 'Suggestions' to 'Suggestions & Bugs'.",
                 "Buttons tab: added 'Explain EBC to' whisper tool visible to all credited users (VIP_MEMBERS) - pick a room member from the dropdown and send them a one-click whisper describing the addon.",
+                "Fix: text size slider no longer breaks the panel layout when scaling below 100%. Root cause: inverse sizing (100/scale %) exceeded 100% at scale < 1, making the zoom wrapper wider/taller than the panel and causing flex children to overflow. Scale-down now keeps the wrapper at 100% and lets the zoomed content be smaller.",
             ],
         },
         {

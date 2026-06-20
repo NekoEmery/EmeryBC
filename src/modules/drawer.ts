@@ -6382,18 +6382,24 @@ export class EBCDrawer {
     applyPanelZoom(scale = loadPanelZoom()): void {
         const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
         if (!wrapper) return;
+        wrapper.style.transform = "";
         if (scale === 1) {
-            wrapper.style.zoom      = "";
-            wrapper.style.transform = ""; // clear any stale transform from before this fix
-            wrapper.style.width     = "100%";
-            wrapper.style.height    = "100%";
-        } else {
-            // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
+            wrapper.style.zoom   = "";
+            wrapper.style.width  = "100%";
+            wrapper.style.height = "100%";
+        } else if (scale > 1) {
+            // Scale up: shrink wrapper so zoomed content fills the panel exactly (inv% × zoom = 100%).
             const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.zoom      = String(scale);
-            wrapper.style.transform = "";
-            wrapper.style.width     = inv;
-            wrapper.style.height    = inv;
+            wrapper.style.zoom   = String(scale);
+            wrapper.style.width  = inv;
+            wrapper.style.height = inv;
+        } else {
+            // Scale down: keep wrapper at 100% so the flex layout stays stable.
+            // inv% would exceed 100% here, making children overflow the panel and break layout.
+            // Scaled content is simply smaller; empty space shows at the edges, which is fine.
+            wrapper.style.zoom   = String(scale);
+            wrapper.style.width  = "100%";
+            wrapper.style.height = "100%";
         }
         // Apply matching zoom to any open beep/group windows.
         const zoomStr = scale === 1 ? "" : String(scale);
