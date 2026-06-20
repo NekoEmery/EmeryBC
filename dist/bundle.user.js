@@ -32198,25 +32198,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const HQ_NAME = "EmeryBC (EBC) HQ";
             const doScan = () => {
                 try {
-                    // Primary path: socket.io listener in main.ts fires fireRoomSearchResult
-                    // which calls this callback. Name-only match - description varies.
+                    // BC R128 changed the search payload from { Name } to { Query, Language }.
+                    // Sending the correct Query field is required - the server ignores Name.
+                    // The socket.io listener in main.ts intercepts ChatRoomSearchResult and
+                    // calls fireRoomSearchResult, which fires this one-shot callback.
                     setRoomSearchCallback((list) => {
                         const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
                         this._setHQLive(found);
                     });
-                    ServerSend("ChatRoomSearch", { Name: HQ_NAME });
-                    // Fallback: poll window.ChatRoomList 2s after the search (BC always
-                    // populates this when the server responds, even if the hook misses it).
-                    window.setTimeout(() => {
-                        try {
-                            const raw = window.ChatRoomList;
-                            if (!Array.isArray(raw))
-                                return;
-                            const found = raw.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
-                            this._setHQLive(found);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    }, 2000);
+                    ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
                 }
                 catch ( /* ignore - network not ready */_a) { /* ignore - network not ready */ }
             };
@@ -34626,7 +34616,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 108; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 109; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34645,6 +34635,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             changes: [
                 "Fix: text size scaling above 100% no longer shows dead space at the bottom of the panel. Root cause: Chrome's flex algorithm does not account for CSS zoom when computing a flex child's main-axis contribution - at scale>1 the zoom wrapper's layout size was under 100% of the panel height, leaving visible dark space. Fix: switched from CSS zoom to transform:scale on the zoom wrapper. transform changes only the visual rendering and does not affect layout, so flex always sees the raw inv% size and the visual exactly fills the panel.",
                 "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
+                "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
             ],
         },
         {

@@ -23815,25 +23815,15 @@ export class EBCDrawer {
         const HQ_NAME = "EmeryBC (EBC) HQ";
         const doScan = (): void => {
             try {
-                // Primary path: socket.io listener in main.ts fires fireRoomSearchResult
-                // which calls this callback. Name-only match - description varies.
+                // BC R128 changed the search payload from { Name } to { Query, Language }.
+                // Sending the correct Query field is required - the server ignores Name.
+                // The socket.io listener in main.ts intercepts ChatRoomSearchResult and
+                // calls fireRoomSearchResult, which fires this one-shot callback.
                 setRoomSearchCallback((list) => {
                     const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
                     this._setHQLive(found);
                 });
-                ServerSend("ChatRoomSearch", { Name: HQ_NAME });
-                // Fallback: poll window.ChatRoomList 2s after the search (BC always
-                // populates this when the server responds, even if the hook misses it).
-                window.setTimeout(() => {
-                    try {
-                        const raw = (window as unknown as Record<string, unknown>).ChatRoomList;
-                        if (!Array.isArray(raw)) return;
-                        const found = (raw as Array<Record<string, unknown>>).some(
-                            r => String(r["Name"] ?? "").trim() === HQ_NAME,
-                        );
-                        this._setHQLive(found);
-                    } catch { /* ignore */ }
-                }, 2000);
+                ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
             } catch { /* ignore - network not ready */ }
         };
         window.setTimeout(doScan, 8000);

@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 108;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 109;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "Fix: text size scaling above 100% no longer shows dead space at the bottom of the panel. Root cause: Chrome's flex algorithm does not account for CSS zoom when computing a flex child's main-axis contribution - at scale>1 the zoom wrapper's layout size was under 100% of the panel height, leaving visible dark space. Fix: switched from CSS zoom to transform:scale on the zoom wrapper. transform changes only the visual rendering and does not affect layout, so flex always sees the raw inv% size and the visual exactly fills the panel.",
             "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
+            "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
         ],
     },
     {
