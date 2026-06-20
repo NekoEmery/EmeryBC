@@ -20286,16 +20286,32 @@
                         bubble.appendChild(declineCard);
                     }
                     else {
-                        // Text content
+                        // Text content - render with clickable hyperlinks
                         const text = document.createElement("div");
                         text.style.whiteSpace = "pre-wrap";
-                        text.textContent = msgBody;
+                        const URL_SCAN = /https?:\/\/\S+/gi;
+                        let scanLast = 0;
+                        let scanM;
+                        while ((scanM = URL_SCAN.exec(msgBody)) !== null) {
+                            if (scanM.index > scanLast)
+                                text.appendChild(document.createTextNode(msgBody.slice(scanLast, scanM.index)));
+                            const a = document.createElement("a");
+                            a.href = scanM[0];
+                            a.textContent = scanM[0];
+                            a.target = "_blank";
+                            a.rel = "noopener noreferrer";
+                            a.style.cssText = "color:#cf6f98;word-break:break-all;";
+                            text.appendChild(a);
+                            scanLast = scanM.index + scanM[0].length;
+                        }
+                        if (scanLast < msgBody.length)
+                            text.appendChild(document.createTextNode(msgBody.slice(scanLast)));
                         bubble.appendChild(text);
-                        // Image embed - detect image URL or Imgur link in the message body
+                        // Image embed - detect image URL or Imgur direct link in the message body.
+                        // imgur.com/a/ album links are excluded - they are HTML pages, not images.
                         let imgUrl = (_d = (_c = IMAGE_RE.exec(msgBody)) === null || _c === void 0 ? void 0 : _c[0]) !== null && _d !== void 0 ? _d : null;
                         if (!imgUrl) {
                             const m = IMGUR_RE.exec(msgBody);
-                            // i.imgur.com/ID serves the raw image directly without an extension
                             if (m)
                                 imgUrl = `https://i.imgur.com/${m[1]}`;
                         }
@@ -34610,7 +34626,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 116; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 117; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34637,6 +34653,7 @@
                 "Fix: panel position is now saved correctly across restarts. Root cause: savePanelPosition wrote directly to Player.ExtensionSettings.EmeryBC.panelPos, but syncSettings() runs flushToExtensionSettings() 400 ms later which overwrites it with _mem.panelPos (still null from the server). Fix: route panelPos through getSettings()/_mem so flushToExtensionSettings picks it up correctly.",
                 "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
                 "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
+                "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
             ],
         },
         {
