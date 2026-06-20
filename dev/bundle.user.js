@@ -32234,26 +32234,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (this._hqScanTimer !== null)
                 return;
             const HQ_NAME = "EmeryBC (EBC) HQ";
+            // Timestamp (ms) of the last search we sent; 0 = no scan in flight.
+            // Used to guard against stale ChatRoomSearchResult events from BC's own
+            // room search UI or other addons: we only trust results arriving within
+            // 10 s of our own ServerSend. Using once() per scan was fragile - any
+            // intervening ChatRoomSearchResult consumed the listener with wrong data.
+            let scanSentAt = 0;
+            let listenerReady = false;
+            const ensureListener = () => {
+                if (listenerReady)
+                    return true;
+                const sock = window.ServerSocket;
+                if (!(sock === null || sock === void 0 ? void 0 : sock.on))
+                    return false;
+                sock.on("ChatRoomSearchResult", (data) => {
+                    if (scanSentAt === 0)
+                        return;
+                    if (Date.now() - scanSentAt > 10000) {
+                        scanSentAt = 0;
+                        return;
+                    }
+                    scanSentAt = 0;
+                    try {
+                        const list = Array.isArray(data) ? data : [];
+                        const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
+                        this._setHQLive(found);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                listenerReady = true;
+                return true;
+            };
             const doScan = () => {
                 try {
-                    // ServerSocket is assigned by BC's ServerInit() on window.load - well
-                    // before doScan fires (8 s after drawer init). Use once() directly here
-                    // so we don't depend on the main.ts relay, which runs before window.load
-                    // and sees ServerSocket == null (listener silently never registers).
-                    const sock = window.ServerSocket;
-                    if (!(sock === null || sock === void 0 ? void 0 : sock.once))
+                    if (!ensureListener())
                         return;
-                    sock.once("ChatRoomSearchResult", (data) => {
-                        try {
-                            const list = Array.isArray(data) ? data : [];
-                            const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
-                            this._setHQLive(found);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    });
+                    scanSentAt = Date.now();
                     ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
                 }
-                catch ( /* ignore - network not ready */_a) { /* ignore - network not ready */ }
+                catch (_a) {
+                    scanSentAt = 0;
+                }
             };
             window.setTimeout(doScan, 8000);
             this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
@@ -34661,7 +34682,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 117; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 118; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34689,6 +34710,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
                 "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
                 "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
+                "Fix: Live support badge no longer disappears while EBC HQ is still open. Root cause: once() per scan consumed any ChatRoomSearchResult event - if BC's own room search UI or another addon fired one first, our once fired with the wrong data (no HQ room found) and hid the badge. Fix: single permanent on() listener registered on first scan, guarded by a 10 s timestamp window so only results from our own ServerSend are trusted.",
             ],
         },
         {
