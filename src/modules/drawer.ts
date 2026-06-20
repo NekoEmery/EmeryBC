@@ -100,7 +100,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, setRoomSearchCallback } from "./bcUtils";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -23838,13 +23838,19 @@ export class EBCDrawer {
         const HQ_NAME = "EmeryBC (EBC) HQ";
         const doScan = (): void => {
             try {
-                // BC R128 changed the search payload from { Name } to { Query, Language }.
-                // Sending the correct Query field is required - the server ignores Name.
-                // The socket.io listener in main.ts intercepts ChatRoomSearchResult and
-                // calls fireRoomSearchResult, which fires this one-shot callback.
-                setRoomSearchCallback((list) => {
-                    const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
-                    this._setHQLive(found);
+                // ServerSocket is assigned by BC's ServerInit() on window.load - well
+                // before doScan fires (8 s after drawer init). Use once() directly here
+                // so we don't depend on the main.ts relay, which runs before window.load
+                // and sees ServerSocket == null (listener silently never registers).
+                const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                    { once?(e: string, h: (data: unknown) => void): void } | undefined;
+                if (!sock?.once) return;
+                sock.once("ChatRoomSearchResult", (data: unknown) => {
+                    try {
+                        const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+                        const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
+                        this._setHQLive(found);
+                    } catch { /* ignore */ }
                 });
                 ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
             } catch { /* ignore - network not ready */ }

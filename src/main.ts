@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 113;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 114;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +51,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
             "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
             "Fix: beep window drag no longer snaps at scale != 1. Root cause: CSS zoom distorts event clientX/Y inside a zoomed element (Chrome divides by zoom factor). getBoundingClientRect also has ambiguous values for scaled elements depending on the transform origin, making offset-based drag calculations brittle. Fix: switched beep/group windows from CSS zoom to transform:scale (event coords are always true viewport coords). Drag now uses getComputedStyle to read the initial layout-space left/bottom (resolving right:X correctly and never affected by transforms), then tracks a simple clientX/Y delta from the mousedown position.",
+            "Fix: Live support badge now actually appears when the EBC HQ room is open. Root cause: EBC initializes before BC fires window.load, so window.ServerSocket is still null when the ChatRoomSearchResult relay listener was registered - the call was a silent no-op and results never reached the HQ scanner. Fix: the HQ scanner now registers its own ServerSocket.once() listener directly inside doScan (runs 8 s after drawer init, well after window.load), and the shared relay in main.ts retries every 2 s until ServerSocket is non-null.",
         ],
     },
     {
@@ -8050,7 +8051,7 @@ function init(): void {
 
 
     // Relay ChatRoomSearchResult to the bcUtils callback so drawer.ts can
-    // use it for room info chips and the HQ live badge scanner.
+    // use it for room info chips.
     // Primary: modAPI hook (works if BC exposes ChatRoomSearchResult as a global;
     // silently no-ops in BC R128 where the function is module-scoped).
     tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
@@ -8060,19 +8061,25 @@ function init(): void {
         } catch { /* ignore */ }
         return next(args);
     });
-    // Reliable fallback: ServerSocket is declared as a top-level `var` in BC's
-    // classic (non-module) Server.js, so it lives on window. The previous approach
-    // used window.io.managers which does not exist in socket.io v4 (v2-era API),
-    // causing the listener to silently never register.
-    try {
-        const sock = (window as unknown as Record<string, unknown>).ServerSocket as
-            { on?(e: string, h: (d: unknown) => void): void } | undefined;
-        sock?.on?.("ChatRoomSearchResult", (list: unknown) => {
-            try {
-                if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
-            } catch { /* ignore */ }
-        });
-    } catch { /* ignore */ }
+    // Fallback: ServerSocket.on(). ServerSocket is a top-level var in BC's classic
+    // Server.js (window.ServerSocket), but is null until ServerInit() runs on
+    // window.load - which fires AFTER EBC's initAddon(). Retry every 2 s until set.
+    const attachChatRoomSearchRelay = (): void => {
+        try {
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on?(e: string, h: (d: unknown) => void): void } | undefined;
+            if (sock?.on) {
+                sock.on("ChatRoomSearchResult", (list: unknown) => {
+                    try {
+                        if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
+                    } catch { /* ignore */ }
+                });
+            } else {
+                window.setTimeout(attachChatRoomSearchRelay, 2000);
+            }
+        } catch { /* ignore */ }
+    };
+    window.setTimeout(attachChatRoomSearchRelay, 2000);
 
     // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
     // button, or the "reply" arrow in the chat room beep preview).  Those calls go

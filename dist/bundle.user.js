@@ -320,17 +320,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }, 300);
     }
-    let _roomSearchCb = null;
-    function setRoomSearchCallback(cb) { _roomSearchCb = cb; }
     function fireRoomSearchResult(list) {
-        const cb = _roomSearchCb;
-        if (!cb)
-            return;
-        _roomSearchCb = null; // auto-clear (one-shot)
-        try {
-            cb(list);
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
+        return;
     }
     // ---------------------------------------------------------------------------
     let _currentRoomName = "";
@@ -32217,13 +32208,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const HQ_NAME = "EmeryBC (EBC) HQ";
             const doScan = () => {
                 try {
-                    // BC R128 changed the search payload from { Name } to { Query, Language }.
-                    // Sending the correct Query field is required - the server ignores Name.
-                    // The socket.io listener in main.ts intercepts ChatRoomSearchResult and
-                    // calls fireRoomSearchResult, which fires this one-shot callback.
-                    setRoomSearchCallback((list) => {
-                        const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
-                        this._setHQLive(found);
+                    // ServerSocket is assigned by BC's ServerInit() on window.load - well
+                    // before doScan fires (8 s after drawer init). Use once() directly here
+                    // so we don't depend on the main.ts relay, which runs before window.load
+                    // and sees ServerSocket == null (listener silently never registers).
+                    const sock = window.ServerSocket;
+                    if (!(sock === null || sock === void 0 ? void 0 : sock.once))
+                        return;
+                    sock.once("ChatRoomSearchResult", (data) => {
+                        try {
+                            const list = Array.isArray(data) ? data : [];
+                            const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
+                            this._setHQLive(found);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
                     });
                     ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
                 }
@@ -34635,7 +34633,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 113; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 114; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34658,6 +34656,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
                 "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
                 "Fix: beep window drag no longer snaps at scale != 1. Root cause: CSS zoom distorts event clientX/Y inside a zoomed element (Chrome divides by zoom factor). getBoundingClientRect also has ambiguous values for scaled elements depending on the transform origin, making offset-based drag calculations brittle. Fix: switched beep/group windows from CSS zoom to transform:scale (event coords are always true viewport coords). Drag now uses getComputedStyle to read the initial layout-space left/bottom (resolving right:X correctly and never affected by transforms), then tracks a simple clientX/Y delta from the mousedown position.",
+                "Fix: Live support badge now actually appears when the EBC HQ room is open. Root cause: EBC initializes before BC fires window.load, so window.ServerSocket is still null when the ChatRoomSearchResult relay listener was registered - the call was a silent no-op and results never reached the HQ scanner. Fix: the HQ scanner now registers its own ServerSocket.once() listener directly inside doScan (runs 8 s after drawer init, well after window.load), and the shared relay in main.ts retries every 2 s until ServerSocket is non-null.",
             ],
         },
         {
@@ -41690,7 +41689,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function init() {
         // Note: the unhandledrejection suppressor for IDB/Dexie [object Event] errors
         // is registered in db.ts at module-load time, before any IDB operations.
-        var _a;
         // Initialise compressed ExtensionSettings first — all modules read from here
         initSettings();
         const modAPI = bcModSdk.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -41701,7 +41699,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (active && active !== "Inactive")
                 lastArousalActive = active;
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
         // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
         // This is a best-effort early seed; the TextGet hook below is the definitive fix.
         try {
@@ -41711,7 +41709,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     lk.set("ResponseRoomLocked", "This room is locked.");
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         // Remove stale "EmeryBC" key from Player.OnlineSettings BEFORE PreferenceInitPlayer
         // runs its unknown-key validation.  Old EBC versions wrote settings there; BC now
         // warns about extra OnlineSettings keys and shows a /!\ indicator.  We hook the
@@ -41859,12 +41857,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             initDragListener();
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -41890,7 +41888,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 migratePeopleMetToLocal();
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             // Seed default badge settings for first-time users.
             window.setTimeout(() => { try {
                 seedDefaultBadgeSettings();
@@ -42852,7 +42850,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return next(args);
         });
         // Relay ChatRoomSearchResult to the bcUtils callback so drawer.ts can
-        // use it for room info chips and the HQ live badge scanner.
+        // use it for room info chips.
         // Primary: modAPI hook (works if BC exposes ChatRoomSearchResult as a global;
         // silently no-ops in BC R128 where the function is module-scoped).
         tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
@@ -42864,21 +42862,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
-        // Reliable fallback: ServerSocket is declared as a top-level `var` in BC's
-        // classic (non-module) Server.js, so it lives on window. The previous approach
-        // used window.io.managers which does not exist in socket.io v4 (v2-era API),
-        // causing the listener to silently never register.
-        try {
-            const sock = window.ServerSocket;
-            (_a = sock === null || sock === void 0 ? void 0 : sock.on) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResult", (list) => {
-                try {
-                    if (Array.isArray(list))
-                        fireRoomSearchResult(list);
+        // Fallback: ServerSocket.on(). ServerSocket is a top-level var in BC's classic
+        // Server.js (window.ServerSocket), but is null until ServerInit() runs on
+        // window.load - which fires AFTER EBC's initAddon(). Retry every 2 s until set.
+        const attachChatRoomSearchRelay = () => {
+            try {
+                const sock = window.ServerSocket;
+                if (sock === null || sock === void 0 ? void 0 : sock.on) {
+                    sock.on("ChatRoomSearchResult", (list) => {
+                        try {
+                            if (Array.isArray(list))
+                                fireRoomSearchResult(list);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-        }
-        catch ( /* ignore */_g) { /* ignore */ }
+                else {
+                    window.setTimeout(attachChatRoomSearchRelay, 2000);
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        };
+        window.setTimeout(attachChatRoomSearchRelay, 2000);
         // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
         // button, or the "reply" arrow in the chat room beep preview).  Those calls go
         // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
@@ -43005,7 +43010,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_h) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
         // Initial query — fire 3 s after load so the connection is settled, then every
         // 30 s to stay current. (Previously was 60 s with no initial query, so the list
         // could stay stale for a full minute if BC's own query burst got deduplicated.)
