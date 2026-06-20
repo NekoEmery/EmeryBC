@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.9";
-const SAL_VERSION  = 107;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.3.0";
+const SAL_VERSION  = 108;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.3.0",
+        changes: [
+            "Fix: text size scaling above 100% no longer shows dead space at the bottom of the panel. Root cause: Chrome's flex algorithm does not account for CSS zoom when computing a flex child's main-axis contribution - at scale>1 the zoom wrapper's layout size was under 100% of the panel height, leaving visible dark space. Fix: switched from CSS zoom to transform:scale on the zoom wrapper. transform changes only the visual rendering and does not affect layout, so flex always sees the raw inv% size and the visual exactly fills the panel.",
+            "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
+        ],
+    },
     {
         version: "8.2.9",
         changes: [

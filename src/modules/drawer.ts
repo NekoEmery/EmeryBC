@@ -6407,35 +6407,44 @@ export class EBCDrawer {
 
     /** Scale the entire EBC panel.
      *
-     * Uses CSS zoom (not transform:scale) on .ebc-zoom-wrapper so that
-     * overflow:hidden on .ebc-panel clips correctly at all zoom levels.
-     * transform:scale is applied after layout/clip, causing double-shrink at
-     * scale<1 and visual bleed at scale>1 — zoom avoids both.
+     * Uses transform:scale on .ebc-zoom-wrapper (not CSS zoom). Chrome's flex
+     * algorithm ignores CSS zoom when computing a child's main-axis contribution,
+     * so at scale>1 the zoom wrapper's layout size is under 100% of the panel
+     * height, leaving visible dead space. transform:scale changes only the
+     * visual rendering - flex always sees the raw inv% size - so the visual
+     * exactly fills the panel with no dead space. It also keeps getBoundingClientRect
+     * and pointer-event coordinates unaffected by any zoom factor, which fixes
+     * the header-drag snap at scale>1.
      *
-     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's
-     * effective layout contribution to .ebc-panel exactly 100%, so the panel
-     * never changes size and the slide transition never misfires.
+     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's visual
+     * contribution to .ebc-panel exactly 100%, so the panel never changes size
+     * and the slide transition never misfires. At scale<1 the inv% exceeds 100%,
+     * so flex-shrink:0 prevents the container from collapsing it.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
         const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
         if (!wrapper) return;
-        wrapper.style.transform = "";
         if (scale === 1) {
-            wrapper.style.zoom       = "";
-            wrapper.style.width      = "100%";
-            wrapper.style.height     = "100%";
-            wrapper.style.flexShrink = "";
+            wrapper.style.transform       = "";
+            wrapper.style.transformOrigin = "";
+            wrapper.style.zoom            = "";
+            wrapper.style.width           = "100%";
+            wrapper.style.height          = "100%";
+            wrapper.style.flexShrink      = "";
         } else {
-            // inv% × zoom = 100% — wrapper fills the panel exactly at every zoom level.
-            // At scale<1 the inv% exceeds 100%, so flex would shrink the wrapper back;
-            // flex-shrink:0 prevents that. At scale>1 inv%<100%, no shrink risk.
+            // inv% x scale = 100% visually. transform doesn't affect layout, so
+            // flex sees inv% and the visual fills the panel via the transform.
+            // At scale<1 inv%>100%, flex-shrink:0 prevents collapsing.
             const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.zoom       = String(scale);
-            wrapper.style.width      = inv;
-            wrapper.style.height     = inv;
-            wrapper.style.flexShrink = scale < 1 ? "0" : "";
+            wrapper.style.transform       = `scale(${scale})`;
+            wrapper.style.transformOrigin = "top left";
+            wrapper.style.zoom            = "";
+            wrapper.style.width           = inv;
+            wrapper.style.height          = inv;
+            wrapper.style.flexShrink      = scale < 1 ? "0" : "";
         }
-        // Apply matching zoom to any open beep/group windows.
+        // Apply matching zoom to any open beep/group windows (simpler containers,
+        // not inside a flex column, so CSS zoom is fine there).
         const zoomStr = scale === 1 ? "" : String(scale);
         for (const { el } of this.beepWins.values())  el.style.zoom = zoomStr;
         for (const { el } of this.groupWins.values()) el.style.zoom = zoomStr;
