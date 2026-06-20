@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 120;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 121;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -58,6 +58,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
             "Fix: Live support badge no longer disappears while EBC HQ is still open. Root cause: once() per scan consumed any ChatRoomSearchResult event - if BC's own room search UI or another addon fired one first, our once fired with the wrong data (no HQ room found) and hid the badge. Fix: single permanent on() listener registered on first scan, guarded by a 10 s timestamp window so only results from our own ServerSend are trusted.",
             "Fix: replying to a multi-line message no longer bleeds extra lines into the reply body. Root cause: setReply stored the full multi-line quoted text; the parser splits on the first newline only, so subsequent lines of the quote appeared as part of the reply's own message. Fix: setReply now only keeps the first line of the quoted text.",
+            "Fix: quick-emote sidebar buttons no longer respond to clicks when hidden. Root cause: the ChatRoomClick hook called handleActionButtonClick() without checking getActionButtonsVisible() - buttons were not drawn but their hit areas were still active. Fix: added the same getActionButtonsVisible() guard to the click handler that the draw path already had.",
+            "Fix: replying to an action message (*emote*) with another action no longer leaves the reply bar stuck open. Root cause: when an active BC reply state existed (reply indicator showing), EBC's handleEmoteShortcut fired, sent the emote via bare ServerSend (no replyId, no ChatRoomMessageReplyStop call), and returned early - skipping BC's native ChatRoomSendEmote which normally includes the reply context and clears the indicator. Fix: when ChatRoomMessageGetReplyId() returns a value, handleEmoteShortcut returns false and lets BC's own ChatRoomSendEmote handle the message natively.",
             "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
         ],
     },
@@ -7260,7 +7262,7 @@ function init(): void {
         if (getBadgeDragMode()) return;
         const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
         const charMenuOpen = isCurrentCharacterInRoom();
-        try { if (!iconsHidden && !charMenuOpen && handleActionButtonClick()) return; } catch { /* ignore */ }
+        try { if (!iconsHidden && !charMenuOpen && getActionButtonsVisible() && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
@@ -8219,6 +8221,14 @@ function init(): void {
         if (!raw.startsWith("*")) return false;
         const body = raw.slice(1).replace(/^\s+/, "");
         if (!body) return false; // bare * alone — ignore
+        // If BC has an active reply (the reply indicator is showing), let BC handle
+        // this natively via ChatRoomSendEmote so the emote includes the reply context
+        // (replyId in Dictionary) and ChatRoomMessageReplyStop() is called to clear
+        // the indicator. Intercepting here would send without reply context and leave
+        // the reply bar stuck open, allowing a second reply to be sent.
+        const w = window as unknown as Record<string, unknown>;
+        const getReplyId = w["ChatRoomMessageGetReplyId"];
+        if (typeof getReplyId === "function" && (getReplyId as () => string | null | undefined)()) return false;
         const now = Date.now();
         if (now - _lastEmoteSendTime < 500) return true; // already sent — swallow without re-send
         _lastEmoteSendTime = now;
