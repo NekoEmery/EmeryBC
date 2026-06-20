@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.7";
-const SAL_VERSION  = 103;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.8";
+const SAL_VERSION  = 104;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.8",
+        changes: [
+            "Fix: text size no longer breaks the panel layout at any zoom level. Root cause: CSS zoom with inv% on the wrapper was being flex-shrunk back to 100% at scale<1, making content appear at only (scale×100)% of the panel instead of filling it. Fix: flex-shrink:0 prevents the shrink; overflow:hidden on #emerybc-panel clips the layout overflow so the panel size stays unchanged.",
+            "Fix: panel drag no longer snaps when text size is not 100%. Changed drag handler to anchor from the first document-level move event instead of the mousedown position - document events are always in viewport coordinates regardless of CSS zoom on ancestors.",
+            "Explain EBC message rewritten: removed 'private' claim (it is public on FUSAM), removed awkward 'I use' phrasing, now answers 'what does your addon do?' directly and mentions FUSAM.",
+        ],
+    },
     {
         version: "8.2.7",
         changes: [

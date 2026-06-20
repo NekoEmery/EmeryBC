@@ -630,6 +630,7 @@ const CSS = `
     height: 100%;  /* full chat log height - no vertical conflict with tab */
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* clip zoom-wrapper layout overflow when scale<1 (inv%>100%) */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -4363,14 +4364,6 @@ export class EBCDrawer {
             if ((e.target as HTMLElement).closest("button, select, input, a")) return;
             e.preventDefault();
 
-            // CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired
-            // on elements inside it (Chromium behaviour), but document-level mousemove
-            // events are not affected. Correct the mousedown origin by the zoom factor
-            // so both coordinates are in the same viewport space, preventing a snap.
-            const zoom = loadPanelZoom();
-            const startX = start.clientX * zoom;
-            const startY = start.clientY * zoom;
-
             const panelEl = slideContainer;
             const startRect = panelEl.getBoundingClientRect();
             let inFreeMode = this.panelPosition !== null;
@@ -4378,17 +4371,31 @@ export class EBCDrawer {
             let startPanelY = inFreeMode ? this.panelPosition!.y : startRect.top;
             let hasDragged = false;
 
+            // Use the first document-level move event as the drag origin instead of the
+            // mousedown position. CSS zoom on .ebc-zoom-wrapper may scale clientX/Y for
+            // events on descendants (Chromium behaviour), but document-level events are
+            // always in viewport coordinates — anchoring from the first move avoids any
+            // coordinate-space mismatch entirely.
+            let anchorX: number | null = null;
+            let anchorY: number | null = null;
+
             addPointerTracking(
                 (pos) => {
-                    const dx = pos.clientX - startX;
-                    const dy = pos.clientY - startY;
+                    if (anchorX === null) { anchorX = pos.clientX; anchorY = pos.clientY; }
+                    const dx = pos.clientX - anchorX;
+                    const dy = pos.clientY - (anchorY as number);
                     if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
                     if (!hasDragged) {
                         hasDragged = true;
                         if (!inFreeMode) {
                             inFreeMode = true;
-                            startPanelX = startRect.left;
-                            startPanelY = startRect.top;
+                            // Re-read panel position at drag-start moment for accuracy
+                            const rect2 = panelEl.getBoundingClientRect();
+                            startPanelX = rect2.left;
+                            startPanelY = rect2.top;
+                            // Reset anchor so dx/dy start from 0 at the moment free mode begins
+                            anchorX = pos.clientX;
+                            anchorY = pos.clientY;
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
@@ -6414,22 +6421,20 @@ export class EBCDrawer {
         if (!wrapper) return;
         wrapper.style.transform = "";
         if (scale === 1) {
-            wrapper.style.zoom   = "";
-            wrapper.style.width  = "100%";
-            wrapper.style.height = "100%";
-        } else if (scale > 1) {
-            // Scale up: shrink wrapper so zoomed content fills the panel exactly (inv% × zoom = 100%).
-            const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.zoom   = String(scale);
-            wrapper.style.width  = inv;
-            wrapper.style.height = inv;
+            wrapper.style.zoom       = "";
+            wrapper.style.width      = "100%";
+            wrapper.style.height     = "100%";
+            wrapper.style.flexShrink = "";
         } else {
-            // Scale down: keep wrapper at 100% so the flex layout stays stable.
-            // inv% would exceed 100% here, making children overflow the panel and break layout.
-            // Scaled content is simply smaller; empty space shows at the edges, which is fine.
-            wrapper.style.zoom   = String(scale);
-            wrapper.style.width  = "100%";
-            wrapper.style.height = "100%";
+            // inv% × zoom = 100% — wrapper fills the panel exactly at every zoom level.
+            // At scale<1 inv%>100%, which would overflow the flex container; flex-shrink:0
+            // prevents flex from shrinking it back, and overflow:hidden on #emerybc-panel
+            // clips the layout overflow so the panel dimensions stay unchanged.
+            const inv = (100 / scale).toFixed(4) + "%";
+            wrapper.style.zoom       = String(scale);
+            wrapper.style.width      = inv;
+            wrapper.style.height     = inv;
+            wrapper.style.flexShrink = "0";
         }
         // Apply matching zoom to any open beep/group windows.
         const zoomStr = scale === 1 ? "" : String(scale);
@@ -18014,10 +18019,9 @@ export class EBCDrawer {
         // ── Explain EBC (Emery only) ──────────────────────────────────────────────
         if (Player.MemberNumber === EMERY_MEMBER) {
             const EBC_EXPLAIN_MSG =
-                "Hey~ So you asked about EBC - it's a custom Bondage Club addon I use called EmeryBC. " +
-                "It adds outfit saves & quick-swap, one-click emotes and actions, timers, " +
-                "and a bunch of extra tools that make BC more fun to use. " +
-                "It's private and not publicly available - but now you know it exists~ ✨";
+                "EmeryBC adds things like outfit saves and quick presets, one-click action and emote buttons, " +
+                "timers, and a bunch of QoL tools that make BC smoother. " +
+                "It's a public addon available on FUSAM if you want to check it out~ ✨";
 
             const explainWrap = document.createElement("div");
             explainWrap.style.cssText = "padding:5px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
