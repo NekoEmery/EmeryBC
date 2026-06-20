@@ -23905,6 +23905,11 @@ export class EBCDrawer {
         };
 
         const doScan = (): void => {
+            // BC server ignores ChatRoomSearch while the player is inside a chat room;
+            // the resulting empty response would incorrectly hide the badge. Skip the
+            // scan and let the badge hold its last known state until back in the lobby.
+            const w = window as unknown as Record<string, unknown>;
+            if ((w["CurrentScreen"] as string | undefined) === "ChatRoom") return;
             try {
                 if (!ensureListener()) return;
                 if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
@@ -23922,6 +23927,16 @@ export class EBCDrawer {
         window.setTimeout(doScan, 20_000);
         window.setTimeout(doScan, 45_000);
         this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
+
+        // Detect room exits every 5 s so the badge refreshes promptly when returning
+        // to the lobby (without this, the next update could be up to 2 min away).
+        let _prevScreen = "";
+        window.setInterval(() => {
+            const w2 = window as unknown as Record<string, unknown>;
+            const curr = String(w2["CurrentScreen"] ?? "");
+            if (_prevScreen === "ChatRoom" && curr !== "ChatRoom") window.setTimeout(doScan, 1_500);
+            _prevScreen = curr;
+        }, 5_000);
     }
 
     private _setHQLive(live: boolean): void {

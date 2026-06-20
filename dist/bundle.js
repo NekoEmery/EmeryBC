@@ -32253,6 +32253,12 @@
                 return true;
             };
             const doScan = () => {
+                // BC server ignores ChatRoomSearch while the player is inside a chat room;
+                // the resulting empty response would incorrectly hide the badge. Skip the
+                // scan and let the badge hold its last known state until back in the lobby.
+                const w = window;
+                if (w["CurrentScreen"] === "ChatRoom")
+                    return;
                 try {
                     if (!ensureListener())
                         return;
@@ -32277,6 +32283,17 @@
             window.setTimeout(doScan, 20000);
             window.setTimeout(doScan, 45000);
             this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
+            // Detect room exits every 5 s so the badge refreshes promptly when returning
+            // to the lobby (without this, the next update could be up to 2 min away).
+            let _prevScreen = "";
+            window.setInterval(() => {
+                var _a;
+                const w2 = window;
+                const curr = String((_a = w2["CurrentScreen"]) !== null && _a !== void 0 ? _a : "");
+                if (_prevScreen === "ChatRoom" && curr !== "ChatRoom")
+                    window.setTimeout(doScan, 1500);
+                _prevScreen = curr;
+            }, 5000);
         }
         _setHQLive(live) {
             if (this._hqLiveEl)
@@ -34681,7 +34698,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 121; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 122; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34714,6 +34731,7 @@
                 "Fix: quick-emote sidebar buttons no longer respond to clicks when hidden. Root cause: the ChatRoomClick hook called handleActionButtonClick() without checking getActionButtonsVisible() - buttons were not drawn but their hit areas were still active. Fix: added the same getActionButtonsVisible() guard to the click handler that the draw path already had.",
                 "Fix: replying to an action message (*emote*) with another action no longer leaves the reply bar stuck open. Root cause: when an active BC reply state existed (reply indicator showing), EBC's handleEmoteShortcut fired, sent the emote via bare ServerSend (no replyId, no ChatRoomMessageReplyStop call), and returned early - skipping BC's native ChatRoomSendEmote which normally includes the reply context and clears the indicator. Fix: when ChatRoomMessageGetReplyId() returns a value, handleEmoteShortcut returns false and lets BC's own ChatRoomSendEmote handle the message natively.",
                 "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
+                "Fix: Live support badge now persists correctly while inside a chat room and refreshes promptly on return to the lobby. Root cause: BC server silently ignores ChatRoomSearch while the player is in a room - the resulting empty response was incorrectly hiding the badge. Fix: doScan now skips when CurrentScreen is ChatRoom so the badge holds its last known state. A 5 s polling loop detects room exits and triggers a fresh scan 1.5 s later so the badge updates quickly when returning to the lobby.",
             ],
         },
         {
