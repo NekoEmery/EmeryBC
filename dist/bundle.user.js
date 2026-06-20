@@ -3528,7 +3528,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function runScene(scene) {
         let elapsed = 0;
         for (const step of scene.steps) {
-            elapsed += step.delayMs;
+            // Guard against a corrupt/imported step with a non-numeric delay: NaN would
+            // poison `elapsed` and make setTimeout(…, NaN) fire all remaining steps at once.
+            elapsed += Number.isFinite(step.delayMs) ? step.delayMs : 0;
             const s = step;
             window.setTimeout(() => executeStep(s), elapsed);
         }
@@ -5080,18 +5082,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         || item.Asset.Name;
                     const id = uid$1();
                     activeIds.set(group, id);
-                    // Capture lock state at time of application
+                    // Capture lock state at time of application. NB: Property.LockedBy is
+                    // the lock ASSET NAME (a string like "MetalPadlock"); the member who
+                    // applied the lock is Property.LockMemberNumber. The item is locked iff
+                    // LockedBy is present.
                     const prop = item.Property;
-                    const lockedByNum = prop === null || prop === void 0 ? void 0 : prop.LockedBy;
+                    const lockAsset = prop === null || prop === void 0 ? void 0 : prop.LockedBy;
+                    const isLocked = typeof lockAsset === "string" && lockAsset !== "";
+                    const lockerNum = typeof (prop === null || prop === void 0 ? void 0 : prop.LockMemberNumber) === "number"
+                        ? prop["LockMemberNumber"] : undefined;
                     let lockedByName = null;
-                    if (lockedByNum !== undefined) {
+                    if (isLocked && lockerNum !== undefined) {
                         const chars = window.ChatRoomCharacter;
-                        const locker = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === lockedByNum);
+                        const locker = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === lockerNum);
                         lockedByName = locker
-                            ? ((_a = (locker.Nickname || locker.Name)) !== null && _a !== void 0 ? _a : `#${lockedByNum}`)
-                            : `#${lockedByNum}`;
+                            ? ((_a = (locker.Nickname || locker.Name)) !== null && _a !== void 0 ? _a : `#${lockerNum}`)
+                            : `#${lockerNum}`;
                     }
-                    const lockType = lockedByNum !== undefined
+                    const lockType = isLocked
                         ? ((prop === null || prop === void 0 ? void 0 : prop.CombinationNumber) ? "Combo"
                             : (prop === null || prop === void 0 ? void 0 : prop.Password) ? "Pwd"
                                 : (prop === null || prop === void 0 ? void 0 : prop.MemberNumberListKeys) ? "Key"
@@ -5108,7 +5116,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         colors: (_c = item.Color) !== null && _c !== void 0 ? _c : null,
                         lockType,
                         lockedByName,
-                        lockedByNumber: lockedByNum !== null && lockedByNum !== void 0 ? lockedByNum : null,
+                        lockedByNumber: lockerNum !== null && lockerNum !== void 0 ? lockerNum : null,
                     });
                     hasNew = true;
                 }
@@ -22261,10 +22269,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return nameOf(a).localeCompare(nameOf(b));
                         case "za":
                             return nameOf(b).localeCompare(nameOf(a));
-                        case "since_old":
-                            return sinceOf(a) - sinceOf(b);
-                        case "since_new":
-                            return sinceOf(b) - sinceOf(a);
+                        case "since_old": {
+                            // Both unknown → Infinity - Infinity = NaN (unstable sort); fall
+                            // back to name. One unknown stays ±Infinity and sorts to the end.
+                            const d = sinceOf(a) - sinceOf(b);
+                            if (Number.isNaN(d))
+                                return nameOf(a).localeCompare(nameOf(b));
+                            return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                        }
+                        case "since_new": {
+                            const d = sinceOf(b) - sinceOf(a);
+                            if (Number.isNaN(d))
+                                return nameOf(a).localeCompare(nameOf(b));
+                            return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                        }
                         default: { // "status"
                             const sd = statusOrder(a) - statusOrder(b);
                             return sd !== 0 ? sd : nameOf(a).localeCompare(nameOf(b));
@@ -26267,7 +26285,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const style = (["action", "emote", "seq"].includes(b.style)
                             ? b.style : "action");
                         return {
-                            label: typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                            label: typeof b.label === "string" ? b.label.slice(0, 16) : "",
                             emote: typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
                             color: typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
                             enabled: !!b.enabled,
@@ -34809,7 +34827,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 123; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 124; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34849,6 +34867,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix (memory leak): the HQ room-exit watcher, BC-Lovense live-sync poller, and toys sync-status poller are now all cleared when the drawer is torn down, instead of running orphaned for the rest of the session.",
                 "Fix: typing a second different *emote* quickly no longer gets silently dropped. Root cause: the duplicate-fire guard (which dedups the same Enter keypress arriving through three interceptors) was keyed on time alone, so any emote within 500ms of the previous one was swallowed. Fix: the guard now also compares the emote text, so only a true re-fire of the same emote is suppressed - distinct emotes always send.",
                 "Perf: reduced per-frame cost of the quick-action sidebar (runs ~60x/sec in a chat room). The MainCanvas 2d context is now cached instead of re-queried from the DOM per button per frame, fitted button-label font sizes are memoized instead of re-measured every frame, the one-time legacy-button-style migration no longer re-scans every category/button each frame, and the presence-badge buffer reuses its array and skips sorting when 0-1 badges are present.",
+                "Fix: the restraint log now shows who applied a lock instead of '#<lockname>'. Root cause: it read Property.LockedBy (the lock's asset name, e.g. 'MetalPadlock') as if it were a member number, so the locker lookup never matched. Fix: resolve the locker from Property.LockMemberNumber and use LockedBy only to detect that the item is locked.",
+                "Fix: importing a button config no longer truncates labels to 6 characters. Root cause: the import path sliced labels to 6 chars while the editor and export use 16, so re-importing an exported config silently shortened any label longer than 6. Fix: import now matches the 16-character limit.",
+                "Fix: the friends 'oldest/newest friendship' sort is now stable when two friends both have no recorded friendship date. Root cause: both fell back to the same Infinity sentinel and Infinity - Infinity is NaN, which makes the sort order undefined. Fix: fall back to a name comparison when the date difference is NaN.",
+                "Fix: a saved scene with a corrupt/non-numeric step delay no longer fires all of its remaining steps at once. Root cause: a NaN delay poisoned the running offset so every later setTimeout was scheduled with NaN (treated as 0). Fix: non-finite step delays are now treated as 0.",
             ],
         },
         {

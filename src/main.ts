@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 123;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 124;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -68,6 +68,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix (memory leak): the HQ room-exit watcher, BC-Lovense live-sync poller, and toys sync-status poller are now all cleared when the drawer is torn down, instead of running orphaned for the rest of the session.",
             "Fix: typing a second different *emote* quickly no longer gets silently dropped. Root cause: the duplicate-fire guard (which dedups the same Enter keypress arriving through three interceptors) was keyed on time alone, so any emote within 500ms of the previous one was swallowed. Fix: the guard now also compares the emote text, so only a true re-fire of the same emote is suppressed - distinct emotes always send.",
             "Perf: reduced per-frame cost of the quick-action sidebar (runs ~60x/sec in a chat room). The MainCanvas 2d context is now cached instead of re-queried from the DOM per button per frame, fitted button-label font sizes are memoized instead of re-measured every frame, the one-time legacy-button-style migration no longer re-scans every category/button each frame, and the presence-badge buffer reuses its array and skips sorting when 0-1 badges are present.",
+            "Fix: the restraint log now shows who applied a lock instead of '#<lockname>'. Root cause: it read Property.LockedBy (the lock's asset name, e.g. 'MetalPadlock') as if it were a member number, so the locker lookup never matched. Fix: resolve the locker from Property.LockMemberNumber and use LockedBy only to detect that the item is locked.",
+            "Fix: importing a button config no longer truncates labels to 6 characters. Root cause: the import path sliced labels to 6 chars while the editor and export use 16, so re-importing an exported config silently shortened any label longer than 6. Fix: import now matches the 16-character limit.",
+            "Fix: the friends 'oldest/newest friendship' sort is now stable when two friends both have no recorded friendship date. Root cause: both fell back to the same Infinity sentinel and Infinity - Infinity is NaN, which makes the sort order undefined. Fix: fall back to a name comparison when the date difference is NaN.",
+            "Fix: a saved scene with a corrupt/non-numeric step delay no longer fires all of its remaining steps at once. Root cause: a NaN delay poisoned the running offset so every later setTimeout was scheduled with NaN (treated as 0). Fix: non-finite step delays are now treated as 0.",
         ],
     },
     {

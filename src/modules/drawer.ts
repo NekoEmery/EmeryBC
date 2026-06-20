@@ -14876,10 +14876,18 @@ export class EBCDrawer {
                         return nameOf(a).localeCompare(nameOf(b));
                     case "za":
                         return nameOf(b).localeCompare(nameOf(a));
-                    case "since_old":
-                        return sinceOf(a) - sinceOf(b);
-                    case "since_new":
-                        return sinceOf(b) - sinceOf(a);
+                    case "since_old": {
+                        // Both unknown → Infinity - Infinity = NaN (unstable sort); fall
+                        // back to name. One unknown stays ±Infinity and sorts to the end.
+                        const d = sinceOf(a) - sinceOf(b);
+                        if (Number.isNaN(d)) return nameOf(a).localeCompare(nameOf(b));
+                        return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                    }
+                    case "since_new": {
+                        const d = sinceOf(b) - sinceOf(a);
+                        if (Number.isNaN(d)) return nameOf(a).localeCompare(nameOf(b));
+                        return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                    }
                     default: { // "status"
                         const sd = statusOrder(a) - statusOrder(b);
                         return sd !== 0 ? sd : nameOf(a).localeCompare(nameOf(b));
@@ -18814,7 +18822,7 @@ export class EBCDrawer {
                     const style = (["action", "emote", "seq"].includes(b.style as string)
                         ? b.style : "action") as ActionStyle;
                     return {
-                        label:   typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                        label:   typeof b.label === "string" ? b.label.slice(0, 16) : "",
                         emote:   typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
                         color:   typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
                         enabled: !!b.enabled,

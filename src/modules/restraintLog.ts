@@ -165,19 +165,25 @@ export function checkRestraintChanges(): void {
                 const id = uid();
                 activeIds.set(group, id);
 
-                // Capture lock state at time of application
+                // Capture lock state at time of application. NB: Property.LockedBy is
+                // the lock ASSET NAME (a string like "MetalPadlock"); the member who
+                // applied the lock is Property.LockMemberNumber. The item is locked iff
+                // LockedBy is present.
                 const prop = item.Property as Record<string, unknown> | undefined;
-                const lockedByNum = prop?.LockedBy as number | undefined;
+                const lockAsset = prop?.LockedBy;
+                const isLocked = typeof lockAsset === "string" && lockAsset !== "";
+                const lockerNum = typeof prop?.LockMemberNumber === "number"
+                    ? prop["LockMemberNumber"] as number : undefined;
                 let lockedByName: string | null = null;
-                if (lockedByNum !== undefined) {
+                if (isLocked && lockerNum !== undefined) {
                     const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                         Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
-                    const locker = chars?.find(c => c.MemberNumber === lockedByNum);
+                    const locker = chars?.find(c => c.MemberNumber === lockerNum);
                     lockedByName = locker
-                        ? ((locker.Nickname || locker.Name) ?? `#${lockedByNum}`)
-                        : `#${lockedByNum}`;
+                        ? ((locker.Nickname || locker.Name) ?? `#${lockerNum}`)
+                        : `#${lockerNum}`;
                 }
-                const lockType = lockedByNum !== undefined
+                const lockType = isLocked
                     ? (prop?.CombinationNumber ? "Combo"
                         : prop?.Password       ? "Pwd"
                         : prop?.MemberNumberListKeys ? "Key"
@@ -196,7 +202,7 @@ export function checkRestraintChanges(): void {
                     colors:         item.Color ?? null,
                     lockType,
                     lockedByName,
-                    lockedByNumber: lockedByNum ?? null,
+                    lockedByNumber: lockerNum ?? null,
                 });
                 hasNew = true;
             }
