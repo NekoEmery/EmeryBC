@@ -12762,8 +12762,12 @@ export class EBCDrawer {
         };
 
         const setReply = (text: string): void => {
-            replyText = text;
-            replyBarSpan.textContent = text;
+            // Only keep the first line of the quoted text. If the quoted message
+            // is multi-line, the raw stored format is "> quote\nreply". The parser
+            // splits on the FIRST \n only, so any extra newlines in the quote would
+            // bleed into the reply body and render as part of the reply's own text.
+            replyText = text.split("\n")[0].slice(0, 80);
+            replyBarSpan.textContent = replyText;
             replyBar.style.display = "flex";
             input.focus();
         };
