@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 115;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 116;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -54,6 +54,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: Live support badge now actually appears when the EBC HQ room is open. Root cause: EBC initializes before BC fires window.load, so window.ServerSocket is still null when the ChatRoomSearchResult relay listener was registered - the call was a silent no-op and results never reached the HQ scanner. Fix: the HQ scanner now registers its own ServerSocket.once() listener directly inside doScan (runs 8 s after drawer init, well after window.load), and the shared relay in main.ts retries every 2 s until ServerSocket is non-null.",
             "Fix: panel position is now saved correctly across restarts. Root cause: savePanelPosition wrote directly to Player.ExtensionSettings.EmeryBC.panelPos, but syncSettings() runs flushToExtensionSettings() 400 ms later which overwrites it with _mem.panelPos (still null from the server). Fix: route panelPos through getSettings()/_mem so flushToExtensionSettings picks it up correctly.",
             "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
+            "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
         ],
     },
     {

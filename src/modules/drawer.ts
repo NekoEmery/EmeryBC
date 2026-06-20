@@ -12768,7 +12768,11 @@ export class EBCDrawer {
             input.focus();
         };
 
-        const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+        const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?\S*)?/i;
+        // Imgur links without a file extension: imgur.com/ID or i.imgur.com/ID.
+        // i.imgur.com/ID serves the raw image directly (no extension needed).
+        // Albums (a/), galleries, users, and tags are excluded.
+        const IMGUR_RE = /https?:\/\/(?:i\.)?imgur\.com\/(?!a\/|gallery\/|user\/|t\/)([A-Za-z0-9]{4,8})(?:\.[A-Za-z]+)?/i;
         // Tracks timestamps of invite messages the user has declined this session
         // so renderHistory can replace the Join/Decline buttons with a "Declined" note.
         const _declinedInviteTsSet = new Set<number>();
@@ -12952,14 +12956,19 @@ export class EBCDrawer {
                     text.textContent = msgBody;
                     bubble.appendChild(text);
 
-                    // Image embed - detect image URL in the message body
-                    const imgUrl = IMAGE_RE.exec(msgBody)?.[0];
+                    // Image embed - detect image URL or Imgur link in the message body
+                    let imgUrl: string | null = IMAGE_RE.exec(msgBody)?.[0] ?? null;
+                    if (!imgUrl) {
+                        const m = IMGUR_RE.exec(msgBody);
+                        // i.imgur.com/ID serves the raw image directly without an extension
+                        if (m) imgUrl = `https://i.imgur.com/${m[1]}`;
+                    }
                     if (imgUrl) {
                         const img = document.createElement("img");
                         img.className = "ebc-beep-img";
                         img.src = imgUrl;
                         img.alt = "image";
-                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                        img.addEventListener("click", () => window.open(imgUrl!, "_blank"));
                         img.addEventListener("error", () => { img.style.display = "none"; });
                         bubble.appendChild(img);
                     }
