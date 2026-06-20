@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.5";
-const SAL_VERSION  = 98;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.6";
+const SAL_VERSION  = 99;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.6",
+        changes: [
+            "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+        ],
+    },
     {
         version: "8.2.5",
         changes: [

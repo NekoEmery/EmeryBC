@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.2.5
+// @version      8.2.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -7651,7 +7651,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "theme.dimText": { en: "Dim Text", de: "Gedimmter Text", zh: "暗文字", fr: "Texte atténué", es: "Texto atenuado", ru: "Приглушённый текст", ja: "薄いテキスト" },
         // ─── FOOTER BUTTONS ────────────────────────────────────────────────────
         "footer.tutorial": { en: "Tutorial", de: "Tutorial", zh: "教程", fr: "Tutoriel", es: "Tutorial", ru: "Руководство", ja: "チュートリアル" },
-        "footer.feedbackBugs": { en: "Feedback & Bugs", de: "Feedback & Fehler", zh: "反馈与错误", fr: "Retour & Bugs", es: "Comentarios & Errores", ru: "Отзыв и баги", ja: "フィードバック & バグ" },
+        "footer.feedbackBugs": { en: "Suggestions", de: "Feedback & Fehler", zh: "反馈与错误", fr: "Retour & Bugs", es: "Comentarios & Errores", ru: "Отзыв и баги", ja: "フィードバック & バグ" },
         // ─── GUIDE / TUTORIAL ──────────────────────────────────────────────────
         "guide.title": { en: "EBC Tutorial", de: "EBC Tutorial", zh: "EBC 教程", fr: "Tutoriel EBC", es: "Tutorial de EBC", ru: "EBC Руководство", ja: "EBC チュートリアル" },
         "guide.subtitle": { en: "How do you want to explore EBC?", de: "Wie möchtest du EBC erkunden?", zh: "你想如何探索 EBC？", fr: "Comment veux-tu explorer EBC ?", es: "¿Cómo quieres explorar EBC?", ru: "Как ты хочешь изучить EBC?", ja: "EBC をどのように探索しますか？" },
@@ -7710,22 +7710,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "guide.deep.s12.text": { en: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", de: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", zh: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", fr: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", es: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ru: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ja: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered" },
         "guide.deep.s13.text": { en: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", de: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", zh: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", fr: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", es: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ru: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ja: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))" },
         // ─── FEEDBACK MODAL ────────────────────────────────────────────────────
-        "feedback.title": { en: "Feedback & Bug Report", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
+        "feedback.title": { en: "Suggestions", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
         "feedback.subtitle": { en: "Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
         "feedback.typeLabel": { en: "TYPE", de: "TYP", zh: "类型", fr: "TYPE", es: "TIPO", ru: "ТИП", ja: "タイプ" },
         "feedback.bugReport": { en: "Bug report", de: "Fehlerbericht", zh: "错误报告", fr: "Rapport de bug", es: "Informe de error", ru: "Отчёт об ошибке", ja: "バグレポート" },
         "feedback.featureReq": { en: "Feature request", de: "Funktionswunsch", zh: "功能请求", fr: "Demande de fonctionnalité", es: "Solicitud de función", ru: "Запрос функции", ja: "機能リクエスト" },
         "feedback.other": { en: "Other", de: "Sonstiges", zh: "其他", fr: "Autre", es: "Otro", ru: "Другое", ja: "その他" },
         "feedback.whatLabel": { en: "WHAT HAPPENED / WHAT DO YOU WANT?", de: "WAS IST PASSIERT / WAS MÖCHTEST DU?", zh: "发生了什么 / 你想要什么？", fr: "QUE S'EST-IL PASSÉ / QUE VEUX-TU ?", es: "¿QUÉ PASÓ / QUÉ QUIERES?", ru: "ЧТО СЛУЧИЛОСЬ / ЧТО ТЫ ХОЧЕШЬ?", ja: "何が起きた / 何が欲しい？" },
-        "feedback.whatPH": { en: "Describe the bug, or the feature you'd like...", de: "Beschreibe den Fehler oder die gewünschte Funktion...", zh: "描述错误或你想要的功能…", fr: "Décris le bug ou la fonctionnalité souhaitée...", es: "Describe el error o la función que deseas...", ru: "Опишите ошибку или желаемую функцию...", ja: "バグや欲しい機能を説明してください…" },
+        "feedback.whatPH": { en: "Describe your suggestion, idea, or bug...", de: "Beschreibe den Fehler oder die gewünschte Funktion...", zh: "描述错误或你想要的功能…", fr: "Décris le bug ou la fonctionnalité souhaitée...", es: "Describe el error o la función que deseas...", ru: "Опишите ошибку или желаемую функцию...", ja: "バグや欲しい機能を説明してください…" },
         "feedback.stepsLabel": { en: "STEPS TO REPRODUCE - OPTIONAL", de: "REPRODUKTIONSSCHRITTE - OPTIONAL", zh: "复现步骤 - 可选", fr: "ÉTAPES POUR REPRODUIRE - OPTIONNEL", es: "PASOS PARA REPRODUCIR - OPCIONAL", ru: "ШАГИ ДЛЯ ВОСПРОИЗВЕДЕНИЯ - НЕОБЯЗАТЕЛЬНО", ja: "再現手順 - 任意" },
         "feedback.stepsPH": { en: "What were you doing when it broke?", de: "Was hast du gemacht, als es kaputt ging?", zh: "出错时你在做什么？", fr: "Que faisais-tu quand ça a planté ?", es: "¿Qué estabas haciendo cuando falló?", ru: "Что ты делал, когда оно сломалось?", ja: "壊れたときに何をしていましたか？" },
         "feedback.cancel": { en: "Cancel", de: "Abbrechen", zh: "取消", fr: "Annuler", es: "Cancelar", ru: "Отмена", ja: "キャンセル" },
         "feedback.send": { en: "Send", de: "Senden", zh: "发送", fr: "Envoyer", es: "Enviar", ru: "Отправить", ja: "送信" },
         "feedback.sending": { en: "Sending...", de: "Senden...", zh: "发送中...", fr: "Envoi...", es: "Enviando...", ru: "Отправка...", ja: "送信中..." },
-        "feedback.errEmpty": { en: "Please describe the bug or request first.", de: "Bitte beschreibe zuerst den Fehler oder die Anfrage.", zh: "请先描述错误或请求。", fr: "Veuillez d'abord décrire le bug ou la demande.", es: "Por favor describe primero el error o la solicitud.", ru: "Пожалуйста, сначала опишите ошибку или запрос.", ja: "まずバグやリクエストを説明してください。" },
+        "feedback.errEmpty": { en: "Please describe your suggestion first.", de: "Bitte beschreibe zuerst den Fehler oder die Anfrage.", zh: "请先描述错误或请求。", fr: "Veuillez d'abord décrire le bug ou la demande.", es: "Por favor describe primero el error o la solicitud.", ru: "Пожалуйста, сначала опишите ошибку или запрос.", ja: "まずバグやリクエストを説明してください。" },
         "feedback.verNote": { en: "EBC v{v} · {mn} is attached automatically.", de: "EBC v{v} · {mn} wird automatisch angehängt.", zh: "EBC v{v} · {mn} 已自动附加。", fr: "EBC v{v} · {mn} est joint automatiquement.", es: "EBC v{v} · {mn} se adjunta automáticamente.", ru: "EBC v{v} · {mn} прикреплён автоматически.", ja: "EBC v{v} · {mn} が自動的に添付されます。" },
-        "feedback.toast": { en: "Thanks! Your feedback was sent.", de: "Danke! Dein Feedback wurde gesendet.", zh: "谢谢！你的反馈已发送。", fr: "Merci ! Ton retour a été envoyé.", es: "¡Gracias! Tu comentario ha sido enviado.", ru: "Спасибо! Твой отзыв был отправлен.", ja: "ありがとう！フィードバックが送信されました。" },
+        "feedback.toast": { en: "Thanks! Your suggestion was sent.", de: "Danke! Dein Feedback wurde gesendet.", zh: "谢谢！你的反馈已发送。", fr: "Merci ! Ton retour a été envoyé.", es: "¡Gracias! Tu comentario ha sido enviado.", ru: "Спасибо! Твой отзыв был отправлен.", ja: "ありがとう！フィードバックが送信されました。" },
         // ─── PISHOCK SETUP MODAL ───────────────────────────────────────────────
         "pishock.setupTitle": { en: "Proxy Setup (Deno Deploy)", de: "Proxy Setup (Deno Deploy)", zh: "代理设置 (Deno Deploy)", fr: "Configuration proxy (Deno Deploy)", es: "Configuracion proxy (Deno Deploy)", ru: "Настройка прокси (Deno Deploy)", ja: "プロキシ設定 (Deno Deploy)" },
         "pishock.setupSub": { en: "One-time setup - takes about 3 minutes. Free forever.", de: "Einmalige Einrichtung - ca. 3 Minuten. Kostenlos.", zh: "一次性设置 - 约3分钟。永久免费。", fr: "Configuration unique - environ 3 minutes. Gratuit pour toujours.", es: "Configuracion unica - unos 3 minutos. Gratis para siempre.", ru: "Одноразовая настройка - около 3 минут. Бесплатно.", ja: "一度限りのセットアップ - 約3分。永久に無料。" },
@@ -12590,7 +12590,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tutorialBtn.addEventListener("click", () => this.startGuide());
             const fbBtn = document.createElement("button");
             fbBtn.className = "ebc-footer-action-btn";
-            fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
+            fbBtn.title = "Send a suggestion or report a bug — sent from in-game, no account needed";
             fbBtn.innerHTML = BUG_SVG;
             const fbLbl = document.createElement("span");
             fbLbl.textContent = t("footer.feedbackBugs");
@@ -28462,7 +28462,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const peWrap = document.createElement("div");
             peWrap.style.cssText = "margin-top:8px;";
             peWrap.appendChild(makePill("🍆 Penis Enlargement", "#e06060", () => {
-                sendKittyCmd("penisEnlarge");
+                appendLocalLogLine("🍆 A warm tingly wave washes over you from somewhere below the waist. You are now 3cm larger. Side effects: confusion, flushing, mild delusion of grandeur.", "#e06060");
             }, 3000));
             body.appendChild(peWrap);
         }
@@ -31013,77 +31013,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         renderShockers();
                     });
                     psContent.appendChild(addShockerBtn);
-                    // ── Chat Triggers ─────────────────────────────────────────────────
-                    psContent.appendChild(sep());
-                    psContent.appendChild(psHdr("Chat Triggers"));
-                    const trigListEl = mk("div");
-                    const renderTriggers = () => {
-                        while (trigListEl.firstChild)
-                            trigListEl.removeChild(trigListEl.firstChild);
-                        const trigs = EBCDrawer.getPsTriggers();
-                        const shNames = EBCDrawer.getPsShockers().map((s, i) => s.name || `Shocker ${i + 1}`);
-                        const trigLvs = EBCDrawer.getPsLevels();
-                        if (!trigs.length) {
-                            const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                            empty.textContent = "No triggers set up yet.";
-                            trigListEl.appendChild(empty);
-                            return;
-                        }
-                        trigs.forEach((tr, idx) => {
-                            const tCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
-                            const r1 = psRow();
-                            const phraseInp = psInp("Trigger phrase", tr.phrase);
-                            phraseInp.style.flex = "1";
-                            phraseInp.addEventListener("input", () => { trigs[idx].phrase = phraseInp.value.trim().toLowerCase(); EBCDrawer.savePsTriggers(trigs); });
-                            const shSel = document.createElement("select");
-                            shSel.style.cssText = GTSel + "flex:0.8;min-width:80px;";
-                            shNames.forEach((n, i) => { var _a; const o = document.createElement("option"); o.value = String(i); o.textContent = n; if (i === ((_a = tr.shockerIdx) !== null && _a !== void 0 ? _a : 0))
-                                o.selected = true; shSel.appendChild(o); });
-                            shSel.addEventListener("change", () => { trigs[idx].shockerIdx = parseInt(shSel.value); EBCDrawer.savePsTriggers(trigs); });
-                            const opSel = document.createElement("select");
-                            opSel.style.cssText = GTSel + "flex:0.7;min-width:65px;";
-                            [["auto", "Auto"], ["beep", "Beep"], ["vib", "Vib"], ["shock", "Shock"]].forEach(([v, l]) => {
-                                var _a;
-                                const o = document.createElement("option");
-                                o.value = v;
-                                o.textContent = l;
-                                if (v === ((_a = tr.op) !== null && _a !== void 0 ? _a : "auto"))
-                                    o.selected = true;
-                                opSel.appendChild(o);
-                            });
-                            opSel.addEventListener("change", () => { trigs[idx].op = opSel.value; EBCDrawer.savePsTriggers(trigs); });
-                            const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
-                            rmBtn.addEventListener("click", () => { trigs.splice(idx, 1); EBCDrawer.savePsTriggers(trigs); renderTriggers(); });
-                            r1.appendChild(phraseInp);
-                            r1.appendChild(shSel);
-                            r1.appendChild(opSel);
-                            r1.appendChild(rmBtn);
-                            tCard.appendChild(r1);
-                            // Level picker
-                            const lvRow = psRow("6px");
-                            const lvLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`);
-                            lvLbl.textContent = "Level:";
-                            const lvSel = document.createElement("select");
-                            lvSel.style.cssText = GTSel + "flex:1;";
-                            trigLvs.forEach(lv => { var _a; const o = document.createElement("option"); o.value = lv.name; o.textContent = `${lv.name} (${lv.intensity}%/${lv.duration}s)`; if (lv.name === ((_a = tr.levelName) !== null && _a !== void 0 ? _a : trigLvs[0].name))
-                                o.selected = true; lvSel.appendChild(o); });
-                            lvSel.addEventListener("change", () => { trigs[idx].levelName = lvSel.value; EBCDrawer.savePsTriggers(trigs); });
-                            lvRow.appendChild(lvLbl);
-                            lvRow.appendChild(lvSel);
-                            tCard.appendChild(lvRow);
-                            trigListEl.appendChild(tCard);
-                        });
-                    };
-                    renderTriggers();
-                    psContent.appendChild(trigListEl);
-                    const addTrigBtn = mkBtn("+ Add Trigger", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
-                    addTrigBtn.addEventListener("click", () => {
-                        const arr = EBCDrawer.getPsTriggers();
-                        arr.push({ phrase: "", shockerIdx: 0, op: "auto" });
-                        EBCDrawer.savePsTriggers(arr);
-                        renderTriggers();
-                    });
-                    psContent.appendChild(addTrigBtn);
                     // ── Dev Log ───────────────────────────────────────────────────────
                     psContent.appendChild(sep());
                     const devLogHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;");
@@ -31247,7 +31176,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         _tickBCLiveSync() {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const s = getSettings();
                 if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
@@ -31259,7 +31188,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 let maxIntensity = -1;
                 for (const item of appearance) {
                     const { Intensity: intensity, Mode: mode } = (_b = item === null || item === void 0 ? void 0 : item.Property) !== null && _b !== void 0 ? _b : {};
-                    if (mode && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                    // Detect vibrating items by archetype (covers chastity/plug/egg with built-in vibes)
+                    // or by Mode being set (traditional vibrators). Both types write live intensity to
+                    // Property.Intensity every scriptDraw tick.
+                    const isVibrating = ((_c = item === null || item === void 0 ? void 0 : item.Asset) === null || _c === void 0 ? void 0 : _c.Archetype) === "vibrating" || mode != null;
+                    if (isVibrating && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
                         maxIntensity = intensity;
                     }
                 }
@@ -31270,7 +31203,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this._bcLiveSyncLevel = lovTarget;
                 this._lovWriteLevel(lovTarget).catch(() => { });
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         async _lovWriteLevel(intensity) {
             const active = [...this._lovConnections.values()].filter(c => { var _a, _b; return ((_b = (_a = c.device) === null || _a === void 0 ? void 0 : _a.gatt) === null || _b === void 0 ? void 0 : _b.connected) === true && c.char != null; });
@@ -33742,94 +33675,139 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             refreshToyInfo();
             // ── ⛓ Curse ──────────────────────────────────────────────────────────
             const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
+            const _cf = "font-family:'Trebuchet MS',serif;";
+            // Hint text
             const curseHint = document.createElement("div");
-            curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+            curseHint.style.cssText = `${_cf}font-size:10.5px;color:#7a5068;line-height:1.45;margin-bottom:8px;`;
             curseHint.textContent = "Target can't remove cursed items while EBC is loaded. Only you can lift the curse.";
             cursePanel.appendChild(curseHint);
-            const curseItemsEl = document.createElement("div");
-            curseItemsEl.style.cssText = "display:flex;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;margin-bottom:4px;";
-            const curseItemsHint = document.createElement("div");
-            curseItemsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 2px;";
-            curseItemsHint.textContent = "Pick a Focus Target to see their items.";
-            curseItemsEl.appendChild(curseItemsHint);
-            cursePanel.appendChild(curseItemsEl);
+            // ── Item picker card ────────────────────────────────────────────────
             const curseSelGroups = new Set();
             const curseCbs = [];
-            const curseSelAllRow = document.createElement("div");
-            curseSelAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 0 4px;border-bottom:1px solid #3a1928;margin-bottom:3px;";
+            const curseItemsCard = document.createElement("div");
+            curseItemsCard.style.cssText = "background:rgba(10,4,14,0.9);border:1.5px solid #2a1022;border-radius:8px;overflow:hidden;margin-bottom:8px;";
+            const curseItemsCardHdr = document.createElement("div");
+            curseItemsCardHdr.style.cssText = `display:none;align-items:center;gap:7px;padding:5px 10px;background:rgba(35,12,26,0.7);border-bottom:1px solid #2a1022;`;
             const curseSelAllChk = document.createElement("input");
             curseSelAllChk.type = "checkbox";
-            curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-            const curseSelAllLbl = document.createElement("span");
-            curseSelAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
-            curseSelAllLbl.textContent = "Select all";
-            curseSelAllRow.appendChild(curseSelAllChk);
-            curseSelAllRow.appendChild(curseSelAllLbl);
+            curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#a03060;flex-shrink:0;";
+            const curseItemsCardHdrLbl = document.createElement("span");
+            curseItemsCardHdrLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;flex:1;`;
+            curseItemsCardHdrLbl.textContent = "Items";
+            const curseItemsCountLbl = document.createElement("span");
+            curseItemsCountLbl.style.cssText = `${_cf}font-size:10px;color:#4a2038;`;
+            curseItemsCountLbl.textContent = "";
+            curseItemsCardHdr.appendChild(curseSelAllChk);
+            curseItemsCardHdr.appendChild(curseItemsCardHdrLbl);
+            curseItemsCardHdr.appendChild(curseItemsCountLbl);
+            curseItemsCard.appendChild(curseItemsCardHdr);
+            const curseItemsEl = document.createElement("div");
+            curseItemsEl.style.cssText = "display:flex;flex-direction:column;max-height:150px;overflow-y:auto;";
+            const curseItemsHint = document.createElement("div");
+            curseItemsHint.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
+            curseItemsHint.textContent = "Select a Focus Target to see their items.";
+            curseItemsEl.appendChild(curseItemsHint);
+            curseItemsCard.appendChild(curseItemsEl);
+            cursePanel.appendChild(curseItemsCard);
             const rebuildCurseItems = () => {
                 while (curseItemsEl.firstChild)
                     curseItemsEl.removeChild(curseItemsEl.firstChild);
                 curseSelGroups.clear();
                 curseCbs.length = 0;
-                curseSelAllRow.style.display = "none";
+                curseSelAllChk.checked = false;
+                curseSelAllChk.indeterminate = false;
+                curseItemsCountLbl.textContent = "";
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
+                    curseItemsCardHdr.style.display = "none";
                     curseItemsEl.appendChild(curseItemsHint);
                     return;
                 }
                 const items = getRoomMemberItems(id);
                 if (items.length === 0) {
+                    curseItemsCardHdr.style.display = "none";
                     const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                    empty.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
                     empty.textContent = "No items found (not in room?).";
                     curseItemsEl.appendChild(empty);
                     return;
                 }
-                curseSelAllRow.style.display = "flex";
+                curseItemsCardHdr.style.display = "flex";
+                curseItemsCountLbl.textContent = `${items.length}`;
                 for (const it of items) {
                     const row2 = document.createElement("div");
-                    row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+                    row2.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-bottom:1px solid rgba(42,16,34,0.5);transition:background 0.1s;";
                     const chk = document.createElement("input");
                     chk.type = "checkbox";
                     chk.dataset.group = it.group;
-                    chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
+                    chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#a03060;pointer-events:none;";
                     curseCbs.push(chk);
-                    chk.addEventListener("change", () => {
-                        if (chk.checked)
-                            curseSelGroups.add(it.group);
-                        else
-                            curseSelGroups.delete(it.group);
+                    const nmWrap = document.createElement("div");
+                    nmWrap.style.cssText = "flex:1;min-width:0;";
+                    const nm2 = document.createElement("div");
+                    nm2.style.cssText = `${_cf}font-size:11px;color:#c09ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.1s;`;
+                    nm2.textContent = it.craftName ? it.craftName : it.name;
+                    const nmSub = document.createElement("div");
+                    nmSub.style.cssText = `${_cf}font-size:9.5px;color:#5a3048;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;`;
+                    nmSub.textContent = it.craftName ? `${it.name} - ${it.group.replace("Item", "")}` : it.group.replace("Item", "");
+                    nmWrap.appendChild(nm2);
+                    nmWrap.appendChild(nmSub);
+                    row2.appendChild(chk);
+                    row2.appendChild(nmWrap);
+                    if (it.locked) {
+                        const lockIco2 = document.createElement("span");
+                        lockIco2.style.cssText = "font-size:11px;flex-shrink:0;opacity:0.6;";
+                        lockIco2.textContent = "🔒";
+                        row2.appendChild(lockIco2);
+                    }
+                    const setRowSel = (sel) => {
+                        row2.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                        nm2.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                    };
+                    row2.addEventListener("click", () => {
+                        chk.checked = !chk.checked;
+                        const g = chk.dataset.group;
+                        if (g) {
+                            if (chk.checked)
+                                curseSelGroups.add(g);
+                            else
+                                curseSelGroups.delete(g);
+                        }
+                        setRowSel(chk.checked);
                         const n = curseCbs.filter(c => c.checked).length;
                         curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
                         curseSelAllChk.checked = n === curseCbs.length;
+                        curseItemsCountLbl.textContent = n > 0 ? `${n}/${items.length}` : `${items.length}`;
                     });
-                    const lockIco2 = document.createElement("span");
-                    lockIco2.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
-                    lockIco2.textContent = it.locked ? "🔒" : "";
-                    const nm2 = document.createElement("span");
-                    nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nm2.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
-                    const grp2 = document.createElement("span");
-                    grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
-                    grp2.textContent = it.group.replace("Item", "");
-                    row2.appendChild(chk);
-                    row2.appendChild(lockIco2);
-                    row2.appendChild(nm2);
-                    row2.appendChild(grp2);
+                    row2.addEventListener("mouseenter", () => { if (!chk.checked)
+                        row2.style.background = "rgba(70,20,45,0.25)"; });
+                    row2.addEventListener("mouseleave", () => { if (!chk.checked)
+                        row2.style.background = ""; });
                     curseItemsEl.appendChild(row2);
                 }
             };
             curseSelAllChk.addEventListener("change", () => {
+                const sel = curseSelAllChk.checked;
                 curseCbs.forEach(c => {
-                    c.checked = curseSelAllChk.checked;
+                    c.checked = sel;
                     const g = c.dataset.group;
                     if (g) {
-                        if (curseSelAllChk.checked)
+                        if (sel)
                             curseSelGroups.add(g);
                         else
                             curseSelGroups.delete(g);
                     }
+                    const row = c.parentElement;
+                    if (row) {
+                        row.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                        const nmEl = row.querySelector("div > div:first-child");
+                        if (nmEl)
+                            nmEl.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                    }
                 });
                 curseSelAllChk.indeterminate = false;
+                const total = curseCbs.length;
+                curseItemsCountLbl.textContent = sel ? `${total}/${total}` : `${total}`;
             });
             qtSel.addEventListener("change", () => {
                 if (isCurseOpen()) {
@@ -33837,38 +33815,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     rebuildActiveCurses();
                 }
             });
-            // Also rebuild when the accordion is opened (target may already be selected)
             curseHdr.addEventListener("click", () => { if (isCurseOpen()) {
                 rebuildCurseItems();
                 rebuildActiveCurses();
             } });
-            cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
-            const curseStatus = document.createElement("div");
-            curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
-            // Duration picker
+            // ── Duration picker ─────────────────────────────────────────────────
             let curseDurMs = 0;
-            const durRow = document.createElement("div");
-            durRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px;";
+            const durSection = document.createElement("div");
+            durSection.style.cssText = "margin-bottom:8px;";
+            const durTopRow = document.createElement("div");
+            durTopRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
             const durLbl = document.createElement("span");
-            durLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;";
-            durLbl.textContent = "Duration:";
-            durRow.appendChild(durLbl);
+            durLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;white-space:nowrap;`;
+            durLbl.textContent = "Duration";
+            durTopRow.appendChild(durLbl);
             const DUR_OPTS = [["Forever", 0], ["30m", 30 * 60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
             const durBtns = [];
             const setDurStyle = (btn, sel) => {
-                btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
+                btn.style.cssText = `${_cf}font-size:10px;padding:2px 9px;border-radius:10px;cursor:pointer;border:1.5px solid ${sel ? "#8a3558" : "#2a1022"};background:${sel ? "rgba(160,40,80,0.22)" : "transparent"};color:${sel ? "#cf6f98" : "#6a3050"};transition:all 0.1s;`;
             };
             let clearDurCustom = () => { };
             for (const [label, ms] of DUR_OPTS) {
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 setDurStyle(btn, ms === 0);
+                btn.addEventListener("mouseenter", () => { if (curseDurMs !== ms) {
+                    btn.style.background = "rgba(100,25,50,0.15)";
+                    btn.style.borderColor = "#4a1830";
+                    btn.style.color = "#a06080";
+                } });
+                btn.addEventListener("mouseleave", () => { setDurStyle(btn, curseDurMs === ms); });
                 btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); clearDurCustom(); });
                 durBtns.push([btn, ms]);
-                durRow.appendChild(btn);
+                durTopRow.appendChild(btn);
             }
-            const _durInpCss = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-            const _durLblCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+            const durCustomRow = document.createElement("div");
+            durCustomRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+            const _durInpCss = `${_cf}font-size:10px;width:30px;padding:2px 3px;background:rgba(10,4,14,0.85);border:1px solid #2a1022;color:#a07888;border-radius:5px;text-align:center;`;
+            const _durLblCss = `${_cf}font-size:10px;color:#4a2838;`;
             const mkDurInp = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _durInpCss; return i; };
             const mkDurLbl = (t) => { const s = document.createElement("span"); s.style.cssText = _durLblCss; s.textContent = t; return s; };
             const cdDays = mkDurInp("d");
@@ -33885,30 +33869,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             };
             [cdDays, cdHrs, cdMins, cdSecs].forEach(i => i.addEventListener("input", onDurCustom));
-            durRow.appendChild(cdDays);
-            durRow.appendChild(mkDurLbl("d"));
-            durRow.appendChild(cdHrs);
-            durRow.appendChild(mkDurLbl("h"));
-            durRow.appendChild(cdMins);
-            durRow.appendChild(mkDurLbl("m"));
-            durRow.appendChild(cdSecs);
-            durRow.appendChild(mkDurLbl("s"));
-            cursePanel.appendChild(durRow);
+            durCustomRow.appendChild(cdDays);
+            durCustomRow.appendChild(mkDurLbl("d"));
+            durCustomRow.appendChild(cdHrs);
+            durCustomRow.appendChild(mkDurLbl("h"));
+            durCustomRow.appendChild(cdMins);
+            durCustomRow.appendChild(mkDurLbl("m"));
+            durCustomRow.appendChild(cdSecs);
+            durCustomRow.appendChild(mkDurLbl("s"));
+            durSection.appendChild(durTopRow);
+            durSection.appendChild(durCustomRow);
+            cursePanel.appendChild(durSection);
+            // ── Action buttons ──────────────────────────────────────────────────
+            const curseStatus = document.createElement("div");
+            curseStatus.style.cssText = `${_cf}font-size:11px;color:#79a885;min-height:13px;margin-top:4px;`;
             const curseBtnRow = document.createElement("div");
-            curseBtnRow.style.cssText = "display:flex;gap:5px;";
+            curseBtnRow.style.cssText = "display:flex;gap:5px;margin-bottom:2px;";
             const applyCurseBtn = document.createElement("button");
-            applyCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #91405f;background:#3a0e28;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            applyCurseBtn.style.cssText = `flex:2;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
             applyCurseBtn.textContent = "⛓ Curse Selected";
             applyCurseBtn.title = "Send curse to target - they cannot remove these items while EBC is active";
-            applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#5a1238"; });
-            applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#3a0e28"; });
+            applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#4a0e30"; applyCurseBtn.style.borderColor = "#a04060"; });
+            applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#300820"; applyCurseBtn.style.borderColor = "#7a2848"; });
             const liftCurseBtn = document.createElement("button");
-            liftCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#1a1208;color:#c0a060;cursor:pointer;transition:background 0.14s;";
+            liftCurseBtn.style.cssText = `flex:1;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #4a3820;background:#181006;color:#b09050;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
             liftCurseBtn.textContent = "🔓 Lift All";
             liftCurseBtn.title = "Lift all curses from the target";
-            liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
-            liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
-            // Curse record helpers - persisted to settings so they survive page refreshes
+            liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#281808"; liftCurseBtn.style.borderColor = "#6a5028"; });
+            liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#181006"; liftCurseBtn.style.borderColor = "#4a3820"; });
+            // persistence helpers
             const getCurseRecord = (memberId) => {
                 var _a, _b;
                 const dc = ((_a = getSettings().domCurses) !== null && _a !== void 0 ? _a : {});
@@ -33965,7 +33954,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 setCurseRecord(id, merged);
                 const expiry = curseDurMs > 0 ? Date.now() + curseDurMs : null;
                 setDomCurseExpiry(id, expiry);
-                // Include item name so the target can restore the exact item if it gets removed
                 const roomItems = getRoomMemberItems(id);
                 const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
                 const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
@@ -34001,13 +33989,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             cursePanel.appendChild(curseStatus);
             // ── Active curses list ──────────────────────────────────────────────
             const activeCursesEl = document.createElement("div");
-            activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #3a1928;padding-top:6px;";
+            activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:8px;border-top:1px solid #2a1022;padding-top:7px;";
             const activeCursesHdr = document.createElement("div");
-            activeCursesHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:4px;";
+            activeCursesHdr.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#6a3050;text-transform:uppercase;margin-bottom:4px;`;
             activeCursesHdr.textContent = "Active Curses";
             activeCursesEl.appendChild(activeCursesHdr);
             const activeCursesList = document.createElement("div");
-            activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;";
+            activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto;";
             activeCursesEl.appendChild(activeCursesList);
             const rebuildActiveCurses = () => {
                 var _a;
@@ -34027,12 +34015,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const expiry = getDomCurseExpiry(id);
                 if (expiry) {
                     const rem = expiry - Date.now();
-                    activeCursesHdr.textContent = rem > 0 ? `Active Curses - expires in ${fmtRem(rem)}` : "Active Curses - expired";
+                    activeCursesHdr.textContent = rem > 0 ? `Active - expires in ${fmtRem(rem)}` : "Active - expired";
                 }
                 else {
                     activeCursesHdr.textContent = "Active Curses";
                 }
-                // Try to resolve item names from current room appearance
                 const nameMap = new Map();
                 try {
                     for (const it of getRoomMemberItems(id))
@@ -34041,24 +34028,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_b) { /* ignore */ }
                 for (const group of groups) {
                     const wrap = document.createElement("div");
-                    wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+                    wrap.style.cssText = "display:flex;flex-direction:column;";
                     const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
-                    row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
-                    row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 8px 4px 10px;border-radius:6px;background:rgba(22,6,16,0.8);border:1px solid #2a1022;border-left:3px solid #6a2040;";
                     const nm = document.createElement("span");
-                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
                     nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                     nm.title = group;
-                    // ⏱ pause button - toggles duration picker inline
                     const pauseBtn = document.createElement("button");
-                    pauseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;flex-shrink:0;";
+                    pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                     pauseBtn.textContent = "⏱";
                     pauseBtn.title = "Temporarily pause this curse";
+                    pauseBtn.addEventListener("mouseenter", () => { pauseBtn.style.background = "rgba(50,70,120,0.2)"; pauseBtn.style.borderColor = "#4060a0"; });
+                    pauseBtn.addEventListener("mouseleave", () => { if (pauseBtn.style.color !== "#90b8e8") {
+                        pauseBtn.style.background = "transparent";
+                        pauseBtn.style.borderColor = "#2a3050";
+                    } });
                     const liftOneBtn = document.createElement("button");
-                    liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    liftOneBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #3a1828;background:transparent;color:#906070;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                     liftOneBtn.textContent = "✕";
                     liftOneBtn.title = "Lift this curse";
+                    liftOneBtn.addEventListener("mouseenter", () => { liftOneBtn.style.background = "rgba(120,30,50,0.2)"; liftOneBtn.style.borderColor = "#6a2838"; liftOneBtn.style.color = "#c07080"; });
+                    liftOneBtn.addEventListener("mouseleave", () => { liftOneBtn.style.background = "transparent"; liftOneBtn.style.borderColor = "#3a1828"; liftOneBtn.style.color = "#906070"; });
                     liftOneBtn.addEventListener("click", () => {
                         var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
@@ -34076,20 +34067,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.appendChild(nm);
                     row.appendChild(pauseBtn);
                     row.appendChild(liftOneBtn);
-                    // Duration picker - hidden until ⏱ clicked
+                    // inline pause picker
                     const pickerRow = document.createElement("div");
-                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:2px 4px 4px 4px;flex-wrap:wrap;";
+                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:4px 8px;flex-wrap:wrap;background:rgba(14,4,20,0.7);border:1px solid #2a1022;border-top:none;border-radius:0 0 6px 6px;";
                     const pickerLbl = document.createElement("span");
-                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7090b0;white-space:nowrap;";
+                    pickerLbl.style.cssText = `${_cf}font-size:10px;color:#5a7098;white-space:nowrap;`;
                     pickerLbl.textContent = "Pause for:";
                     pickerRow.appendChild(pickerLbl);
                     const PAUSE_OPTS = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
                     for (const [label, mins] of PAUSE_OPTS) {
                         const chip = document.createElement("button");
-                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                        chip.style.cssText = `${_cf}font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
                         chip.textContent = label;
-                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(70,100,160,0.2)"; chip.style.borderColor = "#5070a0"; });
-                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#3a4060"; });
+                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(50,80,140,0.2)"; chip.style.borderColor = "#4060a0"; });
+                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#2a3050"; });
                         chip.addEventListener("click", () => {
                             var _a, _b, _c;
                             const ms = mins * 60 * 1000;
@@ -34100,17 +34091,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
                             window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
                             pickerRow.style.display = "none";
-                            pauseBtn.style.color = "#7090b0";
+                            pauseBtn.style.color = "#6888a8";
+                            pauseBtn.style.borderColor = "#2a3050";
                         });
                         pickerRow.appendChild(chip);
                     }
-                    // Custom d/h/m/s pause duration
                     const pSepEl = document.createElement("span");
-                    pSepEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                    pSepEl.style.cssText = `${_cf}font-size:10px;color:#3a4060;`;
                     pSepEl.textContent = "|";
                     pickerRow.appendChild(pSepEl);
-                    const _pIc = "font-family:'Trebuchet MS',serif;font-size:10px;width:28px;padding:1px 2px;background:#111827;border:1px solid #2a3550;color:#7090b0;border-radius:4px;text-align:center;";
-                    const _pLc = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                    const _pIc = `${_cf}font-size:10px;width:27px;padding:1px 2px;background:rgba(10,5,18,0.9);border:1px solid #2a3050;color:#6888a8;border-radius:4px;text-align:center;`;
+                    const _pLc = `${_cf}font-size:10px;color:#3a4060;`;
                     const mkPI = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _pIc; return i; };
                     const mkPL = (tx) => { const s = document.createElement("span"); s.style.cssText = _pLc; s.textContent = tx; return s; };
                     const pDays = mkPI("d");
@@ -34126,10 +34117,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     pickerRow.appendChild(pSecs);
                     pickerRow.appendChild(mkPL("s"));
                     const pGoBtn = document.createElement("button");
-                    pGoBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                    pGoBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
                     pGoBtn.textContent = "▷";
-                    pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(70,100,160,0.2)"; pGoBtn.style.borderColor = "#5070a0"; });
-                    pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#3a4060"; });
+                    pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(50,80,140,0.2)"; pGoBtn.style.borderColor = "#4060a0"; });
+                    pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#2a3050"; });
                     pGoBtn.addEventListener("click", () => {
                         var _a, _b, _c;
                         const d = parseInt(pDays.value) || 0, h = parseInt(pHrs.value) || 0, m = parseInt(pMins.value) || 0, s = parseInt(pSecs.value) || 0;
@@ -34153,7 +34144,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         curseStatus.textContent = `⏱ ${itemLabel} paused for ${customLabel}.`;
                         window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
                         pickerRow.style.display = "none";
-                        pauseBtn.style.color = "#7090b0";
+                        pauseBtn.style.color = "#6888a8";
+                        pauseBtn.style.borderColor = "#2a3050";
                         pDays.value = "";
                         pHrs.value = "";
                         pMins.value = "";
@@ -34163,7 +34155,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     pauseBtn.addEventListener("click", () => {
                         const open = pickerRow.style.display !== "none";
                         pickerRow.style.display = open ? "none" : "flex";
-                        pauseBtn.style.color = open ? "#7090b0" : "#90b8e0";
+                        pauseBtn.style.color = open ? "#6888a8" : "#90b8e8";
+                        pauseBtn.style.borderColor = open ? "#2a3050" : "#4060a0";
                     });
                     wrap.appendChild(row);
                     wrap.appendChild(pickerRow);
@@ -34455,8 +34448,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.5";
-    const SAL_VERSION = 96; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.6";
+    const SAL_VERSION = 99; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34471,6 +34464,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "8.2.6",
+            changes: [
+                "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+            ],
+        },
+        {
             version: "8.2.5",
             changes: [
                 "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
@@ -34479,7 +34478,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Game Toys - Control a Friend: added Direct intensity slider (0-20) below the mode buttons. Dragging it sends [EBC-TOY:LV:n:0] to the friend, which their client forwards straight to Lovense at that exact level (continuous, bypasses BC mode system). Slider shows 'off' at 0, 'n/20' otherwise; sends on mouse-release plus a 120ms debounce while dragging.",
                 "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
                 "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
-                "Kitty menu: added 🍆 Penis Enlargement button at the bottom - sends a room emote from Emery. No further questions asked.",
+                "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
+                "PiShock: removed Chat Triggers section and the chat-message trigger listener - only shock collar (TriggerShock BC action) and test buttons remain.",
+                "Fix: BC TOY SYNC now detects vibrating chastity belts, vibrating plugs, and other built-in-vibe items by also checking Asset.Archetype === 'vibrating', in addition to the Property.Mode check. Previously those items were skipped if Mode was undefined.",
+                "Renamed 'Feedback & Bugs' button and form to 'Suggestions' - more accurately reflects what people send.",
             ],
         },
         {
@@ -40697,18 +40699,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     break;
                 }
-                case "penisEnlarge": {
-                    // Lucy's button - sends a funny room emote from Emery
-                    try {
-                        ServerSend("ChatRoomChat", {
-                            Type: "Emote",
-                            Content: "feels a mysterious tingly sensation and stares down with wide, baffled eyes~ ...Lucy what did you DO to me~~",
-                            Dictionary: [],
-                        });
-                    }
-                    catch ( /* ignore */_h) { /* ignore */ }
-                    break;
-                }
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
@@ -40754,7 +40744,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }));
                         }
                     }
-                    catch ( /* ignore */_j) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
                 case "expression": {
@@ -40792,12 +40782,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         }
                     }
-                    catch ( /* ignore */_k) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_l) { /* ignore */ }
+        catch ( /* ignore */_k) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b;
@@ -42434,7 +42424,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     typeof data.Sender === "number") {
                     if (data.Sender !== Player.MemberNumber)
                         drawer === null || drawer === void 0 ? void 0 : drawer.checkLovenseTriggers(data.Content);
-                    drawer === null || drawer === void 0 ? void 0 : drawer.checkPiShockTriggers(data.Content);
                 }
                 if (data.Type === "Activity" && typeof data.Content === "string" &&
                     typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
