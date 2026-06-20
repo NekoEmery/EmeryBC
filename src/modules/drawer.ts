@@ -5432,16 +5432,18 @@ export class EBCDrawer {
 
     private savePanelPosition(pos: { x: number; y: number } | null): void {
         try {
-            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-            (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
+            // Write through _mem (getSettings()) so flushToExtensionSettings() picks
+            // it up correctly. Writing directly to Player.ExtensionSettings.EmeryBC
+            // was previously used, but flushToExtensionSettings() would overwrite it
+            // 400 ms later with the stale _mem.panelPos value (null from the server).
+            getSettings().panelPos = pos ?? null;
             syncSettings();
         } catch { /* ignore */ }
     }
 
     private loadPanelPosition(): { x: number; y: number } | null {
         try {
-            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
-            const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
+            const v = getSettings().panelPos as { x?: unknown; y?: unknown } | null | undefined;
             if (v && typeof v.x === "number" && typeof v.y === "number") {
                 // Clamp to current viewport so a position saved on a wider/taller screen
                 // doesn't put the panel off-screen on the next load.
@@ -12946,6 +12948,7 @@ export class EBCDrawer {
                 } else {
                     // Text content
                     const text = document.createElement("div");
+                    text.style.whiteSpace = "pre-wrap";
                     text.textContent = msgBody;
                     bubble.appendChild(text);
 

@@ -12953,17 +12953,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // -- Panel free-float mode -------------------------------------------------
         savePanelPosition(pos) {
             try {
-                if (!Player.ExtensionSettings.EmeryBC)
-                    Player.ExtensionSettings.EmeryBC = {};
-                Player.ExtensionSettings.EmeryBC.panelPos = pos !== null && pos !== void 0 ? pos : null;
+                // Write through _mem (getSettings()) so flushToExtensionSettings() picks
+                // it up correctly. Writing directly to Player.ExtensionSettings.EmeryBC
+                // was previously used, but flushToExtensionSettings() would overwrite it
+                // 400 ms later with the stale _mem.panelPos value (null from the server).
+                getSettings().panelPos = pos !== null && pos !== void 0 ? pos : null;
                 syncSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
             try {
-                const store = Player.ExtensionSettings.EmeryBC;
-                const v = store === null || store === void 0 ? void 0 : store.panelPos;
+                const v = getSettings().panelPos;
                 if (v && typeof v.x === "number" && typeof v.y === "number") {
                     // Clamp to current viewport so a position saved on a wider/taller screen
                     // doesn't put the panel off-screen on the next load.
@@ -20318,6 +20319,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     else {
                         // Text content
                         const text = document.createElement("div");
+                        text.style.whiteSpace = "pre-wrap";
                         text.textContent = msgBody;
                         bubble.appendChild(text);
                         // Image embed - detect image URL in the message body
@@ -34633,7 +34635,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 114; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 115; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34657,6 +34659,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
                 "Fix: beep window drag no longer snaps at scale != 1. Root cause: CSS zoom distorts event clientX/Y inside a zoomed element (Chrome divides by zoom factor). getBoundingClientRect also has ambiguous values for scaled elements depending on the transform origin, making offset-based drag calculations brittle. Fix: switched beep/group windows from CSS zoom to transform:scale (event coords are always true viewport coords). Drag now uses getComputedStyle to read the initial layout-space left/bottom (resolving right:X correctly and never affected by transforms), then tracks a simple clientX/Y delta from the mousedown position.",
                 "Fix: Live support badge now actually appears when the EBC HQ room is open. Root cause: EBC initializes before BC fires window.load, so window.ServerSocket is still null when the ChatRoomSearchResult relay listener was registered - the call was a silent no-op and results never reached the HQ scanner. Fix: the HQ scanner now registers its own ServerSocket.once() listener directly inside doScan (runs 8 s after drawer init, well after window.load), and the shared relay in main.ts retries every 2 s until ServerSocket is non-null.",
+                "Fix: panel position is now saved correctly across restarts. Root cause: savePanelPosition wrote directly to Player.ExtensionSettings.EmeryBC.panelPos, but syncSettings() runs flushToExtensionSettings() 400 ms later which overwrites it with _mem.panelPos (still null from the server). Fix: route panelPos through getSettings()/_mem so flushToExtensionSettings picks it up correctly.",
+                "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
             ],
         },
         {
