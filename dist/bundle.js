@@ -32203,13 +32203,11 @@
             if (this._hqScanTimer !== null)
                 return;
             const HQ_NAME = "EmeryBC (EBC) HQ";
-            // Timestamp (ms) of the last search we sent; 0 = no scan in flight.
-            // Used to guard against stale ChatRoomSearchResult events from BC's own
-            // room search UI or other addons: we only trust results arriving within
-            // 10 s of our own ServerSend. Using once() per scan was fragile - any
-            // intervening ChatRoomSearchResult consumed the listener with wrong data.
             let scanSentAt = 0;
             let listenerReady = false;
+            // Cleared when a result arrives; fires after 15 s if the server never responds
+            // (e.g. ServerSend was dropped because the player wasn't logged in yet).
+            let noRespTimer = null;
             const ensureListener = () => {
                 if (listenerReady)
                     return true;
@@ -32217,17 +32215,37 @@
                 if (!(sock === null || sock === void 0 ? void 0 : sock.on))
                     return false;
                 sock.on("ChatRoomSearchResult", (data) => {
-                    if (scanSentAt === 0)
-                        return;
-                    if (Date.now() - scanSentAt > 10000) {
-                        scanSentAt = 0;
-                        return;
-                    }
-                    scanSentAt = 0;
                     try {
                         const list = Array.isArray(data) ? data : [];
                         const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
-                        this._setHQLive(found);
+                        if (found) {
+                            // Positive: bypass the timestamp guard - any result that contains
+                            // HQ must come from a search that matched it, so it is always safe
+                            // to show the badge here. This handles the race where another
+                            // addon's negative result arrives first and resets scanSentAt to 0
+                            // before our positive result arrives.
+                            if (noRespTimer !== null) {
+                                clearTimeout(noRespTimer);
+                                noRespTimer = null;
+                            }
+                            scanSentAt = 0;
+                            this._setHQLive(true);
+                            return;
+                        }
+                        // Negative: only hide if OUR scan is in flight and the result is
+                        // recent. Guards against other addons' results consuming scanSentAt.
+                        if (scanSentAt === 0)
+                            return;
+                        if (Date.now() - scanSentAt > 10000) {
+                            scanSentAt = 0;
+                            return;
+                        }
+                        if (noRespTimer !== null) {
+                            clearTimeout(noRespTimer);
+                            noRespTimer = null;
+                        }
+                        scanSentAt = 0;
+                        this._setHQLive(false);
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                 });
@@ -32238,14 +32256,26 @@
                 try {
                     if (!ensureListener())
                         return;
+                    if (noRespTimer !== null) {
+                        clearTimeout(noRespTimer);
+                        noRespTimer = null;
+                    }
                     scanSentAt = Date.now();
                     ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                    // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
+                    // silently dropped the request - e.g. player not yet authenticated),
+                    // reset scanSentAt so the next scheduled scan is not blocked.
+                    noRespTimer = window.setTimeout(() => { noRespTimer = null; scanSentAt = 0; }, 15000);
                 }
                 catch (_a) {
                     scanSentAt = 0;
                 }
             };
+            // Three early scans to survive first-load races (slow login, socket not yet
+            // connected at 8 s, etc.); then settle to a 2-minute keep-alive interval.
             window.setTimeout(doScan, 8000);
+            window.setTimeout(doScan, 20000);
+            window.setTimeout(doScan, 45000);
             this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
         }
         _setHQLive(live) {
@@ -34651,7 +34681,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 119; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 120; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34681,6 +34711,7 @@
                 "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
                 "Fix: Live support badge no longer disappears while EBC HQ is still open. Root cause: once() per scan consumed any ChatRoomSearchResult event - if BC's own room search UI or another addon fired one first, our once fired with the wrong data (no HQ room found) and hid the badge. Fix: single permanent on() listener registered on first scan, guarded by a 10 s timestamp window so only results from our own ServerSend are trusted.",
                 "Fix: replying to a multi-line message no longer bleeds extra lines into the reply body. Root cause: setReply stored the full multi-line quoted text; the parser splits on the first newline only, so subsequent lines of the quote appeared as part of the reply's own message. Fix: setReply now only keeps the first line of the quoted text.",
+                "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
             ],
         },
         {

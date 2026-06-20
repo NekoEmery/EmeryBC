@@ -23865,13 +23865,11 @@ export class EBCDrawer {
     private _startHQScanner(): void {
         if (this._hqScanTimer !== null) return;
         const HQ_NAME = "EmeryBC (EBC) HQ";
-        // Timestamp (ms) of the last search we sent; 0 = no scan in flight.
-        // Used to guard against stale ChatRoomSearchResult events from BC's own
-        // room search UI or other addons: we only trust results arriving within
-        // 10 s of our own ServerSend. Using once() per scan was fragile - any
-        // intervening ChatRoomSearchResult consumed the listener with wrong data.
         let scanSentAt = 0;
         let listenerReady = false;
+        // Cleared when a result arrives; fires after 15 s if the server never responds
+        // (e.g. ServerSend was dropped because the player wasn't logged in yet).
+        let noRespTimer: ReturnType<typeof setTimeout> | null = null;
 
         const ensureListener = (): boolean => {
             if (listenerReady) return true;
@@ -23879,13 +23877,27 @@ export class EBCDrawer {
                 { on?(e: string, h: (data: unknown) => void): void } | undefined;
             if (!sock?.on) return false;
             sock.on("ChatRoomSearchResult", (data: unknown) => {
-                if (scanSentAt === 0) return;
-                if (Date.now() - scanSentAt > 10_000) { scanSentAt = 0; return; }
-                scanSentAt = 0;
                 try {
                     const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
                     const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
-                    this._setHQLive(found);
+                    if (found) {
+                        // Positive: bypass the timestamp guard - any result that contains
+                        // HQ must come from a search that matched it, so it is always safe
+                        // to show the badge here. This handles the race where another
+                        // addon's negative result arrives first and resets scanSentAt to 0
+                        // before our positive result arrives.
+                        if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
+                        scanSentAt = 0;
+                        this._setHQLive(true);
+                        return;
+                    }
+                    // Negative: only hide if OUR scan is in flight and the result is
+                    // recent. Guards against other addons' results consuming scanSentAt.
+                    if (scanSentAt === 0) return;
+                    if (Date.now() - scanSentAt > 10_000) { scanSentAt = 0; return; }
+                    if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
+                    scanSentAt = 0;
+                    this._setHQLive(false);
                 } catch { /* ignore */ }
             });
             listenerReady = true;
@@ -23895,11 +23907,20 @@ export class EBCDrawer {
         const doScan = (): void => {
             try {
                 if (!ensureListener()) return;
+                if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
                 scanSentAt = Date.now();
                 ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
+                // silently dropped the request - e.g. player not yet authenticated),
+                // reset scanSentAt so the next scheduled scan is not blocked.
+                noRespTimer = window.setTimeout(() => { noRespTimer = null; scanSentAt = 0; }, 15_000);
             } catch { scanSentAt = 0; }
         };
-        window.setTimeout(doScan, 8000);
+        // Three early scans to survive first-load races (slow login, socket not yet
+        // connected at 8 s, etc.); then settle to a 2-minute keep-alive interval.
+        window.setTimeout(doScan, 8_000);
+        window.setTimeout(doScan, 20_000);
+        window.setTimeout(doScan, 45_000);
         this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
     }
 
