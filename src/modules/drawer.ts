@@ -3687,7 +3687,7 @@ function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(
 const EBC_COLORS_KEY  = "EBC_colors";
 const EBC_PRESET_KEY  = "EBC_activePreset";
 const EBC_HIDDEN_KEY  = "EBC_hiddenTabs";
-const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
     notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
@@ -4406,7 +4406,7 @@ export class EBCDrawer {
 
         const posesTabBtn = document.createElement("button");
         posesTabBtn.className = "ebc-tab-btn";
-        posesTabBtn.id = "ebc-tab-poses";
+        posesTabBtn.id = "ebc-tab-anims";
         posesTabBtn.textContent = t("tabs.anims");
 
         const btnsTabBtn = document.createElement("button");
@@ -6169,7 +6169,7 @@ export class EBCDrawer {
 
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
-            ["ebc-tab-poses",   "anims"],
+            ["ebc-tab-anims",   "anims"],
             ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-notes",    "notes"],
             ["ebc-tab-toys",    "toys"],

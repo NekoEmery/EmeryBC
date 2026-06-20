@@ -2783,10 +2783,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getActionButtonsVisible() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) === true;
         }
         catch (_b) {
-            return true;
+            return false;
         }
     }
     function setActionButtonsVisible(value) {
@@ -7651,7 +7651,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "theme.dimText": { en: "Dim Text", de: "Gedimmter Text", zh: "暗文字", fr: "Texte atténué", es: "Texto atenuado", ru: "Приглушённый текст", ja: "薄いテキスト" },
         // ─── FOOTER BUTTONS ────────────────────────────────────────────────────
         "footer.tutorial": { en: "Tutorial", de: "Tutorial", zh: "教程", fr: "Tutoriel", es: "Tutorial", ru: "Руководство", ja: "チュートリアル" },
-        "footer.feedbackBugs": { en: "Suggestions", de: "Feedback & Fehler", zh: "反馈与错误", fr: "Retour & Bugs", es: "Comentarios & Errores", ru: "Отзыв и баги", ja: "フィードバック & バグ" },
+        "footer.feedbackBugs": { en: "Suggestions & Bugs", de: "Feedback & Fehler", zh: "反馈与错误", fr: "Retour & Bugs", es: "Comentarios & Errores", ru: "Отзыв и баги", ja: "フィードバック & バグ" },
         // ─── GUIDE / TUTORIAL ──────────────────────────────────────────────────
         "guide.title": { en: "EBC Tutorial", de: "EBC Tutorial", zh: "EBC 教程", fr: "Tutoriel EBC", es: "Tutorial de EBC", ru: "EBC Руководство", ja: "EBC チュートリアル" },
         "guide.subtitle": { en: "How do you want to explore EBC?", de: "Wie möchtest du EBC erkunden?", zh: "你想如何探索 EBC？", fr: "Comment veux-tu explorer EBC ?", es: "¿Cómo quieres explorar EBC?", ru: "Как ты хочешь изучить EBC?", ja: "EBC をどのように探索しますか？" },
@@ -7710,7 +7710,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "guide.deep.s12.text": { en: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", de: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", zh: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", fr: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", es: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ru: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ja: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered" },
         "guide.deep.s13.text": { en: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", de: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", zh: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", fr: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", es: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ru: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ja: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))" },
         // ─── FEEDBACK MODAL ────────────────────────────────────────────────────
-        "feedback.title": { en: "Suggestions", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
+        "feedback.title": { en: "Suggestions & Bugs", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
         "feedback.subtitle": { en: "Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
         "feedback.typeLabel": { en: "TYPE", de: "TYP", zh: "类型", fr: "TYPE", es: "TIPO", ru: "ТИП", ja: "タイプ" },
         "feedback.bugReport": { en: "Bug report", de: "Fehlerbericht", zh: "错误报告", fr: "Rapport de bug", es: "Informe de error", ru: "Отчёт об ошибке", ja: "バグレポート" },
@@ -11397,7 +11397,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
+    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
@@ -11995,7 +11995,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             outfitTabBtn.textContent = t("tabs.outfits");
             const posesTabBtn = document.createElement("button");
             posesTabBtn.className = "ebc-tab-btn";
-            posesTabBtn.id = "ebc-tab-poses";
+            posesTabBtn.id = "ebc-tab-anims";
             posesTabBtn.textContent = t("tabs.anims");
             const btnsTabBtn = document.createElement("button");
             btnsTabBtn.className = "ebc-tab-btn";
@@ -13668,7 +13668,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             for (const [id, name] of [
                 ["ebc-tab-outfits", "outfits"],
-                ["ebc-tab-poses", "anims"],
+                ["ebc-tab-anims", "anims"],
                 ["ebc-tab-buttons", "buttons"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-toys", "toys"],
@@ -34449,7 +34449,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.6";
-    const SAL_VERSION = 99; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 100; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34467,6 +34467,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             version: "8.2.6",
             changes: [
                 "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+                "Fix: ANIMS tab now correctly responds to the tab visibility toggle - the button had the wrong element ID (ebc-tab-poses instead of ebc-tab-anims) so hiding it in DEV settings had no effect.",
+                "Fix: TOYS tab now appears in the DEV tab visibility grid so it can be hidden.",
+                "Fix: Action buttons sidebar (emote side menu) now defaults to OFF on accounts where it has not been explicitly enabled - previously it defaulted to ON on every new/alt account.",
+                "Renamed footer button and modal title from 'Suggestions' to 'Suggestions & Bugs'.",
             ],
         },
         {

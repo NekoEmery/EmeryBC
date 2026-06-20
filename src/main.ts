@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.6";
-const SAL_VERSION  = 99;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 100;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -46,6 +46,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         version: "8.2.6",
         changes: [
             "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+            "Fix: ANIMS tab now correctly responds to the tab visibility toggle - the button had the wrong element ID (ebc-tab-poses instead of ebc-tab-anims) so hiding it in DEV settings had no effect.",
+            "Fix: TOYS tab now appears in the DEV tab visibility grid so it can be hidden.",
+            "Fix: Action buttons sidebar (emote side menu) now defaults to OFF on accounts where it has not been explicitly enabled - previously it defaulted to ON on every new/alt account.",
+            "Renamed footer button and modal title from 'Suggestions' to 'Suggestions & Bugs'.",
         ],
     },
     {
