@@ -23861,24 +23861,39 @@ export class EBCDrawer {
     private _startHQScanner(): void {
         if (this._hqScanTimer !== null) return;
         const HQ_NAME = "EmeryBC (EBC) HQ";
+        // Timestamp (ms) of the last search we sent; 0 = no scan in flight.
+        // Used to guard against stale ChatRoomSearchResult events from BC's own
+        // room search UI or other addons: we only trust results arriving within
+        // 10 s of our own ServerSend. Using once() per scan was fragile - any
+        // intervening ChatRoomSearchResult consumed the listener with wrong data.
+        let scanSentAt = 0;
+        let listenerReady = false;
+
+        const ensureListener = (): boolean => {
+            if (listenerReady) return true;
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on?(e: string, h: (data: unknown) => void): void } | undefined;
+            if (!sock?.on) return false;
+            sock.on("ChatRoomSearchResult", (data: unknown) => {
+                if (scanSentAt === 0) return;
+                if (Date.now() - scanSentAt > 10_000) { scanSentAt = 0; return; }
+                scanSentAt = 0;
+                try {
+                    const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+                    const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
+                    this._setHQLive(found);
+                } catch { /* ignore */ }
+            });
+            listenerReady = true;
+            return true;
+        };
+
         const doScan = (): void => {
             try {
-                // ServerSocket is assigned by BC's ServerInit() on window.load - well
-                // before doScan fires (8 s after drawer init). Use once() directly here
-                // so we don't depend on the main.ts relay, which runs before window.load
-                // and sees ServerSocket == null (listener silently never registers).
-                const sock = (window as unknown as Record<string, unknown>).ServerSocket as
-                    { once?(e: string, h: (data: unknown) => void): void } | undefined;
-                if (!sock?.once) return;
-                sock.once("ChatRoomSearchResult", (data: unknown) => {
-                    try {
-                        const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
-                        const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
-                        this._setHQLive(found);
-                    } catch { /* ignore */ }
-                });
+                if (!ensureListener()) return;
+                scanSentAt = Date.now();
                 ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
-            } catch { /* ignore - network not ready */ }
+            } catch { scanSentAt = 0; }
         };
         window.setTimeout(doScan, 8000);
         this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
