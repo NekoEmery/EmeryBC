@@ -25465,9 +25465,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(sidebarRow);
             // ── Explain EBC (Emery only) ──────────────────────────────────────────────
             if (Player.MemberNumber === EMERY_MEMBER) {
-                const EBC_EXPLAIN_MSG = "EmeryBC adds things like outfit saves and quick presets, one-click action buttons, " +
-                    "timers, and a bunch of QoL tools that make BC smoother. " +
-                    "It's a public addon available on FUSAM if you want to check it out~ ✨";
+                const EBC_EXPLAIN_MSG = "EmeryBC adds outfit saves and quick-swap presets, one-click action shortcuts, " +
+                    "pose and animation presets, character notes, timers, safeword tools, " +
+                    "and a bunch of other QoL stuff that makes BC smoother to use. " +
+                    "It's a public addon available on FUSAM if you want to check it out~";
                 const explainWrap = document.createElement("div");
                 explainWrap.style.cssText = "padding:5px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
                 const explainTopRow = document.createElement("div");
@@ -34608,7 +34609,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.2.8";
-    const SAL_VERSION = 105; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 106; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
