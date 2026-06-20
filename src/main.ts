@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.5";
-const SAL_VERSION  = 97;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 98;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -54,6 +54,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
             "PiShock: removed Chat Triggers section and the chat-message trigger listener - only shock collar (TriggerShock BC action) and test buttons remain.",
             "Fix: BC TOY SYNC now detects vibrating chastity belts, vibrating plugs, and other built-in-vibe items by also checking Asset.Archetype === 'vibrating', in addition to the Property.Mode check. Previously those items were skipped if Mode was undefined.",
+            "Renamed 'Feedback & Bugs' button and form to 'Suggestions' - more accurately reflects what people send.",
         ],
     },
     {

@@ -5064,7 +5064,7 @@ export class EBCDrawer {
 
         const fbBtn = document.createElement("button");
         fbBtn.className = "ebc-footer-action-btn";
-        fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
+        fbBtn.title = "Send a suggestion or report a bug — sent from in-game, no account needed";
         fbBtn.innerHTML = BUG_SVG;
         const fbLbl = document.createElement("span"); fbLbl.textContent = t("footer.feedbackBugs");
         this._i18nRefs.footerFbLbl = fbLbl;
