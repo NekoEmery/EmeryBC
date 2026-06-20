@@ -12950,17 +12950,30 @@ export class EBCDrawer {
                     declineCard.appendChild(declineName);
                     bubble.appendChild(declineCard);
                 } else {
-                    // Text content
+                    // Text content - render with clickable hyperlinks
                     const text = document.createElement("div");
                     text.style.whiteSpace = "pre-wrap";
-                    text.textContent = msgBody;
+                    const URL_SCAN = /https?:\/\/\S+/gi;
+                    let scanLast = 0; let scanM: RegExpExecArray | null;
+                    while ((scanM = URL_SCAN.exec(msgBody)) !== null) {
+                        if (scanM.index > scanLast)
+                            text.appendChild(document.createTextNode(msgBody.slice(scanLast, scanM.index)));
+                        const a = document.createElement("a");
+                        a.href = scanM[0]; a.textContent = scanM[0];
+                        a.target = "_blank"; a.rel = "noopener noreferrer";
+                        a.style.cssText = "color:#cf6f98;word-break:break-all;";
+                        text.appendChild(a);
+                        scanLast = scanM.index + scanM[0].length;
+                    }
+                    if (scanLast < msgBody.length)
+                        text.appendChild(document.createTextNode(msgBody.slice(scanLast)));
                     bubble.appendChild(text);
 
-                    // Image embed - detect image URL or Imgur link in the message body
+                    // Image embed - detect image URL or Imgur direct link in the message body.
+                    // imgur.com/a/ album links are excluded - they are HTML pages, not images.
                     let imgUrl: string | null = IMAGE_RE.exec(msgBody)?.[0] ?? null;
                     if (!imgUrl) {
                         const m = IMGUR_RE.exec(msgBody);
-                        // i.imgur.com/ID serves the raw image directly without an extension
                         if (m) imgUrl = `https://i.imgur.com/${m[1]}`;
                     }
                     if (imgUrl) {

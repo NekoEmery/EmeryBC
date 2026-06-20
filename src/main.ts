@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 116;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 117;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -55,6 +55,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: panel position is now saved correctly across restarts. Root cause: savePanelPosition wrote directly to Player.ExtensionSettings.EmeryBC.panelPos, but syncSettings() runs flushToExtensionSettings() 400 ms later which overwrites it with _mem.panelPos (still null from the server). Fix: route panelPos through getSettings()/_mem so flushToExtensionSettings picks it up correctly.",
             "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
             "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
+            "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
         ],
     },
     {
