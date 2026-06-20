@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.2.6";
-const SAL_VERSION  = 100;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 101;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: TOYS tab now appears in the DEV tab visibility grid so it can be hidden.",
             "Fix: Action buttons sidebar (emote side menu) now defaults to OFF on accounts where it has not been explicitly enabled - previously it defaulted to ON on every new/alt account.",
             "Renamed footer button and modal title from 'Suggestions' to 'Suggestions & Bugs'.",
+            "Buttons tab: added 'Explain EBC to' whisper tool visible to all credited users (VIP_MEMBERS) - pick a room member from the dropdown and send them a one-click whisper describing the addon.",
         ],
     },
     {

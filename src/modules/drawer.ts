@@ -17975,6 +17975,72 @@ export class EBCDrawer {
         sidebarRow.appendChild(sidebarToggle);
         body.appendChild(sidebarRow);
 
+        // ── Explain EBC whisper (credited users only) ─────────────────────────
+        if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
+            const EBC_EXPLAIN_MSG =
+                "🐾 Hey! So you asked about EBC - it's a custom Bondage Club addon I use. " +
+                "Think of it as a control panel: instant outfit saves & scheduling, one-click emotes & actions, " +
+                "Lovense sync that actually works with chastity belts and plugs, curse tools that lock items so " +
+                "they literally can't be removed while the addon's loaded, pose presets, and a bunch of other stuff. " +
+                "It's private and not publicly available - but now you know it exists~ ✨";
+
+            const explainWrap = document.createElement("div");
+            explainWrap.style.cssText = "padding:5px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
+
+            const explainTopRow = document.createElement("div");
+            explainTopRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+            const explainLbl = document.createElement("span");
+            explainLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:var(--ebc-text-sub);white-space:nowrap;";
+            explainLbl.textContent = "Explain EBC to";
+
+            const explainSel = document.createElement("select");
+            explainSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:var(--ebc-card-muted);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;padding:2px 4px;min-width:0;cursor:pointer;";
+            const refreshExplainSel = (): void => {
+                while (explainSel.firstChild) explainSel.removeChild(explainSel.firstChild);
+                const ph = document.createElement("option");
+                ph.value = ""; ph.textContent = "- pick someone -";
+                explainSel.appendChild(ph);
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id); opt.textContent = m.name;
+                    explainSel.appendChild(opt);
+                }
+            };
+            refreshExplainSel();
+
+            const explainBtn = document.createElement("button");
+            explainBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
+            explainBtn.textContent = "✉ Whisper";
+            explainBtn.addEventListener("mouseenter", () => { explainBtn.style.background = "#4a0e30"; explainBtn.style.borderColor = "#a04060"; });
+            explainBtn.addEventListener("mouseleave", () => { explainBtn.style.background = "#300820"; explainBtn.style.borderColor = "#7a2848"; });
+
+            const explainStatus = document.createElement("div");
+            explainStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:var(--ebc-text-muted);min-height:12px;margin-top:3px;";
+
+            explainBtn.addEventListener("click", () => {
+                const targetId = parseInt(explainSel.value, 10);
+                if (!targetId) {
+                    explainStatus.textContent = "Pick someone first.";
+                    window.setTimeout(() => { explainStatus.textContent = ""; }, 2000);
+                    return;
+                }
+                const targetName = getRoomMembers().find(m => m.id === targetId)?.name ?? `#${targetId}`;
+                try { (ChatRoomSendWhisper as unknown as (t: number, m: string) => void)(targetId, EBC_EXPLAIN_MSG); } catch { /* ignore */ }
+                appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName}.`, UI.textMuted);
+                explainStatus.textContent = `✓ Sent to ${targetName}.`;
+                window.setTimeout(() => { explainStatus.textContent = ""; explainSel.value = ""; }, 3000);
+            });
+
+            explainTopRow.appendChild(explainLbl);
+            explainTopRow.appendChild(explainSel);
+            explainTopRow.appendChild(explainBtn);
+            explainWrap.appendChild(explainTopRow);
+            explainWrap.appendChild(explainStatus);
+            body.appendChild(explainWrap);
+        }
+
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
         let activeCatIdx = getActiveCategoryIndex();
