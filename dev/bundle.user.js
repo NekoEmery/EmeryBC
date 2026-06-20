@@ -989,6 +989,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         }
         outfitApplyPending = true;
+        // Watchdog: the normal reset lives inside the deferred setTimeout below. If the
+        // synchronous body throws before that timeout is scheduled, the flag would stick
+        // true forever and permanently block every future swap. This guarantees the flag
+        // clears within 5 s regardless; it is cancelled on the normal success path.
+        const applyWatchdog = window.setTimeout(() => { outfitApplyPending = false; }, 5000);
         const nextAppearance = [];
         const outfitGroups = new Set(outfit.items.map(i => i.Group));
         // If preserveClothing is on, carry over all current non-restraint items —
@@ -1135,6 +1140,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             finally {
                 outfitApplyPending = false;
+                window.clearTimeout(applyWatchdog);
             }
         }, 80);
         localNotice$2(`Loaded "${outfit.displayName}" (/${outfit.command})`);
@@ -1436,6 +1442,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         }
         outfitApplyPending = true;
+        // Watchdog: see applyOutfit - guarantees the flag clears even if the synchronous
+        // body throws before the deferred reset below is scheduled. Cancelled on success.
+        const applyWatchdog = window.setTimeout(() => { outfitApplyPending = false; }, 5000);
         const restraintGroups = new Set(restraint.items.map(i => i.Group));
         const nextAppearance = [];
         // Preserve all current non-restraint items (clothing, body, etc.)
@@ -1501,6 +1510,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             finally {
                 outfitApplyPending = false;
+                window.clearTimeout(applyWatchdog);
             }
         }, 80);
         localNotice$2(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
@@ -3759,6 +3769,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
+    // One-time guard for the legacy-style scan below. The removed "expression"/
+    // "exprPreset" styles can no longer be created in the UI, so once the saved data
+    // has been scanned clean they can never reappear - no need to re-scan on every
+    // (per-frame) call to getCategories().
+    let _legacyStyleScanned = false;
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
         const store = getSettings();
@@ -3781,22 +3796,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Convert them to plain "action" slots with empty emote so they're harmless and
             // the user can reconfigure or delete them in the Buttons tab.
             const catsList = cats;
-            let didMigrate = false;
-            for (const cat of catsList) {
-                for (const btn of cat.buttons) {
-                    const s = btn.style;
-                    if (s === "expression" || s === "exprPreset") {
-                        btn.style = "action";
-                        btn.emote = "";
-                        btn.label = "";
-                        btn.enabled = false;
-                        didMigrate = true;
+            if (!_legacyStyleScanned) {
+                let didMigrate = false;
+                for (const cat of catsList) {
+                    for (const btn of cat.buttons) {
+                        const s = btn.style;
+                        if (s === "expression" || s === "exprPreset") {
+                            btn.style = "action";
+                            btn.emote = "";
+                            btn.label = "";
+                            btn.enabled = false;
+                            didMigrate = true;
+                        }
                     }
                 }
-            }
-            if (didMigrate) {
-                store.buttonCategories = catsList;
-                syncSettings();
+                if (didMigrate) {
+                    store.buttonCategories = catsList;
+                    syncSettings();
+                }
+                _legacyStyleScanned = true;
             }
             return catsList;
         }
@@ -4343,23 +4361,53 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      * border, and mouse-hover highlight all work exactly as before — then
      * overlays our own canvas text centred both horizontally and vertically.
      */
-    function drawActionButton(x, y, size, label, bgColor, hoverText = "") {
-        // BC handles background + hover effect; empty label so it draws no text
-        DrawButton(x, y, size, size, "", bgColor, "", hoverText);
-        const canvas = document.getElementById("MainCanvas");
-        const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
-        if (!ctx)
-            return;
-        ctx.save();
-        // Try progressively smaller fonts until the text fits horizontally
-        const pad = 4;
-        const maxW = size - pad * 2;
+    // These draw helpers run per visible button per animation frame (~60 fps). Cache
+    // the MainCanvas 2d context instead of re-querying the DOM each call, and memoize
+    // the fitted font size per (label,size) instead of re-measuring text every frame.
+    let _btnCanvas = null;
+    let _btnCtx = null;
+    function getButtonCtx() {
+        var _a;
+        if (_btnCtx && _btnCanvas && _btnCanvas.isConnected)
+            return _btnCtx;
+        const w = window;
+        let canvas = w["MainCanvas"];
+        if (!(canvas instanceof HTMLCanvasElement)) {
+            canvas = document.getElementById("MainCanvas");
+        }
+        _btnCanvas = canvas;
+        _btnCtx = (_a = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d")) !== null && _a !== void 0 ? _a : null;
+        return _btnCtx;
+    }
+    const _fitFontCache = new Map();
+    function fitButtonFontSize(ctx, label, size) {
+        const key = label + "|" + size;
+        const cached = _fitFontCache.get(key);
+        if (cached !== undefined)
+            return cached;
+        // Try progressively smaller fonts until the text fits horizontally. The font
+        // family is fixed, so the result depends only on (label,size) and is stable.
+        const maxW = size - 8;
         let fontSize = 14;
         ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
         while (ctx.measureText(label).width > maxW && fontSize > 7) {
             fontSize -= 1;
             ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
         }
+        _fitFontCache.set(key, fontSize);
+        return fontSize;
+    }
+    function drawActionButton(x, y, size, label, bgColor, hoverText = "") {
+        // BC handles background + hover effect; empty label so it draws no text
+        DrawButton(x, y, size, size, "", bgColor, "", hoverText);
+        const ctx = getButtonCtx();
+        if (!ctx)
+            return;
+        ctx.save();
+        const pad = 4;
+        const maxW = size - pad * 2;
+        const fontSize = fitButtonFontSize(ctx, label, size);
+        ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#ffffff";
@@ -4376,8 +4424,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Dark background + subtle border
         DrawRect(x, y, size, size, "rgba(10,3,8,0.92)");
         DrawEmptyRect(x, y, size, size, "#2a0e1a", 1);
-        const canvas = document.getElementById("MainCanvas");
-        const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+        const ctx = getButtonCtx();
         if (ctx) {
             ctx.save();
             ctx.textAlign = "center";
@@ -6074,7 +6121,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Lock asset names that are never removed by safeword (owner / lover / family padlocks).
     const PROTECTED_LOCK_NAMES = new Set([
         "OwnerPadlock",
-        "OwnerTimedPadlock",
+        "OwnerTimerPadlock",
         "ExclusivePadlock",
         "LoversPadlock",
         "LoversTimerPadlock",
@@ -11706,6 +11753,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._lovConnections = new Map();
             this._bcLiveSyncPoller = null;
             this._bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+            this._syncStatusPoller = null;
             this._lovHttpUrl = null;
             this._lovHttpConnected = false;
             this._lovHttpToyCount = 0;
@@ -11721,6 +11769,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._irlIncoming = null;
             this._hqLiveEl = null;
             this._hqScanTimer = null;
+            this._hqScreenWatchTimer = null;
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
             this.ebcTagsStripEl = null;
@@ -13694,6 +13743,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         switchTab(tab) {
             var _a;
             this.stopDevLogPoller();
+            if (this._syncStatusPoller !== null) {
+                window.clearInterval(this._syncStatusPoller);
+                this._syncStatusPoller = null;
+            }
             if (tab !== "notes")
                 this.friendsSectionEl = null;
             this.currentTab = tab;
@@ -29157,6 +29210,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
+            // Stop any sync-status poller from a previous render. Without this, each
+            // re-render (toggle, or any toy-control beep calling refreshToysIfActive)
+            // would stack a new 800ms interval - the old one's self-clear check finds
+            // the freshly-rendered .ebc-toys-card present and so never stops.
+            if (this._syncStatusPoller !== null) {
+                window.clearInterval(this._syncStatusPoller);
+                this._syncStatusPoller = null;
+            }
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const s = getSettings();
@@ -29909,12 +29970,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         : "Off";
                 };
                 refreshSyncStatus();
-                const syncStatusPoller = window.setInterval(() => {
+                this._syncStatusPoller = window.setInterval(() => {
                     var _a;
                     if ((_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-toys-card"))
                         refreshSyncStatus();
-                    else
-                        clearInterval(syncStatusPoller);
+                    else if (this._syncStatusPoller !== null) {
+                        window.clearInterval(this._syncStatusPoller);
+                        this._syncStatusPoller = null;
+                    }
                 }, 800);
                 syncBody.appendChild(syncStatusRow);
                 // Max intensity cap
@@ -32321,7 +32384,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Detect room exits every 5 s so the badge refreshes promptly when returning
             // to the lobby (without this, the next update could be up to 2 min away).
             let _prevScreen = "";
-            window.setInterval(() => {
+            this._hqScreenWatchTimer = window.setInterval(() => {
                 var _a;
                 const w2 = window;
                 const curr = String((_a = w2["CurrentScreen"]) !== null && _a !== void 0 ? _a : "");
@@ -34641,15 +34704,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
             this.stopCrabsPoller();
             this.stopTimerPoller();
+            this.stopDevLogPoller();
+            try {
+                this.stopBCLiveSync();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             if (this._hqScanTimer !== null) {
                 clearInterval(this._hqScanTimer);
                 this._hqScanTimer = null;
+            }
+            if (this._hqScreenWatchTimer !== null) {
+                clearInterval(this._hqScreenWatchTimer);
+                this._hqScreenWatchTimer = null;
+            }
+            if (this._syncStatusPoller !== null) {
+                clearInterval(this._syncStatusPoller);
+                this._syncStatusPoller = null;
             }
             for (const { el } of this.beepWins.values()) {
                 try {
                     el.remove();
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
             this.beepWins.clear();
             (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.remove();
@@ -34733,7 +34809,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.0";
-    const SAL_VERSION = 122; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 123; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34767,6 +34843,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: replying to an action message (*emote*) with another action no longer leaves the reply bar stuck open. Root cause: when an active BC reply state existed (reply indicator showing), EBC's handleEmoteShortcut fired, sent the emote via bare ServerSend (no replyId, no ChatRoomMessageReplyStop call), and returned early - skipping BC's native ChatRoomSendEmote which normally includes the reply context and clears the indicator. Fix: when ChatRoomMessageGetReplyId() returns a value, handleEmoteShortcut returns false and lets BC's own ChatRoomSendEmote handle the message natively.",
                 "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
                 "Fix: Live support badge now persists correctly while inside a chat room and refreshes promptly on return to the lobby. Root cause: BC server silently ignores ChatRoomSearch while the player is in a room - the resulting empty response was incorrectly hiding the badge. Fix: doScan now skips when CurrentScreen is ChatRoom so the badge holds its last known state. A 5 s polling loop detects room exits and triggers a fresh scan 1.5 s later so the badge updates quickly when returning to the lobby.",
+                "Fix (safety): the safeword no longer strips restraints locked with an owner timer lock. Root cause: the protected-lock list had a typo 'OwnerTimedPadlock' but BC's actual asset name is 'OwnerTimerPadlock', so the exact-match protection never triggered and a safeword/grace event could remove an owner-timer-locked item meant to be protected.",
+                "Fix: a failed outfit or restraint-set swap can no longer permanently disable all future swaps. Root cause: outfitApplyPending was set true before an unguarded synchronous block whose only reset lived inside a later setTimeout - any throw before that timeout was scheduled stuck the flag true forever ('An outfit swap is already in progress.'). Fix: a 5 s watchdog guarantees the flag clears regardless, cancelled on the normal success path.",
+                "Fix (memory leak): the Toys tab no longer stacks a permanent 800ms sync-status timer on every re-render. Root cause: the poller was stored in a local variable and only self-cleared when no toys card was present, but each re-render (toggle, or any toy-control beep) created a fresh card so the old poller never stopped - during an active toy session these accumulated indefinitely along with detached DOM nodes. Fix: the poller is stored on the instance and cleared before each re-render, on tab switch, and on teardown.",
+                "Fix (memory leak): the HQ room-exit watcher, BC-Lovense live-sync poller, and toys sync-status poller are now all cleared when the drawer is torn down, instead of running orphaned for the rest of the session.",
+                "Fix: typing a second different *emote* quickly no longer gets silently dropped. Root cause: the duplicate-fire guard (which dedups the same Enter keypress arriving through three interceptors) was keyed on time alone, so any emote within 500ms of the previous one was swallowed. Fix: the guard now also compares the emote text, so only a true re-fire of the same emote is suppressed - distinct emotes always send.",
+                "Perf: reduced per-frame cost of the quick-action sidebar (runs ~60x/sec in a chat room). The MainCanvas 2d context is now cached instead of re-queried from the DOM per button per frame, fitted button-label font sizes are memoized instead of re-measured every frame, the one-time legacy-button-style migration no longer re-scans every category/button each frame, and the presence-badge buffer reuses its array and skips sorting when 0-1 badges are present.",
             ],
         },
         {
@@ -41418,6 +41500,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // have been rendered so badges are always drawn on top of every character sprite
     // and sorted back-to-front by zoom for correct depth ordering.
     let _badgeBuffer = [];
+    // Hoisted so the per-frame badge sort below doesn't allocate a fresh closure each frame.
+    const _badgeZSort = (a, b) => {
+        const za = typeof a[3] === "number" ? a[3] : 1;
+        const zb = typeof b[3] === "number" ? b[3] : 1;
+        return za - zb;
+    };
     // Paw image cache — loaded once, drawn from DrawCharacter args each frame.
     function getEbcPawImg() {
         if (_ebcPawImgReady)
@@ -41917,18 +42005,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // drawActionButtons() already guards with `if (CurrentScreen !== "ChatRoom") return`
         // so this is a no-op outside the chat room.
         tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
-            // Clear buffer at frame start so stale entries from the previous frame don't bleed in
-            _badgeBuffer = [];
+            // Clear buffer at frame start so stale entries from the previous frame don't
+            // bleed in. Reuse the array (length = 0) instead of allocating a new one each frame.
+            _badgeBuffer.length = 0;
             const result = next(args);
             // All DrawCharacter calls have now completed for this frame.
-            // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges)
+            // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges).
+            // Sort in place; skip the sort entirely for the common 0-1 badge case.
             try {
-                const toRender = _badgeBuffer.slice().sort((a, b) => {
-                    const za = typeof a[3] === "number" ? a[3] : 1;
-                    const zb = typeof b[3] === "number" ? b[3] : 1;
-                    return za - zb;
-                });
-                for (const badgeArgs of toRender) {
+                if (_badgeBuffer.length > 1)
+                    _badgeBuffer.sort(_badgeZSort);
+                for (const badgeArgs of _badgeBuffer) {
                     try {
                         drawPresenceMarker(badgeArgs);
                     }
@@ -43146,6 +43233,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // certain BC builds or other addons can reorder event handling. This timestamp
         // guard ensures the ServerSend fires at most once per 500 ms regardless.
         let _lastEmoteSendTime = 0;
+        let _lastEmoteBody = "";
         const handleEmoteShortcut = (raw) => {
             if (!raw.startsWith("*"))
                 return false;
@@ -43162,9 +43250,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (typeof getReplyId === "function" && getReplyId())
                 return false;
             const now = Date.now();
-            if (now - _lastEmoteSendTime < 500)
-                return true; // already sent — swallow without re-send
+            // Swallow only a re-fire of the SAME emote within the window (the same Enter
+            // keypress reaching us via more than one interceptor). A *different* emote
+            // typed quickly is a distinct send and must go through - keying the guard on
+            // the body text (not time alone) prevents dropping a fast second emote.
+            if (body === _lastEmoteBody && now - _lastEmoteSendTime < 500)
+                return true;
             _lastEmoteSendTime = now;
+            _lastEmoteBody = body;
             try {
                 ServerSend("ChatRoomChat", {
                     Type: "Emote",
