@@ -6443,11 +6443,24 @@ export class EBCDrawer {
             wrapper.style.height          = inv;
             wrapper.style.flexShrink      = scale < 1 ? "0" : "";
         }
-        // Apply matching zoom to any open beep/group windows (simpler containers,
-        // not inside a flex column, so CSS zoom is fine there).
-        const zoomStr = scale === 1 ? "" : String(scale);
-        for (const { el } of this.beepWins.values())  el.style.zoom = zoomStr;
-        for (const { el } of this.groupWins.values()) el.style.zoom = zoomStr;
+        // Apply matching scale to open beep/group windows via transform:scale.
+        // CSS zoom distorts event clientX/Y for mousedown inside the zoomed element
+        // (Chrome divides by the zoom factor), which breaks the drag offset math.
+        // transform:scale never affects event coordinates.
+        // Beep windows use bottom/left positioning → transform-origin: bottom left
+        // keeps rect.left = layout left and rect.bottom = layout bottom (both anchors).
+        // Group windows use top/left positioning → transform-origin: top left.
+        const bT = scale === 1 ? "" : `scale(${scale})`;
+        for (const { el } of this.beepWins.values()) {
+            el.style.zoom            = "";
+            el.style.transform       = bT;
+            el.style.transformOrigin = scale === 1 ? "" : "bottom left";
+        }
+        for (const { el } of this.groupWins.values()) {
+            el.style.zoom            = "";
+            el.style.transform       = bT;
+            el.style.transformOrigin = scale === 1 ? "" : "top left";
+        }
     }
 
     /**
@@ -12358,7 +12371,10 @@ export class EBCDrawer {
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
         const _bScale = loadPanelZoom();
-        if (_bScale !== 1) win.style.zoom = String(_bScale);
+        if (_bScale !== 1) {
+            win.style.transform       = `scale(${_bScale})`;
+            win.style.transformOrigin = "bottom left";
+        }
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
@@ -12692,38 +12708,27 @@ export class EBCDrawer {
         // Make header draggable - anchored by bottom so expanding grows upward.
         // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
-        addPointerDown(header, (_start, e) => {
+        addPointerDown(header, (start, e) => {
             if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
                 || e.target === roomInviteBtn) return;
             e.preventDefault();
-            // Anchor from the first document-level move event, not from mousedown.
-            // Chrome scales clientX/Y for mousedown events fired on children of a
-            // CSS-zoomed element (divides by zoom factor), making ox/oyFromBottom
-            // wrong at scale != 1 and causing a snap on first move. Document-level
-            // events are always in true viewport coordinates regardless of any zoom.
-            const vh = window.innerHeight;
-            let anchorX: number | null = null;
-            let anchorY: number | null = null;
-            let startLeft   = 0;
-            let startBottom = 0;
+            // transform:scale (applied in applyPanelZoom) does not distort event
+            // clientX/Y, so start.clientX is in true viewport coordinates.
+            // transform-origin:bottom left keeps rect.left = layout left and
+            // rect.bottom = layout bottom (the two anchored corners), so the
+            // offset math below is correct at any scale.
+            const rect = win.getBoundingClientRect();
+            const ox          = start.clientX - rect.left;
+            const vh          = window.innerHeight;
+            const oyFromBottom = rect.bottom   - start.clientY;
             addPointerTracking(
                 (pos) => {
-                    if (anchorX === null) {
-                        anchorX = pos.clientX;
-                        anchorY = pos.clientY;
-                        const rect = win.getBoundingClientRect();
-                        const zoom = parseFloat(win.style.zoom) || 1;
-                        // rect.left = visual left = layout left (CSS zoom anchors from top-left)
-                        startLeft   = rect.left;
-                        // rect.height = layout height x zoom; divide to get layout height
-                        startBottom = vh - rect.top - rect.height / zoom;
-                    }
-                    const dx =  pos.clientX - anchorX!;
-                    const dy =  pos.clientY - anchorY!;
+                    const rawL = pos.clientX - ox;
+                    const rawB = vh - pos.clientY - oyFromBottom;
                     const winW = win.offsetWidth  || 300;
                     const winH = win.offsetHeight || 380;
-                    win.style.left   = `${Math.max(0, Math.min(startLeft   + dx, window.innerWidth  - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(startBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
+                    win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },
@@ -13686,7 +13691,10 @@ export class EBCDrawer {
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
         const _gScale = loadPanelZoom();
-        if (_gScale !== 1) win.style.zoom = String(_gScale);
+        if (_gScale !== 1) {
+            win.style.transform       = `scale(${_gScale})`;
+            win.style.transformOrigin = "top left";
+        }
         this.groupWins.set(group.id, { el: win, minimized: false });
 
         // Drag
