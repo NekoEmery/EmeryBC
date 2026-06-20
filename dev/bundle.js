@@ -33640,94 +33640,139 @@
             refreshToyInfo();
             // ── ⛓ Curse ──────────────────────────────────────────────────────────
             const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
+            const _cf = "font-family:'Trebuchet MS',serif;";
+            // Hint text
             const curseHint = document.createElement("div");
-            curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+            curseHint.style.cssText = `${_cf}font-size:10.5px;color:#7a5068;line-height:1.45;margin-bottom:8px;`;
             curseHint.textContent = "Target can't remove cursed items while EBC is loaded. Only you can lift the curse.";
             cursePanel.appendChild(curseHint);
-            const curseItemsEl = document.createElement("div");
-            curseItemsEl.style.cssText = "display:flex;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;margin-bottom:4px;";
-            const curseItemsHint = document.createElement("div");
-            curseItemsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 2px;";
-            curseItemsHint.textContent = "Pick a Focus Target to see their items.";
-            curseItemsEl.appendChild(curseItemsHint);
-            cursePanel.appendChild(curseItemsEl);
+            // ── Item picker card ────────────────────────────────────────────────
             const curseSelGroups = new Set();
             const curseCbs = [];
-            const curseSelAllRow = document.createElement("div");
-            curseSelAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 0 4px;border-bottom:1px solid #3a1928;margin-bottom:3px;";
+            const curseItemsCard = document.createElement("div");
+            curseItemsCard.style.cssText = "background:rgba(10,4,14,0.9);border:1.5px solid #2a1022;border-radius:8px;overflow:hidden;margin-bottom:8px;";
+            const curseItemsCardHdr = document.createElement("div");
+            curseItemsCardHdr.style.cssText = `display:none;align-items:center;gap:7px;padding:5px 10px;background:rgba(35,12,26,0.7);border-bottom:1px solid #2a1022;`;
             const curseSelAllChk = document.createElement("input");
             curseSelAllChk.type = "checkbox";
-            curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-            const curseSelAllLbl = document.createElement("span");
-            curseSelAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
-            curseSelAllLbl.textContent = "Select all";
-            curseSelAllRow.appendChild(curseSelAllChk);
-            curseSelAllRow.appendChild(curseSelAllLbl);
+            curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#a03060;flex-shrink:0;";
+            const curseItemsCardHdrLbl = document.createElement("span");
+            curseItemsCardHdrLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;flex:1;`;
+            curseItemsCardHdrLbl.textContent = "Items";
+            const curseItemsCountLbl = document.createElement("span");
+            curseItemsCountLbl.style.cssText = `${_cf}font-size:10px;color:#4a2038;`;
+            curseItemsCountLbl.textContent = "";
+            curseItemsCardHdr.appendChild(curseSelAllChk);
+            curseItemsCardHdr.appendChild(curseItemsCardHdrLbl);
+            curseItemsCardHdr.appendChild(curseItemsCountLbl);
+            curseItemsCard.appendChild(curseItemsCardHdr);
+            const curseItemsEl = document.createElement("div");
+            curseItemsEl.style.cssText = "display:flex;flex-direction:column;max-height:150px;overflow-y:auto;";
+            const curseItemsHint = document.createElement("div");
+            curseItemsHint.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
+            curseItemsHint.textContent = "Select a Focus Target to see their items.";
+            curseItemsEl.appendChild(curseItemsHint);
+            curseItemsCard.appendChild(curseItemsEl);
+            cursePanel.appendChild(curseItemsCard);
             const rebuildCurseItems = () => {
                 while (curseItemsEl.firstChild)
                     curseItemsEl.removeChild(curseItemsEl.firstChild);
                 curseSelGroups.clear();
                 curseCbs.length = 0;
-                curseSelAllRow.style.display = "none";
+                curseSelAllChk.checked = false;
+                curseSelAllChk.indeterminate = false;
+                curseItemsCountLbl.textContent = "";
                 const id = parseInt(qtSel.value, 10);
                 if (!id) {
+                    curseItemsCardHdr.style.display = "none";
                     curseItemsEl.appendChild(curseItemsHint);
                     return;
                 }
                 const items = getRoomMemberItems(id);
                 if (items.length === 0) {
+                    curseItemsCardHdr.style.display = "none";
                     const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                    empty.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
                     empty.textContent = "No items found (not in room?).";
                     curseItemsEl.appendChild(empty);
                     return;
                 }
-                curseSelAllRow.style.display = "flex";
+                curseItemsCardHdr.style.display = "flex";
+                curseItemsCountLbl.textContent = `${items.length}`;
                 for (const it of items) {
                     const row2 = document.createElement("div");
-                    row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+                    row2.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-bottom:1px solid rgba(42,16,34,0.5);transition:background 0.1s;";
                     const chk = document.createElement("input");
                     chk.type = "checkbox";
                     chk.dataset.group = it.group;
-                    chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
+                    chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#a03060;pointer-events:none;";
                     curseCbs.push(chk);
-                    chk.addEventListener("change", () => {
-                        if (chk.checked)
-                            curseSelGroups.add(it.group);
-                        else
-                            curseSelGroups.delete(it.group);
+                    const nmWrap = document.createElement("div");
+                    nmWrap.style.cssText = "flex:1;min-width:0;";
+                    const nm2 = document.createElement("div");
+                    nm2.style.cssText = `${_cf}font-size:11px;color:#c09ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.1s;`;
+                    nm2.textContent = it.craftName ? it.craftName : it.name;
+                    const nmSub = document.createElement("div");
+                    nmSub.style.cssText = `${_cf}font-size:9.5px;color:#5a3048;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;`;
+                    nmSub.textContent = it.craftName ? `${it.name} - ${it.group.replace("Item", "")}` : it.group.replace("Item", "");
+                    nmWrap.appendChild(nm2);
+                    nmWrap.appendChild(nmSub);
+                    row2.appendChild(chk);
+                    row2.appendChild(nmWrap);
+                    if (it.locked) {
+                        const lockIco2 = document.createElement("span");
+                        lockIco2.style.cssText = "font-size:11px;flex-shrink:0;opacity:0.6;";
+                        lockIco2.textContent = "🔒";
+                        row2.appendChild(lockIco2);
+                    }
+                    const setRowSel = (sel) => {
+                        row2.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                        nm2.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                    };
+                    row2.addEventListener("click", () => {
+                        chk.checked = !chk.checked;
+                        const g = chk.dataset.group;
+                        if (g) {
+                            if (chk.checked)
+                                curseSelGroups.add(g);
+                            else
+                                curseSelGroups.delete(g);
+                        }
+                        setRowSel(chk.checked);
                         const n = curseCbs.filter(c => c.checked).length;
                         curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
                         curseSelAllChk.checked = n === curseCbs.length;
+                        curseItemsCountLbl.textContent = n > 0 ? `${n}/${items.length}` : `${items.length}`;
                     });
-                    const lockIco2 = document.createElement("span");
-                    lockIco2.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
-                    lockIco2.textContent = it.locked ? "🔒" : "";
-                    const nm2 = document.createElement("span");
-                    nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nm2.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
-                    const grp2 = document.createElement("span");
-                    grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
-                    grp2.textContent = it.group.replace("Item", "");
-                    row2.appendChild(chk);
-                    row2.appendChild(lockIco2);
-                    row2.appendChild(nm2);
-                    row2.appendChild(grp2);
+                    row2.addEventListener("mouseenter", () => { if (!chk.checked)
+                        row2.style.background = "rgba(70,20,45,0.25)"; });
+                    row2.addEventListener("mouseleave", () => { if (!chk.checked)
+                        row2.style.background = ""; });
                     curseItemsEl.appendChild(row2);
                 }
             };
             curseSelAllChk.addEventListener("change", () => {
+                const sel = curseSelAllChk.checked;
                 curseCbs.forEach(c => {
-                    c.checked = curseSelAllChk.checked;
+                    c.checked = sel;
                     const g = c.dataset.group;
                     if (g) {
-                        if (curseSelAllChk.checked)
+                        if (sel)
                             curseSelGroups.add(g);
                         else
                             curseSelGroups.delete(g);
                     }
+                    const row = c.parentElement;
+                    if (row) {
+                        row.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                        const nmEl = row.querySelector("div > div:first-child");
+                        if (nmEl)
+                            nmEl.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                    }
                 });
                 curseSelAllChk.indeterminate = false;
+                const total = curseCbs.length;
+                curseItemsCountLbl.textContent = sel ? `${total}/${total}` : `${total}`;
             });
             qtSel.addEventListener("change", () => {
                 if (isCurseOpen()) {
@@ -33735,38 +33780,44 @@
                     rebuildActiveCurses();
                 }
             });
-            // Also rebuild when the accordion is opened (target may already be selected)
             curseHdr.addEventListener("click", () => { if (isCurseOpen()) {
                 rebuildCurseItems();
                 rebuildActiveCurses();
             } });
-            cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
-            const curseStatus = document.createElement("div");
-            curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
-            // Duration picker
+            // ── Duration picker ─────────────────────────────────────────────────
             let curseDurMs = 0;
-            const durRow = document.createElement("div");
-            durRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px;";
+            const durSection = document.createElement("div");
+            durSection.style.cssText = "margin-bottom:8px;";
+            const durTopRow = document.createElement("div");
+            durTopRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
             const durLbl = document.createElement("span");
-            durLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;";
-            durLbl.textContent = "Duration:";
-            durRow.appendChild(durLbl);
+            durLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;white-space:nowrap;`;
+            durLbl.textContent = "Duration";
+            durTopRow.appendChild(durLbl);
             const DUR_OPTS = [["Forever", 0], ["30m", 30 * 60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
             const durBtns = [];
             const setDurStyle = (btn, sel) => {
-                btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
+                btn.style.cssText = `${_cf}font-size:10px;padding:2px 9px;border-radius:10px;cursor:pointer;border:1.5px solid ${sel ? "#8a3558" : "#2a1022"};background:${sel ? "rgba(160,40,80,0.22)" : "transparent"};color:${sel ? "#cf6f98" : "#6a3050"};transition:all 0.1s;`;
             };
             let clearDurCustom = () => { };
             for (const [label, ms] of DUR_OPTS) {
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 setDurStyle(btn, ms === 0);
+                btn.addEventListener("mouseenter", () => { if (curseDurMs !== ms) {
+                    btn.style.background = "rgba(100,25,50,0.15)";
+                    btn.style.borderColor = "#4a1830";
+                    btn.style.color = "#a06080";
+                } });
+                btn.addEventListener("mouseleave", () => { setDurStyle(btn, curseDurMs === ms); });
                 btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); clearDurCustom(); });
                 durBtns.push([btn, ms]);
-                durRow.appendChild(btn);
+                durTopRow.appendChild(btn);
             }
-            const _durInpCss = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
-            const _durLblCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+            const durCustomRow = document.createElement("div");
+            durCustomRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+            const _durInpCss = `${_cf}font-size:10px;width:30px;padding:2px 3px;background:rgba(10,4,14,0.85);border:1px solid #2a1022;color:#a07888;border-radius:5px;text-align:center;`;
+            const _durLblCss = `${_cf}font-size:10px;color:#4a2838;`;
             const mkDurInp = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _durInpCss; return i; };
             const mkDurLbl = (t) => { const s = document.createElement("span"); s.style.cssText = _durLblCss; s.textContent = t; return s; };
             const cdDays = mkDurInp("d");
@@ -33783,30 +33834,35 @@
                 }
             };
             [cdDays, cdHrs, cdMins, cdSecs].forEach(i => i.addEventListener("input", onDurCustom));
-            durRow.appendChild(cdDays);
-            durRow.appendChild(mkDurLbl("d"));
-            durRow.appendChild(cdHrs);
-            durRow.appendChild(mkDurLbl("h"));
-            durRow.appendChild(cdMins);
-            durRow.appendChild(mkDurLbl("m"));
-            durRow.appendChild(cdSecs);
-            durRow.appendChild(mkDurLbl("s"));
-            cursePanel.appendChild(durRow);
+            durCustomRow.appendChild(cdDays);
+            durCustomRow.appendChild(mkDurLbl("d"));
+            durCustomRow.appendChild(cdHrs);
+            durCustomRow.appendChild(mkDurLbl("h"));
+            durCustomRow.appendChild(cdMins);
+            durCustomRow.appendChild(mkDurLbl("m"));
+            durCustomRow.appendChild(cdSecs);
+            durCustomRow.appendChild(mkDurLbl("s"));
+            durSection.appendChild(durTopRow);
+            durSection.appendChild(durCustomRow);
+            cursePanel.appendChild(durSection);
+            // ── Action buttons ──────────────────────────────────────────────────
+            const curseStatus = document.createElement("div");
+            curseStatus.style.cssText = `${_cf}font-size:11px;color:#79a885;min-height:13px;margin-top:4px;`;
             const curseBtnRow = document.createElement("div");
-            curseBtnRow.style.cssText = "display:flex;gap:5px;";
+            curseBtnRow.style.cssText = "display:flex;gap:5px;margin-bottom:2px;";
             const applyCurseBtn = document.createElement("button");
-            applyCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #91405f;background:#3a0e28;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            applyCurseBtn.style.cssText = `flex:2;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
             applyCurseBtn.textContent = "⛓ Curse Selected";
             applyCurseBtn.title = "Send curse to target - they cannot remove these items while EBC is active";
-            applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#5a1238"; });
-            applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#3a0e28"; });
+            applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#4a0e30"; applyCurseBtn.style.borderColor = "#a04060"; });
+            applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#300820"; applyCurseBtn.style.borderColor = "#7a2848"; });
             const liftCurseBtn = document.createElement("button");
-            liftCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#1a1208;color:#c0a060;cursor:pointer;transition:background 0.14s;";
+            liftCurseBtn.style.cssText = `flex:1;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #4a3820;background:#181006;color:#b09050;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
             liftCurseBtn.textContent = "🔓 Lift All";
             liftCurseBtn.title = "Lift all curses from the target";
-            liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
-            liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
-            // Curse record helpers - persisted to settings so they survive page refreshes
+            liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#281808"; liftCurseBtn.style.borderColor = "#6a5028"; });
+            liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#181006"; liftCurseBtn.style.borderColor = "#4a3820"; });
+            // persistence helpers
             const getCurseRecord = (memberId) => {
                 var _a, _b;
                 const dc = ((_a = getSettings().domCurses) !== null && _a !== void 0 ? _a : {});
@@ -33863,7 +33919,6 @@
                 setCurseRecord(id, merged);
                 const expiry = curseDurMs > 0 ? Date.now() + curseDurMs : null;
                 setDomCurseExpiry(id, expiry);
-                // Include item name so the target can restore the exact item if it gets removed
                 const roomItems = getRoomMemberItems(id);
                 const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
                 const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
@@ -33899,13 +33954,13 @@
             cursePanel.appendChild(curseStatus);
             // ── Active curses list ──────────────────────────────────────────────
             const activeCursesEl = document.createElement("div");
-            activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #3a1928;padding-top:6px;";
+            activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:8px;border-top:1px solid #2a1022;padding-top:7px;";
             const activeCursesHdr = document.createElement("div");
-            activeCursesHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:4px;";
+            activeCursesHdr.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#6a3050;text-transform:uppercase;margin-bottom:4px;`;
             activeCursesHdr.textContent = "Active Curses";
             activeCursesEl.appendChild(activeCursesHdr);
             const activeCursesList = document.createElement("div");
-            activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;";
+            activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto;";
             activeCursesEl.appendChild(activeCursesList);
             const rebuildActiveCurses = () => {
                 var _a;
@@ -33925,12 +33980,11 @@
                 const expiry = getDomCurseExpiry(id);
                 if (expiry) {
                     const rem = expiry - Date.now();
-                    activeCursesHdr.textContent = rem > 0 ? `Active Curses - expires in ${fmtRem(rem)}` : "Active Curses - expired";
+                    activeCursesHdr.textContent = rem > 0 ? `Active - expires in ${fmtRem(rem)}` : "Active - expired";
                 }
                 else {
                     activeCursesHdr.textContent = "Active Curses";
                 }
-                // Try to resolve item names from current room appearance
                 const nameMap = new Map();
                 try {
                     for (const it of getRoomMemberItems(id))
@@ -33939,24 +33993,28 @@
                 catch ( /* ignore */_b) { /* ignore */ }
                 for (const group of groups) {
                     const wrap = document.createElement("div");
-                    wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+                    wrap.style.cssText = "display:flex;flex-direction:column;";
                     const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
-                    row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
-                    row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 8px 4px 10px;border-radius:6px;background:rgba(22,6,16,0.8);border:1px solid #2a1022;border-left:3px solid #6a2040;";
                     const nm = document.createElement("span");
-                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
                     nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
                     nm.title = group;
-                    // ⏱ pause button - toggles duration picker inline
                     const pauseBtn = document.createElement("button");
-                    pauseBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;flex-shrink:0;";
+                    pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                     pauseBtn.textContent = "⏱";
                     pauseBtn.title = "Temporarily pause this curse";
+                    pauseBtn.addEventListener("mouseenter", () => { pauseBtn.style.background = "rgba(50,70,120,0.2)"; pauseBtn.style.borderColor = "#4060a0"; });
+                    pauseBtn.addEventListener("mouseleave", () => { if (pauseBtn.style.color !== "#90b8e8") {
+                        pauseBtn.style.background = "transparent";
+                        pauseBtn.style.borderColor = "#2a3050";
+                    } });
                     const liftOneBtn = document.createElement("button");
-                    liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                    liftOneBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #3a1828;background:transparent;color:#906070;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                     liftOneBtn.textContent = "✕";
                     liftOneBtn.title = "Lift this curse";
+                    liftOneBtn.addEventListener("mouseenter", () => { liftOneBtn.style.background = "rgba(120,30,50,0.2)"; liftOneBtn.style.borderColor = "#6a2838"; liftOneBtn.style.color = "#c07080"; });
+                    liftOneBtn.addEventListener("mouseleave", () => { liftOneBtn.style.background = "transparent"; liftOneBtn.style.borderColor = "#3a1828"; liftOneBtn.style.color = "#906070"; });
                     liftOneBtn.addEventListener("click", () => {
                         var _a, _b, _c;
                         const remaining = getCurseRecord(id).filter(g => g !== group);
@@ -33974,20 +34032,20 @@
                     row.appendChild(nm);
                     row.appendChild(pauseBtn);
                     row.appendChild(liftOneBtn);
-                    // Duration picker - hidden until ⏱ clicked
+                    // inline pause picker
                     const pickerRow = document.createElement("div");
-                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:2px 4px 4px 4px;flex-wrap:wrap;";
+                    pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:4px 8px;flex-wrap:wrap;background:rgba(14,4,20,0.7);border:1px solid #2a1022;border-top:none;border-radius:0 0 6px 6px;";
                     const pickerLbl = document.createElement("span");
-                    pickerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7090b0;white-space:nowrap;";
+                    pickerLbl.style.cssText = `${_cf}font-size:10px;color:#5a7098;white-space:nowrap;`;
                     pickerLbl.textContent = "Pause for:";
                     pickerRow.appendChild(pickerLbl);
                     const PAUSE_OPTS = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
                     for (const [label, mins] of PAUSE_OPTS) {
                         const chip = document.createElement("button");
-                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                        chip.style.cssText = `${_cf}font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
                         chip.textContent = label;
-                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(70,100,160,0.2)"; chip.style.borderColor = "#5070a0"; });
-                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#3a4060"; });
+                        chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(50,80,140,0.2)"; chip.style.borderColor = "#4060a0"; });
+                        chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#2a3050"; });
                         chip.addEventListener("click", () => {
                             var _a, _b, _c;
                             const ms = mins * 60 * 1000;
@@ -33998,17 +34056,17 @@
                             curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
                             window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
                             pickerRow.style.display = "none";
-                            pauseBtn.style.color = "#7090b0";
+                            pauseBtn.style.color = "#6888a8";
+                            pauseBtn.style.borderColor = "#2a3050";
                         });
                         pickerRow.appendChild(chip);
                     }
-                    // Custom d/h/m/s pause duration
                     const pSepEl = document.createElement("span");
-                    pSepEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                    pSepEl.style.cssText = `${_cf}font-size:10px;color:#3a4060;`;
                     pSepEl.textContent = "|";
                     pickerRow.appendChild(pSepEl);
-                    const _pIc = "font-family:'Trebuchet MS',serif;font-size:10px;width:28px;padding:1px 2px;background:#111827;border:1px solid #2a3550;color:#7090b0;border-radius:4px;text-align:center;";
-                    const _pLc = "font-family:'Trebuchet MS',serif;font-size:10px;color:#4a6080;";
+                    const _pIc = `${_cf}font-size:10px;width:27px;padding:1px 2px;background:rgba(10,5,18,0.9);border:1px solid #2a3050;color:#6888a8;border-radius:4px;text-align:center;`;
+                    const _pLc = `${_cf}font-size:10px;color:#3a4060;`;
                     const mkPI = (ph) => { const i = document.createElement("input"); i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _pIc; return i; };
                     const mkPL = (tx) => { const s = document.createElement("span"); s.style.cssText = _pLc; s.textContent = tx; return s; };
                     const pDays = mkPI("d");
@@ -34024,10 +34082,10 @@
                     pickerRow.appendChild(pSecs);
                     pickerRow.appendChild(mkPL("s"));
                     const pGoBtn = document.createElement("button");
-                    pGoBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #3a4060;background:transparent;color:#7090b0;cursor:pointer;";
+                    pGoBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
                     pGoBtn.textContent = "▷";
-                    pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(70,100,160,0.2)"; pGoBtn.style.borderColor = "#5070a0"; });
-                    pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#3a4060"; });
+                    pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(50,80,140,0.2)"; pGoBtn.style.borderColor = "#4060a0"; });
+                    pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#2a3050"; });
                     pGoBtn.addEventListener("click", () => {
                         var _a, _b, _c;
                         const d = parseInt(pDays.value) || 0, h = parseInt(pHrs.value) || 0, m = parseInt(pMins.value) || 0, s = parseInt(pSecs.value) || 0;
@@ -34051,7 +34109,8 @@
                         curseStatus.textContent = `⏱ ${itemLabel} paused for ${customLabel}.`;
                         window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
                         pickerRow.style.display = "none";
-                        pauseBtn.style.color = "#7090b0";
+                        pauseBtn.style.color = "#6888a8";
+                        pauseBtn.style.borderColor = "#2a3050";
                         pDays.value = "";
                         pHrs.value = "";
                         pMins.value = "";
@@ -34061,7 +34120,8 @@
                     pauseBtn.addEventListener("click", () => {
                         const open = pickerRow.style.display !== "none";
                         pickerRow.style.display = open ? "none" : "flex";
-                        pauseBtn.style.color = open ? "#7090b0" : "#90b8e0";
+                        pauseBtn.style.color = open ? "#6888a8" : "#90b8e8";
+                        pauseBtn.style.borderColor = open ? "#2a3050" : "#4060a0";
                     });
                     wrap.appendChild(row);
                     wrap.appendChild(pickerRow);
@@ -34353,8 +34413,8 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.5";
-    const SAL_VERSION = 98; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.6";
+    const SAL_VERSION = 99; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34368,6 +34428,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.6",
+            changes: [
+                "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+            ],
+        },
         {
             version: "8.2.5",
             changes: [
