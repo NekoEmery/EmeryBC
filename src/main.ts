@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.2.8";
-const SAL_VERSION  = 106;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.2.9";
+const SAL_VERSION  = 107;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +42,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.2.9",
+        changes: [
+            "Fix: text size slider no longer breaks the panel layout when scaling up (scale>1). Root cause: overflow:hidden added to #emerybc-panel in 8.2.8 created a conflicting clip context on top of the one already in .ebc-panel, breaking CSS zoom at scale>1. Fix: removed it (the inner .ebc-panel already clips correctly). Also flex-shrink:0 no longer applied at scale>1 where it is not needed.",
+            "Fix: Live support badge now uses name-only matching and adds a window.ChatRoomList poll 2s after each search as a fallback, covering cases where the socket.io callback fires before the badge callback is registered.",
+        ],
+    },
     {
         version: "8.2.8",
         changes: [

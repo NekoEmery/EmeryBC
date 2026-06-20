@@ -630,7 +630,7 @@ const CSS = `
     height: 100%;  /* full chat log height - no vertical conflict with tab */
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* clip zoom-wrapper layout overflow when scale<1 (inv%>100%) */
+    /* overflow:hidden intentionally omitted - .ebc-panel already clips its own content */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -6427,14 +6427,13 @@ export class EBCDrawer {
             wrapper.style.flexShrink = "";
         } else {
             // inv% × zoom = 100% — wrapper fills the panel exactly at every zoom level.
-            // At scale<1 inv%>100%, which would overflow the flex container; flex-shrink:0
-            // prevents flex from shrinking it back, and overflow:hidden on #emerybc-panel
-            // clips the layout overflow so the panel dimensions stay unchanged.
+            // At scale<1 the inv% exceeds 100%, so flex would shrink the wrapper back;
+            // flex-shrink:0 prevents that. At scale>1 inv%<100%, no shrink risk.
             const inv = (100 / scale).toFixed(4) + "%";
             wrapper.style.zoom       = String(scale);
             wrapper.style.width      = inv;
             wrapper.style.height     = inv;
-            wrapper.style.flexShrink = "0";
+            wrapper.style.flexShrink = scale < 1 ? "0" : "";
         }
         // Apply matching zoom to any open beep/group windows.
         const zoomStr = scale === 1 ? "" : String(scale);
@@ -23807,15 +23806,25 @@ export class EBCDrawer {
         const HQ_NAME = "EmeryBC (EBC) HQ";
         const doScan = (): void => {
             try {
+                // Primary path: socket.io listener in main.ts fires fireRoomSearchResult
+                // which calls this callback. Name-only match - description varies.
                 setRoomSearchCallback((list) => {
-                    const found = list.some(r => {
-                        const name = String(r["Name"] ?? "");
-                        const desc = String(r["Description"] ?? "").toLowerCase();
-                        return name === HQ_NAME && desc.includes("come and talk about the addon");
-                    });
+                    const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
                     this._setHQLive(found);
                 });
                 ServerSend("ChatRoomSearch", { Name: HQ_NAME });
+                // Fallback: poll window.ChatRoomList 2s after the search (BC always
+                // populates this when the server responds, even if the hook misses it).
+                window.setTimeout(() => {
+                    try {
+                        const raw = (window as unknown as Record<string, unknown>).ChatRoomList;
+                        if (!Array.isArray(raw)) return;
+                        const found = (raw as Array<Record<string, unknown>>).some(
+                            r => String(r["Name"] ?? "").trim() === HQ_NAME,
+                        );
+                        this._setHQLive(found);
+                    } catch { /* ignore */ }
+                }, 2000);
             } catch { /* ignore - network not ready */ }
         };
         window.setTimeout(doScan, 8000);

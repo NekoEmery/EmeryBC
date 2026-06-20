@@ -8322,7 +8322,7 @@
     height: 100%;  /* full chat log height - no vertical conflict with tab */
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* clip zoom-wrapper layout overflow when scale<1 (inv%>100%) */
+    /* overflow:hidden intentionally omitted - .ebc-panel already clips its own content */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -13913,14 +13913,13 @@
             }
             else {
                 // inv% × zoom = 100% — wrapper fills the panel exactly at every zoom level.
-                // At scale<1 inv%>100%, which would overflow the flex container; flex-shrink:0
-                // prevents flex from shrinking it back, and overflow:hidden on #emerybc-panel
-                // clips the layout overflow so the panel dimensions stay unchanged.
+                // At scale<1 the inv% exceeds 100%, so flex would shrink the wrapper back;
+                // flex-shrink:0 prevents that. At scale>1 inv%<100%, no shrink risk.
                 const inv = (100 / scale).toFixed(4) + "%";
                 wrapper.style.zoom = String(scale);
                 wrapper.style.width = inv;
                 wrapper.style.height = inv;
-                wrapper.style.flexShrink = "0";
+                wrapper.style.flexShrink = scale < 1 ? "0" : "";
             }
             // Apply matching zoom to any open beep/group windows.
             const zoomStr = scale === 1 ? "" : String(scale);
@@ -32155,16 +32154,25 @@
             const HQ_NAME = "EmeryBC (EBC) HQ";
             const doScan = () => {
                 try {
+                    // Primary path: socket.io listener in main.ts fires fireRoomSearchResult
+                    // which calls this callback. Name-only match - description varies.
                     setRoomSearchCallback((list) => {
-                        const found = list.some(r => {
-                            var _a, _b;
-                            const name = String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "");
-                            const desc = String((_b = r["Description"]) !== null && _b !== void 0 ? _b : "").toLowerCase();
-                            return name === HQ_NAME && desc.includes("come and talk about the addon");
-                        });
+                        const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
                         this._setHQLive(found);
                     });
                     ServerSend("ChatRoomSearch", { Name: HQ_NAME });
+                    // Fallback: poll window.ChatRoomList 2s after the search (BC always
+                    // populates this when the server responds, even if the hook misses it).
+                    window.setTimeout(() => {
+                        try {
+                            const raw = window.ChatRoomList;
+                            if (!Array.isArray(raw))
+                                return;
+                            const found = raw.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
+                            this._setHQLive(found);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, 2000);
                 }
                 catch ( /* ignore - network not ready */_a) { /* ignore - network not ready */ }
             };
@@ -34573,8 +34581,8 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.2.8";
-    const SAL_VERSION = 106; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.2.9";
+    const SAL_VERSION = 107; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34588,6 +34596,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.2.9",
+            changes: [
+                "Fix: text size slider no longer breaks the panel layout when scaling up (scale>1). Root cause: overflow:hidden added to #emerybc-panel in 8.2.8 created a conflicting clip context on top of the one already in .ebc-panel, breaking CSS zoom at scale>1. Fix: removed it (the inner .ebc-panel already clips correctly). Also flex-shrink:0 no longer applied at scale>1 where it is not needed.",
+                "Fix: Live support badge now uses name-only matching and adds a window.ChatRoomList poll 2s after each search as a fallback, covering cases where the socket.io callback fires before the badge callback is registered.",
+            ],
+        },
         {
             version: "8.2.8",
             changes: [
