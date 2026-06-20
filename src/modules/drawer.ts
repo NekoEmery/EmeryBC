@@ -18019,7 +18019,7 @@ export class EBCDrawer {
         // ── Explain EBC (Emery only) ──────────────────────────────────────────────
         if (Player.MemberNumber === EMERY_MEMBER) {
             const EBC_EXPLAIN_MSG =
-                "EmeryBC adds things like outfit saves and quick presets, one-click action and emote buttons, " +
+                "EmeryBC adds things like outfit saves and quick presets, one-click action buttons, " +
                 "timers, and a bunch of QoL tools that make BC smoother. " +
                 "It's a public addon available on FUSAM if you want to check it out~ ✨";
 
