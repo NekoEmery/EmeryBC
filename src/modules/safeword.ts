@@ -149,7 +149,7 @@ const NECK_GROUPS = new Set([
 // Lock asset names that are never removed by safeword (owner / lover / family padlocks).
 const PROTECTED_LOCK_NAMES = new Set([
     "OwnerPadlock",
-    "OwnerTimedPadlock",
+    "OwnerTimerPadlock",
     "ExclusivePadlock",
     "LoversPadlock",
     "LoversTimerPadlock",

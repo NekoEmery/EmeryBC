@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.5";
-const SAL_VERSION  = 37;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "5.5.6";
+const SAL_VERSION  = 125;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -43,25 +43,127 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.5.5",
+        version: "5.5.6",
         changes: [
-            "Feedback form: privacy note simplified - removed the Google mention, just states your BC member number is attached.",
+            "Stability and correctness release. Safeword no longer strips owner-timer locks (OwnerTimerPadlock typo fixed). Live support badge now holds state inside chat rooms and refreshes promptly on return to lobby. Toys tab no longer leaks a background poller on every re-render. Outfit/restraint apply flag can no longer get permanently stuck after a sync error. Restraint log now shows the correct locker name instead of the lock asset name. Distinct *emotes typed in quick succession are no longer silently dropped. Scene steps with corrupt NaN delays no longer fire all remaining steps at once. Friends oldest/newest sort is stable when both entries lack a date. Action sidebar per-frame DOM overhead significantly reduced.",
         ],
     },
     {
-        version: "5.5.4",
+        version: "8.3.0",
         changes: [
-            "Feedback form: BC member number is silently attached to every submission so spam can be blocked. Privacy note updated to be honest about this.",
+            "Fix: text size scaling above 100% no longer shows dead space at the bottom of the panel. Root cause: Chrome's flex algorithm does not account for CSS zoom when computing a flex child's main-axis contribution - at scale>1 the zoom wrapper's layout size was under 100% of the panel height, leaving visible dark space. Fix: switched from CSS zoom to transform:scale on the zoom wrapper. transform changes only the visual rendering and does not affect layout, so flex always sees the raw inv% size and the visual exactly fills the panel.",
+            "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is above 100%. Root cause: CSS zoom on the zoom wrapper affected coordinate reporting for elements inside it in Chrome. Switching to transform:scale removes CSS zoom from the coordinate system entirely, fixing the snap.",
+            "Fix: Live support badge now appears correctly when the EBC HQ room is open. Root cause: BC R128 changed the room search API from { Name } to { Query, Language } - the old payload was silently ignored by the server, returning empty results. Also removed the window.ChatRoomList fallback which does not exist in BC R128.",
+            "Fix: dragging a beep window no longer snaps to the wrong position when text size is above 100%. Root cause: Chrome scales clientX/Y for mousedown events fired on children of a CSS-zoomed element (divides by the zoom factor), so the cursor-to-window offset was wrong at scale != 1. Fix: switched to anchoring from the first document-level move event, which is always in true viewport coordinates regardless of any CSS zoom on child elements.",
+            "Fix: Live support badge and room info chips now receive search results correctly. Root cause: the previous socket.io fallback used window.io.managers which does not exist in socket.io v4 (it was a v2-era API), so the ChatRoomSearchResult listener was silently never registered. Fix: switched to window.ServerSocket.on() - ServerSocket is declared as a top-level var in BC's classic Server.js and is reliably accessible on window.",
+            "Fix: beep window drag no longer snaps at scale != 1. Root cause: CSS zoom distorts event clientX/Y inside a zoomed element (Chrome divides by zoom factor). getBoundingClientRect also has ambiguous values for scaled elements depending on the transform origin, making offset-based drag calculations brittle. Fix: switched beep/group windows from CSS zoom to transform:scale (event coords are always true viewport coords). Drag now uses getComputedStyle to read the initial layout-space left/bottom (resolving right:X correctly and never affected by transforms), then tracks a simple clientX/Y delta from the mousedown position.",
+            "Fix: Live support badge now actually appears when the EBC HQ room is open. Root cause: EBC initializes before BC fires window.load, so window.ServerSocket is still null when the ChatRoomSearchResult relay listener was registered - the call was a silent no-op and results never reached the HQ scanner. Fix: the HQ scanner now registers its own ServerSocket.once() listener directly inside doScan (runs 8 s after drawer init, well after window.load), and the shared relay in main.ts retries every 2 s until ServerSocket is non-null.",
+            "Fix: panel position is now saved correctly across restarts. Root cause: savePanelPosition wrote directly to Player.ExtensionSettings.EmeryBC.panelPos, but syncSettings() runs flushToExtensionSettings() 400 ms later which overwrites it with _mem.panelPos (still null from the server). Fix: route panelPos through getSettings()/_mem so flushToExtensionSettings picks it up correctly.",
+            "Fix: newlines in beep messages are now preserved in the chat history. Root cause: the message div used the default white-space:normal, which collapses \\n to spaces. Fix: white-space:pre-wrap on the text div.",
+            "Fix: Imgur links now embed as images in beep windows. Previously only URLs with explicit image extensions (.jpg, .png, etc.) were embedded. imgur.com/ID and i.imgur.com/ID links (without extension) are now detected and embedded via i.imgur.com/ID directly.",
+            "Fix: URLs in beep messages are now rendered as clickable links. Previously all message text was plain textContent so URLs were unclickable. Album links (imgur.com/a/) and other non-image URLs are not embedded but are now at least clickable.",
+            "Fix: Live support badge no longer disappears while EBC HQ is still open. Root cause: once() per scan consumed any ChatRoomSearchResult event - if BC's own room search UI or another addon fired one first, our once fired with the wrong data (no HQ room found) and hid the badge. Fix: single permanent on() listener registered on first scan, guarded by a 10 s timestamp window so only results from our own ServerSend are trusted.",
+            "Fix: replying to a multi-line message no longer bleeds extra lines into the reply body. Root cause: setReply stored the full multi-line quoted text; the parser splits on the first newline only, so subsequent lines of the quote appeared as part of the reply's own message. Fix: setReply now only keeps the first line of the quoted text.",
+            "Fix: quick-emote sidebar buttons no longer respond to clicks when hidden. Root cause: the ChatRoomClick hook called handleActionButtonClick() without checking getActionButtonsVisible() - buttons were not drawn but their hit areas were still active. Fix: added the same getActionButtonsVisible() guard to the click handler that the draw path already had.",
+            "Fix: replying to an action message (*emote*) with another action no longer leaves the reply bar stuck open. Root cause: when an active BC reply state existed (reply indicator showing), EBC's handleEmoteShortcut fired, sent the emote via bare ServerSend (no replyId, no ChatRoomMessageReplyStop call), and returned early - skipping BC's native ChatRoomSendEmote which normally includes the reply context and clears the indicator. Fix: when ChatRoomMessageGetReplyId() returns a value, handleEmoteShortcut returns false and lets BC's own ChatRoomSendEmote handle the message natively.",
+            "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
+            "Fix: Live support badge now persists correctly while inside a chat room and refreshes promptly on return to the lobby. Root cause: BC server silently ignores ChatRoomSearch while the player is in a room - the resulting empty response was incorrectly hiding the badge. Fix: doScan now skips when CurrentScreen is ChatRoom so the badge holds its last known state. A 5 s polling loop detects room exits and triggers a fresh scan 1.5 s later so the badge updates quickly when returning to the lobby.",
+            "Fix (safety): the safeword no longer strips restraints locked with an owner timer lock. Root cause: the protected-lock list had a typo 'OwnerTimedPadlock' but BC's actual asset name is 'OwnerTimerPadlock', so the exact-match protection never triggered and a safeword/grace event could remove an owner-timer-locked item meant to be protected.",
+            "Fix: a failed outfit or restraint-set swap can no longer permanently disable all future swaps. Root cause: outfitApplyPending was set true before an unguarded synchronous block whose only reset lived inside a later setTimeout - any throw before that timeout was scheduled stuck the flag true forever ('An outfit swap is already in progress.'). Fix: a 5 s watchdog guarantees the flag clears regardless, cancelled on the normal success path.",
+            "Fix (memory leak): the Toys tab no longer stacks a permanent 800ms sync-status timer on every re-render. Root cause: the poller was stored in a local variable and only self-cleared when no toys card was present, but each re-render (toggle, or any toy-control beep) created a fresh card so the old poller never stopped - during an active toy session these accumulated indefinitely along with detached DOM nodes. Fix: the poller is stored on the instance and cleared before each re-render, on tab switch, and on teardown.",
+            "Fix (memory leak): the HQ room-exit watcher, BC-Lovense live-sync poller, and toys sync-status poller are now all cleared when the drawer is torn down, instead of running orphaned for the rest of the session.",
+            "Fix: typing a second different *emote* quickly no longer gets silently dropped. Root cause: the duplicate-fire guard (which dedups the same Enter keypress arriving through three interceptors) was keyed on time alone, so any emote within 500ms of the previous one was swallowed. Fix: the guard now also compares the emote text, so only a true re-fire of the same emote is suppressed - distinct emotes always send.",
+            "Perf: reduced per-frame cost of the quick-action sidebar (runs ~60x/sec in a chat room). The MainCanvas 2d context is now cached instead of re-queried from the DOM per button per frame, fitted button-label font sizes are memoized instead of re-measured every frame, the one-time legacy-button-style migration no longer re-scans every category/button each frame, and the presence-badge buffer reuses its array and skips sorting when 0-1 badges are present.",
+            "Fix: the restraint log now shows who applied a lock instead of '#<lockname>'. Root cause: it read Property.LockedBy (the lock's asset name, e.g. 'MetalPadlock') as if it were a member number, so the locker lookup never matched. Fix: resolve the locker from Property.LockMemberNumber and use LockedBy only to detect that the item is locked.",
+            "Fix: importing a button config no longer truncates labels to 6 characters. Root cause: the import path sliced labels to 6 chars while the editor and export use 16, so re-importing an exported config silently shortened any label longer than 6. Fix: import now matches the 16-character limit.",
+            "Fix: the friends 'oldest/newest friendship' sort is now stable when two friends both have no recorded friendship date. Root cause: both fell back to the same Infinity sentinel and Infinity - Infinity is NaN, which makes the sort order undefined. Fix: fall back to a name comparison when the date difference is NaN.",
+            "Fix: a saved scene with a corrupt/non-numeric step delay no longer fires all of its remaining steps at once. Root cause: a NaN delay poisoned the running offset so every later setTimeout was scheduled with NaN (treated as 0). Fix: non-finite step delays are now treated as 0.",
         ],
     },
     {
-        version: "5.5.3",
+        version: "8.2.9",
         changes: [
-            "Tutorial: clicking Tutorial shows a mode selection screen — Quick Tour (6 steps, one spotlight per feature, try-it prompts) or Full Guide (13 steps, every sub-feature with detailed walkthrough). Panel centered on screen.",
-            "Fix: panel zoom now works correctly at all scale levels — content no longer bleeds outside or double-shrinks; switched from CSS transform:scale to CSS zoom.",
-            "Feedback: anonymous in-game form in the footer — pick a type, write your message, hit Send; no browser tab, no account, submitted silently from the game.",
-            "IRL toys: two-remote support with per-toy routing — body-touch and phrase triggers each have toy chips to target a specific toy; HTTP toys appear as cards matching BLE style.",
-            "Toy whitelist: entries show friend display names beside member numbers; instant-control toggle added (OFF by default for safety).",
+            "Fix: text size slider no longer breaks the panel layout when scaling up (scale>1). Root cause: overflow:hidden added to #emerybc-panel in 8.2.8 created a conflicting clip context on top of the one already in .ebc-panel, breaking CSS zoom at scale>1. Fix: removed it (the inner .ebc-panel already clips correctly). Also flex-shrink:0 no longer applied at scale>1 where it is not needed.",
+            "Fix: Live support badge now uses name-only matching and adds a window.ChatRoomList poll 2s after each search as a fallback, covering cases where the socket.io callback fires before the badge callback is registered.",
+        ],
+    },
+    {
+        version: "8.2.8",
+        changes: [
+            "Fix: text size no longer breaks the panel layout at any zoom level. Root cause: CSS zoom with inv% on the wrapper was being flex-shrunk back to 100% at scale<1, making content appear at only (scale×100)% of the panel instead of filling it. Fix: flex-shrink:0 prevents the shrink; overflow:hidden on #emerybc-panel clips the layout overflow so the panel size stays unchanged.",
+            "Fix: panel drag no longer snaps when text size is not 100%. Changed drag handler to anchor from the first document-level move event instead of the mousedown position - document events are always in viewport coordinates regardless of CSS zoom on ancestors.",
+            "Explain EBC message rewritten: removed 'private' claim (it is public on FUSAM), removed awkward 'I use' phrasing, now answers 'what does your addon do?' directly and mentions FUSAM.",
+        ],
+    },
+    {
+        version: "8.2.7",
+        changes: [
+            "Fix: dragging the panel by the header no longer snaps to the wrong position when text size is not 100%. Root cause: CSS zoom on .ebc-zoom-wrapper scales clientX/Y for mousedown events fired on elements inside it (Chromium behaviour), but document-level mousemove events are not affected - multiplying the mousedown origin by the zoom factor corrects both to viewport space.",
+            "Buttons tab: Explain EBC tool is now Emery-only (was all credited users). Added a Chat button alongside Whisper - Whisper sends privately to the selected person, Chat broadcasts to the room. Message simplified to not mention private-only features.",
+            "Footer: shows a flashing green [Live support] badge next to Suggestions & Bugs when the EmeryBC (EBC) HQ room is open. Badge scans every 2 minutes; clicking it offers to join the room.",
+        ],
+    },
+    {
+        version: "8.2.6",
+        changes: [
+            "Redesigned CURSE panel - cleaner card layout with a bordered item picker (full-row clickable, subtitles show slot name, highlighted when selected), pill-style preset duration buttons with a separate custom d/h/m/s row below, taller action buttons, and active curse cards with a left accent bar.",
+            "Fix: ANIMS tab now correctly responds to the tab visibility toggle - the button had the wrong element ID (ebc-tab-poses instead of ebc-tab-anims) so hiding it in DEV settings had no effect.",
+            "Fix: TOYS tab now appears in the DEV tab visibility grid so it can be hidden.",
+            "Fix: Action buttons sidebar (emote side menu) now defaults to OFF on accounts where it has not been explicitly enabled - previously it defaulted to ON on every new/alt account.",
+            "Renamed footer button and modal title from 'Suggestions' to 'Suggestions & Bugs'.",
+            "Buttons tab: added 'Explain EBC to' whisper tool visible to all credited users (VIP_MEMBERS) - pick a room member from the dropdown and send them a one-click whisper describing the addon.",
+            "Fix: text size slider no longer breaks the panel layout when scaling below 100%. Root cause: inverse sizing (100/scale %) exceeded 100% at scale < 1, making the zoom wrapper wider/taller than the panel and causing flex children to overflow. Scale-down now keeps the wrapper at 100% and lets the zoomed content be smaller.",
+        ],
+    },
+    {
+        version: "8.2.5",
+        changes: [
+            "Curse custom duration picker now uses separate d/h/m/s fields instead of a single minutes input - applies in both the DOM curse panel and the kitty menu.",
+            "Kitty menu (Lucy view): active curses now tracked locally so each curse can be lifted individually with a per-item dismiss button (sends [EBC-CURSE:clear:Group] beep); 'Clear All' still clears everything at once.",
+            "Active Curses pause picker now has d/h/m/s custom inputs alongside the preset chips - type any combination and hit the play button to send a custom pause duration.",
+            "Game Toys - Control a Friend: added Direct intensity slider (0-20) below the mode buttons. Dragging it sends [EBC-TOY:LV:n:0] to the friend, which their client forwards straight to Lovense at that exact level (continuous, bypasses BC mode system). Slider shows 'off' at 0, 'n/20' otherwise; sends on mouse-release plus a 120ms debounce while dragging.",
+            "Fix: BC TOY SYNC now reads Item.Property.Intensity directly from each worn vibrator item (the actual current intensity, -1 to 3) instead of ArousalSettings.VibratorLevel (a secondary derived value used by the arousal meter, weighted by zone preference factors). All modes - static (Low/Medium/High/Max) and dynamic (Escalate, Tease, Edge, etc.) - write their live intensity to Property.Intensity each scriptDraw tick; this is now correctly mirrored to Lovense at 0/5/10/15/20.",
+            "Fix: cursed items no longer disappear when the curse timer expires. Two related issues fixed: (1) auto-lift now pushes the current appearance state for every cursed slot to the server before clearing curse data, preventing a race where an in-flight server removal wins after the data is cleared; (2) the ChatRoomSyncItem correction callback now skips sending if the slot is empty, avoiding accidentally broadcasting a removal for a slot that was legitimately cleared during a pause.",
+            "Kitty menu: added 🍆 Penis Enlargement button at the bottom - shows a private local message to Lucy only. No further questions asked.",
+            "PiShock: removed Chat Triggers section and the chat-message trigger listener - only shock collar (TriggerShock BC action) and test buttons remain.",
+            "Fix: BC TOY SYNC now detects vibrating chastity belts, vibrating plugs, and other built-in-vibe items by also checking Asset.Archetype === 'vibrating', in addition to the Property.Mode check. Previously those items were skipped if Mode was undefined.",
+            "Renamed 'Feedback & Bugs' button and form to 'Suggestions' - more accurately reflects what people send.",
+        ],
+    },
+    {
+        version: "8.2.4",
+        changes: [
+            "PiShock shock collar now triggers correctly - BC sends Content='TriggerShock0/1/2' and target is in DestinationCharacterName (not TargetCharacter); all checks were previously wrong so shock collar never fired PiShock.",
+            "PiShock BC Events configuration removed entirely - shockers now always fire automatically when BC shocks you, using Allow flags to pick the operation (Shock if allowed, else Vib, else Beep). No setup or toggles needed.",
+            "PiShock: Trusted Senders whitelist - add trusted people by member number; each shocker has a 'Trusted only' toggle that when on only fires that shocker if the person who triggered the BC shock is in the whitelist. Toggle off to let anyone trigger it.",
+        ],
+    },
+    {
+        version: "8.2.3",
+        changes: [
+            "PiShock UI redesign: collapsible connection section (auto-collapses once credentials are saved), global safety cap (hard max intensity + duration applied to every shock), pre-shock warning chain (optional beep and/or vibrate before any shock with 1s gaps), user-editable intensity levels (4 named levels - Low/Medium/High/Max - with customizable name, intensity%, and duration per level), device type selector per shocker (Collar/Chastity/Prongs/Clamps/Plug/Custom), BC events and chat triggers now reference levels by name instead of raw numbers.",
+            "PiShock fix: shock collars and electro items send Type:Action (not Activity) messages - now hooked; checks Content tag for 'shock'/'electro' keywords and routes to PiShock trigger. Added Shock entry to BC event list so shockers can be configured to fire on shock collar activation.",
+            "PiShock fix: shock collar Action message Content is TriggerShock0/1/2 (not a 'shock' keyword) and target is in DestinationCharacterName tag (not TargetCharacter) - both checks were wrong so the hook never matched and PiShock never fired. Now correctly detects TriggerShock prefix and reads MemberNumber from DestinationCharacterName.",
+            "PiShock fix: BC shock collar now auto-fires using the shocker's Allow flags when no BC Event is explicitly configured - Beep allowed fires a beep, Vib fires a vibrate, Shock fires a shock; no need to dig into BC Events just to get a beep from the collar.",
+            "PiShock: BC Events section redesigned - now a clearly bordered accent-colored panel (open by default, with lightning icon and subtitle) instead of tiny collapsed text. Reduced TOUCH_DEFS to only relevant shock/pain activities: Bite, Spank, Slap, Pinch, Shock (removed Headpat, Caress, Kiss, Lick, Tickle, Squeeze, Rub, Choke, Grab).",
+            "PiShock fix: chat triggers now also fire on your own outgoing messages, not just others' - previously the sender filter blocked self-sent phrases entirely.",
+            "Curses: DOM can now temporarily pause a curse from the Active Curses list - click the timer button on any curse row to pick a duration (5m/15m/30m/1h/2h); sends a pause beep to the target whose client skips enforcement until the timer expires, then the curse automatically re-engages.",
+        ],
+    },
+    {
+        version: "8.2.2",
+        changes: [
+            "i18n: all new UI strings are now fully translated - Tutorial mode selector and step labels, Feedback form, PiShock setup modal, Toys tab headers and controls, and the Tutorial/Feedback footer buttons. Switch language mid-session and everything updates instantly.",
+            "README updated to cover the Toys tab (Game Toys, IRL/Lovense, PiShock), Tutorial (Quick Tour / Full Guide), and the Feedback & Bug Reports form.",
+            "PiShock debug: always log ps_url and ps_redirected from Worker response. Added 'Direct (no proxy)' test button per shocker that sends a beep straight to PiShock bypassing the Cloudflare Worker - check F12 Network tab to see raw response and diagnose 404.",
+            "PiShock fix attempt: Worker now sends Origin and Referer headers spoofed as https://pishock.com when forwarding to PiShock API - CORS analysis showed PiShock only allows their own origin, so raw server-side requests get 404.",
+            "PiShock proxy: switched setup guide from Cloudflare Workers to Deno Deploy - Cloudflare datacenter IPs are blocked by PiShock's WAF (confirmed: GET:404 from Worker). Deno Deploy runs on Google Cloud infra, not Cloudflare, so PiShock won't block it. Embedded proxy code updated to Deno.serve() syntax.",
+            "PiShock proxy fix: add Deno.createHttpClient({ http2: false }) to force HTTP/1.1 - PiShock's server advertises HTTP/2 via ALPN but drops the streams immediately, causing 'http2 error: unspecific protocol error'. HTTP/1.1 bypasses this.",
+            "PiShock proxy diagnostic: remove trailing slash from apioperate URL, add Accept header, re-add GET diagnostic (getCheck) to tell if the route exists (405 = exists POST-only, 404 = route gone).",
+            "PiShock URL fix: Swagger revealed paths use /Api/ (capital A) not /api/ - server migrated to Linux with case-sensitive routing. Updated PS_URL to https://do.pishock.com/Api/ApiOperate (PascalCase matching Swagger route pattern /Api/GetLastLogs).",
+            "PiShock API migration: do.pishock.com Legacy API Swagger confirms apioperate endpoint is completely absent - removed from server. Full Swagger probe revealed new 'PiShock Public API v1' at api.pishock.com. Updated proxy code: now POSTs to api.pishock.com/Shockers/{Code} with X-PiShock-Api-Key + X-PiShock-Username headers (auth moved from body to headers), Duration converted from seconds to milliseconds (new API requirement), Op renamed to Operation.",
+            "PiShock UUID bridge: new API requires UUID as ShockerId (not share code). Legacy do.pishock.com/Api/GetKeyFromShort returns base64(shareCode::UUID) - proxy now decodes this to extract the UUID, then operates via api.pishock.com/Shockers/{UUID}. UUID cached in-memory per Deno instance to avoid repeated lookups.",
+            "PiShock WORKING: new API ShockerId is the integer shockerId from GetShareCodes (not a UUID). Proxy now calls GetShareCodes, finds share by linkCode match, extracts integer shockerId, calls api.pishock.com/Shockers/{shockerId} - returns HTTP 204 on success. firePiShock updated to treat ps_status 204 as ok. Beep/vibrate/shock confirmed working end-to-end.",
         ],
     },
     {
@@ -69,6 +171,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "Tutorial: clicking Tutorial now shows a mode selection screen — choose Quick Tour (5 steps, every feature in 2 minutes) or Full Guide (12 steps, full walkthrough with try-it prompts). Guide panel is wider with a proper welcome header.",
             "Feedback form: BC member number is now silently attached to every submission (shown in the version field as '8.x.x | #12345') so spam or misuse can be blocked by member number.",
+            "PiShock (Emery-only dev): re-added to TOYS tab. Per-user Cloudflare Worker proxy - credentials never leave your own Worker. Supports multiple shockers, per-shocker allow toggles, max intensity/duration limits, test buttons, and chat phrase triggers. Worker code included in-panel with a Copy button.",
         ],
     },
     {
@@ -6645,6 +6748,12 @@ let _ebcPawImgReady = false;
 // have been rendered so badges are always drawn on top of every character sprite
 // and sorted back-to-front by zoom for correct depth ordering.
 let _badgeBuffer: unknown[][] = [];
+// Hoisted so the per-frame badge sort below doesn't allocate a fresh closure each frame.
+const _badgeZSort = (a: unknown[], b: unknown[]): number => {
+    const za = typeof a[3] === "number" ? (a[3] as number) : 1;
+    const zb = typeof b[3] === "number" ? (b[3] as number) : 1;
+    return za - zb;
+};
 // Paw image cache — loaded once, drawn from DrawCharacter args each frame.
 function getEbcPawImg(): HTMLImageElement | null {
     if (_ebcPawImgReady) return _ebcPawImg;
@@ -7143,18 +7252,16 @@ function init(): void {
     // drawActionButtons() already guards with `if (CurrentScreen !== "ChatRoom") return`
     // so this is a no-op outside the chat room.
     tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
-        // Clear buffer at frame start so stale entries from the previous frame don't bleed in
-        _badgeBuffer = [];
+        // Clear buffer at frame start so stale entries from the previous frame don't
+        // bleed in. Reuse the array (length = 0) instead of allocating a new one each frame.
+        _badgeBuffer.length = 0;
         const result = next(args);
         // All DrawCharacter calls have now completed for this frame.
-        // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges)
+        // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges).
+        // Sort in place; skip the sort entirely for the common 0-1 badge case.
         try {
-            const toRender = _badgeBuffer.slice().sort((a, b) => {
-                const za = typeof a[3] === "number" ? (a[3] as number) : 1;
-                const zb = typeof b[3] === "number" ? (b[3] as number) : 1;
-                return za - zb;
-            });
-            for (const badgeArgs of toRender) {
+            if (_badgeBuffer.length > 1) _badgeBuffer.sort(_badgeZSort);
+            for (const badgeArgs of _badgeBuffer) {
                 try { drawPresenceMarker(badgeArgs as unknown[]); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
@@ -7176,7 +7283,7 @@ function init(): void {
         if (getBadgeDragMode()) return;
         const iconsHidden = !!((window as unknown as { ChatRoomHideIconState?: number }).ChatRoomHideIconState);
         const charMenuOpen = isCurrentCharacterInRoom();
-        try { if (!iconsHidden && !charMenuOpen && handleActionButtonClick()) return; } catch { /* ignore */ }
+        try { if (!iconsHidden && !charMenuOpen && getActionButtonsVisible() && handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
 
@@ -7571,6 +7678,21 @@ function init(): void {
     // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
     const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
     const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
+    const getCursePauseKey = (): string => `EBC_curse_pauses_${Player.MemberNumber ?? ""}`;
+    const getCursePauses = (): Record<string, number> => {
+        try { const r = localStorage.getItem(getCursePauseKey()); return r ? JSON.parse(r) as Record<string, number> : {}; } catch { return {}; }
+    };
+    const saveCursePauses = (p: Record<string, number>): void => {
+        try { localStorage.setItem(getCursePauseKey(), JSON.stringify(p)); } catch {}
+    };
+    const isCursePaused = (group: string): boolean => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
+    const getCurseExpiryKey = (): string => `EBC_curse_expiry_${Player.MemberNumber ?? ""}`;
+    const getCurseExpiry = (): number | null => {
+        try { const r = localStorage.getItem(getCurseExpiryKey()); return r ? parseInt(r) : null; } catch { return null; }
+    };
+    const saveCurseExpiry = (ts: number | null): void => {
+        try { if (ts == null) localStorage.removeItem(getCurseExpiryKey()); else localStorage.setItem(getCurseExpiryKey(), String(ts)); } catch {}
+    };
     const getCursedGroups = (): Set<string> => {
         try {
             const raw = localStorage.getItem(getCurseKey());
@@ -7600,14 +7722,26 @@ function init(): void {
             for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
                 const eqIdx = entry.indexOf("=");
                 const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const itemName = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
-                if (g) { current.add(g); if (itemName) itemMap[g] = itemName; }
+                const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                if (g === "expiry") { saveCurseExpiry(parseInt(val) || null); continue; }
+                if (g) { current.add(g); if (val) itemMap[g] = val; }
             }
             saveCursedGroups(current);
             saveCurseItemMap(itemMap);
+        } else if (inner.startsWith("pause:")) {
+            const pauses = getCursePauses();
+            for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
+                if (g && ms > 0) pauses[g] = Date.now() + ms;
+            }
+            saveCursePauses(pauses);
         } else if (inner === "clear") {
             saveCursedGroups(new Set());
             saveCurseItemMap({});
+            saveCursePauses({});
+            saveCurseExpiry(null);
         } else if (inner.startsWith("clear:")) {
             const itemMap = getCurseItemMap();
             for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
@@ -7619,13 +7753,39 @@ function init(): void {
         }
     };
 
+    // Auto-lift timed curses when expiry is reached (checked every 30s)
+    window.setInterval(() => {
+        try {
+            const expiry = getCurseExpiry();
+            if (expiry !== null && Date.now() >= expiry && getCursedGroups().size > 0) {
+                // Push current appearance for every cursed slot BEFORE clearing the curse data.
+                // This ensures any in-flight server removal that arrives after the clear cannot
+                // win a race against a stale empty-slot state; the server gets our latest truth first.
+                const w = window as unknown as Record<string, unknown>;
+                const itemUpdateFn = w.ChatRoomCharacterItemUpdate as ((c: Character, g: string) => void) | undefined;
+                if (itemUpdateFn) {
+                    for (const g of getCursedGroups()) {
+                        const slotItem = (Player.Appearance ?? []).find(
+                            (a) => a.Asset?.Group?.Name === g
+                        );
+                        if (slotItem) {
+                            try { itemUpdateFn(Player, g); } catch { /* ignore */ }
+                        }
+                    }
+                }
+                handleCurseCommand("[EBC-CURSE:clear]");
+                appendLocalLogLine("[EBC] ⏰ Timed curse expired - curses lifted automatically.", UI.textMuted);
+            }
+        } catch { /* ignore */ }
+    }, 30_000);
+
     // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
         try {
             const [char, group] = args as [Character, string, boolean?];
             if (char === Player && typeof group === "string") {
                 const cursed = getCursedGroups();
-                if (cursed.has(group)) {
+                if (cursed.has(group) && !isCursePaused(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                     return; // block self-removal of cursed item
                 }
@@ -7647,14 +7807,19 @@ function init(): void {
             const nameVal = item.Name; // undefined = removal
             if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
                 const cursed = getCursedGroups();
-                if (cursed.has(group)) {
+                if (cursed.has(group) && !isCursePaused(group)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
-                    // Send correction: our item is still here, push it back to the server
-                    const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
-                        ((c: Character, g: string) => void) | undefined;
-                    window.setTimeout(() => {
-                        try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
-                    }, 0);
+                    // Send correction only if the item is actually present in our appearance;
+                    // calling ChatRoomCharacterItemUpdate on an empty slot sends Name:undefined
+                    // which would itself become a removal broadcast.
+                    const slotItem = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                    if (slotItem) {
+                        const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
+                            ((c: Character, g: string) => void) | undefined;
+                        window.setTimeout(() => {
+                            try { if (itemUpdateFn) itemUpdateFn(Player, group); } catch { /* ignore */ }
+                        }, 0);
+                    }
                     return; // block the removal sync
                 }
             }
@@ -7739,8 +7904,8 @@ function init(): void {
                 }
             }
             if ((data.Type === "Chat" || data.Type === "Emote") && typeof data.Content === "string" &&
-                typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
-                drawer?.checkLovenseTriggers(data.Content as string);
+                typeof data.Sender === "number") {
+                if (data.Sender !== Player.MemberNumber) drawer?.checkLovenseTriggers(data.Content as string);
             }
             if (data.Type === "Activity" && typeof data.Content === "string" &&
                 typeof data.Sender === "number" && data.Sender !== Player.MemberNumber) {
@@ -7755,7 +7920,28 @@ function init(): void {
                     // BC uses FocusGroupName (not AssetGroupName) in the FocusAssetGroup entry
                     const groupEntry = dict?.find(e => e["Tag"] === "FocusAssetGroup" || "FocusGroupName" in e);
                     const assetGroup = (groupEntry?.["FocusGroupName"] as string | undefined);
-                    if (activityName) drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
+                    if (activityName) {
+                        drawer?.checkLovenseActivityTrigger(activityName, assetGroup);
+                    }
+                }
+            }
+            // Shock collar and other shock items - PropertyShockPublishAction sends TriggerShock0/1/2
+            if (data.Type === "Action" && typeof data.Content === "string") {
+                const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
+                const content = data.Content as string;
+                const contentLow = content.toLowerCase();
+                // TriggerShock0/1/2 = petsuit shock collar / forbidden chastity bra / other items using PropertyShockPublishAction
+                const isShockAction = content.startsWith("TriggerShock") || contentLow.includes("electro");
+                if (isShockAction) {
+                    // PropertyShockPublishAction uses DestinationCharacterName (Tag) with MemberNumber
+                    const destEntry = dict?.find(e =>
+                        e["Tag"] === "DestinationCharacterName" || e["Tag"] === "DestinationCharacter" ||
+                        e["Tag"] === "TargetCharacter" || "TargetCharacter" in e
+                    );
+                    const targetNum = (destEntry?.["MemberNumber"] ?? destEntry?.["TargetCharacter"]) as number | undefined;
+                    if (targetNum === Player.MemberNumber) {
+                        drawer?.checkPiShockActivityTrigger(data.Sender as number | undefined);
+                    }
                 }
             }
         } catch { /* ignore */ }
@@ -7774,8 +7960,8 @@ function init(): void {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
             }
-            // Curse commands from any EBC user — runs on the receiver's client.
-            // Only accepted from friends to prevent random abuse.
+            // EBC protocol messages are always silent - never shown in IM or BC notification.
+            // Curse commands only processed if sender is a friend (to prevent abuse).
             if (typeof beep.Message === "string" &&
                 beep.Message.startsWith("[EBC-CURSE:")) {
                 const senderNum = typeof beep.MemberNumber === "number"
@@ -7787,13 +7973,24 @@ function init(): void {
                     const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
                     const inner = beep.Message.slice("[EBC-CURSE:".length).replace(/\]$/, "");
                     if (inner.startsWith("apply:")) {
-                        const groups = inner.slice("apply:".length).split(",").filter(Boolean).map(g => g.replace("Item", ""));
-                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you: ${groups.join(", ")}`, UI.accent);
+                        const parts = inner.slice("apply:".length).split(",").filter(Boolean);
+                        const groups = parts.filter(p => !p.startsWith("expiry=")).map(g => g.split("=")[0].replace("Item", ""));
+                        const expiryPart = parts.find(p => p.startsWith("expiry="));
+                        const expiryMs = expiryPart ? parseInt(expiryPart.slice("expiry=".length)) : 0;
+                        let durStr = "";
+                        if (expiryMs > Date.now()) {
+                            const rem = expiryMs - Date.now();
+                            const h = Math.floor(rem / 3600000);
+                            const m = Math.floor((rem % 3600000) / 60000);
+                            durStr = h > 0 ? ` for ${h}h${m > 0 ? ` ${m}m` : ""}` : ` for ${m}m`;
+                        }
+                        appendLocalLogLine(`[EBC] ⛓ ${senderName} cursed you${durStr}: ${groups.join(", ")}`, UI.accent);
                     } else if (inner === "clear") {
                         appendLocalLogLine(`[EBC] ✓ ${senderName} lifted all your curses.`, UI.textMuted);
                     }
                     return; // suppress notification
                 }
+                return; // sender not a friend - still suppress, just don't process
             }
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
@@ -7883,9 +8080,10 @@ function init(): void {
     });
 
 
-    // Relay ChatRoomSearchResult data to the bcUtils callback so drawer.ts can
-    // enrich the room info chips.
-    // Primary: modAPI hook (fails silently in BC R128 where the function is module-scoped).
+    // Relay ChatRoomSearchResult to the bcUtils callback so drawer.ts can
+    // use it for room info chips.
+    // Primary: modAPI hook (works if BC exposes ChatRoomSearchResult as a global;
+    // silently no-ops in BC R128 where the function is module-scoped).
     tryHookFunction(modAPI, "ChatRoomSearchResult", 3, (args, next) => {
         try {
             const list = args[0] as Array<Record<string, unknown>>;
@@ -7893,26 +8091,25 @@ function init(): void {
         } catch { /* ignore */ }
         return next(args);
     });
-    // Fallback: access BC's live socket via the socket.io manager internals.
-    // window.ServerSocket is module-scoped in BC R128, but window.io.managers
-    // exposes the underlying Socket instance we can attach a listener to.
-    try {
-        const ioFn = (window as unknown as Record<string, unknown>).io as Record<string, unknown> | undefined;
-        const managers = ioFn?.managers;
-        if (managers && typeof managers === "object") {
-            const firstMgr = Object.values(managers as Record<string, unknown>)[0] as Record<string, unknown> | undefined;
-            const nsps = firstMgr?.nsps;
-            if (nsps && typeof nsps === "object") {
-                const firstNsp = Object.values(nsps as Record<string, unknown>)[0] as
-                    { on?(e: string, h: (d: unknown) => void): void } | undefined;
-                firstNsp?.on?.("ChatRoomSearchResult", (list: unknown) => {
+    // Fallback: ServerSocket.on(). ServerSocket is a top-level var in BC's classic
+    // Server.js (window.ServerSocket), but is null until ServerInit() runs on
+    // window.load - which fires AFTER EBC's initAddon(). Retry every 2 s until set.
+    const attachChatRoomSearchRelay = (): void => {
+        try {
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on?(e: string, h: (d: unknown) => void): void } | undefined;
+            if (sock?.on) {
+                sock.on("ChatRoomSearchResult", (list: unknown) => {
                     try {
                         if (Array.isArray(list)) fireRoomSearchResult(list as Array<Record<string, unknown>>);
                     } catch { /* ignore */ }
                 });
+            } else {
+                window.setTimeout(attachChatRoomSearchRelay, 2000);
             }
-        }
-    } catch { /* ignore */ }
+        } catch { /* ignore */ }
+    };
+    window.setTimeout(attachChatRoomSearchRelay, 2000);
 
     // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
     // button, or the "reply" arrow in the chat room beep preview).  Those calls go
@@ -7922,7 +8119,7 @@ function init(): void {
         try {
             const [target, msg] = args as [number, string | undefined, unknown];
             const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
-            if (toNum && typeof msg === "string" && msg.trim()) {
+            if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {
                 const clean = stripBeepMetadata(msg.trim());
                 if (clean) {
                     addBeepEntry({ from: Player.MemberNumber ?? 0, to: toNum, message: clean, ts: Date.now() });
@@ -8041,13 +8238,27 @@ function init(): void {
     // certain BC builds or other addons can reorder event handling. This timestamp
     // guard ensures the ServerSend fires at most once per 500 ms regardless.
     let _lastEmoteSendTime = 0;
+    let _lastEmoteBody = "";
     const handleEmoteShortcut = (raw: string): boolean => {
         if (!raw.startsWith("*")) return false;
         const body = raw.slice(1).replace(/^\s+/, "");
         if (!body) return false; // bare * alone — ignore
+        // If BC has an active reply (the reply indicator is showing), let BC handle
+        // this natively via ChatRoomSendEmote so the emote includes the reply context
+        // (replyId in Dictionary) and ChatRoomMessageReplyStop() is called to clear
+        // the indicator. Intercepting here would send without reply context and leave
+        // the reply bar stuck open, allowing a second reply to be sent.
+        const w = window as unknown as Record<string, unknown>;
+        const getReplyId = w["ChatRoomMessageGetReplyId"];
+        if (typeof getReplyId === "function" && (getReplyId as () => string | null | undefined)()) return false;
         const now = Date.now();
-        if (now - _lastEmoteSendTime < 500) return true; // already sent — swallow without re-send
+        // Swallow only a re-fire of the SAME emote within the window (the same Enter
+        // keypress reaching us via more than one interceptor). A *different* emote
+        // typed quickly is a distinct send and must go through - keying the guard on
+        // the body text (not time alone) prevents dropping a fast second emote.
+        if (body === _lastEmoteBody && now - _lastEmoteSendTime < 500) return true;
         _lastEmoteSendTime = now;
+        _lastEmoteBody = body;
         try {
             ServerSend("ChatRoomChat", {
                 Type: "Emote",

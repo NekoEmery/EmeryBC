@@ -547,6 +547,11 @@ const CSS = `
     100% { background-position: 0% 50%; }
 }
 
+@keyframes ebc-hq-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+}
+
 /* Toast notification */
 .ebc-toast {
     position: fixed;
@@ -625,6 +630,7 @@ const CSS = `
     height: 100%;  /* full chat log height - no vertical conflict with tab */
     display: flex;
     flex-direction: column;
+    /* overflow:hidden intentionally omitted - .ebc-panel already clips its own content */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 visibility 0.35s;
@@ -3687,7 +3693,7 @@ function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(
 const EBC_COLORS_KEY  = "EBC_colors";
 const EBC_PRESET_KEY  = "EBC_activePreset";
 const EBC_HIDDEN_KEY  = "EBC_hiddenTabs";
-const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
     notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
@@ -3945,21 +3951,7 @@ interface LovenseTouchState {
     toyNames?: string[]; // undefined = all toys; specific names = only those toys
 }
 
-const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [
-    { key: "headpat",  label: "🤚 Headpat",  activity: "Pet",     group: "ItemHead",  dflt: true  },
-    { key: "caress",   label: "🤲 Caress",   activity: "Caress",  group: undefined,   dflt: true  },
-    { key: "kiss",     label: "💋 Kiss",     activity: "Kiss",    group: "ItemMouth", dflt: true  },
-    { key: "lick",     label: "👅 Lick",     activity: "Lick",    group: undefined,   dflt: false },
-    { key: "bite",     label: "😬 Bite",     activity: "Bite",    group: undefined,   dflt: false },
-    { key: "spank",    label: "👋 Spank",    activity: "Spank",   group: "ItemButt",  dflt: false },
-    { key: "slap",     label: "✋ Slap",     activity: "Slap",    group: undefined,   dflt: false },
-    { key: "tickle",   label: "🪶 Tickle",   activity: "Tickle",  group: undefined,   dflt: false },
-    { key: "pinch",    label: "🤏 Pinch",    activity: "Pinch",   group: undefined,   dflt: false },
-    { key: "squeeze",  label: "🫸 Squeeze",  activity: "Squeeze", group: undefined,   dflt: false },
-    { key: "rub",      label: "🖐 Rub",      activity: "Rub",     group: undefined,   dflt: false },
-    { key: "choke",    label: "🤜 Choke",    activity: "Choke",   group: "ItemNeck",  dflt: false },
-    { key: "grab",     label: "✊ Grab",     activity: "Grab",    group: undefined,   dflt: false },
-];
+const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [];
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -4055,6 +4047,7 @@ export class EBCDrawer {
     private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string; intensity: number; duration: number }>();
     private _bcLiveSyncPoller: ReturnType<typeof setInterval> | null = null;
     private _bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+    private _syncStatusPoller: ReturnType<typeof setInterval> | null = null;
     private _lovHttpUrl: string | null = null;
     private _lovHttpConnected = false;
     private _lovHttpToyCount  = 0;
@@ -4068,6 +4061,9 @@ export class EBCDrawer {
     private _irlPendingOut    = new Map<number, { name: string }>();
     private _irlGrantedTo     = new Map<number, { name: string }>();
     private _irlIncoming: { memberNumber: number; name: string } | null = null;
+    private _hqLiveEl: HTMLElement | null = null;
+    private _hqScanTimer: ReturnType<typeof setInterval> | null = null;
+    private _hqScreenWatchTimer: ReturnType<typeof setInterval> | null = null;
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
@@ -4097,6 +4093,9 @@ export class EBCDrawer {
         qaConfirmLbl?: HTMLSpanElement;
         qaConfirmToggle?: HTMLButtonElement;
         pickBtn?: HTMLButtonElement;
+        // footer buttons
+        footerTutLbl?: HTMLSpanElement;
+        footerFbLbl?: HTMLSpanElement;
     } = {};
 
     constructor(version = "", isDev = false, salVersion = 0) {
@@ -4374,17 +4373,31 @@ export class EBCDrawer {
             let startPanelY = inFreeMode ? this.panelPosition!.y : startRect.top;
             let hasDragged = false;
 
+            // Use the first document-level move event as the drag origin instead of the
+            // mousedown position. CSS zoom on .ebc-zoom-wrapper may scale clientX/Y for
+            // events on descendants (Chromium behaviour), but document-level events are
+            // always in viewport coordinates — anchoring from the first move avoids any
+            // coordinate-space mismatch entirely.
+            let anchorX: number | null = null;
+            let anchorY: number | null = null;
+
             addPointerTracking(
                 (pos) => {
-                    const dx = pos.clientX - start.clientX;
-                    const dy = pos.clientY - start.clientY;
+                    if (anchorX === null) { anchorX = pos.clientX; anchorY = pos.clientY; }
+                    const dx = pos.clientX - anchorX;
+                    const dy = pos.clientY - (anchorY as number);
                     if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
                     if (!hasDragged) {
                         hasDragged = true;
                         if (!inFreeMode) {
                             inFreeMode = true;
-                            startPanelX = startRect.left;
-                            startPanelY = startRect.top;
+                            // Re-read panel position at drag-start moment for accuracy
+                            const rect2 = panelEl.getBoundingClientRect();
+                            startPanelX = rect2.left;
+                            startPanelY = rect2.top;
+                            // Reset anchor so dx/dy start from 0 at the moment free mode begins
+                            anchorX = pos.clientX;
+                            anchorY = pos.clientY;
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
@@ -4417,7 +4430,7 @@ export class EBCDrawer {
 
         const posesTabBtn = document.createElement("button");
         posesTabBtn.className = "ebc-tab-btn";
-        posesTabBtn.id = "ebc-tab-poses";
+        posesTabBtn.id = "ebc-tab-anims";
         posesTabBtn.textContent = t("tabs.anims");
 
         const btnsTabBtn = document.createElement("button");
@@ -4442,8 +4455,8 @@ export class EBCDrawer {
         const toysTabBtn = document.createElement("button");
         toysTabBtn.className = "ebc-tab-btn";
         toysTabBtn.id = "ebc-tab-toys";
-        toysTabBtn.textContent = "TOYS";
-        toysTabBtn.title = "Toys & Integrations";
+        toysTabBtn.textContent = t("tabs.toys");
+        toysTabBtn.title = t("tabs.toysTitle");
         toysTabBtn.style.display = "none"; // Emery-only - revealed in open()
 
 
@@ -5068,20 +5081,37 @@ export class EBCDrawer {
         tutorialBtn.className = "ebc-footer-action-btn";
         tutorialBtn.title = "Open the interactive guide / tutorial";
         tutorialBtn.innerHTML = BOOK_SVG;
-        const tutLbl = document.createElement("span"); tutLbl.textContent = "Tutorial";
+        const tutLbl = document.createElement("span"); tutLbl.textContent = t("footer.tutorial");
+        this._i18nRefs.footerTutLbl = tutLbl;
         tutorialBtn.appendChild(tutLbl);
         tutorialBtn.addEventListener("click", () => this.startGuide());
 
         const fbBtn = document.createElement("button");
         fbBtn.className = "ebc-footer-action-btn";
-        fbBtn.title = "Send anonymous feedback or report a bug — sent from in-game, no account needed";
+        fbBtn.title = "Send a suggestion or report a bug — sent from in-game, no account needed";
         fbBtn.innerHTML = BUG_SVG;
-        const fbLbl = document.createElement("span"); fbLbl.textContent = "Feedback & Bugs";
+        const fbLbl = document.createElement("span"); fbLbl.textContent = t("footer.feedbackBugs");
+        this._i18nRefs.footerFbLbl = fbLbl;
         fbBtn.appendChild(fbLbl);
         fbBtn.addEventListener("click", () => this._openFeedbackModal());
 
+        const hqLiveEl = document.createElement("span");
+        hqLiveEl.style.cssText = "display:none;color:#40ff80;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;cursor:pointer;white-space:nowrap;padding:2px 6px;border-radius:4px;border:1px solid #1a6630;background:#0a2010;animation:ebc-hq-pulse 1.4s ease-in-out infinite;align-self:center;";
+        hqLiveEl.textContent = "● Live support";
+        hqLiveEl.title = "EBC HQ support room is open - click to join";
+        hqLiveEl.addEventListener("click", () => {
+            showConfirmOverlay(
+                "EmeryBC (EBC) HQ is live!\n\nJoin the room to chat with Emery or get help with the addon.",
+                "Later", "Join room",
+                () => { try { ServerSend("ChatRoomJoin", { Name: "EmeryBC (EBC) HQ", Invite: "" }); } catch { /* ignore */ } },
+            );
+        });
+        this._hqLiveEl = hqLiveEl;
+        this._startHQScanner();
+
         footerBtnRow.appendChild(tutorialBtn);
         footerBtnRow.appendChild(fbBtn);
+        footerBtnRow.appendChild(hqLiveEl);
 
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
@@ -5404,16 +5434,18 @@ export class EBCDrawer {
 
     private savePanelPosition(pos: { x: number; y: number } | null): void {
         try {
-            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-            (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
+            // Write through _mem (getSettings()) so flushToExtensionSettings() picks
+            // it up correctly. Writing directly to Player.ExtensionSettings.EmeryBC
+            // was previously used, but flushToExtensionSettings() would overwrite it
+            // 400 ms later with the stale _mem.panelPos value (null from the server).
+            getSettings().panelPos = pos ?? null;
             syncSettings();
         } catch { /* ignore */ }
     }
 
     private loadPanelPosition(): { x: number; y: number } | null {
         try {
-            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
-            const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
+            const v = getSettings().panelPos as { x?: unknown; y?: unknown } | null | undefined;
             if (v && typeof v.x === "number" && typeof v.y === "number") {
                 // Clamp to current viewport so a position saved on a wider/taller screen
                 // doesn't put the panel off-screen on the next load.
@@ -5690,141 +5722,133 @@ export class EBCDrawer {
     private static readonly SVG_CHEV_UP   = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     private static readonly SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-    private static readonly FAST_STEPS: Array<{
-        tab: DrawerTab | null;
-        label: string;
-        text: string;
-        spotlight?: string[];
-        autoExpand?: string[];
-    }> = [
+    private static get FAST_STEPS() {
+        return [
         {
             tab: "outfits",
-            label: "Outfits",
-            text: "Save your full look and restore it in one click.\n((Click the highlighted button — it opens the save form right now!))",
+            label: t("guide.fast.s1.label"),
+            text: t("guide.fast.s1.text"),
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for emotes, actions and chat sequences.\n((Click the highlighted button to create your first category of buttons!))",
+            label: t("guide.fast.s2.label"),
+            text: t("guide.fast.s2.text"),
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "anims",
-            label: "Poses & Animations",
-            text: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))",
+            label: t("guide.fast.s3.label"),
+            text: t("guide.fast.s3.text"),
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.",
+            label: t("guide.fast.s4.label"),
+            text: t("guide.fast.s4.text"),
         },
         {
             tab: "dev",
-            label: "Settings",
-            text: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))",
+            label: t("guide.fast.s5.label"),
+            text: t("guide.fast.s5.text"),
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: null,
-            label: "Safewords — Always Here",
-            text: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))",
+            label: t("guide.fast.s6.label"),
+            text: t("guide.fast.s6.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ];
+    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    }
 
-    private static readonly INDEPTH_STEPS: Array<{
-        tab: DrawerTab | null;
-        label: string;
-        text: string;
-        spotlight?: string[];
-        autoExpand?: string[];
-    }> = [
+    private static get INDEPTH_STEPS() {
+        return [
         {
             tab: null,
-            label: "Welcome to EBC",
-            text: "EBC extends Bondage Club with outfit saving, action buttons, pose animations, friend notes, remote toy control, and custom name tags above players.\nHit [[Next →]] — the menu switches tabs automatically as you go.",
+            label: t("guide.deep.s1.label"),
+            text: t("guide.deep.s1.text"),
         },
         {
             tab: null,
-            label: "Moving & Resizing",
-            text: "Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• Drag the [[↗]] icon (bottom-left) to resize width and height together\n• Drag the left or bottom edge to resize one axis at a time\n• [[⌖ Reset all]] in the header restores default position, size, and text scale\n((Press your [[Hotkey]] — set in DEV → Preferences — to open/close the menu instantly from anywhere.))",
+            label: t("guide.deep.s2.label"),
+            text: t("guide.deep.s2.text"),
             spotlight: ["[data-guide-target='resize-corner']"],
         },
         {
             tab: "outfits",
-            label: "Saving & Applying Outfits",
-            text: "Save your full appearance as a named preset and restore it in one click.\n• Click [[+ New Outfit from Current Look]] to capture everything you're wearing right now\n• Hit [[Apply]] on any card to restore that look — all layers and colours instantly\n• [[Rename]], [[Delete]], [[Up/Down]] arrows to manage your list\n((Try clicking the highlighted button to save an outfit right now!))",
+            label: t("guide.deep.s3.label"),
+            text: t("guide.deep.s3.text"),
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
-            label: "Tags, Schedules & Sharing",
-            text: "[[Tags]] organise outfits into groups — assign tags, then filter your list by tag.\n[[Schedules]] auto-switch your outfit at set times of day — no manual swapping needed.\n[[Export]] turns any outfit into a share-code you can paste to a friend.\n[[Import]] loads a code someone sent you — both sections are expanded so you can explore.",
+            label: t("guide.deep.s4.label"),
+            text: t("guide.deep.s4.text"),
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
             autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
-            label: "Action Buttons",
-            text: "One-tap shortcuts for actions, emotes and chat sequences.\n• [[Action]] → Name text · [[Emote]] → *Name text* · [[Sequence]] → multi-step\n• Link an [[Expression Preset]] to fire your face automatically with each press\n• [[Slow Leave]] (Useful Buttons) sends a scripted departure sequence to the room\n• [[Categories]] group buttons into named tabs — switch with the arrow chips",
+            label: t("guide.deep.s5.label"),
+            text: t("guide.deep.s5.text"),
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "anims",
-            label: "Pose Combos",
-            text: "Chain poses and messages into scripted animations triggered from chat.\n• [[+ New combo]] → add Pose or Emote steps → assign a [[/command]] name\n• Type [[/yourcommand]] in BC chat to trigger it — no need to open the menu\n• Mix pose changes and chat messages for in-character movement sequences\n((Try clicking the highlighted button to create your first combo!))",
+            label: t("guide.deep.s6.label"),
+            text: t("guide.deep.s6.text"),
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "anims",
-            label: "Face Presets",
-            text: "Save any facial expression as a named preset you can restore in one click.\n• Set your expression using BC's face controls, then click [[Save face]] (highlighted)\n• Mark one as [[Default]] — [[↺ Reset face]] always jumps back to it\n• Enable [[Auto-apply on room join]] to load your default face every time you enter a room\n((Try clicking [[Save face]] to capture your current expression now!))",
+            label: t("guide.deep.s7.label"),
+            text: t("guide.deep.s7.text"),
             spotlight: ["[data-guide-target='btn-save-face']"],
         },
         {
             tab: "anims",
-            label: "Chat Triggers",
-            text: "Fire a face preset automatically when your outgoing message contains a phrase.\n• Click [[＋ New Trigger]] (highlighted) to set one up\n• [[Contains]] → the phrase · [[Apply]] → which preset to use · [[Hold]] → how long (0 = keep forever)\n• Works on actions, emotes and regular chat — case-insensitive\n((Try creating a trigger for a phrase you use often!))",
+            label: t("guide.deep.s8.label"),
+            text: t("guide.deep.s8.text"),
             spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
-            label: "Users & Friends",
-            text: "Everyone in the room, plus your full friends list.\n• [[★]] marks someone with a golden nameplate\n• Expand any person's card to whisper, copy their [[#ID]], or view their [[Profile]]\n• [[People Met]] in DEV → Logs saves permanently across sessions — a growing address book\n((Try starring someone in the highlighted list!))",
+            label: t("guide.deep.s9.label"),
+            text: t("guide.deep.s9.text"),
             spotlight: ["[data-guide-target='section-room-people']"],
             autoExpand: ["section-room-people"],
         },
         {
             tab: "toys",
-            label: "Remote Toys",
-            text: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety",
+            label: t("guide.deep.s10.label"),
+            text: t("guide.deep.s10.text"),
         },
         {
             tab: "dev",
-            label: "Settings & Themes",
-            text: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean",
+            label: t("guide.deep.s11.label"),
+            text: t("guide.deep.s11.text"),
             spotlight: ["[data-guide-target='section-dev-prefs']"],
             autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
-            label: "Logs & History",
-            text: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered",
+            label: t("guide.deep.s12.label"),
+            text: t("guide.deep.s12.text"),
             spotlight: ["[data-guide-target='section-dev-logs']"],
             autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
-            label: "Safewords — Always On Top",
-            text: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))",
+            label: t("guide.deep.s13.label"),
+            text: t("guide.deep.s13.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ];
+    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    }
 
     private renderGuideModeSelect(): void {
         const card = this.guideEl;
@@ -5838,11 +5862,11 @@ export class EBCDrawer {
         topRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
         const titleEl = document.createElement("span");
         titleEl.style.cssText = `${FONT}font-size:15px;font-weight:bold;color:#f7e6ee;`;
-        titleEl.textContent = "EBC Tutorial";
+        titleEl.textContent = t("guide.title");
         const closeX = document.createElement("button");
         closeX.className = "ebc-guide-close-btn";
         closeX.textContent = "✕";
-        closeX.title = "Close";
+        closeX.title = t("guide.close");
         closeX.addEventListener("click", () => this.closeGuide());
         topRow.appendChild(titleEl);
         topRow.appendChild(closeX);
@@ -5850,7 +5874,7 @@ export class EBCDrawer {
 
         const subEl = document.createElement("div");
         subEl.style.cssText = `${FONT}font-size:12px;color:#9a7080;margin-bottom:16px;`;
-        subEl.textContent = "How do you want to explore EBC?";
+        subEl.textContent = t("guide.subtitle");
         card.appendChild(subEl);
 
         // Mode cards
@@ -5894,18 +5918,18 @@ export class EBCDrawer {
         const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
 
         const fastCard = makeCard(
-            "Quick Tour",
+            t("guide.quickTourTitle"),
             SVG_BOLT,
-            "Every feature in a few bullets. Done in 2 minutes.",
-            "6 steps",
+            t("guide.quickTourDesc"),
+            t("guide.quickTourBadge"),
             "#d4a020",
             () => { this.guideMode = "fast"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
         );
         const deepCard = makeCard(
-            "Full Guide",
+            t("guide.fullGuideTitle"),
             SVG_BOOK,
-            "Full walkthrough with try-it prompts.",
-            "13 steps",
+            t("guide.fullGuideDesc"),
+            t("guide.fullGuideBadge"),
             "#cf6f98",
             () => { this.guideMode = "indepth"; this.guideStep = 0; this.guideSpotlightIndex = 0; this.renderGuideStep(); }
         );
@@ -6007,13 +6031,13 @@ export class EBCDrawer {
 
         const stepLbl = document.createElement("span");
         stepLbl.className = "ebc-guide-step-lbl";
-        const modeLabel = this.guideMode === "fast" ? "Quick Tour" : "Full Guide";
-        stepLbl.textContent = `${modeLabel} · ${this.guideStep + 1} of ${steps.length}`;
+        const modeLabel = this.guideMode === "fast" ? t("guide.quickTourTitle") : t("guide.fullGuideTitle");
+        stepLbl.textContent = t("guide.ofN", { mode: modeLabel, step: String(this.guideStep + 1), total: String(steps.length) });
 
         const closeX = document.createElement("button");
         closeX.className = "ebc-guide-close-btn";
         closeX.textContent = "✕";
-        closeX.title = "Close guide";
+        closeX.title = t("guide.closeGuide");
         closeX.addEventListener("click", () => this.closeGuide());
 
         topRow.appendChild(stepLbl);
@@ -6060,7 +6084,7 @@ export class EBCDrawer {
 
         const prevBtn = document.createElement("button");
         prevBtn.className = "ebc-guide-nav-prev";
-        prevBtn.textContent = "← Back";
+        prevBtn.textContent = t("guide.back");
         // Back is disabled on the very first spotlight of the very first step
         if (this.guideStep === 0 && spotIdx === 0) prevBtn.disabled = true;
         prevBtn.addEventListener("click", () => {
@@ -6081,16 +6105,16 @@ export class EBCDrawer {
         const nextBtn = document.createElement("button");
         nextBtn.className = "ebc-guide-nav-next";
         if (isLastStep && isLastSpot) {
-            nextBtn.textContent = "Done ✓";
+            nextBtn.textContent = t("guide.done");
             nextBtn.addEventListener("click", () => this.closeGuide(true));
         } else if (!isLastSpot) {
-            nextBtn.textContent = "Next →";
+            nextBtn.textContent = t("guide.next");
             nextBtn.addEventListener("click", () => {
                 this.guideSpotlightIndex++;
                 this.renderGuideStep();
             });
         } else {
-            nextBtn.textContent = "Next →";
+            nextBtn.textContent = t("guide.next");
             nextBtn.addEventListener("click", () => {
                 this.guideStep++;
                 this.guideSpotlightIndex = 0;
@@ -6177,6 +6201,7 @@ export class EBCDrawer {
 
     private switchTab(tab: DrawerTab): void {
         this.stopDevLogPoller();
+        if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         if (tab !== "notes") this.friendsSectionEl = null;
         this.currentTab = tab;
         if (tab === "notes") {
@@ -6186,7 +6211,7 @@ export class EBCDrawer {
 
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
-            ["ebc-tab-poses",   "anims"],
+            ["ebc-tab-anims",   "anims"],
             ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-notes",    "notes"],
             ["ebc-tab-toys",    "toys"],
@@ -6387,35 +6412,60 @@ export class EBCDrawer {
 
     /** Scale the entire EBC panel.
      *
-     * Uses CSS zoom (not transform:scale) on .ebc-zoom-wrapper so that
-     * overflow:hidden on .ebc-panel clips correctly at all zoom levels.
-     * transform:scale is applied after layout/clip, causing double-shrink at
-     * scale<1 and visual bleed at scale>1 — zoom avoids both.
+     * Uses transform:scale on .ebc-zoom-wrapper (not CSS zoom). Chrome's flex
+     * algorithm ignores CSS zoom when computing a child's main-axis contribution,
+     * so at scale>1 the zoom wrapper's layout size is under 100% of the panel
+     * height, leaving visible dead space. transform:scale changes only the
+     * visual rendering - flex always sees the raw inv% size - so the visual
+     * exactly fills the panel with no dead space. It also keeps getBoundingClientRect
+     * and pointer-event coordinates unaffected by any zoom factor, which fixes
+     * the header-drag snap at scale>1.
      *
-     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's
-     * effective layout contribution to .ebc-panel exactly 100%, so the panel
-     * never changes size and the slide transition never misfires.
+     * Inverse sizing (width/height = 100/scale %) keeps the wrapper's visual
+     * contribution to .ebc-panel exactly 100%, so the panel never changes size
+     * and the slide transition never misfires. At scale<1 the inv% exceeds 100%,
+     * so flex-shrink:0 prevents the container from collapsing it.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
         const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
         if (!wrapper) return;
         if (scale === 1) {
-            wrapper.style.zoom      = "";
-            wrapper.style.transform = ""; // clear any stale transform from before this fix
-            wrapper.style.width     = "100%";
-            wrapper.style.height    = "100%";
+            wrapper.style.transform       = "";
+            wrapper.style.transformOrigin = "";
+            wrapper.style.zoom            = "";
+            wrapper.style.width           = "100%";
+            wrapper.style.height          = "100%";
+            wrapper.style.flexShrink      = "";
         } else {
-            // inv% × zoom = 100% → scaled content fills .ebc-panel exactly.
+            // inv% x scale = 100% visually. transform doesn't affect layout, so
+            // flex sees inv% and the visual fills the panel via the transform.
+            // At scale<1 inv%>100%, flex-shrink:0 prevents collapsing.
             const inv = (100 / scale).toFixed(4) + "%";
-            wrapper.style.zoom      = String(scale);
-            wrapper.style.transform = "";
-            wrapper.style.width     = inv;
-            wrapper.style.height    = inv;
+            wrapper.style.transform       = `scale(${scale})`;
+            wrapper.style.transformOrigin = "top left";
+            wrapper.style.zoom            = "";
+            wrapper.style.width           = inv;
+            wrapper.style.height          = inv;
+            wrapper.style.flexShrink      = scale < 1 ? "0" : "";
         }
-        // Apply matching zoom to any open beep/group windows.
-        const zoomStr = scale === 1 ? "" : String(scale);
-        for (const { el } of this.beepWins.values())  el.style.zoom = zoomStr;
-        for (const { el } of this.groupWins.values()) el.style.zoom = zoomStr;
+        // Apply matching scale to open beep/group windows via transform:scale.
+        // CSS zoom distorts event clientX/Y for mousedown inside the zoomed element
+        // (Chrome divides by the zoom factor), which breaks the drag offset math.
+        // transform:scale never affects event coordinates.
+        // Beep windows use bottom/left positioning → transform-origin: bottom left
+        // keeps rect.left = layout left and rect.bottom = layout bottom (both anchors).
+        // Group windows use top/left positioning → transform-origin: top left.
+        const bT = scale === 1 ? "" : `scale(${scale})`;
+        for (const { el } of this.beepWins.values()) {
+            el.style.zoom            = "";
+            el.style.transform       = bT;
+            el.style.transformOrigin = scale === 1 ? "" : "bottom left";
+        }
+        for (const { el } of this.groupWins.values()) {
+            el.style.zoom            = "";
+            el.style.transform       = bT;
+            el.style.transformOrigin = scale === 1 ? "" : "top left";
+        }
     }
 
     /**
@@ -6457,6 +6507,7 @@ export class EBCDrawer {
             if (lbl) lbl.textContent = t("tabs.users");
             r.tabNotes.title = t("tabs.usersTitle");
         }
+        if (r.tabToys)    { r.tabToys.textContent = t("tabs.toys"); r.tabToys.title = t("tabs.toysTitle"); }
         if (r.tabThanks)  { r.tabThanks.textContent = t("tabs.credits"); r.tabThanks.title = t("tabs.creditsTitle"); }
         if (r.tabDev)     { r.tabDev.textContent = t("tabs.dev"); r.tabDev.title = t("tabs.devTitle"); }
         if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
@@ -6468,6 +6519,9 @@ export class EBCDrawer {
         if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
         if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
+        // Footer buttons
+        if (r.footerTutLbl) r.footerTutLbl.textContent = t("footer.tutorial");
+        if (r.footerFbLbl)  r.footerFbLbl.textContent  = t("footer.feedbackBugs");
         // EBC tags strip is a persistent DOM section - rebuild it so all labels re-translate
         this.rebuildEbcTagsStrip();
     }
@@ -6889,6 +6943,27 @@ export class EBCDrawer {
         let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
         if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
         if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
+        try {
+            const mn = (Player as { MemberNumber?: number }).MemberNumber;
+            if (mn) {
+                const curseRaw = localStorage.getItem(`EBC_curses_${mn}`);
+                const isCursed = curseRaw ? (JSON.parse(curseRaw) as unknown[]).length > 0 : false;
+                if (isCursed) {
+                    const expiryRaw = localStorage.getItem(`EBC_curse_expiry_${mn}`);
+                    if (expiryRaw) {
+                        const rem = parseInt(expiryRaw) - Date.now();
+                        if (rem > 0) {
+                            const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
+                            text += `  🔒 Cursed: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
+                        } else {
+                            text += `  🔒 Cursed`;
+                        }
+                    } else {
+                        text += `  🔒 Cursed`;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
         this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
@@ -12301,7 +12376,10 @@ export class EBCDrawer {
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
         const _bScale = loadPanelZoom();
-        if (_bScale !== 1) win.style.zoom = String(_bScale);
+        if (_bScale !== 1) {
+            win.style.transform       = `scale(${_bScale})`;
+            win.style.transformOrigin = "bottom left";
+        }
         this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
         if (startMinimized) win.classList.add("minimized");
 
@@ -12639,20 +12717,24 @@ export class EBCDrawer {
             if (e.target === closeBtn || e.target === muteBtn || e.target === minimizeBtn
                 || e.target === roomInviteBtn) return;
             e.preventDefault();
-            const rect = win.getBoundingClientRect();
-            const ox = start.clientX - rect.left;
-            const vh = window.innerHeight;
-            const oyFromBottom = rect.bottom - start.clientY;
+            // getComputedStyle resolves right:X into an equivalent left px value and
+            // always returns layout-space coordinates - never affected by transforms.
+            // Tracking delta from start.clientX/Y (viewport coords with transform:scale)
+            // avoids any dependency on getBoundingClientRect, which has ambiguous
+            // behaviour for scaled elements depending on the transform origin.
+            const cs        = window.getComputedStyle(win);
+            const initLeft   = parseFloat(cs.left)   || 0;
+            const initBottom = parseFloat(cs.bottom) || 80;
+            const startX = start.clientX;
+            const startY = start.clientY;
             addPointerTracking(
                 (pos) => {
-                    const rawL  = pos.clientX - ox;
-                    const rawB  = vh - pos.clientY - oyFromBottom;
-                    // Clamp so the full window stays within the viewport (use winH, not hdrH -
-                    // using hdrH let the window be dragged almost entirely off the top edge).
-                    const winW  = win.offsetWidth  || 300;
-                    const winH  = win.offsetHeight || 380;
-                    win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
-                    win.style.bottom = `${Math.max(0, Math.min(rawB, Math.max(0, window.innerHeight - winH)))}px`;
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
+                    const winW = win.offsetWidth  || 300;
+                    const winH = win.offsetHeight || 380;
+                    win.style.left   = `${Math.max(0, Math.min(initLeft   + dx, window.innerWidth  - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(initBottom - dy, Math.max(0, window.innerHeight - winH)))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },
@@ -12683,13 +12765,21 @@ export class EBCDrawer {
         };
 
         const setReply = (text: string): void => {
-            replyText = text;
-            replyBarSpan.textContent = text;
+            // Only keep the first line of the quoted text. If the quoted message
+            // is multi-line, the raw stored format is "> quote\nreply". The parser
+            // splits on the FIRST \n only, so any extra newlines in the quote would
+            // bleed into the reply body and render as part of the reply's own text.
+            replyText = text.split("\n")[0].slice(0, 80);
+            replyBarSpan.textContent = replyText;
             replyBar.style.display = "flex";
             input.focus();
         };
 
-        const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
+        const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?\S*)?/i;
+        // Imgur links without a file extension: imgur.com/ID or i.imgur.com/ID.
+        // i.imgur.com/ID serves the raw image directly (no extension needed).
+        // Albums (a/), galleries, users, and tags are excluded.
+        const IMGUR_RE = /https?:\/\/(?:i\.)?imgur\.com\/(?!a\/|gallery\/|user\/|t\/)([A-Za-z0-9]{4,8})(?:\.[A-Za-z]+)?/i;
         // Tracks timestamps of invite messages the user has declined this session
         // so renderHistory can replace the Join/Decline buttons with a "Declined" note.
         const _declinedInviteTsSet = new Set<number>();
@@ -12867,19 +12957,38 @@ export class EBCDrawer {
                     declineCard.appendChild(declineName);
                     bubble.appendChild(declineCard);
                 } else {
-                    // Text content
+                    // Text content - render with clickable hyperlinks
                     const text = document.createElement("div");
-                    text.textContent = msgBody;
+                    text.style.whiteSpace = "pre-wrap";
+                    const URL_SCAN = /https?:\/\/\S+/gi;
+                    let scanLast = 0; let scanM: RegExpExecArray | null;
+                    while ((scanM = URL_SCAN.exec(msgBody)) !== null) {
+                        if (scanM.index > scanLast)
+                            text.appendChild(document.createTextNode(msgBody.slice(scanLast, scanM.index)));
+                        const a = document.createElement("a");
+                        a.href = scanM[0]; a.textContent = scanM[0];
+                        a.target = "_blank"; a.rel = "noopener noreferrer";
+                        a.style.cssText = "color:#cf6f98;word-break:break-all;";
+                        text.appendChild(a);
+                        scanLast = scanM.index + scanM[0].length;
+                    }
+                    if (scanLast < msgBody.length)
+                        text.appendChild(document.createTextNode(msgBody.slice(scanLast)));
                     bubble.appendChild(text);
 
-                    // Image embed - detect image URL in the message body
-                    const imgUrl = IMAGE_RE.exec(msgBody)?.[0];
+                    // Image embed - detect image URL or Imgur direct link in the message body.
+                    // imgur.com/a/ album links are excluded - they are HTML pages, not images.
+                    let imgUrl: string | null = IMAGE_RE.exec(msgBody)?.[0] ?? null;
+                    if (!imgUrl) {
+                        const m = IMGUR_RE.exec(msgBody);
+                        if (m) imgUrl = `https://i.imgur.com/${m[1]}`;
+                    }
                     if (imgUrl) {
                         const img = document.createElement("img");
                         img.className = "ebc-beep-img";
                         img.src = imgUrl;
                         img.alt = "image";
-                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                        img.addEventListener("click", () => window.open(imgUrl!, "_blank"));
                         img.addEventListener("error", () => { img.style.display = "none"; });
                         bubble.appendChild(img);
                     }
@@ -13615,7 +13724,10 @@ export class EBCDrawer {
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
         const _gScale = loadPanelZoom();
-        if (_gScale !== 1) win.style.zoom = String(_gScale);
+        if (_gScale !== 1) {
+            win.style.transform       = `scale(${_gScale})`;
+            win.style.transformOrigin = "top left";
+        }
         this.groupWins.set(group.id, { el: win, minimized: false });
 
         // Drag
@@ -14764,10 +14876,18 @@ export class EBCDrawer {
                         return nameOf(a).localeCompare(nameOf(b));
                     case "za":
                         return nameOf(b).localeCompare(nameOf(a));
-                    case "since_old":
-                        return sinceOf(a) - sinceOf(b);
-                    case "since_new":
-                        return sinceOf(b) - sinceOf(a);
+                    case "since_old": {
+                        // Both unknown → Infinity - Infinity = NaN (unstable sort); fall
+                        // back to name. One unknown stays ±Infinity and sorts to the end.
+                        const d = sinceOf(a) - sinceOf(b);
+                        if (Number.isNaN(d)) return nameOf(a).localeCompare(nameOf(b));
+                        return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                    }
+                    case "since_new": {
+                        const d = sinceOf(b) - sinceOf(a);
+                        if (Number.isNaN(d)) return nameOf(a).localeCompare(nameOf(b));
+                        return d !== 0 ? d : nameOf(a).localeCompare(nameOf(b));
+                    }
                     default: { // "status"
                         const sd = statusOrder(a) - statusOrder(b);
                         return sd !== 0 ? sd : nameOf(a).localeCompare(nameOf(b));
@@ -17967,6 +18087,87 @@ export class EBCDrawer {
         sidebarRow.appendChild(sidebarToggle);
         body.appendChild(sidebarRow);
 
+        // ── Explain EBC (Emery only) ──────────────────────────────────────────────
+        if (Player.MemberNumber === EMERY_MEMBER) {
+            const EBC_EXPLAIN_MSG =
+                "EmeryBC adds outfit saves and quick-swap presets, one-click action shortcuts, " +
+                "pose and animation presets, character notes, timers, safeword tools, " +
+                "and a bunch of other QoL stuff that makes BC smoother to use. " +
+                "It's a public addon available on FUSAM if you want to check it out~";
+
+            const explainWrap = document.createElement("div");
+            explainWrap.style.cssText = "padding:5px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
+
+            const explainTopRow = document.createElement("div");
+            explainTopRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+            const explainLbl = document.createElement("span");
+            explainLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:var(--ebc-text-sub);white-space:nowrap;";
+            explainLbl.textContent = "Explain EBC to";
+
+            const explainSel = document.createElement("select");
+            explainSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;background:var(--ebc-card-muted);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;padding:2px 4px;min-width:0;cursor:pointer;";
+            const refreshExplainSel = (): void => {
+                while (explainSel.firstChild) explainSel.removeChild(explainSel.firstChild);
+                const ph = document.createElement("option");
+                ph.value = ""; ph.textContent = "- pick someone -";
+                explainSel.appendChild(ph);
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id); opt.textContent = m.name;
+                    explainSel.appendChild(opt);
+                }
+            };
+            refreshExplainSel();
+
+            const btnStyle = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;white-space:nowrap;transition:background 0.12s,border-color 0.12s;flex-shrink:0;";
+
+            const whisperBtn = document.createElement("button");
+            whisperBtn.style.cssText = btnStyle;
+            whisperBtn.textContent = "✉ Whisper";
+            whisperBtn.addEventListener("mouseenter", () => { whisperBtn.style.background = "#4a0e30"; whisperBtn.style.borderColor = "#a04060"; });
+            whisperBtn.addEventListener("mouseleave", () => { whisperBtn.style.background = "#300820"; whisperBtn.style.borderColor = "#7a2848"; });
+
+            const chatBtn = document.createElement("button");
+            chatBtn.style.cssText = btnStyle;
+            chatBtn.textContent = "💬 Chat";
+            chatBtn.addEventListener("mouseenter", () => { chatBtn.style.background = "#4a0e30"; chatBtn.style.borderColor = "#a04060"; });
+            chatBtn.addEventListener("mouseleave", () => { chatBtn.style.background = "#300820"; chatBtn.style.borderColor = "#7a2848"; });
+
+            const explainStatus = document.createElement("div");
+            explainStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:var(--ebc-text-muted);min-height:12px;margin-top:3px;";
+
+            whisperBtn.addEventListener("click", () => {
+                const targetId = parseInt(explainSel.value, 10);
+                if (!targetId) {
+                    explainStatus.textContent = "Pick someone first.";
+                    window.setTimeout(() => { explainStatus.textContent = ""; }, 2000);
+                    return;
+                }
+                const targetName = getRoomMembers().find(m => m.id === targetId)?.name ?? `#${targetId}`;
+                try { (ChatRoomSendWhisper as unknown as (t: number, m: string) => void)(targetId, EBC_EXPLAIN_MSG); } catch { /* ignore */ }
+                appendLocalLogLine(`[EBC] ✉ Explained EBC to ${targetName} (whisper).`, UI.textMuted);
+                explainStatus.textContent = `✓ Whispered to ${targetName}.`;
+                window.setTimeout(() => { explainStatus.textContent = ""; explainSel.value = ""; }, 3000);
+            });
+
+            chatBtn.addEventListener("click", () => {
+                try { ServerSend("ChatRoomChat", { Content: EBC_EXPLAIN_MSG, Type: "Chat" }); } catch { /* ignore */ }
+                appendLocalLogLine("[EBC] 💬 Explained EBC in room chat.", UI.textMuted);
+                explainStatus.textContent = "✓ Sent to room chat.";
+                window.setTimeout(() => { explainStatus.textContent = ""; }, 3000);
+            });
+
+            explainTopRow.appendChild(explainLbl);
+            explainTopRow.appendChild(explainSel);
+            explainTopRow.appendChild(whisperBtn);
+            explainTopRow.appendChild(chatBtn);
+            explainWrap.appendChild(explainTopRow);
+            explainWrap.appendChild(explainStatus);
+            body.appendChild(explainWrap);
+        }
+
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
         let activeCatIdx = getActiveCategoryIndex();
@@ -18621,7 +18822,7 @@ export class EBCDrawer {
                     const style = (["action", "emote", "seq"].includes(b.style as string)
                         ? b.style : "action") as ActionStyle;
                     return {
-                        label:   typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                        label:   typeof b.label === "string" ? b.label.slice(0, 16) : "",
                         emote:   typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
                         color:   typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
                         enabled: !!b.enabled,
@@ -20388,48 +20589,169 @@ export class EBCDrawer {
 
         // ── CURSE ─────────────────────────────────────────────────────────────────
         const { cBody: curseCBody, wrap: curseWrap2 } = makeCollapsible("EBC_kittyCurseOpen", "⛓ Curse", false);
-        const CURSE_GROUPS: [string, string][] = [
-            ["Arms",    "ItemArms"],
-            ["Hands",   "ItemHands"],
-            ["Legs",    "ItemLegs"],
-            ["Feet",    "ItemFeet"],
-            ["Neck",    "ItemNeck"],
-            ["Mouth",   "ItemMouth"],
-            ["Head",    "ItemHead"],
-            ["Torso",   "ItemTorso"],
-            ["Pelvis",  "ItemPelvis"],
-            ["Breasts", "ItemBreast"],
-            ["Boots",   "ItemBoots"],
-        ];
-        const selectedCurseGroups = new Set<string>();
-        const chipRow = document.createElement("div");
-        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;";
-        const setChipStyle = (btn: HTMLButtonElement, sel: boolean): void => {
-            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid ${sel ? "#e05060" : "#4c2537"};background:${sel ? "#e0506033" : "#1e0e18"};color:${sel ? "#e05060" : "#967281"};transition:all 0.1s;`;
+        const kittySelGroups = new Set<string>();
+
+        // Item list - shows Emery's actual worn items
+        const kittyItemsEl = document.createElement("div");
+        kittyItemsEl.style.cssText = "display:flex;flex-direction:column;gap:2px;max-height:130px;overflow-y:auto;margin-bottom:6px;";
+        const kittyBuildList = (): void => {
+            while (kittyItemsEl.firstChild) kittyItemsEl.removeChild(kittyItemsEl.firstChild);
+            kittySelGroups.clear();
+            const items = getRoomMemberItems(EMERY_MEMBER);
+            if (!items.length) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                empty.textContent = "No items visible (not in same room?).";
+                kittyItemsEl.appendChild(empty); return;
+            }
+            for (const it of items) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;cursor:pointer;";
+                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                const cb = document.createElement("input") as HTMLInputElement; cb.type = "checkbox";
+                cb.style.cssText = "accent-color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                const nm = document.createElement("span");
+                nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nm.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
+                const sl = document.createElement("span");
+                sl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                sl.textContent = it.group.replace("Item", "");
+                cb.addEventListener("change", () => { if (cb.checked) kittySelGroups.add(it.group); else kittySelGroups.delete(it.group); });
+                row.addEventListener("click", (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); } });
+                row.appendChild(cb); row.appendChild(nm); row.appendChild(sl);
+                kittyItemsEl.appendChild(row);
+            }
         };
-        for (const [label, group] of CURSE_GROUPS) {
-            const chip = document.createElement("button");
-            chip.textContent = label;
-            setChipStyle(chip, false);
-            chip.addEventListener("click", () => {
-                const sel = selectedCurseGroups.has(group);
-                if (sel) selectedCurseGroups.delete(group); else selectedCurseGroups.add(group);
-                setChipStyle(chip, !sel);
-            });
-            chipRow.appendChild(chip);
+        kittyBuildList();
+        // Rebuild item list when section is opened
+        const curseCh = curseWrap2.firstChild as HTMLElement | null;
+        curseCh?.addEventListener("click", () => { window.setTimeout(kittyBuildList, 50); });
+
+        // Local curse record (Lucy tracks what she applied to Emery)
+        const kittyLsKey = `EBC_kitty_curses_${EMERY_MEMBER}`;
+        const getKittyCurseRecord = (): Array<{group: string; name: string}> => {
+            try { const r = localStorage.getItem(kittyLsKey); return r ? JSON.parse(r) as Array<{group: string; name: string}> : []; } catch { return []; }
+        };
+        const setKittyCurseRecord = (arr: Array<{group: string; name: string}>): void => {
+            try { localStorage.setItem(kittyLsKey, JSON.stringify(arr)); } catch {}
+        };
+
+        // Duration picker
+        let kittyDurMs = 0;
+        const kittyDurRow = document.createElement("div");
+        kittyDurRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px;";
+        const kittyDurLbl = document.createElement("span");
+        kittyDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;white-space:nowrap;";
+        kittyDurLbl.textContent = "Duration:";
+        kittyDurRow.appendChild(kittyDurLbl);
+        const KITTY_DUR_OPTS: [string, number][] = [["Forever", 0], ["30m", 30*60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
+        const kittyDurBtns: Array<[HTMLButtonElement, number]> = [];
+        const setKittyDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid ${sel ? "#8a5060" : "#3a1928"};background:${sel ? "rgba(200,80,100,0.15)" : "transparent"};color:${sel ? "#cf6f98" : "#8a6070"};`;
+        };
+        let clearKittyCustom = (): void => { /* set after inputs */ };
+        for (const [label, ms] of KITTY_DUR_OPTS) {
+            const btn = document.createElement("button");
+            btn.textContent = label;
+            setKittyDurStyle(btn, ms === 0);
+            btn.addEventListener("click", () => { kittyDurMs = ms; kittyDurBtns.forEach(([b, v]) => setKittyDurStyle(b, v === ms)); clearKittyCustom(); });
+            kittyDurBtns.push([btn, ms]);
+            kittyDurRow.appendChild(btn);
         }
+        const _kdc = "font-family:'Trebuchet MS',serif;font-size:10px;width:32px;padding:1px 3px;background:#1a0a12;border:1px solid #3a1928;color:#cf8090;border-radius:4px;text-align:center;";
+        const _kdl = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6070;";
+        const mkKittyInp = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _kdc; return i; };
+        const mkKittyLbl = (t: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _kdl; s.textContent = t; return s; };
+        const kkDays = mkKittyInp("d"); const kkHrs = mkKittyInp("h"); const kkMins = mkKittyInp("m"); const kkSecs = mkKittyInp("s");
+        clearKittyCustom = () => { kkDays.value = ""; kkHrs.value = ""; kkMins.value = ""; kkSecs.value = ""; };
+        const onKittyDurCustom = (): void => {
+            const d = parseInt(kkDays.value) || 0, h = parseInt(kkHrs.value) || 0, m = parseInt(kkMins.value) || 0, s = parseInt(kkSecs.value) || 0;
+            const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+            if (total > 0) { kittyDurMs = total; kittyDurBtns.forEach(([b]) => setKittyDurStyle(b, false)); }
+        };
+        [kkDays, kkHrs, kkMins, kkSecs].forEach(i => i.addEventListener("input", onKittyDurCustom));
+        kittyDurRow.appendChild(kkDays); kittyDurRow.appendChild(mkKittyLbl("d"));
+        kittyDurRow.appendChild(kkHrs);  kittyDurRow.appendChild(mkKittyLbl("h"));
+        kittyDurRow.appendChild(kkMins); kittyDurRow.appendChild(mkKittyLbl("m"));
+        kittyDurRow.appendChild(kkSecs); kittyDurRow.appendChild(mkKittyLbl("s"));
+
+        // Active curses list (per-item lift)
+        const kittyActiveCursesEl = document.createElement("div");
+        kittyActiveCursesEl.style.cssText = "display:none;flex-direction:column;gap:2px;margin-top:6px;border-top:1px solid #2a1421;padding-top:6px;";
+        const rebuildKittyActiveCurses = (): void => {
+            while (kittyActiveCursesEl.firstChild) kittyActiveCursesEl.removeChild(kittyActiveCursesEl.firstChild);
+            const record = getKittyCurseRecord();
+            if (!record.length) { kittyActiveCursesEl.style.display = "none"; return; }
+            kittyActiveCursesEl.style.display = "flex";
+            const ahdr = document.createElement("div");
+            ahdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:3px;";
+            ahdr.textContent = "Active Curses";
+            kittyActiveCursesEl.appendChild(ahdr);
+            record.forEach((entry, idx) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;";
+                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
+                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nm.textContent = entry.name;
+                const liftBtn = document.createElement("button");
+                liftBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                liftBtn.textContent = "✕";
+                liftBtn.title = "Lift this curse";
+                liftBtn.addEventListener("click", () => {
+                    const arr = getKittyCurseRecord();
+                    arr.splice(idx, 1);
+                    setKittyCurseRecord(arr);
+                    sendBeep(EMERY_MEMBER, `[EBC-CURSE:clear:${entry.group}]`);
+                    rebuildKittyActiveCurses();
+                });
+                row.appendChild(nm); row.appendChild(liftBtn);
+                kittyActiveCursesEl.appendChild(row);
+            });
+        };
+        rebuildKittyActiveCurses();
+        // Refresh active curses list whenever the section is opened
+        curseCh?.addEventListener("click", () => { window.setTimeout(rebuildKittyActiveCurses, 50); });
+
         const curseActionRow = document.createElement("div");
         curseActionRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
         curseActionRow.appendChild(makePill("⛓ Apply Curse", "#e05060", () => {
-            if (selectedCurseGroups.size === 0) return;
-            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${[...selectedCurseGroups].join(",")}]`);
+            if (kittySelGroups.size === 0) return;
+            const items = getRoomMemberItems(EMERY_MEMBER);
+            const nameMap = new Map(items.map(it => [it.group, it.name]));
+            const entries = [...kittySelGroups].map(g => { const n = nameMap.get(g); return n ? `${g}=${n}` : g; });
+            if (kittyDurMs > 0) entries.push(`expiry=${Date.now() + kittyDurMs}`);
+            sendBeep(EMERY_MEMBER, `[EBC-CURSE:apply:${entries.join(",")}]`);
+            const existing = getKittyCurseRecord();
+            for (const g of kittySelGroups) {
+                if (!existing.some(e => e.group === g)) {
+                    const n = nameMap.get(g) ?? g.replace("Item", "");
+                    existing.push({ group: g, name: n });
+                }
+            }
+            setKittyCurseRecord(existing);
+            rebuildKittyActiveCurses();
         }, 2000));
-        curseActionRow.appendChild(makePill("✓ Clear All Curses", "#4080a0", () => {
+        curseActionRow.appendChild(makePill("✓ Clear All", "#4080a0", () => {
+            setKittyCurseRecord([]);
             sendBeep(EMERY_MEMBER, "[EBC-CURSE:clear]");
+            rebuildKittyActiveCurses();
         }, 2000));
-        curseCBody.appendChild(chipRow);
+        curseCBody.appendChild(kittyItemsEl);
+        curseCBody.appendChild(kittyDurRow);
         curseCBody.appendChild(curseActionRow);
+        curseCBody.appendChild(kittyActiveCursesEl);
         body.appendChild(curseWrap2);
+
+        // Special button - Lucy requested it, no further questions asked
+        const peWrap = document.createElement("div");
+        peWrap.style.cssText = "margin-top:8px;";
+        peWrap.appendChild(makePill("🍆 Penis Enlargement", "#e06060", () => {
+            appendLocalLogLine("🍆 A warm tingly wave washes over you from somewhere below the waist. You are now 3cm larger. Side effects: confusion, flushing, mild delusion of grandeur.", "#e06060");
+        }, 3000));
+        body.appendChild(peWrap);
     }
 
     private renderExpressions(container?: HTMLElement): void {
@@ -20932,6 +21254,11 @@ export class EBCDrawer {
     private renderToys(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
+        // Stop any sync-status poller from a previous render. Without this, each
+        // re-render (toggle, or any toy-control beep calling refreshToysIfActive)
+        // would stack a new 800ms interval - the old one's self-clear check finds
+        // the freshly-rendered .ebc-toys-card present and so never stops.
+        if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         while (body.firstChild) body.removeChild(body.firstChild);
 
         const s = getSettings();
@@ -20965,7 +21292,7 @@ export class EBCDrawer {
             chevron.textContent = collapsed ? "▶" : "▼";
             const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
             titleEl.textContent = icon ? `${icon} ${title}` : title;
-            const eBtn = mkBtn(enabled ? "ON" : "OFF",
+            const eBtn = mkBtn(enabled ? t("core.on") : t("core.off"),
                 `${FONT}font-size:11px;padding:2px 12px;border-radius:4px;cursor:pointer;border:1px solid ${enabled ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${enabled ? "var(--ebc-card)" : "transparent"};color:${enabled ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};flex-shrink:0;`);
             eBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -20987,11 +21314,11 @@ export class EBCDrawer {
         };
 
         const lovEnabled = s.lovenseEnabled === true;
-        const { wrap: lovWrap, content: lovContent } = mkSection("", "IRL TOYS (lovense)", "lovenseEnabled", "EBC_ui_lovense_open");
+        const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open");
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-            offNote.textContent = "Enable Lovense above to configure.";
+            offNote.textContent = t("toys.enableAbove");
             lovContent.appendChild(offNote);
         } else {
             const lvsHdr = (txt: string): HTMLElement => {
@@ -21006,7 +21333,7 @@ export class EBCDrawer {
             };
 
             // ── CONNECTION ──────────────────────────────────────────────────────
-            lovContent.appendChild(lvsHdr("CONNECTION"));
+            lovContent.appendChild(lvsHdr(t("toys.connection")));
 
             const nav = navigator as unknown as Record<string, unknown>;
             const btApi = nav["bluetooth"] as { requestDevice: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
@@ -21015,7 +21342,7 @@ export class EBCDrawer {
             if (btApi) {
                 const connCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
                 const bleHdrRow = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin-bottom:8px;`);
-                bleHdrRow.textContent = "BLE (Bluetooth Direct)";
+                bleHdrRow.textContent = t("toys.bleDirect");
                 connCard.appendChild(bleHdrRow);
 
                 const toyListEl = mk("div", "margin-bottom:8px;");
@@ -21033,7 +21360,7 @@ export class EBCDrawer {
                     while (toyListEl.firstChild) toyListEl.removeChild(toyListEl.firstChild);
                     if (this._lovConnections.size === 0) {
                         const noToys = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
-                        noToys.textContent = "No toys connected.";
+                        noToys.textContent = t("toys.noToys");
                         toyListEl.appendChild(noToys);
                     } else {
                         for (const [key, conn] of this._lovConnections) {
@@ -21069,10 +21396,10 @@ export class EBCDrawer {
                                     wrap.appendChild(lbl); wrap.appendChild(sl); wrap.appendChild(vl);
                                     return wrap;
                                 };
-                                sRow.appendChild(mkTinySlider("Intensity", 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
+                                sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, conn.intensity, "", v => { conn.intensity = v; }));
                                 const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
                                 sRow.appendChild(divider);
-                                sRow.appendChild(mkTinySlider("Seconds", 1, 60, conn.duration, "s", v => { conn.duration = v; }));
+                                sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, conn.duration, "s", v => { conn.duration = v; }));
                                 tCard.appendChild(sRow);
                             }
                             toyListEl.appendChild(tCard);
@@ -21084,13 +21411,13 @@ export class EBCDrawer {
 
                 const connBtnRow = mk("div", "display:flex;justify-content:center;margin-bottom:8px;");
                 const lovConnBtn = document.createElement("button");
-                lovConnBtn.textContent = "＋ Connect Toy";
+                lovConnBtn.textContent = t("toys.connectToy");
                 lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:6px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                 lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                 lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
 
                 lovConnBtn.addEventListener("click", () => {
-                    lovConnBtn.disabled = true; lovConnBtn.textContent = "🔄 Opening…";
+                    lovConnBtn.disabled = true; lovConnBtn.textContent = t("toys.opening");
                     btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
@@ -21103,7 +21430,7 @@ export class EBCDrawer {
                                 if (existing) { existing.char = null; }
                                 renderToyList();
                             });
-                            lovConnBtn.textContent = "🔄 Connecting…";
+                            lovConnBtn.textContent = t("toys.connecting");
                             type GattServer = { getPrimaryServices: () => Promise<Svc[]>; getPrimaryService: (uuid: string) => Promise<Svc> };
                             const server = await device.gatt!.connect() as GattServer;
                             let services: Svc[] = [];
@@ -21138,11 +21465,11 @@ export class EBCDrawer {
                             const toyDefI = typeof connS.lovenseIntensity === "number" ? (connS.lovenseIntensity as number) : 10;
                             const toyDefD = typeof connS.lovenseDuration  === "number" ? (connS.lovenseDuration  as number) : 5;
                             this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
-                            lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
+                            lovConnBtn.textContent = t("toys.connectToy"); lovConnBtn.disabled = false;
                             renderToyList();
                         })
                         .catch((err: unknown) => {
-                            lovConnBtn.textContent = "＋ Connect Toy"; lovConnBtn.disabled = false;
+                            lovConnBtn.textContent = t("toys.connectToy"); lovConnBtn.disabled = false;
                             if (!(err instanceof Error && err.name === "NotFoundError")) {
                                 console.warn("[EBC Lovense] Connect error:", err);
                             }
@@ -21166,7 +21493,7 @@ export class EBCDrawer {
                 let httpCollapsed = localStorage.getItem("EBC_lovHttpCollapsed") === "true";
                 const httpHdrRow = mk("div", "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;user-select:none;");
                 const httpHdrLabel = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;`);
-                httpHdrLabel.textContent = "LOVENSE CONNECT APP (HTTP) — All Browsers";
+                httpHdrLabel.textContent = t("toys.lovHttpHdr");
                 const httpChevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-sub);margin-left:6px;`);
                 httpChevron.textContent = httpCollapsed ? "▶" : "▼";
                 httpHdrRow.appendChild(httpHdrLabel); httpHdrRow.appendChild(httpChevron);
@@ -21197,12 +21524,12 @@ export class EBCDrawer {
 
                 const httpBtnRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;");
                 const httpTestBtn = document.createElement("button");
-                httpTestBtn.textContent = "Test Connection";
+                httpTestBtn.textContent = t("toys.testConnection");
                 httpTestBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`;
                 const httpStatus = mk("span", `${FONT}font-size:11px;`);
                 httpStatus.textContent = this._lovHttpConnected
                     ? `✓ Connected (${this._lovHttpToyCount} toy${this._lovHttpToyCount !== 1 ? "s" : ""})`
-                    : "⚫ Not tested";
+                    : t("toys.notTested");
                 httpStatus.style.color = this._lovHttpConnected ? "#80c080" : "var(--ebc-text-sub)";
                 httpBtnRow.appendChild(httpTestBtn); httpBtnRow.appendChild(httpStatus);
                 httpBody.appendChild(httpBtnRow);
@@ -21242,7 +21569,7 @@ export class EBCDrawer {
                         const dot = mk("span", "font-size:14px;flex-shrink:0;"); dot.textContent = "🟢";
                         const tName = mk("span", `${FONT}font-size:12px;font-weight:bold;flex:1;color:#c8e0c8;`);
                         tName.textContent = toy.name;
-                        const testBtn = document.createElement("button"); testBtn.textContent = "Test";
+                        const testBtn = document.createElement("button"); testBtn.textContent = t("toys.testBtn");
                         testBtn.style.cssText = `${FONT}font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);flex-shrink:0;`;
                         testBtn.addEventListener("click", () => {
                             testBtn.disabled = true;
@@ -21253,10 +21580,10 @@ export class EBCDrawer {
                         tRow.appendChild(dot); tRow.appendChild(tName); tRow.appendChild(testBtn);
                         tCard.appendChild(tRow);
                         const sRow = mk("div", "display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;");
-                        sRow.appendChild(mkTinySlider("Intensity", 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
+                        sRow.appendChild(mkTinySlider(t("toys.intensity"), 1, 20, toy.intensity, "", v => { toy.intensity = v; }));
                         const divider = mk("span", `${FONT}font-size:10px;color:var(--ebc-border);`); divider.textContent = "│";
                         sRow.appendChild(divider);
-                        sRow.appendChild(mkTinySlider("Seconds", 1, 60, toy.duration, "s", v => { toy.duration = v; }));
+                        sRow.appendChild(mkTinySlider(t("toys.seconds"), 1, 60, toy.duration, "s", v => { toy.duration = v; }));
                         tCard.appendChild(sRow);
                         httpToyListEl.appendChild(tCard);
                     }
@@ -21269,7 +21596,7 @@ export class EBCDrawer {
                     syncSettings();
                     this._lovHttpUrl = rawUrl;
                     httpTestBtn.disabled = true;
-                    httpStatus.textContent = "🔄 Testing…";
+                    httpStatus.textContent = t("toys.testing");
                     httpStatus.style.color = "var(--ebc-text-sub)";
                     this._lovHttpPing().then(ok => {
                         httpTestBtn.disabled = false;
@@ -21613,9 +21940,9 @@ export class EBCDrawer {
                     : "Off";
             };
             refreshSyncStatus();
-            const syncStatusPoller = window.setInterval(() => {
+            this._syncStatusPoller = window.setInterval(() => {
                 if (this.rootEl?.querySelector(".ebc-toys-card")) refreshSyncStatus();
-                else clearInterval(syncStatusPoller);
+                else if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
             }, 800);
             syncBody.appendChild(syncStatusRow);
 
@@ -22171,6 +22498,32 @@ export class EBCDrawer {
                         }
                         sessCard.appendChild(rowEl);
                     }
+
+                    // Direct intensity slider - sends [EBC-TOY:LV:n:0] to the friend's
+                    // Lovense toy continuously at the chosen level, bypassing BC modes.
+                    const sliderRow = mk("div", "display:flex;align-items:center;gap:6px;margin-top:4px;padding:6px 2px 2px;border-top:1px solid rgba(160,120,220,0.18);");
+                    const sliderLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    sliderLbl.textContent = "Direct:";
+                    const lvSlider = document.createElement("input") as HTMLInputElement;
+                    lvSlider.type = "range"; lvSlider.min = "0"; lvSlider.max = "20"; lvSlider.value = "0";
+                    lvSlider.style.cssText = "flex:1;accent-color:#c050a0;cursor:pointer;";
+                    const lvVal = mk("span", `${FONT}font-size:11px;font-weight:bold;color:#d080c0;min-width:32px;text-align:right;flex-shrink:0;`);
+                    lvVal.textContent = "off";
+                    let _lvDebounce: ReturnType<typeof window.setTimeout> | null = null;
+                    const sendLv = (): void => {
+                        const n = parseInt(lvSlider.value);
+                        this.sendGameToyMsg(memberNum, "LV", n, 0);
+                    };
+                    lvSlider.addEventListener("input", () => {
+                        const n = parseInt(lvSlider.value);
+                        lvVal.textContent = n === 0 ? "off" : `${n}/20`;
+                        if (_lvDebounce !== null) window.clearTimeout(_lvDebounce);
+                        _lvDebounce = window.setTimeout(sendLv, 120);
+                    });
+                    lvSlider.addEventListener("change", () => { if (_lvDebounce !== null) { window.clearTimeout(_lvDebounce); _lvDebounce = null; } sendLv(); });
+                    sliderRow.appendChild(sliderLbl); sliderRow.appendChild(lvSlider); sliderRow.appendChild(lvVal);
+                    sessCard.appendChild(sliderRow);
+
                     statusArea.appendChild(sessCard);
                 }
 
@@ -22230,6 +22583,499 @@ export class EBCDrawer {
         // GAME TOYS on top, IRL TOYS below
         card.appendChild(gtWrap);
         card.appendChild(lovWrap);
+
+        // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
+        if (typeof Player !== "undefined" && Player?.MemberNumber === EMERY_MEMBER) {
+            const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
+            const psEnabled = s["psEnabled"] === true;
+
+            if (!psEnabled) {
+                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                offNote.textContent = "Enable PiShock above to configure.";
+                psContent.appendChild(offNote);
+            } else {
+                const psHdr = (txt: string): HTMLElement => {
+                    const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:6px 0 5px;text-transform:uppercase;`);
+                    d.textContent = txt; return d;
+                };
+                const psInp = (placeholder: string, value: string, pw = false): HTMLInputElement => {
+                    const inp = document.createElement("input");
+                    inp.type = pw ? "password" : "text";
+                    inp.placeholder = placeholder; inp.value = value;
+                    inp.style.cssText = `${FONT}width:100%;box-sizing:border-box;font-size:11px;padding:4px 7px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:5px;`;
+                    return inp;
+                };
+                const psRow = (gap = "6px"): HTMLElement => mk("div", `display:flex;align-items:center;gap:${gap};margin-bottom:6px;`);
+                const DEVICE_TYPES = ["Collar", "Chastity", "Prongs", "Clamps", "Plug", "Custom"] as const;
+
+                // ── Safety warning ────────────────────────────────────────────────
+                const warnBox = mk("div", `${FONT}background:rgba(180,40,40,0.13);border:1.5px solid #a03030;border-radius:8px;padding:10px 12px;margin-bottom:10px;`);
+                const warnTitle = mk("div", `${FONT}font-size:11px;font-weight:bold;color:#e07070;margin-bottom:5px;letter-spacing:0.3px;`);
+                warnTitle.textContent = "⚠ USE RESPONSIBLY";
+                const warnText = mk("div", `${FONT}font-size:10px;color:#c09090;line-height:1.55;`);
+                warnText.textContent = "Electrical shocks can cause pain, injury, or medical complications. Only use on consenting partners who are fully aware this is active. Never shock anyone in a way that could cause real harm. You are solely responsible for every action sent through this panel.";
+                warnBox.appendChild(warnTitle);
+                warnBox.appendChild(warnText);
+                psContent.appendChild(warnBox);
+
+                // ── Connection (collapsible) ───────────────────────────────────────
+                const connHasCreds = !!(localStorage.getItem("EBC_ps_user")?.trim() && localStorage.getItem("EBC_ps_key")?.trim());
+                const connBox = mk("div", "border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:8px;overflow:hidden;");
+                const connHdr = mk("div", `${FONT}display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;user-select:none;background:var(--ebc-bg-darker);`);
+                const connHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;text-transform:uppercase;color:${connHasCreds ? "#70c080" : "#e07070"};`);
+                connHdrLbl.textContent = connHasCreds ? "✓ Connection" : "Connection - not set up";
+                const connArrow = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);`);
+                const connOpen = !connHasCreds;
+                connArrow.textContent = connOpen ? "▼" : "▶";
+                connHdr.appendChild(connHdrLbl); connHdr.appendChild(connArrow);
+                const connBody = mk("div", `padding:8px 10px;${connOpen ? "" : "display:none;"}`);
+                connHdr.addEventListener("click", () => {
+                    const open = connBody.style.display !== "none";
+                    connBody.style.display = open ? "none" : "block";
+                    connArrow.textContent = open ? "▶" : "▼";
+                });
+                connBox.appendChild(connHdr); connBox.appendChild(connBody);
+
+                // Proxy URL
+                const proxySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                proxySubLbl.textContent = "Proxy URL (optional)";
+                connBody.appendChild(proxySubLbl);
+                const proxyOptNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
+                connBody.appendChild(proxyOptNote);
+                const proxyRow = psRow();
+                const proxyInp = psInp("https://your-worker.workers.dev (optional)", localStorage.getItem("EBC_ps_proxy") ?? "");
+                proxyInp.style.flex = "1";
+                proxyInp.addEventListener("input", () => { try { localStorage.setItem("EBC_ps_proxy", (proxyInp as HTMLInputElement).value.trim()); } catch { /* ignore */ } });
+                const proxyTestBtn = mkBtn("Test", `${FONT}font-size:11px;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);flex-shrink:0;`);
+                proxyTestBtn.addEventListener("click", async () => {
+                    proxyTestBtn.textContent = "...";
+                    try {
+                        const r = await fetch((proxyInp as HTMLInputElement).value.trim(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _ping: true }) });
+                        proxyTestBtn.textContent = r.ok || r.status === 400 ? "OK" : `${r.status}`;
+                    } catch { proxyTestBtn.textContent = "Fail"; }
+                    window.setTimeout(() => { proxyTestBtn.textContent = "Test"; }, 2000);
+                });
+                proxyRow.appendChild(proxyInp); proxyRow.appendChild(proxyTestBtn);
+                connBody.appendChild(proxyRow);
+
+                const setupBtn = mkBtn("How to set up the proxy", `${FONT}font-size:11px;font-weight:bold;padding:5px 0;width:100%;border-radius:6px;cursor:pointer;border:1px solid #5a4070;background:rgba(90,40,110,0.18);color:#c8a0e8;letter-spacing:0.2px;margin-bottom:8px;`);
+                setupBtn.addEventListener("mouseenter", () => { setupBtn.style.background = "rgba(90,40,110,0.32)"; setupBtn.style.borderColor = "#8060a0"; });
+                setupBtn.addEventListener("mouseleave", () => { setupBtn.style.background = "rgba(90,40,110,0.18)"; setupBtn.style.borderColor = "#5a4070"; });
+                setupBtn.addEventListener("click", () => { this._openPiShockSetupModal(); });
+                connBody.appendChild(setupBtn);
+
+                // Username
+                const userSubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                userSubLbl.textContent = "Username";
+                connBody.appendChild(userSubLbl);
+                const userInp = psInp("PiShock username (pishock.com login name)", localStorage.getItem("EBC_ps_user") ?? "");
+                userInp.style.marginBottom = "2px";
+                userInp.addEventListener("input", () => {
+                    try { localStorage.setItem("EBC_ps_user", (userInp as HTMLInputElement).value.trim()); } catch { /* ignore */ }
+                    const ok = !!(((userInp as HTMLInputElement).value.trim()) && localStorage.getItem("EBC_ps_key")?.trim());
+                    connHdrLbl.textContent = ok ? "✓ Connection" : "Connection - not set up";
+                    connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
+                });
+                connBody.appendChild(userInp);
+                const userHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:6px;`);
+                userHint.textContent = "Your pishock.com account name - not your BC name";
+                connBody.appendChild(userHint);
+
+                // API key
+                const keySubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
+                keySubLbl.textContent = "API Key";
+                connBody.appendChild(keySubLbl);
+                const keyRow = psRow();
+                const keyInp = psInp("API key", localStorage.getItem("EBC_ps_key") ?? "", true);
+                keyInp.style.flex = "1";
+                keyInp.addEventListener("input", () => {
+                    try { localStorage.setItem("EBC_ps_key", (keyInp as HTMLInputElement).value.trim()); } catch { /* ignore */ }
+                    const ok = !!(localStorage.getItem("EBC_ps_user")?.trim() && ((keyInp as HTMLInputElement).value.trim()));
+                    connHdrLbl.textContent = ok ? "✓ Connection" : "Connection - not set up";
+                    connHdrLbl.style.color = ok ? "#70c080" : "#e07070";
+                });
+                const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                eyeBtn.addEventListener("click", () => { (keyInp as HTMLInputElement).type = (keyInp as HTMLInputElement).type === "password" ? "text" : "password"; });
+                keyRow.appendChild(keyInp); keyRow.appendChild(eyeBtn);
+                connBody.appendChild(keyRow);
+                const keyHint = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-2px 0 2px;`);
+                keyHint.textContent = "API key from pishock.com/Account - not your login password";
+                connBody.appendChild(keyHint);
+                psContent.appendChild(connBox);
+
+                // ── Global safety cap ─────────────────────────────────────────────
+                psContent.appendChild(psHdr("Global Safety Cap"));
+                const capNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                capNote.textContent = "Hard ceiling applied to shocks only (not beep or vibrate).";
+                psContent.appendChild(capNote);
+                const gCap = EBCDrawer.getPsGlobal();
+                const capRow = psRow("12px");
+                const mkCapField = (label: string, key: "maxInt" | "maxDur", min: number, max: number, suffix: string): HTMLElement => {
+                    const w = mk("div", "display:flex;align-items:center;gap:5px;");
+                    const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`); lbl.textContent = label;
+                    const inp = document.createElement("input"); inp.type = "number";
+                    inp.min = String(min); inp.max = String(max); inp.value = String(gCap[key]);
+                    inp.style.cssText = `${FONT}width:50px;font-size:11px;padding:3px 5px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                    const sfx = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); sfx.textContent = suffix;
+                    inp.addEventListener("input", () => { const g = EBCDrawer.getPsGlobal(); g[key] = Math.min(max, Math.max(min, parseInt((inp as HTMLInputElement).value) || min)); EBCDrawer.savePsGlobal(g); });
+                    w.appendChild(lbl); w.appendChild(inp); w.appendChild(sfx); return w;
+                };
+                capRow.appendChild(mkCapField("Max intensity:", "maxInt", 1, 100, "%"));
+                capRow.appendChild(mkCapField("Max duration:", "maxDur", 1, 15, "s"));
+                psContent.appendChild(capRow);
+
+                // ── Pre-shock warning chain ────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Pre-Shock Warning"));
+                const warnChainNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                warnChainNote.textContent = "Fire these automatically before every shock (1s gap each).";
+                psContent.appendChild(warnChainNote);
+                const psWarnCfg = EBCDrawer.getPsWarn();
+                const warnRow = psRow("6px");
+                const mkWarnToggle = (label: string, key: "preBeep" | "preVib"): HTMLButtonElement => {
+                    const on = psWarnCfg[key];
+                    const b = mkBtn(label, `${FONT}font-size:11px;padding:4px 12px;border-radius:5px;cursor:pointer;border:1px solid ${on ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${on ? "var(--ebc-card)" : "transparent"};color:${on ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                    b.addEventListener("click", () => {
+                        const w = EBCDrawer.getPsWarn(); w[key] = !w[key]; EBCDrawer.savePsWarn(w);
+                        b.style.borderColor = w[key] ? "var(--ebc-accent)" : "var(--ebc-border)";
+                        b.style.background = w[key] ? "var(--ebc-card)" : "transparent";
+                        b.style.color = w[key] ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
+                    });
+                    return b;
+                };
+                warnRow.appendChild(mkWarnToggle("🔔 Beep first", "preBeep"));
+                warnRow.appendChild(mkWarnToggle("〜 Vibrate first", "preVib"));
+                psContent.appendChild(warnRow);
+
+                // ── Intensity levels ──────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Intensity Levels"));
+                const levelsNote = mk("div", `${FONT}font-size:9px;color:var(--ebc-text-muted);margin:-3px 0 7px;`);
+                levelsNote.textContent = "Customize each level - name, intensity, and duration. Used by shockers and triggers.";
+                psContent.appendChild(levelsNote);
+                const levelColors = [
+                    { bg: "rgba(40,160,80,0.12)",  border: "rgba(40,160,80,0.4)",  nameColor: "#4daa60", valColor: "#2d8040" },
+                    { bg: "rgba(200,160,40,0.12)", border: "rgba(200,160,40,0.4)", nameColor: "#b89028", valColor: "#907010" },
+                    { bg: "rgba(200,90,30,0.12)",  border: "rgba(200,90,30,0.4)",  nameColor: "#c06020", valColor: "#904010" },
+                    { bg: "rgba(180,40,40,0.14)",  border: "#5a2828",              nameColor: "#c05050", valColor: "#a03030" },
+                ];
+                const levelsGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;");
+                const renderLevels = (): void => {
+                    while (levelsGrid.firstChild) levelsGrid.removeChild(levelsGrid.firstChild);
+                    const levels = EBCDrawer.getPsLevels();
+                    levels.forEach((lv, i) => {
+                        const col = levelColors[i];
+                        const lvCard = mk("div", `background:${col.bg};border:1.5px solid ${col.border};border-radius:8px;padding:8px 9px;`);
+                        const nameInp = document.createElement("input"); nameInp.type = "text"; nameInp.value = lv.name;
+                        nameInp.style.cssText = `${FONT}width:100%;box-sizing:border-box;font-size:12px;font-weight:bold;padding:3px 5px;background:transparent;border:none;border-bottom:1px solid ${col.border};color:${col.nameColor};margin-bottom:6px;outline:none;`;
+                        nameInp.addEventListener("input", () => { const lvs = EBCDrawer.getPsLevels(); lvs[i].name = (nameInp as HTMLInputElement).value; EBCDrawer.savePsLevels(lvs); });
+                        lvCard.appendChild(nameInp);
+                        const mkLvField = (label: string, field: "intensity" | "duration", min: number, max: number, suffix: string): HTMLElement => {
+                            const row = mk("div", "display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;");
+                            const lbl = mk("span", `${FONT}font-size:9px;color:${col.valColor};`); lbl.textContent = label;
+                            const right = mk("div", "display:flex;align-items:center;gap:2px;");
+                            const inp = document.createElement("input"); inp.type = "number"; inp.min = String(min); inp.max = String(max); inp.value = String(lv[field]);
+                            inp.style.cssText = `${FONT}width:40px;font-size:11px;padding:2px 4px;background:rgba(0,0,0,0.2);border:1px solid ${col.border};color:${col.nameColor};border-radius:3px;text-align:center;`;
+                            inp.addEventListener("input", () => { const lvs = EBCDrawer.getPsLevels(); lvs[i][field] = Math.min(max, Math.max(min, parseInt((inp as HTMLInputElement).value) || min)); EBCDrawer.savePsLevels(lvs); });
+                            const sfx = mk("span", `${FONT}font-size:9px;color:${col.valColor};`); sfx.textContent = suffix;
+                            right.appendChild(inp); right.appendChild(sfx); row.appendChild(lbl); row.appendChild(right); return row;
+                        };
+                        lvCard.appendChild(mkLvField("Intensity", "intensity", 1, 100, "%"));
+                        lvCard.appendChild(mkLvField("Duration", "duration", 1, 15, "s"));
+                        levelsGrid.appendChild(lvCard);
+                    });
+                };
+                renderLevels();
+                psContent.appendChild(levelsGrid);
+
+                // ── Trusted Senders ───────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Trusted Senders"));
+                const trustNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin:-3px 0 6px;`);
+                trustNote.textContent = "When 'Trusted only' is on for a shocker, only shocks from these people trigger it.";
+                psContent.appendChild(trustNote);
+                const trustListEl = mk("div", "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;");
+                const renderTrustList = (): void => {
+                    while (trustListEl.firstChild) trustListEl.removeChild(trustListEl.firstChild);
+                    const wl = EBCDrawer.getPsWhitelist();
+                    const tmp = EBCDrawer._psTempWhitelist;
+                    if (!wl.length && !tmp.length) {
+                        const none = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:1px 0 3px;`);
+                        none.textContent = "No trusted senders yet.";
+                        trustListEl.appendChild(none);
+                    }
+                    wl.forEach((entry, i) => {
+                        const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                        const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                        const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                        rmBtn.addEventListener("click", () => { const arr = EBCDrawer.getPsWhitelist(); arr.splice(i, 1); EBCDrawer.savePsWhitelist(arr); renderTrustList(); });
+                        row.appendChild(lbl); row.appendChild(rmBtn);
+                        trustListEl.appendChild(row);
+                    });
+                    tmp.forEach((entry, i) => {
+                        const row = mk("div", "display:flex;align-items:center;gap:6px;");
+                        const lbl = mk("span", `${FONT}font-size:11px;color:var(--ebc-text-bright);flex:1;`);
+                        lbl.textContent = entry.name ? `${entry.name} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                        const tag = mk("span", `${FONT}font-size:9px;color:#c8a030;border:1px solid #a07020;border-radius:3px;padding:0 4px;white-space:nowrap;`);
+                        tag.textContent = "session";
+                        const rmBtn = mkBtn("✕", `${FONT}font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                        rmBtn.addEventListener("click", () => { EBCDrawer._psTempWhitelist.splice(i, 1); renderTrustList(); });
+                        row.appendChild(lbl); row.appendChild(tag); row.appendChild(rmBtn);
+                        trustListEl.appendChild(row);
+                    });
+                };
+                renderTrustList();
+                psContent.appendChild(trustListEl);
+
+                // Room character dropdown + Add / Add Temp buttons
+                const getRoomChars = (): Array<{ memberNumber: number; name: string }> => {
+                    const rc = (window as Record<string, unknown>)["ChatRoomCharacter"] as Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    if (!Array.isArray(rc)) return [];
+                    return rc
+                        .filter(c => c.MemberNumber != null && c.MemberNumber !== (Player as { MemberNumber?: number }).MemberNumber)
+                        .map(c => ({ memberNumber: c.MemberNumber as number, name: (c.Nickname ?? "").trim() || c.Name || String(c.MemberNumber) }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                };
+                const trustSel = document.createElement("select");
+                trustSel.style.cssText = `${FONT}flex:1;font-size:11px;padding:3px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;cursor:pointer;`;
+                const rebuildTrustSel = (): void => {
+                    while (trustSel.firstChild) trustSel.removeChild(trustSel.firstChild);
+                    const chars = getRoomChars();
+                    const placeholder = document.createElement("option");
+                    placeholder.value = ""; placeholder.textContent = chars.length ? "Select from room..." : "No one else in room";
+                    placeholder.disabled = true; placeholder.selected = true;
+                    trustSel.appendChild(placeholder);
+                    chars.forEach(c => {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.memberNumber);
+                        opt.textContent = `${c.name} (#${c.memberNumber})`;
+                        trustSel.appendChild(opt);
+                    });
+                };
+                rebuildTrustSel();
+                // Refresh dropdown when user opens it
+                trustSel.addEventListener("mousedown", () => { rebuildTrustSel(); });
+
+                const getSelChar = (): { memberNumber: number; name: string } | null => {
+                    const num = parseInt((trustSel as HTMLSelectElement).value);
+                    if (isNaN(num)) return null;
+                    const chars = getRoomChars();
+                    return chars.find(c => c.memberNumber === num) ?? { memberNumber: num, name: String(num) };
+                };
+                const addTrustBtn = mkBtn("Add", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                addTrustBtn.title = "Add permanently (saved across sessions)";
+                addTrustBtn.addEventListener("click", () => {
+                    const c = getSelChar(); if (!c) return;
+                    const arr = EBCDrawer.getPsWhitelist();
+                    if (!arr.some(e => e.memberNumber === c.memberNumber)) { arr.push(c); EBCDrawer.savePsWhitelist(arr); }
+                    (trustSel as HTMLSelectElement).value = "";
+                    renderTrustList();
+                });
+                const addTempBtn = mkBtn("Temp", `${FONT}font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid #a07020;background:transparent;color:#c8a030;`);
+                addTempBtn.title = "Add for this session only (not saved, clears on reload)";
+                addTempBtn.addEventListener("click", () => {
+                    const c = getSelChar(); if (!c) return;
+                    const tmp = EBCDrawer._psTempWhitelist;
+                    if (!tmp.some(e => e.memberNumber === c.memberNumber)) tmp.push(c);
+                    (trustSel as HTMLSelectElement).value = "";
+                    renderTrustList();
+                });
+                const addTrustRow = mk("div", "display:flex;gap:5px;align-items:center;");
+                addTrustRow.appendChild(trustSel); addTrustRow.appendChild(addTrustBtn); addTrustRow.appendChild(addTempBtn);
+                psContent.appendChild(addTrustRow);
+
+                // ── Shockers ──────────────────────────────────────────────────────
+                psContent.appendChild(sep());
+                psContent.appendChild(psHdr("Shockers"));
+                const shockerListEl = mk("div");
+
+                const renderShockers = (): void => {
+                    while (shockerListEl.firstChild) shockerListEl.removeChild(shockerListEl.firstChild);
+                    const shockers = EBCDrawer.getPsShockers();
+                    if (!shockers.length) {
+                        const empty = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:2px 0 6px;`);
+                        empty.textContent = "No shockers added yet.";
+                        shockerListEl.appendChild(empty);
+                        return;
+                    }
+                    shockers.forEach((sh, idx) => {
+                        const shCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:7px;padding:8px 10px;margin-bottom:7px;");
+
+                        // Device type chips
+                        const dtRow = mk("div", "display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;");
+                        DEVICE_TYPES.forEach(dt => {
+                            const active = ((sh as Record<string, unknown>).deviceType ?? "Collar") === dt;
+                            const chip = mkBtn(dt, `${FONT}font-size:10px;padding:2px 7px;border-radius:10px;cursor:pointer;border:1px solid ${active ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${active ? "var(--ebc-card)" : "transparent"};color:${active ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                            chip.addEventListener("click", () => {
+                                const arr = EBCDrawer.getPsShockers();
+                                (arr[idx] as Record<string, unknown>).deviceType = dt;
+                                EBCDrawer.savePsShockers(arr); renderShockers();
+                            });
+                            dtRow.appendChild(chip);
+                        });
+                        shCard.appendChild(dtRow);
+
+                        // Name + share code row
+                        const r1 = psRow();
+                        const nameInp = psInp("Name", sh.name); nameInp.style.flex = "1";
+                        nameInp.addEventListener("input", () => { shockers[idx].name = (nameInp as HTMLInputElement).value; EBCDrawer.savePsShockers(shockers); });
+                        const codeInp = psInp("Share code", sh.code); codeInp.style.flex = "1.4";
+                        codeInp.addEventListener("input", () => {
+                            let v = (codeInp as HTMLInputElement).value.trim();
+                            const m = v.match(/[?&]sharecode=([^&]+)/i) ?? v.match(/Control\?([A-Za-z0-9]+)/i);
+                            if (m) { v = m[1]; (codeInp as HTMLInputElement).value = v; }
+                            shockers[idx].code = v; EBCDrawer.savePsShockers(shockers);
+                        });
+                        const rmBtn = mkBtn("×", `${FONT}font-size:14px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                        rmBtn.addEventListener("click", () => { shockers.splice(idx, 1); EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                        r1.appendChild(nameInp); r1.appendChild(codeInp); r1.appendChild(rmBtn);
+                        shCard.appendChild(r1);
+
+                        // Allow toggles
+                        const allowRow = psRow("4px");
+                        allowRow.style.marginBottom = "6px";
+                        const mkAllow = (label: string, key: "allowBeep" | "allowVib" | "allowShock"): HTMLButtonElement => {
+                            const on = sh[key] !== false;
+                            const b = mkBtn(label, `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid ${on ? "var(--ebc-accent)" : "var(--ebc-border)"};background:${on ? "var(--ebc-card)" : "transparent"};color:${on ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`);
+                            b.addEventListener("click", () => { shockers[idx][key] = !on; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                            return b;
+                        };
+                        const allowLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); allowLbl.textContent = "Allow:";
+                        allowRow.appendChild(allowLbl);
+                        allowRow.appendChild(mkAllow("Beep", "allowBeep"));
+                        allowRow.appendChild(mkAllow("Vib", "allowVib"));
+                        allowRow.appendChild(mkAllow("Shock", "allowShock"));
+                        shCard.appendChild(allowRow);
+
+                        // Trusted-only toggle - own row so it is always visible
+                        const wlOn = (sh as Record<string, unknown>).whitelistOnly === true;
+                        const wlRow = psRow("6px");
+                        wlRow.style.marginBottom = "6px";
+                        const wlLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); wlLbl.textContent = "Trusted senders only:";
+                        const wlBtn = mkBtn(wlOn ? "ON" : "OFF", `${FONT}font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;border:1px solid ${wlOn ? "#c8a030" : "var(--ebc-border)"};background:${wlOn ? "rgba(200,160,40,0.18)" : "transparent"};color:${wlOn ? "#c8a030" : "var(--ebc-text-muted)"};font-weight:${wlOn ? "bold" : "normal"};`);
+                        wlBtn.title = "When ON: only shocks from people in your Trusted Senders list trigger this shocker";
+                        wlBtn.addEventListener("click", () => { (shockers[idx] as Record<string, unknown>).whitelistOnly = !wlOn; EBCDrawer.savePsShockers(shockers); renderShockers(); });
+                        wlRow.appendChild(wlLbl); wlRow.appendChild(wlBtn);
+                        shCard.appendChild(wlRow);
+
+                        // Per-shocker cap
+                        const limRow = psRow();
+                        limRow.style.marginBottom = "6px";
+                        const mkLim = (label: string, key: "maxInt" | "maxDur", min: number, max: number, suffix: string): HTMLElement => {
+                            const wrap = mk("div", "display:flex;align-items:center;gap:4px;");
+                            const lbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);white-space:nowrap;`); lbl.textContent = label;
+                            const inp = document.createElement("input"); inp.type = "number";
+                            inp.min = String(min); inp.max = String(max); inp.value = String(sh[key] ?? max);
+                            inp.style.cssText = `${FONT}width:44px;font-size:11px;padding:3px 4px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:4px;text-align:center;`;
+                            inp.addEventListener("input", () => { shockers[idx][key] = Math.min(max, Math.max(min, parseInt((inp as HTMLInputElement).value) || min)); EBCDrawer.savePsShockers(shockers); });
+                            const sfx = mk("span", `${FONT}font-size:9px;color:var(--ebc-text-muted);`); sfx.textContent = suffix;
+                            wrap.appendChild(lbl); wrap.appendChild(inp); wrap.appendChild(sfx); return wrap;
+                        };
+                        limRow.appendChild(mkLim("Cap int:", "maxInt", 1, 100, "%"));
+                        limRow.appendChild(mkLim("Cap dur:", "maxDur", 1, 15, "s"));
+                        shCard.appendChild(limRow);
+
+
+                        // Test buttons
+                        const psStatusEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);min-height:13px;margin-bottom:3px;word-break:break-all;display:none;`);
+                        const showPsStatus = (result: string): void => {
+                            console.log(`[EBC PiShock] shocker ${idx} response:`, result);
+                            if (result === "ok") { psStatusEl.style.color = "#70c080"; psStatusEl.textContent = "✓ Sent successfully"; }
+                            else if (result === "sent") { psStatusEl.style.color = "#a0c8f0"; psStatusEl.textContent = "~ Sent (no proxy - verify on device)"; }
+                            else { psStatusEl.style.color = "#e07070"; psStatusEl.textContent = `✗ ${result}`; }
+                            psStatusEl.style.display = "block";
+                        };
+                        const testRow = psRow("5px");
+                        const testLbl = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); testLbl.textContent = "Test:";
+                        testRow.appendChild(testLbl);
+                        const mkTest = (label: string, op: number): HTMLButtonElement => {
+                            const b = mkBtn(label, `${FONT}font-size:10px;padding:2px 9px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);`);
+                            b.addEventListener("click", async () => { b.textContent = "..."; psStatusEl.style.display = "none"; const result = await this.firePiShock(idx, op, Math.min(sh.maxInt ?? 10, 10), 1, true); b.textContent = label; showPsStatus(result); });
+                            return b;
+                        };
+                        testRow.appendChild(mkTest("🔔 Beep", 2));
+                        testRow.appendChild(mkTest("〜 Vib", 1));
+                        const shockTestBtn = mkBtn("⚡ Shock", `${FONT}font-size:10px;padding:2px 9px;border-radius:4px;cursor:pointer;border:1px solid #c04040;background:transparent;color:#e07070;`);
+                        shockTestBtn.addEventListener("click", async () => {
+                            if (!window.confirm("Send a test SHOCK?")) return;
+                            shockTestBtn.textContent = "..."; psStatusEl.style.display = "none";
+                            const result = await this.firePiShock(idx, 0, Math.min(sh.maxInt ?? 10, 10), 1, true);
+                            shockTestBtn.textContent = "⚡ Shock"; showPsStatus(result);
+                        });
+                        testRow.appendChild(shockTestBtn);
+                        shCard.appendChild(psStatusEl);
+                        shCard.appendChild(testRow);
+                        shockerListEl.appendChild(shCard);
+                    });
+                };
+                renderShockers();
+                psContent.appendChild(shockerListEl);
+
+                const addShockerBtn = mkBtn("+ Add Shocker", `${FONT}font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-sub);margin-bottom:4px;`);
+                addShockerBtn.addEventListener("click", () => {
+                    const arr = EBCDrawer.getPsShockers();
+                    arr.push({ name: "", code: "", allowBeep: true, allowVib: true, allowShock: false, maxInt: 20, maxDur: 5 });
+                    EBCDrawer.savePsShockers(arr); renderShockers();
+                });
+                psContent.appendChild(addShockerBtn);
+
+                // ── Dev Log ───────────────────────────────────────────────────────
+                psContent.appendChild(sep());
+                const devLogHdr = mk("div", "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;");
+                const devLogTitle = mk("span", `${FONT}font-size:11px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;flex:1;`);
+                devLogTitle.textContent = "Dev Log";
+                const devLogChev = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);`); devLogChev.textContent = "▶";
+                const devLogClear = mkBtn("Clear", `${FONT}font-size:10px;padding:1px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                devLogHdr.appendChild(devLogChev); devLogHdr.appendChild(devLogTitle); devLogHdr.appendChild(devLogClear);
+                psContent.appendChild(devLogHdr);
+
+                const devLogBody = mk("div", "overflow:hidden;max-height:0;transition:max-height 0.2s ease;");
+                const devLogInner = mk("div", `font-family:monospace;font-size:11px;overflow-y:auto;max-height:160px;margin-top:5px;padding:5px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:4px;`);
+                devLogBody.appendChild(devLogInner);
+                psContent.appendChild(devLogBody);
+
+                let devLogOpen = false;
+                const renderDevLog = (): void => {
+                    while (devLogInner.firstChild) devLogInner.removeChild(devLogInner.firstChild);
+                    if (!EBCDrawer._psLog.length) {
+                        const empty = mk("div", "color:#666;"); empty.textContent = "No events yet."; devLogInner.appendChild(empty); return;
+                    }
+                    EBCDrawer._psLog.forEach(e => {
+                        const opLabel = e.op === 0 ? "Shock" : e.op === 1 ? "Vib" : "Beep";
+                        const isOk = e.result === "ok" || e.result.startsWith("sent");
+                        const isErr = !isOk && e.result !== "not-allowed";
+                        const col = isOk ? "#70c080" : isErr ? "#e07070" : "#888";
+                        const row = mk("div", "display:flex;gap:6px;align-items:baseline;padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04);");
+                        const t = mk("span", "color:#666;white-space:nowrap;"); t.textContent = e.time;
+                        const op = mk("span", `color:#a8c0e0;width:36px;flex-shrink:0;`); op.textContent = opLabel;
+                        const info = mk("span", "color:#bbb;flex:1;");
+                        info.textContent = e.op === 2
+                            ? `${e.shocker}  dur:${e.duration}s`
+                            : `${e.shocker}  int:${e.intensity}%  dur:${e.duration}s`;
+                        const res = mk("span", `color:${col};white-space:nowrap;`); res.textContent = `→ ${e.result}`;
+                        row.appendChild(t); row.appendChild(op); row.appendChild(info); row.appendChild(res);
+                        devLogInner.appendChild(row);
+                    });
+                    devLogInner.scrollTop = devLogInner.scrollHeight;
+                };
+                EBCDrawer._psLogRenderer = renderDevLog;
+
+                devLogHdr.addEventListener("click", (ev) => {
+                    if (ev.target === devLogClear) return;
+                    devLogOpen = !devLogOpen;
+                    devLogChev.textContent = devLogOpen ? "▼" : "▶";
+                    devLogBody.style.maxHeight = devLogOpen ? "200px" : "0";
+                    if (devLogOpen) renderDevLog();
+                });
+                devLogClear.addEventListener("click", () => { EBCDrawer._psLog = []; renderDevLog(); });
+
+            }
+
+            card.appendChild(psWrap);
+        }
+
         body.appendChild(card);
     }
 
@@ -22332,11 +23178,28 @@ export class EBCDrawer {
             if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
                 this.stopBCLiveSync(); return;
             }
-            type ArousalT = { VibratorLevel?: number };
-            const player = (window as unknown as { Player?: { ArousalSettings?: ArousalT } }).Player;
-            const bcLevel = player?.ArousalSettings?.VibratorLevel ?? 0; // BC's 0–4 scale
             const cap = typeof s["lovenseBcSyncCap"] === "number" ? (s["lovenseBcSyncCap"] as number) : 20;
-            const lovTarget = Math.min(cap, Math.round(bcLevel * 5)); // map 0–4 → 0–20
+            // Read the actual current vibration intensity directly from worn items.
+            // Item.Property.Intensity: -1 = egged/off, 0 = Low, 1 = Medium, 2 = High, 3 = Maximum.
+            // All modes (static and dynamic: Escalate, Tease, Edge, etc.) write their live
+            // intensity here every scriptDraw tick - this is always the correct source.
+            // ArousalSettings.VibratorLevel is a secondary derived value used by the arousal
+            // meter, modified by zone preference factors - NOT the item intensity.
+            type AppItem = { Asset?: { Archetype?: string }; Property?: { Intensity?: number; Mode?: unknown } };
+            const appearance = (Player as unknown as { Appearance?: AppItem[] }).Appearance ?? [];
+            let maxIntensity = -1;
+            for (const item of appearance) {
+                const { Intensity: intensity, Mode: mode } = item?.Property ?? {};
+                // Detect vibrating items by archetype (covers chastity/plug/egg with built-in vibes)
+                // or by Mode being set (traditional vibrators). Both types write live intensity to
+                // Property.Intensity every scriptDraw tick.
+                const isVibrating = item?.Asset?.Archetype === "vibrating" || mode != null;
+                if (isVibrating && typeof intensity === "number" && intensity >= 0 && intensity > maxIntensity) {
+                    maxIntensity = intensity;
+                }
+            }
+            // Map BC intensity 0–3 → Lovense 5–20 (steps of 5), off → 0
+            const lovTarget = maxIntensity < 0 ? 0 : Math.min(cap, (maxIntensity + 1) * 5);
             if (lovTarget === this._bcLiveSyncLevel) return;
             this._bcLiveSyncLevel = lovTarget;
             this._lovWriteLevel(lovTarget).catch(() => {});
@@ -22527,6 +23390,171 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
+    // ── PiShock static helpers ────────────────────────────────────────────────
+    static getPsShockers(): Array<{ name: string; code: string; allowBeep: boolean; allowVib: boolean; allowShock: boolean; maxInt: number; maxDur: number; deviceType?: string }> {
+        try { return JSON.parse(localStorage.getItem("EBC_ps_shockers") ?? "[]") as ReturnType<typeof EBCDrawer.getPsShockers>; } catch { return []; }
+    }
+    static savePsShockers(arr: ReturnType<typeof EBCDrawer.getPsShockers>): void {
+        try { localStorage.setItem("EBC_ps_shockers", JSON.stringify(arr)); } catch { /* ignore */ }
+    }
+    static getPsTriggers(): Array<{ phrase: string; shockerIdx: number; op: "auto" | "beep" | "vib" | "shock"; levelName?: string }> {
+        try { return JSON.parse(localStorage.getItem("EBC_ps_triggers") ?? "[]") as ReturnType<typeof EBCDrawer.getPsTriggers>; } catch { return []; }
+    }
+    static savePsTriggers(arr: ReturnType<typeof EBCDrawer.getPsTriggers>): void {
+        try { localStorage.setItem("EBC_ps_triggers", JSON.stringify(arr)); } catch { /* ignore */ }
+    }
+    static getPsLevels(): Array<{ name: string; intensity: number; duration: number }> {
+        const defaults = [
+            { name: "Low",    intensity: 10,  duration: 1 },
+            { name: "Medium", intensity: 30,  duration: 2 },
+            { name: "High",   intensity: 60,  duration: 3 },
+            { name: "Max",    intensity: 100, duration: 5 },
+        ];
+        try { const s = JSON.parse(localStorage.getItem("EBC_ps_levels") ?? "null"); if (Array.isArray(s) && s.length === 4) return s as ReturnType<typeof EBCDrawer.getPsLevels>; } catch {}
+        return defaults;
+    }
+    static savePsLevels(arr: Array<{ name: string; intensity: number; duration: number }>): void {
+        try { localStorage.setItem("EBC_ps_levels", JSON.stringify(arr)); } catch {}
+    }
+    static getPsWarn(): { preBeep: boolean; preVib: boolean } {
+        try { const s = JSON.parse(localStorage.getItem("EBC_ps_warn") ?? "null"); if (s && typeof s === "object") return s as { preBeep: boolean; preVib: boolean }; } catch {}
+        return { preBeep: false, preVib: false };
+    }
+    static savePsWarn(w: { preBeep: boolean; preVib: boolean }): void {
+        try { localStorage.setItem("EBC_ps_warn", JSON.stringify(w)); } catch {}
+    }
+    static getPsGlobal(): { maxInt: number; maxDur: number } {
+        try { const s = JSON.parse(localStorage.getItem("EBC_ps_global") ?? "null"); if (s && typeof s === "object") return s as { maxInt: number; maxDur: number }; } catch {}
+        return { maxInt: 100, maxDur: 15 };
+    }
+    static savePsGlobal(g: { maxInt: number; maxDur: number }): void {
+        try { localStorage.setItem("EBC_ps_global", JSON.stringify(g)); } catch {}
+    }
+    static getPsWhitelist(): Array<{ memberNumber: number; name: string }> {
+        try { const s = JSON.parse(localStorage.getItem("EBC_ps_whitelist") ?? "[]"); return Array.isArray(s) ? s as Array<{ memberNumber: number; name: string }> : []; } catch { return []; }
+    }
+    static savePsWhitelist(arr: Array<{ memberNumber: number; name: string }>): void {
+        try { localStorage.setItem("EBC_ps_whitelist", JSON.stringify(arr)); } catch {}
+    }
+    static _psTempWhitelist: Array<{ memberNumber: number; name: string }> = [];
+    static _psLog: Array<{ time: string; shocker: string; op: number; intensity: number; duration: number; result: string }> = [];
+    static _psLogRenderer: (() => void) | null = null;
+    static _pushPsLog(e: { time: string; shocker: string; op: number; intensity: number; duration: number; result: string }): void {
+        EBCDrawer._psLog.push(e); if (EBCDrawer._psLog.length > 50) EBCDrawer._psLog.shift(); EBCDrawer._psLogRenderer?.();
+    }
+
+    // bypass=true skips allow-toggles and limits (for test buttons)
+    public async firePiShock(shockerIdx: number, op: number, intensity: number, duration: number, bypass = false): Promise<string> {
+        try {
+            const proxyUrl = localStorage.getItem("EBC_ps_proxy")?.trim() ?? "";
+            const username  = localStorage.getItem("EBC_ps_user")?.trim()  ?? "";
+            const apikey    = localStorage.getItem("EBC_ps_key")?.trim()   ?? "";
+            if (!username || !apikey) return "missing-creds";
+            const shockers = EBCDrawer.getPsShockers();
+            const sh = shockers[shockerIdx];
+            if (!sh?.code) return "missing-shocker";
+            if (!bypass) {
+                if (op === 2 && sh.allowBeep  === false) return "not-allowed";
+                if (op === 1 && sh.allowVib   === false) return "not-allowed";
+                if (op === 0 && sh.allowShock === false) return "not-allowed";
+                if (op === 0) {
+                    intensity = Math.min(intensity, sh.maxInt ?? 100);
+                    duration  = Math.min(duration,  sh.maxDur ?? 15);
+                    const gCap = EBCDrawer.getPsGlobal();
+                    intensity = Math.min(intensity, gCap.maxInt);
+                    duration  = Math.min(duration,  gCap.maxDur);
+                }
+            }
+            const payload = { Username: username, APIKey: apikey, Code: sh.code, Name: "EBC", Op: op, Duration: duration, Intensity: intensity };
+            console.log("[EBC PiShock] sending payload:", { ...payload, APIKey: apikey.slice(0, 4) + "****" });
+            const _logBase = { time: new Date().toLocaleTimeString(), shocker: sh.name || `Shocker ${shockerIdx + 1}`, op, intensity, duration };
+            if (proxyUrl) {
+                // Proxy path - can read response
+                const resp = await fetch(proxyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
+                const raw = (await resp.text()).trim();
+                let psStatus = resp.status, psBody = raw;
+                try { const j = JSON.parse(raw) as { ps_status?: number; ps_body?: string; ps_url?: string; ps_redirected?: boolean; getCheck?: string }; if (j.ps_status !== undefined) { psStatus = j.ps_status; psBody = j.ps_body ?? ""; console.log(`[EBC PiShock] final url: ${j.ps_url} | redirected: ${j.ps_redirected} | getCheck: ${j.getCheck}`); } } catch { /* old worker format, use raw */ }
+                console.log(`[EBC PiShock] response: HTTP ${psStatus}`, psBody || "(empty body)");
+                const proxyResult = (psStatus === 204 || psBody.toLowerCase().includes("success")) ? "ok" : (psBody || `HTTP ${psStatus}`);
+                EBCDrawer._pushPsLog({ ..._logBase, result: proxyResult });
+                return proxyResult;
+            } else {
+                // Direct no-cors path - sends from browser IP, bypasses Cloudflare block
+                // text/plain avoids preflight; response is opaque so we fire-and-forget
+                // Try application/x-www-form-urlencoded - simple CORS type, no preflight, ASP.NET accepts both
+                const formBody = Object.entries(payload).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join("&");
+                await fetch("https://do.pishock.com/api/apioperate/", {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: formBody,
+                });
+                console.log("[EBC PiShock] direct no-cors sent (response opaque - verify on device)");
+                EBCDrawer._pushPsLog({ ..._logBase, result: "sent (no-cors)" });
+                return "sent";
+            }
+        } catch (e) { return String(e); }
+    }
+
+    private async firePiShockWithWarn(shockerIdx: number, op: number, intensity: number, duration: number): Promise<string> {
+        if (op === 0) {
+            const warn = EBCDrawer.getPsWarn();
+            if (warn.preBeep) { await this.firePiShock(shockerIdx, 2, 50, 1, true); await new Promise(r => setTimeout(r, 1200)); }
+            if (warn.preVib)  { await this.firePiShock(shockerIdx, 1, 30, 1, true); await new Promise(r => setTimeout(r, 1200)); }
+        }
+        return this.firePiShock(shockerIdx, op, intensity, duration);
+    }
+
+    public checkPiShockTriggers(content: string): void {
+        try {
+            if (typeof Player === "undefined" || Player?.MemberNumber !== EMERY_MEMBER) return;
+            const s = getSettings();
+            if (s["psEnabled"] !== true) return;
+            const lower = content.toLowerCase();
+            const triggers = EBCDrawer.getPsTriggers();
+            const shockers = EBCDrawer.getPsShockers();
+            for (const tr of triggers) {
+                if (!tr.phrase || !lower.includes(tr.phrase)) continue;
+                const sh = shockers[tr.shockerIdx ?? 0];
+                if (!sh) continue;
+                let op: number;
+                if (tr.op === "beep")  op = 2;
+                else if (tr.op === "vib")   op = 1;
+                else if (tr.op === "shock") op = 0;
+                else {
+                    // auto - pick strongest allowed
+                    if (sh.allowShock !== false) op = 0;
+                    else if (sh.allowVib !== false) op = 1;
+                    else op = 2;
+                }
+                const levels = EBCDrawer.getPsLevels();
+                const lvName = (tr as Record<string, unknown>).levelName as string | undefined;
+                const lv = levels.find(l => l.name === lvName) ?? levels[0];
+                this.firePiShockWithWarn(tr.shockerIdx ?? 0, op, lv.intensity, lv.duration).catch(() => { /* ignore */ });
+            }
+        } catch { /* ignore */ }
+    }
+
+    public checkPiShockActivityTrigger(senderNum?: number): void {
+        try {
+            if (typeof Player === "undefined" || (Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER) return;
+            const s = getSettings();
+            if (s["psEnabled"] !== true) return;
+            const shockers = EBCDrawer.getPsShockers();
+            const levels = EBCDrawer.getPsLevels();
+            const whitelist = [...EBCDrawer.getPsWhitelist(), ...EBCDrawer._psTempWhitelist];
+            shockers.forEach((sh, idx) => {
+                if ((sh as Record<string, unknown>).whitelistOnly === true) {
+                    if (senderNum === undefined || !whitelist.some(e => e.memberNumber === senderNum)) return;
+                }
+                const op = sh.allowShock !== false ? 0 : sh.allowVib !== false ? 1 : sh.allowBeep !== false ? 2 : -1;
+                if (op >= 0) {
+                    this.firePiShockWithWarn(idx, op, levels[0].intensity, levels[0].duration).catch(() => { /* ignore */ });
+                }
+            });
+        } catch { /* ignore */ }
+    }
+
     public checkLovenseActivityTrigger(activityName: string, assetGroup?: string): void {
         try {
             const s = getSettings();
@@ -22555,10 +23583,13 @@ export class EBCDrawer {
         this.renderToys();
     }
 
-    private sendGameToyMsg(targetNum: number, type: string): void {
+    private sendGameToyMsg(targetNum: number, type: string, intensity?: number, duration?: number): void {
         try {
             const serverSend = (window as unknown as { ServerSend?: (msg: string, data: unknown) => void }).ServerSend;
-            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: `[EBC-TOY:${type}]`, Target: targetNum });
+            const payload = (intensity !== undefined && duration !== undefined)
+                ? `[EBC-TOY:${type}:${intensity}:${duration}]`
+                : `[EBC-TOY:${type}]`;
+            serverSend?.("ChatRoomChat", { Type: "Whisper", Content: payload, Target: targetNum });
         } catch { /* ignore */ }
     }
 
@@ -22773,6 +23804,11 @@ export class EBCDrawer {
                     this._showToyToast(`${pend.name} declined toy control.`);
                     this.refreshToysIfActive();
                 }
+            } else if (type === "LV") {
+                if (!this._toyGrantedTo.has(senderNumber)) return;
+                const lvl = Math.max(0, Math.min(20, intensity ?? 0));
+                this._showToyToast(`${senderName}: ${lvl > 0 ? `♬ ${lvl}/20` : "♬ off"}`);
+                this._lovWriteLevel(lvl).catch(() => {});
             } else if (["Off","Low","Medium","High","Maximum","Random","Escalate","Tease","Deny","Edge"].includes(type)) {
                 if (!this._toyGrantedTo.has(senderNumber)) return;
                 const modeLabel = type === "Maximum" ? "Max" : type;
@@ -22841,6 +23877,88 @@ export class EBCDrawer {
         window.setTimeout(() => { if (document.body.contains(toast)) document.body.removeChild(toast); }, 3500);
     }
 
+    // ─── HQ Room Scanner - checks periodically if the EBC HQ support room is live ─
+    private _startHQScanner(): void {
+        if (this._hqScanTimer !== null) return;
+        const HQ_NAME = "EmeryBC (EBC) HQ";
+        let scanSentAt = 0;
+        let listenerReady = false;
+        // Cleared when a result arrives; fires after 15 s if the server never responds
+        // (e.g. ServerSend was dropped because the player wasn't logged in yet).
+        let noRespTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const ensureListener = (): boolean => {
+            if (listenerReady) return true;
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on?(e: string, h: (data: unknown) => void): void } | undefined;
+            if (!sock?.on) return false;
+            sock.on("ChatRoomSearchResult", (data: unknown) => {
+                try {
+                    const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+                    const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
+                    if (found) {
+                        // Positive: bypass the timestamp guard - any result that contains
+                        // HQ must come from a search that matched it, so it is always safe
+                        // to show the badge here. This handles the race where another
+                        // addon's negative result arrives first and resets scanSentAt to 0
+                        // before our positive result arrives.
+                        if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
+                        scanSentAt = 0;
+                        this._setHQLive(true);
+                        return;
+                    }
+                    // Negative: only hide if OUR scan is in flight and the result is
+                    // recent. Guards against other addons' results consuming scanSentAt.
+                    if (scanSentAt === 0) return;
+                    if (Date.now() - scanSentAt > 10_000) { scanSentAt = 0; return; }
+                    if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
+                    scanSentAt = 0;
+                    this._setHQLive(false);
+                } catch { /* ignore */ }
+            });
+            listenerReady = true;
+            return true;
+        };
+
+        const doScan = (): void => {
+            // BC server ignores ChatRoomSearch while the player is inside a chat room;
+            // the resulting empty response would incorrectly hide the badge. Skip the
+            // scan and let the badge hold its last known state until back in the lobby.
+            const w = window as unknown as Record<string, unknown>;
+            if ((w["CurrentScreen"] as string | undefined) === "ChatRoom") return;
+            try {
+                if (!ensureListener()) return;
+                if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
+                scanSentAt = Date.now();
+                ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
+                // silently dropped the request - e.g. player not yet authenticated),
+                // reset scanSentAt so the next scheduled scan is not blocked.
+                noRespTimer = window.setTimeout(() => { noRespTimer = null; scanSentAt = 0; }, 15_000);
+            } catch { scanSentAt = 0; }
+        };
+        // Three early scans to survive first-load races (slow login, socket not yet
+        // connected at 8 s, etc.); then settle to a 2-minute keep-alive interval.
+        window.setTimeout(doScan, 8_000);
+        window.setTimeout(doScan, 20_000);
+        window.setTimeout(doScan, 45_000);
+        this._hqScanTimer = window.setInterval(doScan, 2 * 60 * 1000);
+
+        // Detect room exits every 5 s so the badge refreshes promptly when returning
+        // to the lobby (without this, the next update could be up to 2 min away).
+        let _prevScreen = "";
+        this._hqScreenWatchTimer = window.setInterval(() => {
+            const w2 = window as unknown as Record<string, unknown>;
+            const curr = String(w2["CurrentScreen"] ?? "");
+            if (_prevScreen === "ChatRoom" && curr !== "ChatRoom") window.setTimeout(doScan, 1_500);
+            _prevScreen = curr;
+        }, 5_000);
+    }
+
+    private _setHQLive(live: boolean): void {
+        if (this._hqLiveEl) this._hqLiveEl.style.display = live ? "" : "none";
+    }
+
     // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
     private _openFeedbackModal(): void {
         // Don't stack copies if it's already open
@@ -22866,11 +23984,11 @@ export class EBCDrawer {
         card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
 
         const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
-        titleEl.textContent = "Feedback & Bug Report";
+        titleEl.textContent = t("feedback.title");
         card.appendChild(titleEl);
 
         const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
-        subEl.textContent = "Your BC member number is attached so misuse can be blocked.";
+        subEl.textContent = t("feedback.subtitle");
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
@@ -22884,12 +24002,12 @@ export class EBCDrawer {
         const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
 
         // ── Type — segmented control (no emoji; value = exact Google Form string) ──
-        card.appendChild(mkLabel("Type"));
+        card.appendChild(mkLabel(t("feedback.typeLabel")));
         const typeRow = mk("div", "display:flex;gap:6px;margin-bottom:18px;");
         const TYPES = [
-            { label: "Bug report", value: "Bug report" },
-            { label: "Feature request", value: "Feature request" },
-            { label: "Other", value: "Other" },
+            { label: t("feedback.bugReport"), value: "Bug report" },
+            { label: t("feedback.featureReq"), value: "Feature request" },
+            { label: t("feedback.other"), value: "Other" },
         ];
         let selectedType = TYPES[0].value;
         const typeChips: HTMLElement[] = [];
@@ -22912,24 +24030,24 @@ export class EBCDrawer {
         card.appendChild(typeRow);
 
         // ── "What" textarea (required) ───────────────────────────────
-        card.appendChild(mkLabel("What happened / what do you want?"));
+        card.appendChild(mkLabel(t("feedback.whatLabel")));
         const whatArea = document.createElement("textarea");
-        whatArea.placeholder = "Describe the bug, or the feature you'd like…";
+        whatArea.placeholder = t("feedback.whatPH");
         whatArea.style.cssText = taCss + "min-height:84px;margin-bottom:18px;";
         wireFocus(whatArea);
         card.appendChild(whatArea);
 
         // ── Steps textarea (optional) ────────────────────────────────
-        card.appendChild(mkLabel("Steps to reproduce — optional"));
+        card.appendChild(mkLabel(t("feedback.stepsLabel")));
         const stepsArea = document.createElement("textarea");
-        stepsArea.placeholder = "What were you doing when it broke?";
+        stepsArea.placeholder = t("feedback.stepsPH");
         stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
         wireFocus(stepsArea);
         card.appendChild(stepsArea);
 
         const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
         const _mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
-        verNote.textContent = `EBC v${this.version ?? "?"} · ${_mn} is attached automatically.`;
+        verNote.textContent = t("feedback.verNote", { v: this.version ?? "?", mn: _mn });
         card.appendChild(verNote);
 
         // ── Buttons ──────────────────────────────────────────────────
@@ -22938,11 +24056,11 @@ export class EBCDrawer {
 
         const btnRow = mk("div", "display:flex;gap:10px;justify-content:flex-end;align-items:center;");
         const cancelBtn = mk("button", `${FONT}font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;border:1px solid #33283c;background:transparent;color:#9b8fa6;transition:all 0.14s;`);
-        cancelBtn.textContent = "Cancel";
+        cancelBtn.textContent = t("feedback.cancel");
         cancelBtn.addEventListener("mouseenter", () => { cancelBtn.style.background = "rgba(255,255,255,0.04)"; cancelBtn.style.color = "#cbbdd6"; });
         cancelBtn.addEventListener("mouseleave", () => { cancelBtn.style.background = "transparent"; cancelBtn.style.color = "#9b8fa6"; });
         const sendBtn = mk("button", `${FONT}font-size:13px;font-weight:bold;letter-spacing:0.3px;padding:9px 28px;border-radius:9px;cursor:pointer;border:1px solid #cf6f98;background:#c2628a;color:#ffffff;transition:all 0.14s;`) as HTMLButtonElement;
-        sendBtn.textContent = "Send";
+        sendBtn.textContent = t("feedback.send");
         sendBtn.addEventListener("mouseenter", () => { if (!sendBtn.disabled) sendBtn.style.background = "#d278a0"; });
         sendBtn.addEventListener("mouseleave", () => { if (!sendBtn.disabled) sendBtn.style.background = "#c2628a"; });
         btnRow.appendChild(cancelBtn); btnRow.appendChild(sendBtn);
@@ -22954,9 +24072,9 @@ export class EBCDrawer {
 
         sendBtn.addEventListener("click", () => {
             const what = whatArea.value.trim();
-            if (!what) { errEl.textContent = "Please describe the bug or request first."; whatArea.focus(); return; }
+            if (!what) { errEl.textContent = t("feedback.errEmpty"); whatArea.focus(); return; }
             errEl.textContent = "";
-            sendBtn.disabled = true; sendBtn.textContent = "Sending…";
+            sendBtn.disabled = true; sendBtn.textContent = t("feedback.sending");
 
             const mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
             const params = new URLSearchParams();
@@ -22967,12 +24085,183 @@ export class EBCDrawer {
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                .then(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); })
-                .catch(() => { close(); this._showToyToast("Thanks! Your feedback was sent."); });
+                .then(() => { close(); this._showToyToast(t("feedback.toast")); })
+                .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
         });
 
         document.body.appendChild(overlay);
         whatArea.focus();
+    }
+
+    // ─── PiShock Cloudflare Worker setup guide modal ──────────────────────────
+    private _openPiShockSetupModal(): void {
+        if (document.getElementById("ebc-pishock-setup-overlay")) return;
+
+        const WORKER_CODE = [
+            `const API_BASE = "https://api.pishock.com";`,
+            `const LEGACY  = "https://do.pishock.com";`,
+            `const CORS = {`,
+            `  "Access-Control-Allow-Origin": "*",`,
+            `  "Access-Control-Allow-Headers": "Content-Type",`,
+            `  "Access-Control-Allow-Methods": "POST, OPTIONS",`,
+            `};`,
+            `const psClient = Deno.createHttpClient({ http2: false });`,
+            `const idCache = new Map();`,
+            ``,
+            `// Resolve share code -> integer shockerId via legacy GetShareCodes`,
+            `const resolveId = async (Username, Apikey, Code) => {`,
+            `  const cacheKey = Apikey + ":" + Code;`,
+            `  if (idCache.has(cacheKey)) return idCache.get(cacheKey);`,
+            `  const r = await fetch(LEGACY + "/Api/GetShareCodes", {`,
+            `    method: "POST", client: psClient,`,
+            `    headers: { "Content-Type": "application/json", "Accept": "application/json" },`,
+            `    body: JSON.stringify({ Username, Apikey }),`,
+            `  });`,
+            `  if (!r.ok) throw new Error("GetShareCodes failed: " + r.status);`,
+            `  const shares = await r.json();`,
+            `  const share = shares.find(s => s.linkCode === Code);`,
+            `  if (!share) throw new Error("share code not found: " + Code);`,
+            `  const id = String(share.shockerId);`,
+            `  idCache.set(cacheKey, id);`,
+            `  return id;`,
+            `};`,
+            ``,
+            `Deno.serve(async (req) => {`,
+            `  if (req.method === "OPTIONS")`,
+            `    return new Response(null, { headers: CORS });`,
+            `  if (req.method !== "POST")`,
+            `    return new Response("nope", { status: 405, headers: CORS });`,
+            `  try {`,
+            `    const body = await req.json();`,
+            `    if (body._ping)`,
+            `      return new Response("pong", { headers: CORS });`,
+            `    const { Username, APIKey, Code, Op, Duration, Intensity } = body;`,
+            `    const shockerId = await resolveId(Username, APIKey, Code);`,
+            `    const r = await fetch(API_BASE + "/Shockers/" + shockerId, {`,
+            `      method: "POST", client: psClient,`,
+            `      headers: {`,
+            `        "X-PiShock-Api-Key": APIKey,`,
+            `        "X-PiShock-Username": Username,`,
+            `        "Content-Type": "application/json",`,
+            `        "Accept": "application/json",`,
+            `      },`,
+            `      body: JSON.stringify({ Operation: Op, Duration: Duration * 1000, Intensity }),`,
+            `    });`,
+            `    const text = (await r.text()).trim();`,
+            `    console.log("/Shockers/" + shockerId + " -> " + r.status + ": " + (text || "(empty)"));`,
+            `    return new Response(JSON.stringify({`,
+            `      ps_status: r.status,`,
+            `      ps_body: r.status === 204 ? "success" : (text || "(empty)"),`,
+            `    }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });`,
+            `  } catch(e) {`,
+            `    console.log("Error:", e.message);`,
+            `    return new Response(JSON.stringify({ ps_status: 0, ps_body: "proxy-error: " + e.message }), {`,
+            `      status: 200, headers: { ...CORS, "Content-Type": "application/json" },`,
+            `    });`,
+            `  }`,
+            `});`,
+        ].join("\n");
+
+        const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
+        const mk = (tag: string, css?: string): HTMLElement => { const el = document.createElement(tag); if (css) el.style.cssText = css; return el; };
+
+        const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.82);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+        overlay.id = "ebc-pishock-setup-overlay";
+
+        const card = mk("div", `${FONT}width:min(480px,94vw);max-height:90vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:24px 26px 20px;box-shadow:0 16px 50px rgba(0,0,0,0.65);`);
+        card.id = "ebc-pishock-setup-card";
+        overlay.appendChild(card);
+
+        // Accent bar
+        card.appendChild(mk("div", "height:3px;border-radius:3px;background:#8060b0;margin:-8px 0 18px;"));
+
+        const title = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:4px;`);
+        title.textContent = t("pishock.setupTitle");
+        card.appendChild(title);
+
+        const sub = mk("div", `${FONT}font-size:12px;color:#9a86aa;margin-bottom:22px;`);
+        sub.textContent = t("pishock.setupSub");
+        card.appendChild(sub);
+
+        const STEPS: Array<{ num: string; heading: string; body: string; link?: { label: string; url: string }; code?: true }> = [
+            { num: "1", heading: t("pishock.step1Head"), body: t("pishock.step1Body"), link: { label: t("pishock.step1Link"), url: "https://dash.deno.com" } },
+            { num: "2", heading: t("pishock.step2Head"), body: t("pishock.step2Body") },
+            { num: "3", heading: t("pishock.step3Head"), body: t("pishock.step3Body") },
+            { num: "4", heading: t("pishock.step4Head"), body: t("pishock.step4Body"), code: true },
+            { num: "5", heading: t("pishock.step5Head"), body: t("pishock.step5Body") },
+            { num: "6", heading: t("pishock.step6Head"), body: t("pishock.step6Body") },
+        ];
+
+        STEPS.forEach(step => {
+            const row = mk("div", "display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;");
+
+            const numBadge = mk("div", `${FONT}flex-shrink:0;width:26px;height:26px;border-radius:50%;background:#4a2860;border:1.5px solid #8060b0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:#c8a0e8;line-height:1;`);
+            numBadge.textContent = step.num;
+
+            const content = mk("div", "flex:1;min-width:0;padding-top:2px;");
+
+            const heading = mk("div", `${FONT}font-size:13px;font-weight:bold;color:#e8dff5;margin-bottom:4px;`);
+            heading.textContent = step.heading;
+            content.appendChild(heading);
+
+            const bodyEl = mk("div", `${FONT}font-size:12px;color:#9a86aa;line-height:1.55;margin-bottom:${step.link || step.code ? "8px" : "0"};`);
+            bodyEl.textContent = step.body;
+            content.appendChild(bodyEl);
+
+            if (step.link) {
+                const a = document.createElement("a");
+                a.href = step.link.url;
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+                a.textContent = step.link.label + " ↗";
+                a.style.cssText = `${FONT}font-size:11.5px;color:#a080d0;text-decoration:none;font-weight:bold;`;
+                a.addEventListener("mouseenter", () => { a.style.color = "#c8a0e8"; });
+                a.addEventListener("mouseleave", () => { a.style.color = "#a080d0"; });
+                content.appendChild(a);
+            }
+
+            if (step.code) {
+                const codeWrap = mk("div", "position:relative;");
+                const pre = mk("pre", `${FONT}font-size:10px;background:#0f0b15;border:1px solid #2a1f38;border-radius:8px;padding:10px 12px;overflow-x:auto;color:#b09acc;white-space:pre;margin:0;line-height:1.5;`);
+                pre.textContent = WORKER_CODE;
+                const copyBtn = document.createElement("button");
+                copyBtn.textContent = t("pishock.copyCode");
+                copyBtn.style.cssText = `${FONT}position:absolute;top:8px;right:8px;font-size:10.5px;font-weight:bold;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid #5a4070;background:#1e1530;color:#c8a0e8;`;
+                copyBtn.addEventListener("click", () => {
+                    navigator.clipboard.writeText(WORKER_CODE).then(() => {
+                        copyBtn.textContent = t("pishock.copied");
+                        copyBtn.style.background = "#3a2050";
+                        window.setTimeout(() => { copyBtn.textContent = t("pishock.copyCode"); copyBtn.style.background = "#1e1530"; }, 1800);
+                    });
+                });
+                codeWrap.appendChild(pre);
+                codeWrap.appendChild(copyBtn);
+                content.appendChild(codeWrap);
+            }
+
+            row.appendChild(numBadge);
+            row.appendChild(content);
+            card.appendChild(row);
+        });
+
+        // Divider + close button
+        card.appendChild(mk("div", "border-top:1px solid #2a1f38;margin:6px 0 16px;"));
+        const doneBtn = document.createElement("button");
+        doneBtn.textContent = t("pishock.gotItClose");
+        doneBtn.style.cssText = `${FONT}width:100%;font-size:13px;font-weight:bold;padding:10px;border-radius:9px;cursor:pointer;border:1px solid #8060b0;background:#4a2860;color:#e8dff5;`;
+        doneBtn.addEventListener("mouseenter", () => { doneBtn.style.background = "#5a3870"; });
+        doneBtn.addEventListener("mouseleave", () => { doneBtn.style.background = "#4a2860"; });
+
+        const sbStyle = document.createElement("style");
+        sbStyle.textContent = `#ebc-pishock-setup-card::-webkit-scrollbar{width:5px}#ebc-pishock-setup-card::-webkit-scrollbar-track{background:transparent}#ebc-pishock-setup-card::-webkit-scrollbar-thumb{background:#5a3a7a;border-radius:3px}#ebc-pishock-setup-card::-webkit-scrollbar-thumb:hover{background:#8060b0}`;
+        document.head.appendChild(sbStyle);
+
+        const close = (): void => { if (document.body.contains(overlay)) document.body.removeChild(overlay); sbStyle.remove(); };
+        doneBtn.addEventListener("click", close);
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+        card.appendChild(doneBtn);
+
+        document.body.appendChild(overlay);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -24324,117 +25613,213 @@ export class EBCDrawer {
         // ── ⛓ Curse ──────────────────────────────────────────────────────────
         const { panel: cursePanel, hdr: curseHdr, isOpen: isCurseOpen } = makeDomAccordion("⛓", "CURSE", actionsCard);
 
+        const _cf = "font-family:'Trebuchet MS',serif;";
+
+        // Hint text
         const curseHint = document.createElement("div");
-        curseHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;line-height:1.4;margin-bottom:4px;";
+        curseHint.style.cssText = `${_cf}font-size:10.5px;color:#7a5068;line-height:1.45;margin-bottom:8px;`;
         curseHint.textContent = "Target can't remove cursed items while EBC is loaded. Only you can lift the curse.";
         cursePanel.appendChild(curseHint);
 
-        const curseItemsEl = document.createElement("div");
-        curseItemsEl.style.cssText = "display:flex;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;margin-bottom:4px;";
-        const curseItemsHint = document.createElement("div");
-        curseItemsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px 2px;";
-        curseItemsHint.textContent = "Pick a Focus Target to see their items.";
-        curseItemsEl.appendChild(curseItemsHint);
-        cursePanel.appendChild(curseItemsEl);
-
+        // ── Item picker card ────────────────────────────────────────────────
         const curseSelGroups = new Set<string>();
         const curseCbs: HTMLInputElement[] = [];
 
-        const curseSelAllRow = document.createElement("div");
-        curseSelAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 0 4px;border-bottom:1px solid #3a1928;margin-bottom:3px;";
+        const curseItemsCard = document.createElement("div");
+        curseItemsCard.style.cssText = "background:rgba(10,4,14,0.9);border:1.5px solid #2a1022;border-radius:8px;overflow:hidden;margin-bottom:8px;";
+
+        const curseItemsCardHdr = document.createElement("div");
+        curseItemsCardHdr.style.cssText = `display:none;align-items:center;gap:7px;padding:5px 10px;background:rgba(35,12,26,0.7);border-bottom:1px solid #2a1022;`;
         const curseSelAllChk = document.createElement("input");
         curseSelAllChk.type = "checkbox";
-        curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-        const curseSelAllLbl = document.createElement("span");
-        curseSelAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;";
-        curseSelAllLbl.textContent = "Select all";
-        curseSelAllRow.appendChild(curseSelAllChk); curseSelAllRow.appendChild(curseSelAllLbl);
+        curseSelAllChk.style.cssText = "cursor:pointer;accent-color:#a03060;flex-shrink:0;";
+        const curseItemsCardHdrLbl = document.createElement("span");
+        curseItemsCardHdrLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;flex:1;`;
+        curseItemsCardHdrLbl.textContent = "Items";
+        const curseItemsCountLbl = document.createElement("span");
+        curseItemsCountLbl.style.cssText = `${_cf}font-size:10px;color:#4a2038;`;
+        curseItemsCountLbl.textContent = "";
+        curseItemsCardHdr.appendChild(curseSelAllChk);
+        curseItemsCardHdr.appendChild(curseItemsCardHdrLbl);
+        curseItemsCardHdr.appendChild(curseItemsCountLbl);
+        curseItemsCard.appendChild(curseItemsCardHdr);
+
+        const curseItemsEl = document.createElement("div");
+        curseItemsEl.style.cssText = "display:flex;flex-direction:column;max-height:150px;overflow-y:auto;";
+        const curseItemsHint = document.createElement("div");
+        curseItemsHint.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
+        curseItemsHint.textContent = "Select a Focus Target to see their items.";
+        curseItemsEl.appendChild(curseItemsHint);
+        curseItemsCard.appendChild(curseItemsEl);
+        cursePanel.appendChild(curseItemsCard);
 
         const rebuildCurseItems = (): void => {
             while (curseItemsEl.firstChild) curseItemsEl.removeChild(curseItemsEl.firstChild);
             curseSelGroups.clear();
             curseCbs.length = 0;
-            curseSelAllRow.style.display = "none";
+            curseSelAllChk.checked = false;
+            curseSelAllChk.indeterminate = false;
+            curseItemsCountLbl.textContent = "";
             const id = parseInt(qtSel.value, 10);
             if (!id) {
+                curseItemsCardHdr.style.display = "none";
                 curseItemsEl.appendChild(curseItemsHint);
                 return;
             }
             const items = getRoomMemberItems(id);
             if (items.length === 0) {
+                curseItemsCardHdr.style.display = "none";
                 const empty = document.createElement("div");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:2px;";
+                empty.style.cssText = `${_cf}font-size:11px;color:#4a2a38;padding:12px;text-align:center;`;
                 empty.textContent = "No items found (not in room?).";
                 curseItemsEl.appendChild(empty);
                 return;
             }
-            curseSelAllRow.style.display = "flex";
+            curseItemsCardHdr.style.display = "flex";
+            curseItemsCountLbl.textContent = `${items.length}`;
             for (const it of items) {
                 const row2 = document.createElement("div");
-                row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+                row2.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-bottom:1px solid rgba(42,16,34,0.5);transition:background 0.1s;";
                 const chk = document.createElement("input");
                 chk.type = "checkbox";
                 chk.dataset.group = it.group;
-                chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
+                chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#a03060;pointer-events:none;";
                 curseCbs.push(chk);
-                chk.addEventListener("change", () => {
-                    if (chk.checked) curseSelGroups.add(it.group);
-                    else curseSelGroups.delete(it.group);
+                const nmWrap = document.createElement("div");
+                nmWrap.style.cssText = "flex:1;min-width:0;";
+                const nm2 = document.createElement("div");
+                nm2.style.cssText = `${_cf}font-size:11px;color:#c09ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.1s;`;
+                nm2.textContent = it.craftName ? it.craftName : it.name;
+                const nmSub = document.createElement("div");
+                nmSub.style.cssText = `${_cf}font-size:9.5px;color:#5a3048;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;`;
+                nmSub.textContent = it.craftName ? `${it.name} - ${it.group.replace("Item", "")}` : it.group.replace("Item", "");
+                nmWrap.appendChild(nm2);
+                nmWrap.appendChild(nmSub);
+                row2.appendChild(chk);
+                row2.appendChild(nmWrap);
+                if (it.locked) {
+                    const lockIco2 = document.createElement("span");
+                    lockIco2.style.cssText = "font-size:11px;flex-shrink:0;opacity:0.6;";
+                    lockIco2.textContent = "🔒";
+                    row2.appendChild(lockIco2);
+                }
+                const setRowSel = (sel: boolean): void => {
+                    row2.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                    nm2.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                };
+                row2.addEventListener("click", () => {
+                    chk.checked = !chk.checked;
+                    const g = chk.dataset.group;
+                    if (g) { if (chk.checked) curseSelGroups.add(g); else curseSelGroups.delete(g); }
+                    setRowSel(chk.checked);
                     const n = curseCbs.filter(c => c.checked).length;
                     curseSelAllChk.indeterminate = n > 0 && n < curseCbs.length;
                     curseSelAllChk.checked = n === curseCbs.length;
+                    curseItemsCountLbl.textContent = n > 0 ? `${n}/${items.length}` : `${items.length}`;
                 });
-                const lockIco2 = document.createElement("span");
-                lockIco2.style.cssText = "font-size:11px;flex-shrink:0;width:13px;text-align:center;";
-                lockIco2.textContent = it.locked ? "🔒" : "";
-                const nm2 = document.createElement("span");
-                nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                nm2.textContent = it.craftName ? `${it.craftName} (${it.name})` : it.name;
-                const grp2 = document.createElement("span");
-                grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#8a6070;flex-shrink:0;";
-                grp2.textContent = it.group.replace("Item", "");
-                row2.appendChild(chk); row2.appendChild(lockIco2); row2.appendChild(nm2); row2.appendChild(grp2);
+                row2.addEventListener("mouseenter", () => { if (!chk.checked) row2.style.background = "rgba(70,20,45,0.25)"; });
+                row2.addEventListener("mouseleave", () => { if (!chk.checked) row2.style.background = ""; });
                 curseItemsEl.appendChild(row2);
             }
         };
 
         curseSelAllChk.addEventListener("change", () => {
+            const sel = curseSelAllChk.checked;
             curseCbs.forEach(c => {
-                c.checked = curseSelAllChk.checked;
+                c.checked = sel;
                 const g = c.dataset.group;
-                if (g) { if (curseSelAllChk.checked) curseSelGroups.add(g); else curseSelGroups.delete(g); }
+                if (g) { if (sel) curseSelGroups.add(g); else curseSelGroups.delete(g); }
+                const row = c.parentElement as HTMLElement | null;
+                if (row) {
+                    row.style.background = sel ? "rgba(140,40,80,0.18)" : "";
+                    const nmEl = row.querySelector("div > div:first-child") as HTMLElement | null;
+                    if (nmEl) nmEl.style.color = sel ? "#e8a0c0" : "#c09ab0";
+                }
             });
             curseSelAllChk.indeterminate = false;
+            const total = curseCbs.length;
+            curseItemsCountLbl.textContent = sel ? `${total}/${total}` : `${total}`;
         });
 
         qtSel.addEventListener("change", () => {
             if (isCurseOpen()) { rebuildCurseItems(); rebuildActiveCurses(); }
         });
-        // Also rebuild when the accordion is opened (target may already be selected)
         curseHdr.addEventListener("click", () => { if (isCurseOpen()) { rebuildCurseItems(); rebuildActiveCurses(); } });
 
-        cursePanel.insertBefore(curseSelAllRow, curseItemsEl);
+        // ── Duration picker ─────────────────────────────────────────────────
+        let curseDurMs = 0;
 
+        const durSection = document.createElement("div");
+        durSection.style.cssText = "margin-bottom:8px;";
+
+        const durTopRow = document.createElement("div");
+        durTopRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
+        const durLbl = document.createElement("span");
+        durLbl.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#5a3048;text-transform:uppercase;white-space:nowrap;`;
+        durLbl.textContent = "Duration";
+        durTopRow.appendChild(durLbl);
+
+        const DUR_OPTS: [string, number][] = [["Forever", 0], ["30m", 30*60000], ["1h", 3600000], ["2h", 7200000], ["4h", 14400000], ["8h", 28800000]];
+        const durBtns: Array<[HTMLButtonElement, number]> = [];
+        const setDurStyle = (btn: HTMLButtonElement, sel: boolean): void => {
+            btn.style.cssText = `${_cf}font-size:10px;padding:2px 9px;border-radius:10px;cursor:pointer;border:1.5px solid ${sel ? "#8a3558" : "#2a1022"};background:${sel ? "rgba(160,40,80,0.22)" : "transparent"};color:${sel ? "#cf6f98" : "#6a3050"};transition:all 0.1s;`;
+        };
+        let clearDurCustom = (): void => { /* set after inputs */ };
+        for (const [label, ms] of DUR_OPTS) {
+            const btn = document.createElement("button");
+            btn.textContent = label;
+            setDurStyle(btn, ms === 0);
+            btn.addEventListener("mouseenter", () => { if (curseDurMs !== ms) { btn.style.background = "rgba(100,25,50,0.15)"; btn.style.borderColor = "#4a1830"; btn.style.color = "#a06080"; } });
+            btn.addEventListener("mouseleave", () => { setDurStyle(btn, curseDurMs === ms); });
+            btn.addEventListener("click", () => { curseDurMs = ms; durBtns.forEach(([b, v]) => setDurStyle(b, v === ms)); clearDurCustom(); });
+            durBtns.push([btn, ms]);
+            durTopRow.appendChild(btn);
+        }
+
+        const durCustomRow = document.createElement("div");
+        durCustomRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+        const _durInpCss = `${_cf}font-size:10px;width:30px;padding:2px 3px;background:rgba(10,4,14,0.85);border:1px solid #2a1022;color:#a07888;border-radius:5px;text-align:center;`;
+        const _durLblCss = `${_cf}font-size:10px;color:#4a2838;`;
+        const mkDurInp = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _durInpCss; return i; };
+        const mkDurLbl = (t: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _durLblCss; s.textContent = t; return s; };
+        const cdDays = mkDurInp("d"); const cdHrs = mkDurInp("h"); const cdMins = mkDurInp("m"); const cdSecs = mkDurInp("s");
+        clearDurCustom = () => { cdDays.value = ""; cdHrs.value = ""; cdMins.value = ""; cdSecs.value = ""; };
+        const onDurCustom = (): void => {
+            const d = parseInt(cdDays.value) || 0, h = parseInt(cdHrs.value) || 0, m = parseInt(cdMins.value) || 0, s = parseInt(cdSecs.value) || 0;
+            const total = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+            if (total > 0) { curseDurMs = total; durBtns.forEach(([b]) => setDurStyle(b, false)); }
+        };
+        [cdDays, cdHrs, cdMins, cdSecs].forEach(i => i.addEventListener("input", onDurCustom));
+        durCustomRow.appendChild(cdDays); durCustomRow.appendChild(mkDurLbl("d"));
+        durCustomRow.appendChild(cdHrs);  durCustomRow.appendChild(mkDurLbl("h"));
+        durCustomRow.appendChild(cdMins); durCustomRow.appendChild(mkDurLbl("m"));
+        durCustomRow.appendChild(cdSecs); durCustomRow.appendChild(mkDurLbl("s"));
+
+        durSection.appendChild(durTopRow);
+        durSection.appendChild(durCustomRow);
+        cursePanel.appendChild(durSection);
+
+        // ── Action buttons ──────────────────────────────────────────────────
         const curseStatus = document.createElement("div");
-        curseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
+        curseStatus.style.cssText = `${_cf}font-size:11px;color:#79a885;min-height:13px;margin-top:4px;`;
 
         const curseBtnRow = document.createElement("div");
-        curseBtnRow.style.cssText = "display:flex;gap:5px;";
+        curseBtnRow.style.cssText = "display:flex;gap:5px;margin-bottom:2px;";
         const applyCurseBtn = document.createElement("button");
-        applyCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #91405f;background:#3a0e28;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+        applyCurseBtn.style.cssText = `flex:2;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #7a2848;background:#300820;color:#d070a0;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
         applyCurseBtn.textContent = "⛓ Curse Selected";
         applyCurseBtn.title = "Send curse to target - they cannot remove these items while EBC is active";
-        applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#5a1238"; });
-        applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#3a0e28"; });
+        applyCurseBtn.addEventListener("mouseenter", () => { applyCurseBtn.style.background = "#4a0e30"; applyCurseBtn.style.borderColor = "#a04060"; });
+        applyCurseBtn.addEventListener("mouseleave", () => { applyCurseBtn.style.background = "#300820"; applyCurseBtn.style.borderColor = "#7a2848"; });
 
         const liftCurseBtn = document.createElement("button");
-        liftCurseBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#1a1208;color:#c0a060;cursor:pointer;transition:background 0.14s;";
+        liftCurseBtn.style.cssText = `flex:1;${_cf}font-size:12px;font-weight:bold;padding:8px 4px;border-radius:7px;border:1.5px solid #4a3820;background:#181006;color:#b09050;cursor:pointer;transition:background 0.12s,border-color 0.12s;letter-spacing:0.02em;`;
         liftCurseBtn.textContent = "🔓 Lift All";
         liftCurseBtn.title = "Lift all curses from the target";
-        liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#302010"; });
-        liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#1a1208"; });
+        liftCurseBtn.addEventListener("mouseenter", () => { liftCurseBtn.style.background = "#281808"; liftCurseBtn.style.borderColor = "#6a5028"; });
+        liftCurseBtn.addEventListener("mouseleave", () => { liftCurseBtn.style.background = "#181006"; liftCurseBtn.style.borderColor = "#4a3820"; });
 
-        // Curse record helpers - persisted to settings so they survive page refreshes
+        // persistence helpers
         const getCurseRecord = (memberId: number): string[] => {
             const dc = (getSettings().domCurses ?? {}) as Record<string, string[]>;
             return [...(dc[String(memberId)] ?? [])];
@@ -24446,6 +25831,22 @@ export class EBCDrawer {
             if (groups.length === 0) delete dc[String(memberId)]; else dc[String(memberId)] = groups;
             syncSettings();
         };
+        const getDomCurseExpiry = (memberId: number): number | null => {
+            const ex = (getSettings().domCurseExpiries ?? {}) as Record<string, number>;
+            return ex[String(memberId)] ?? null;
+        };
+        const setDomCurseExpiry = (memberId: number, ts: number | null): void => {
+            const s = getSettings();
+            if (!s.domCurseExpiries) s.domCurseExpiries = {};
+            const ex = s.domCurseExpiries as Record<string, number>;
+            if (ts == null) delete ex[String(memberId)]; else ex[String(memberId)] = ts;
+            syncSettings();
+        };
+        const fmtRem = (ms: number): string => {
+            if (ms <= 0) return "expired";
+            const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+            return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+        };
 
         applyCurseBtn.addEventListener("click", () => {
             const id = parseInt(qtSel.value, 10);
@@ -24454,15 +25855,18 @@ export class EBCDrawer {
             const newGroups = [...curseSelGroups];
             const merged = [...new Set([...getCurseRecord(id), ...newGroups])];
             setCurseRecord(id, merged);
-            // Include item name so the target can restore the exact item if it gets removed
+            const expiry = curseDurMs > 0 ? Date.now() + curseDurMs : null;
+            setDomCurseExpiry(id, expiry);
             const roomItems = getRoomMemberItems(id);
             const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
             const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+            if (expiry) beepEntries.push(`expiry=${expiry}`);
             sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
             const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             const shortGroups = newGroups.map(g => g.replace("Item", "")).join(", ");
-            appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}: ${shortGroups}`, UI.accent);
-            curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s).`;
+            const durStr = curseDurMs > 0 ? ` for ${fmtRem(curseDurMs)}` : "";
+            appendLocalLogLine(`[EBC] ⛓ Cursed ${targetName2}${durStr}: ${shortGroups}`, UI.accent);
+            curseStatus.textContent = `✓ Curse sent for ${newGroups.length} item(s)${durStr}.`;
             window.setTimeout(() => { curseStatus.textContent = ""; rebuildActiveCurses(); }, 100);
         });
 
@@ -24471,6 +25875,7 @@ export class EBCDrawer {
             if (!id) { curseStatus.textContent = "Pick a Focus Target first."; window.setTimeout(() => { curseStatus.textContent = ""; }, 2500); return; }
             const targetName3 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
             setCurseRecord(id, []);
+            setDomCurseExpiry(id, null);
             sendBeep(id, "[EBC-CURSE:clear]");
             appendLocalLogLine(`[EBC] ✓ Lifted all curses on ${targetName3}.`, UI.textMuted);
             curseStatus.textContent = "✓ All curses lifted.";
@@ -24484,15 +25889,15 @@ export class EBCDrawer {
 
         // ── Active curses list ──────────────────────────────────────────────
         const activeCursesEl = document.createElement("div");
-        activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #3a1928;padding-top:6px;";
+        activeCursesEl.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:8px;border-top:1px solid #2a1022;padding-top:7px;";
 
         const activeCursesHdr = document.createElement("div");
-        activeCursesHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#8a5060;text-transform:uppercase;margin-bottom:4px;";
+        activeCursesHdr.style.cssText = `${_cf}font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#6a3050;text-transform:uppercase;margin-bottom:4px;`;
         activeCursesHdr.textContent = "Active Curses";
         activeCursesEl.appendChild(activeCursesHdr);
 
         const activeCursesList = document.createElement("div");
-        activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:1px;max-height:110px;overflow-y:auto;";
+        activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto;";
         activeCursesEl.appendChild(activeCursesList);
 
         const rebuildActiveCurses = (): void => {
@@ -24502,29 +25907,47 @@ export class EBCDrawer {
             const groups = getCurseRecord(id);
             if (groups.length === 0) { activeCursesEl.style.display = "none"; return; }
             activeCursesEl.style.display = "flex";
-            // Try to resolve item names from current room appearance
+            const expiry = getDomCurseExpiry(id);
+            if (expiry) {
+                const rem = expiry - Date.now();
+                activeCursesHdr.textContent = rem > 0 ? `Active - expires in ${fmtRem(rem)}` : "Active - expired";
+            } else {
+                activeCursesHdr.textContent = "Active Curses";
+            }
             const nameMap = new Map<string, string>();
             try {
                 for (const it of getRoomMemberItems(id))
                     nameMap.set(it.group, it.craftName ? `${it.craftName} (${it.name})` : it.name);
             } catch { /* ignore */ }
             for (const group of groups) {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display:flex;flex-direction:column;";
+
                 const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;";
-                row.addEventListener("mouseenter", () => { row.style.background = "rgba(42,20,33,0.5)"; });
-                row.addEventListener("mouseleave", () => { row.style.background = ""; });
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 8px 4px 10px;border-radius:6px;background:rgba(22,6,16,0.8);border:1px solid #2a1022;border-left:3px solid #6a2040;";
+
                 const nm = document.createElement("span");
-                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#d09080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
                 nm.textContent = nameMap.get(group) ?? group.replace("Item", "");
                 nm.title = group;
+
+                const pauseBtn = document.createElement("button");
+                pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
+                pauseBtn.textContent = "⏱";
+                pauseBtn.title = "Temporarily pause this curse";
+                pauseBtn.addEventListener("mouseenter", () => { pauseBtn.style.background = "rgba(50,70,120,0.2)"; pauseBtn.style.borderColor = "#4060a0"; });
+                pauseBtn.addEventListener("mouseleave", () => { if (pauseBtn.style.color !== "#90b8e8") { pauseBtn.style.background = "transparent"; pauseBtn.style.borderColor = "#2a3050"; } });
+
                 const liftOneBtn = document.createElement("button");
-                liftOneBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #5a2035;background:transparent;color:#a06878;cursor:pointer;flex-shrink:0;";
+                liftOneBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #3a1828;background:transparent;color:#906070;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                 liftOneBtn.textContent = "✕";
                 liftOneBtn.title = "Lift this curse";
+                liftOneBtn.addEventListener("mouseenter", () => { liftOneBtn.style.background = "rgba(120,30,50,0.2)"; liftOneBtn.style.borderColor = "#6a2838"; liftOneBtn.style.color = "#c07080"; });
+                liftOneBtn.addEventListener("mouseleave", () => { liftOneBtn.style.background = "transparent"; liftOneBtn.style.borderColor = "#3a1828"; liftOneBtn.style.color = "#906070"; });
                 liftOneBtn.addEventListener("click", () => {
                     const remaining = getCurseRecord(id).filter(g => g !== group);
                     setCurseRecord(id, remaining);
-                    // Use clear:group to precisely remove just this curse from target's record
+                    if (remaining.length === 0) setDomCurseExpiry(id, null);
                     sendBeep(id, remaining.length > 0 ? `[EBC-CURSE:clear:${group}]` : "[EBC-CURSE:clear]");
                     const label = nameMap.get(group) ?? group.replace("Item", "");
                     const targetName4 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
@@ -24533,9 +25956,87 @@ export class EBCDrawer {
                     window.setTimeout(() => { curseStatus.textContent = ""; }, 2000);
                     rebuildActiveCurses();
                 });
+
                 row.appendChild(nm);
+                row.appendChild(pauseBtn);
                 row.appendChild(liftOneBtn);
-                activeCursesList.appendChild(row);
+
+                // inline pause picker
+                const pickerRow = document.createElement("div");
+                pickerRow.style.cssText = "display:none;align-items:center;gap:4px;padding:4px 8px;flex-wrap:wrap;background:rgba(14,4,20,0.7);border:1px solid #2a1022;border-top:none;border-radius:0 0 6px 6px;";
+                const pickerLbl = document.createElement("span");
+                pickerLbl.style.cssText = `${_cf}font-size:10px;color:#5a7098;white-space:nowrap;`;
+                pickerLbl.textContent = "Pause for:";
+                pickerRow.appendChild(pickerLbl);
+                const PAUSE_OPTS: [string, number][] = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120]];
+                for (const [label, mins] of PAUSE_OPTS) {
+                    const chip = document.createElement("button");
+                    chip.style.cssText = `${_cf}font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
+                    chip.textContent = label;
+                    chip.addEventListener("mouseenter", () => { chip.style.background = "rgba(50,80,140,0.2)"; chip.style.borderColor = "#4060a0"; });
+                    chip.addEventListener("mouseleave", () => { chip.style.background = "transparent"; chip.style.borderColor = "#2a3050"; });
+                    chip.addEventListener("click", () => {
+                        const ms = mins * 60 * 1000;
+                        sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                        const itemLabel = nameMap.get(group) ?? group.replace("Item", "");
+                        const targetName5 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
+                        appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetName5} for ${label}.`, UI.textMuted);
+                        curseStatus.textContent = `⏱ ${itemLabel} paused for ${label}.`;
+                        window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                        pickerRow.style.display = "none";
+                        pauseBtn.style.color = "#6888a8";
+                        pauseBtn.style.borderColor = "#2a3050";
+                    });
+                    pickerRow.appendChild(chip);
+                }
+                const pSepEl = document.createElement("span");
+                pSepEl.style.cssText = `${_cf}font-size:10px;color:#3a4060;`;
+                pSepEl.textContent = "|";
+                pickerRow.appendChild(pSepEl);
+                const _pIc = `${_cf}font-size:10px;width:27px;padding:1px 2px;background:rgba(10,5,18,0.9);border:1px solid #2a3050;color:#6888a8;border-radius:4px;text-align:center;`;
+                const _pLc = `${_cf}font-size:10px;color:#3a4060;`;
+                const mkPI = (ph: string): HTMLInputElement => { const i = document.createElement("input") as HTMLInputElement; i.type = "number"; i.min = "0"; i.placeholder = ph; i.style.cssText = _pIc; return i; };
+                const mkPL = (tx: string): HTMLSpanElement => { const s = document.createElement("span"); s.style.cssText = _pLc; s.textContent = tx; return s; };
+                const pDays = mkPI("d"); const pHrs = mkPI("h"); const pMins = mkPI("m"); const pSecs = mkPI("s");
+                pickerRow.appendChild(pDays); pickerRow.appendChild(mkPL("d"));
+                pickerRow.appendChild(pHrs);  pickerRow.appendChild(mkPL("h"));
+                pickerRow.appendChild(pMins); pickerRow.appendChild(mkPL("m"));
+                pickerRow.appendChild(pSecs); pickerRow.appendChild(mkPL("s"));
+                const pGoBtn = document.createElement("button");
+                pGoBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;transition:all 0.1s;`;
+                pGoBtn.textContent = "▷";
+                pGoBtn.addEventListener("mouseenter", () => { pGoBtn.style.background = "rgba(50,80,140,0.2)"; pGoBtn.style.borderColor = "#4060a0"; });
+                pGoBtn.addEventListener("mouseleave", () => { pGoBtn.style.background = "transparent"; pGoBtn.style.borderColor = "#2a3050"; });
+                pGoBtn.addEventListener("click", () => {
+                    const d = parseInt(pDays.value) || 0, h = parseInt(pHrs.value) || 0, m = parseInt(pMins.value) || 0, s = parseInt(pSecs.value) || 0;
+                    const ms = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+                    if (ms <= 0) return;
+                    const parts: string[] = [];
+                    if (d) parts.push(`${d}d`); if (h) parts.push(`${h}h`); if (m) parts.push(`${m}m`); if (s) parts.push(`${s}s`);
+                    const customLabel = parts.join(" ");
+                    sendBeep(id, `[EBC-CURSE:pause:${group}=${ms}]`);
+                    const itemLabel = nameMap.get(group) ?? group.replace("Item", "");
+                    const targetNameC = getRoomMembers().find(mm => mm.id === id)?.name ?? `#${id}`;
+                    appendLocalLogLine(`[EBC] ⏱ Paused ${itemLabel} curse on ${targetNameC} for ${customLabel}.`, UI.textMuted);
+                    curseStatus.textContent = `⏱ ${itemLabel} paused for ${customLabel}.`;
+                    window.setTimeout(() => { curseStatus.textContent = ""; }, 3000);
+                    pickerRow.style.display = "none";
+                    pauseBtn.style.color = "#6888a8";
+                    pauseBtn.style.borderColor = "#2a3050";
+                    pDays.value = ""; pHrs.value = ""; pMins.value = ""; pSecs.value = "";
+                });
+                pickerRow.appendChild(pGoBtn);
+
+                pauseBtn.addEventListener("click", () => {
+                    const open = pickerRow.style.display !== "none";
+                    pickerRow.style.display = open ? "none" : "flex";
+                    pauseBtn.style.color = open ? "#6888a8" : "#90b8e8";
+                    pauseBtn.style.borderColor = open ? "#2a3050" : "#4060a0";
+                });
+
+                wrap.appendChild(row);
+                wrap.appendChild(pickerRow);
+                activeCursesList.appendChild(wrap);
             }
         };
 
@@ -24723,6 +26224,11 @@ export class EBCDrawer {
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
         this.stopTimerPoller();
+        this.stopDevLogPoller();
+        try { this.stopBCLiveSync(); } catch { /* ignore */ }
+        if (this._hqScanTimer !== null) { clearInterval(this._hqScanTimer); this._hqScanTimer = null; }
+        if (this._hqScreenWatchTimer !== null) { clearInterval(this._hqScreenWatchTimer); this._hqScreenWatchTimer = null; }
+        if (this._syncStatusPoller !== null) { clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         for (const { el } of this.beepWins.values()) { try { el.remove(); } catch { /* ignore */ } }
         this.beepWins.clear();
         this.rootEl?.remove();

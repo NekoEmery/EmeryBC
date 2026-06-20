@@ -181,7 +181,9 @@ function executeStep(step: SceneStep): void {
 export function runScene(scene: Scene): void {
     let elapsed = 0;
     for (const step of scene.steps) {
-        elapsed += step.delayMs;
+        // Guard against a corrupt/imported step with a non-numeric delay: NaN would
+        // poison `elapsed` and make setTimeout(…, NaN) fire all remaining steps at once.
+        elapsed += Number.isFinite(step.delayMs) ? step.delayMs : 0;
         const s = step;
         window.setTimeout(() => executeStep(s), elapsed);
     }

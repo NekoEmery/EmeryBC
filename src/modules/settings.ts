@@ -437,7 +437,7 @@ export function saveQuickReplies(replies: string[]): void {
 // -- Action buttons sidebar visibility ----------------------------------------
 
 export function getActionButtonsVisible(): boolean {
-    try { return getSettings()?.actionButtonsVisible !== false; } catch { return true; }
+    try { return getSettings()?.actionButtonsVisible === true; } catch { return false; }
 }
 
 export function setActionButtonsVisible(value: boolean): void {
