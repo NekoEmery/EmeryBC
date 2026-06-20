@@ -297,6 +297,11 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
         return;
     }
     outfitApplyPending = true;
+    // Watchdog: the normal reset lives inside the deferred setTimeout below. If the
+    // synchronous body throws before that timeout is scheduled, the flag would stick
+    // true forever and permanently block every future swap. This guarantees the flag
+    // clears within 5 s regardless; it is cancelled on the normal success path.
+    const applyWatchdog = window.setTimeout(() => { outfitApplyPending = false; }, 5_000);
 
     const nextAppearance: Item[] = [];
     const outfitGroups = new Set(outfit.items.map(i => i.Group));
@@ -433,6 +438,7 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
             }
         } finally {
             outfitApplyPending = false;
+            window.clearTimeout(applyWatchdog);
         }
     }, 80);
 
@@ -799,6 +805,9 @@ export function applyRestraintSet(restraint: ConfiguredOutfit): void {
         return;
     }
     outfitApplyPending = true;
+    // Watchdog: see applyOutfit - guarantees the flag clears even if the synchronous
+    // body throws before the deferred reset below is scheduled. Cancelled on success.
+    const applyWatchdog = window.setTimeout(() => { outfitApplyPending = false; }, 5_000);
 
     const restraintGroups = new Set(restraint.items.map(i => i.Group));
     const nextAppearance: Item[] = [];
@@ -861,6 +870,7 @@ export function applyRestraintSet(restraint: ConfiguredOutfit): void {
             }
         } finally {
             outfitApplyPending = false;
+            window.clearTimeout(applyWatchdog);
         }
     }, 80);
 

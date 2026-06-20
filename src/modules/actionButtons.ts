@@ -43,6 +43,12 @@ export interface ButtonCategory {
 // --- Storage -----------------------------------------------------------------
 
 
+// One-time guard for the legacy-style scan below. The removed "expression"/
+// "exprPreset" styles can no longer be created in the UI, so once the saved data
+// has been scanned clean they can never reappear - no need to re-scan on every
+// (per-frame) call to getCategories().
+let _legacyStyleScanned = false;
+
 /** Returns all categories, migrating from old flat format if needed. */
 export function getCategories(): ButtonCategory[] {
     const store = getSettings();
@@ -65,20 +71,23 @@ export function getCategories(): ButtonCategory[] {
         // Convert them to plain "action" slots with empty emote so they're harmless and
         // the user can reconfigure or delete them in the Buttons tab.
         const catsList = cats as ButtonCategory[];
-        let didMigrate = false;
-        for (const cat of catsList) {
-            for (const btn of cat.buttons as ActionButton[]) {
-                const s = btn.style as string;
-                if (s === "expression" || s === "exprPreset") {
-                    btn.style   = "action";
-                    btn.emote   = "";
-                    btn.label   = "";
-                    btn.enabled = false;
-                    didMigrate = true;
+        if (!_legacyStyleScanned) {
+            let didMigrate = false;
+            for (const cat of catsList) {
+                for (const btn of cat.buttons as ActionButton[]) {
+                    const s = btn.style as string;
+                    if (s === "expression" || s === "exprPreset") {
+                        btn.style   = "action";
+                        btn.emote   = "";
+                        btn.label   = "";
+                        btn.enabled = false;
+                        didMigrate = true;
+                    }
                 }
             }
+            if (didMigrate) { store.buttonCategories = catsList; syncSettings(); }
+            _legacyStyleScanned = true;
         }
-        if (didMigrate) { store.buttonCategories = catsList; syncSettings(); }
         return catsList;
     }
     return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
@@ -652,6 +661,41 @@ export function initDragListener(): void {
  * border, and mouse-hover highlight all work exactly as before — then
  * overlays our own canvas text centred both horizontally and vertically.
  */
+// These draw helpers run per visible button per animation frame (~60 fps). Cache
+// the MainCanvas 2d context instead of re-querying the DOM each call, and memoize
+// the fitted font size per (label,size) instead of re-measuring text every frame.
+let _btnCanvas: HTMLCanvasElement | null = null;
+let _btnCtx: CanvasRenderingContext2D | null = null;
+function getButtonCtx(): CanvasRenderingContext2D | null {
+    if (_btnCtx && _btnCanvas && _btnCanvas.isConnected) return _btnCtx;
+    const w = window as unknown as Record<string, unknown>;
+    let canvas = w["MainCanvas"] as HTMLCanvasElement | null;
+    if (!(canvas instanceof HTMLCanvasElement)) {
+        canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    }
+    _btnCanvas = canvas;
+    _btnCtx = canvas?.getContext("2d") ?? null;
+    return _btnCtx;
+}
+
+const _fitFontCache = new Map<string, number>();
+function fitButtonFontSize(ctx: CanvasRenderingContext2D, label: string, size: number): number {
+    const key = label + "|" + size;
+    const cached = _fitFontCache.get(key);
+    if (cached !== undefined) return cached;
+    // Try progressively smaller fonts until the text fits horizontally. The font
+    // family is fixed, so the result depends only on (label,size) and is stable.
+    const maxW = size - 8;
+    let fontSize = 14;
+    ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
+    while (ctx.measureText(label).width > maxW && fontSize > 7) {
+        fontSize -= 1;
+        ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
+    }
+    _fitFontCache.set(key, fontSize);
+    return fontSize;
+}
+
 function drawActionButton(
     x: number, y: number, size: number,
     label: string, bgColor: string,
@@ -660,20 +704,14 @@ function drawActionButton(
     // BC handles background + hover effect; empty label so it draws no text
     DrawButton(x, y, size, size, "", bgColor, "", hoverText);
 
-    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
-    const ctx = canvas?.getContext("2d");
+    const ctx = getButtonCtx();
     if (!ctx) return;
     ctx.save();
 
-    // Try progressively smaller fonts until the text fits horizontally
     const pad = 4;
     const maxW = size - pad * 2;
-    let fontSize = 14;
+    const fontSize = fitButtonFontSize(ctx, label, size);
     ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
-    while (ctx.measureText(label).width > maxW && fontSize > 7) {
-        fontSize -= 1;
-        ctx.font = `bold ${fontSize}px 'Trebuchet MS', Arial, sans-serif`;
-    }
 
     ctx.textAlign    = "center";
     ctx.textBaseline = "middle";
@@ -696,8 +734,7 @@ function drawCooldownButton(
     DrawRect(x, y, size, size, "rgba(10,3,8,0.92)");
     DrawEmptyRect(x, y, size, size, "#2a0e1a", 1);
 
-    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
-    const ctx = canvas?.getContext("2d");
+    const ctx = getButtonCtx();
     if (ctx) {
         ctx.save();
         ctx.textAlign = "center";

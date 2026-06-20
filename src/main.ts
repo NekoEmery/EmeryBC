@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 122;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 123;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -62,6 +62,12 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: replying to an action message (*emote*) with another action no longer leaves the reply bar stuck open. Root cause: when an active BC reply state existed (reply indicator showing), EBC's handleEmoteShortcut fired, sent the emote via bare ServerSend (no replyId, no ChatRoomMessageReplyStop call), and returned early - skipping BC's native ChatRoomSendEmote which normally includes the reply context and clears the indicator. Fix: when ChatRoomMessageGetReplyId() returns a value, handleEmoteShortcut returns false and lets BC's own ChatRoomSendEmote handle the message natively.",
             "Fix: Live support badge now reliably appears when EBC HQ is open. Root cause: another addon's ChatRoomSearchResult (no HQ, arrived before ours) reset scanSentAt=0 via the 10s guard, then our actual positive result was blocked by the scanSentAt===0 early-return. Fix: positive results (HQ found) now bypass the timestamp guard entirely - any result containing HQ is always trustworthy. Added a 15 s no-response self-heal timer and three early scans (8 s / 20 s / 45 s) to survive first-load timing races.",
             "Fix: Live support badge now persists correctly while inside a chat room and refreshes promptly on return to the lobby. Root cause: BC server silently ignores ChatRoomSearch while the player is in a room - the resulting empty response was incorrectly hiding the badge. Fix: doScan now skips when CurrentScreen is ChatRoom so the badge holds its last known state. A 5 s polling loop detects room exits and triggers a fresh scan 1.5 s later so the badge updates quickly when returning to the lobby.",
+            "Fix (safety): the safeword no longer strips restraints locked with an owner timer lock. Root cause: the protected-lock list had a typo 'OwnerTimedPadlock' but BC's actual asset name is 'OwnerTimerPadlock', so the exact-match protection never triggered and a safeword/grace event could remove an owner-timer-locked item meant to be protected.",
+            "Fix: a failed outfit or restraint-set swap can no longer permanently disable all future swaps. Root cause: outfitApplyPending was set true before an unguarded synchronous block whose only reset lived inside a later setTimeout - any throw before that timeout was scheduled stuck the flag true forever ('An outfit swap is already in progress.'). Fix: a 5 s watchdog guarantees the flag clears regardless, cancelled on the normal success path.",
+            "Fix (memory leak): the Toys tab no longer stacks a permanent 800ms sync-status timer on every re-render. Root cause: the poller was stored in a local variable and only self-cleared when no toys card was present, but each re-render (toggle, or any toy-control beep) created a fresh card so the old poller never stopped - during an active toy session these accumulated indefinitely along with detached DOM nodes. Fix: the poller is stored on the instance and cleared before each re-render, on tab switch, and on teardown.",
+            "Fix (memory leak): the HQ room-exit watcher, BC-Lovense live-sync poller, and toys sync-status poller are now all cleared when the drawer is torn down, instead of running orphaned for the rest of the session.",
+            "Fix: typing a second different *emote* quickly no longer gets silently dropped. Root cause: the duplicate-fire guard (which dedups the same Enter keypress arriving through three interceptors) was keyed on time alone, so any emote within 500ms of the previous one was swallowed. Fix: the guard now also compares the emote text, so only a true re-fire of the same emote is suppressed - distinct emotes always send.",
+            "Perf: reduced per-frame cost of the quick-action sidebar (runs ~60x/sec in a chat room). The MainCanvas 2d context is now cached instead of re-queried from the DOM per button per frame, fitted button-label font sizes are memoized instead of re-measured every frame, the one-time legacy-button-style migration no longer re-scans every category/button each frame, and the presence-badge buffer reuses its array and skips sorting when 0-1 badges are present.",
         ],
     },
     {
@@ -6732,6 +6738,12 @@ let _ebcPawImgReady = false;
 // have been rendered so badges are always drawn on top of every character sprite
 // and sorted back-to-front by zoom for correct depth ordering.
 let _badgeBuffer: unknown[][] = [];
+// Hoisted so the per-frame badge sort below doesn't allocate a fresh closure each frame.
+const _badgeZSort = (a: unknown[], b: unknown[]): number => {
+    const za = typeof a[3] === "number" ? (a[3] as number) : 1;
+    const zb = typeof b[3] === "number" ? (b[3] as number) : 1;
+    return za - zb;
+};
 // Paw image cache — loaded once, drawn from DrawCharacter args each frame.
 function getEbcPawImg(): HTMLImageElement | null {
     if (_ebcPawImgReady) return _ebcPawImg;
@@ -7230,18 +7242,16 @@ function init(): void {
     // drawActionButtons() already guards with `if (CurrentScreen !== "ChatRoom") return`
     // so this is a no-op outside the chat room.
     tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
-        // Clear buffer at frame start so stale entries from the previous frame don't bleed in
-        _badgeBuffer = [];
+        // Clear buffer at frame start so stale entries from the previous frame don't
+        // bleed in. Reuse the array (length = 0) instead of allocating a new one each frame.
+        _badgeBuffer.length = 0;
         const result = next(args);
         // All DrawCharacter calls have now completed for this frame.
-        // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges)
+        // Draw badges in z-order (smallest zoom first = furthest back → drawn underneath closer badges).
+        // Sort in place; skip the sort entirely for the common 0-1 badge case.
         try {
-            const toRender = _badgeBuffer.slice().sort((a, b) => {
-                const za = typeof a[3] === "number" ? (a[3] as number) : 1;
-                const zb = typeof b[3] === "number" ? (b[3] as number) : 1;
-                return za - zb;
-            });
-            for (const badgeArgs of toRender) {
+            if (_badgeBuffer.length > 1) _badgeBuffer.sort(_badgeZSort);
+            for (const badgeArgs of _badgeBuffer) {
                 try { drawPresenceMarker(badgeArgs as unknown[]); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
@@ -8218,6 +8228,7 @@ function init(): void {
     // certain BC builds or other addons can reorder event handling. This timestamp
     // guard ensures the ServerSend fires at most once per 500 ms regardless.
     let _lastEmoteSendTime = 0;
+    let _lastEmoteBody = "";
     const handleEmoteShortcut = (raw: string): boolean => {
         if (!raw.startsWith("*")) return false;
         const body = raw.slice(1).replace(/^\s+/, "");
@@ -8231,8 +8242,13 @@ function init(): void {
         const getReplyId = w["ChatRoomMessageGetReplyId"];
         if (typeof getReplyId === "function" && (getReplyId as () => string | null | undefined)()) return false;
         const now = Date.now();
-        if (now - _lastEmoteSendTime < 500) return true; // already sent — swallow without re-send
+        // Swallow only a re-fire of the SAME emote within the window (the same Enter
+        // keypress reaching us via more than one interceptor). A *different* emote
+        // typed quickly is a distinct send and must go through - keying the guard on
+        // the body text (not time alone) prevents dropping a fast second emote.
+        if (body === _lastEmoteBody && now - _lastEmoteSendTime < 500) return true;
         _lastEmoteSendTime = now;
+        _lastEmoteBody = body;
         try {
             ServerSend("ChatRoomChat", {
                 Type: "Emote",

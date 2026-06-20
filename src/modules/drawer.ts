@@ -4047,6 +4047,7 @@ export class EBCDrawer {
     private _lovConnections = new Map<string, { device: unknown; char: unknown; name: string; intensity: number; duration: number }>();
     private _bcLiveSyncPoller: ReturnType<typeof setInterval> | null = null;
     private _bcLiveSyncLevel = -1; // -1 = uninit, 0-20 = last sent Lovense intensity
+    private _syncStatusPoller: ReturnType<typeof setInterval> | null = null;
     private _lovHttpUrl: string | null = null;
     private _lovHttpConnected = false;
     private _lovHttpToyCount  = 0;
@@ -4062,6 +4063,7 @@ export class EBCDrawer {
     private _irlIncoming: { memberNumber: number; name: string } | null = null;
     private _hqLiveEl: HTMLElement | null = null;
     private _hqScanTimer: ReturnType<typeof setInterval> | null = null;
+    private _hqScreenWatchTimer: ReturnType<typeof setInterval> | null = null;
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
@@ -6199,6 +6201,7 @@ export class EBCDrawer {
 
     private switchTab(tab: DrawerTab): void {
         this.stopDevLogPoller();
+        if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         if (tab !== "notes") this.friendsSectionEl = null;
         this.currentTab = tab;
         if (tab === "notes") {
@@ -21243,6 +21246,11 @@ export class EBCDrawer {
     private renderToys(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
+        // Stop any sync-status poller from a previous render. Without this, each
+        // re-render (toggle, or any toy-control beep calling refreshToysIfActive)
+        // would stack a new 800ms interval - the old one's self-clear check finds
+        // the freshly-rendered .ebc-toys-card present and so never stops.
+        if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         while (body.firstChild) body.removeChild(body.firstChild);
 
         const s = getSettings();
@@ -21924,9 +21932,9 @@ export class EBCDrawer {
                     : "Off";
             };
             refreshSyncStatus();
-            const syncStatusPoller = window.setInterval(() => {
+            this._syncStatusPoller = window.setInterval(() => {
                 if (this.rootEl?.querySelector(".ebc-toys-card")) refreshSyncStatus();
-                else clearInterval(syncStatusPoller);
+                else if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
             }, 800);
             syncBody.appendChild(syncStatusRow);
 
@@ -23931,7 +23939,7 @@ export class EBCDrawer {
         // Detect room exits every 5 s so the badge refreshes promptly when returning
         // to the lobby (without this, the next update could be up to 2 min away).
         let _prevScreen = "";
-        window.setInterval(() => {
+        this._hqScreenWatchTimer = window.setInterval(() => {
             const w2 = window as unknown as Record<string, unknown>;
             const curr = String(w2["CurrentScreen"] ?? "");
             if (_prevScreen === "ChatRoom" && curr !== "ChatRoom") window.setTimeout(doScan, 1_500);
@@ -26208,7 +26216,11 @@ export class EBCDrawer {
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
         this.stopTimerPoller();
+        this.stopDevLogPoller();
+        try { this.stopBCLiveSync(); } catch { /* ignore */ }
         if (this._hqScanTimer !== null) { clearInterval(this._hqScanTimer); this._hqScanTimer = null; }
+        if (this._hqScreenWatchTimer !== null) { clearInterval(this._hqScreenWatchTimer); this._hqScreenWatchTimer = null; }
+        if (this._syncStatusPoller !== null) { clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
         for (const { el } of this.beepWins.values()) { try { el.remove(); } catch { /* ignore */ } }
         this.beepWins.clear();
         this.rootEl?.remove();
