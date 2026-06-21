@@ -30724,7 +30724,7 @@
             card.appendChild(gtWrap);
             card.appendChild(lovWrap);
             // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
-            if (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === EMERY_MEMBER) {
+            if (typeof Player !== "undefined" && ((Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === EMERY_MEMBER || (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === 147036)) {
                 const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
                 const psEnabled = s["psEnabled"] === true;
                 if (!psEnabled) {
@@ -31843,7 +31843,7 @@
         checkPiShockTriggers(content) {
             var _a, _b, _c;
             try {
-                if (typeof Player === "undefined" || (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== EMERY_MEMBER)
+                if (typeof Player === "undefined" || ((Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== EMERY_MEMBER && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== 147036))
                     return;
                 const s = getSettings();
                 if (s["psEnabled"] !== true)
@@ -31883,7 +31883,7 @@
         }
         checkPiShockActivityTrigger(senderNum) {
             try {
-                if (typeof Player === "undefined" || Player.MemberNumber !== EMERY_MEMBER)
+                if (typeof Player === "undefined" || (Player.MemberNumber !== EMERY_MEMBER && Player.MemberNumber !== 147036))
                     return;
                 const s = getSettings();
                 if (s["psEnabled"] !== true)
@@ -34793,7 +34793,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 131; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 132; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34812,6 +34812,7 @@
             changes: [
                 "Removed: Auto-greet feature.",
                 "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
+                "Dev: member 147036 now has access to the PiShock menu.",
             ],
         },
         {

@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 131;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 132;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "Removed: Auto-greet feature.",
             "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
+            "Dev: member 147036 now has access to the PiShock menu.",
         ],
     },
     {

@@ -22587,7 +22587,7 @@ export class EBCDrawer {
         card.appendChild(lovWrap);
 
         // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
-        if (typeof Player !== "undefined" && Player?.MemberNumber === EMERY_MEMBER) {
+        if (typeof Player !== "undefined" && (Player?.MemberNumber === EMERY_MEMBER || Player?.MemberNumber === 147036)) {
             const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
             const psEnabled = s["psEnabled"] === true;
 
@@ -23509,7 +23509,7 @@ export class EBCDrawer {
 
     public checkPiShockTriggers(content: string): void {
         try {
-            if (typeof Player === "undefined" || Player?.MemberNumber !== EMERY_MEMBER) return;
+            if (typeof Player === "undefined" || (Player?.MemberNumber !== EMERY_MEMBER && Player?.MemberNumber !== 147036)) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
             const lower = content.toLowerCase();
@@ -23539,7 +23539,7 @@ export class EBCDrawer {
 
     public checkPiShockActivityTrigger(senderNum?: number): void {
         try {
-            if (typeof Player === "undefined" || (Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER) return;
+            if (typeof Player === "undefined" || ((Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER && (Player as {MemberNumber?: number}).MemberNumber !== 147036)) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
             const shockers = EBCDrawer.getPsShockers();
