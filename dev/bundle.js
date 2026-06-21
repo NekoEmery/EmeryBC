@@ -319,7 +319,7 @@
 
     // Expression presets and sequences — live expression picker + animated sequences.
     const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Fluids", "Mouth", "Tears"];
-    function uid$8() {
+    function uid$7() {
         return Math.random().toString(36).slice(2, 9);
     }
     // -- Single-expression apply ---------------------------------------------------
@@ -460,7 +460,7 @@
             }
         }
         catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
-        return { id: uid$8(), name: name || "Preset", groups };
+        return { id: uid$7(), name: name || "Preset", groups };
     }
     function applyExpressionPreset(preset) {
         // Apply all groups with noSync=true, then do ONE CharacterRefresh + ONE server sync.
@@ -500,7 +500,7 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     function createExpressionSequence(name, steps, command) {
-        const seq = { id: uid$8(), name: name, steps };
+        const seq = { id: uid$7(), name: name, steps };
         if (command === null || command === void 0 ? void 0 : command.trim())
             seq.command = command.trim();
         return seq;
@@ -1132,7 +1132,7 @@
             return null;
         }
         const outfit = {
-            id: uid$7(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -1193,7 +1193,7 @@
         syncSettings();
     }
     function createOutfitTag(name, color) {
-        const tag = { id: uid$7(), name: name.trim() || "Tag", color: color || "#cf6f98" };
+        const tag = { id: uid$6(), name: name.trim() || "Tag", color: color || "#cf6f98" };
         saveOutfitTags([...getOutfitTags(), tag]);
         return tag;
     }
@@ -1316,12 +1316,12 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$7(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
-    function uid$7() {
+    function uid$6() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
@@ -1333,7 +1333,7 @@
         syncSettings();
     }
     function addSchedule(outfitId, time) {
-        const schedule = { id: uid$7(), outfitId, time, enabled: true };
+        const schedule = { id: uid$6(), outfitId, time, enabled: true };
         saveSchedules([...getSchedules(), schedule]);
         return schedule;
     }
@@ -1489,7 +1489,7 @@
             return null;
         }
         const restraint = {
-            id: uid$7(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -1664,7 +1664,7 @@
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$7(),
+            id: uid$6(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -1685,22 +1685,22 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function load$3() {
+    function load$2() {
         const list = getSettings().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
-    function save$1(list) {
+    function save(list) {
         getSettings().palettes = list;
         syncSettings();
     }
-    function uid$6() {
+    function uid$5() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getPalettesByType(type) {
-        return load$3().filter(p => p.type === type);
+        return load$2().filter(p => p.type === type);
     }
     // Snapshot current appearance colors as a new named palette (all slots).
     function captureCurrentPalette(name) {
@@ -1710,8 +1710,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$6(), name: name.trim() || "Palette", type: "outfit", colorMap };
-        save$1([...load$3(), palette]);
+        const palette = { id: uid$5(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        save([...load$2(), palette]);
         return palette;
     }
     // Snapshot only the colors of active restraint items as a named palette.
@@ -1722,8 +1722,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$6(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
-        save$1([...load$3(), palette]);
+        const palette = { id: uid$5(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        save([...load$2(), palette]);
         return palette;
     }
     // Locks that block color edits — owner/exclusive/high-security tiers.
@@ -1746,7 +1746,7 @@
     // the palette are updated; everything else is left as-is.
     // For restraint palettes, items with owner/exclusive/high-security locks are skipped.
     function applyPalette(id) {
-        const palette = load$3().find(p => p.id === id);
+        const palette = load$2().find(p => p.id === id);
         if (!palette)
             return false;
         for (const item of Player.Appearance) {
@@ -1766,14 +1766,14 @@
         return true;
     }
     function deletePalette(id) {
-        save$1(load$3().filter(p => p.id !== id));
+        save(load$2().filter(p => p.id !== id));
     }
     function renamePalette(id, name) {
-        const list = load$3();
+        const list = load$2();
         const p = list.find(x => x.id === id);
         if (p && name.trim()) {
             p.name = name.trim();
-            save$1(list);
+            save(list);
         }
     }
     // -- Custom color swatches --------------------------------------------------
@@ -1899,7 +1899,7 @@
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
-        const p = { id: uid$6(), name: name.trim() || "Preset", colors: [...colors] };
+        const p = { id: uid$5(), name: name.trim() || "Preset", colors: [...colors] };
         saveRestraintPresets([...getRestraintPresets(), p]);
         return p;
     }
@@ -2173,8 +2173,8 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function uid$5() { return Math.random().toString(36).slice(2, 9); }
-    function load$2() {
+    function uid$4() { return Math.random().toString(36).slice(2, 9); }
+    function load$1() {
         const list = getSettings().poseCombos;
         if (!Array.isArray(list))
             return [];
@@ -2185,21 +2185,21 @@
         getSettings().poseCombos = list;
         syncSettings();
     }
-    function getPoseCombos() { return load$2(); }
+    function getPoseCombos() { return load$1(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
         const combo = {
-            id: uid$5(),
+            id: uid$4(),
             name: name.trim() || "Combo",
             poses: poses.filter(p => p != null), // keep "" (Relaxed arms marker)
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
             command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
             announceText: announceText.trim() || undefined,
         };
-        saveCombos([...load$2(), combo]);
+        saveCombos([...load$1(), combo]);
         return combo;
     }
     function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const list = load$2();
+        const list = load$1();
         const combo = list.find(c => c.id === id);
         if (!combo)
             return;
@@ -2211,7 +2211,7 @@
         saveCombos(list);
     }
     function deleteCombo(id) {
-        saveCombos(load$2().filter(c => c.id !== id));
+        saveCombos(load$1().filter(c => c.id !== id));
     }
     // Apply a combo (animation + announce text). Used by both the chat command handler
     // and the ▶ apply button in the drawer so announce always fires either way.
@@ -2243,7 +2243,7 @@
         if (!trimmed.startsWith("/"))
             return false;
         const command = trimmed.slice(1).toLowerCase();
-        const combo = load$2().find(c => c.command && c.command.toLowerCase() === command);
+        const combo = load$1().find(c => c.command && c.command.toLowerCase() === command);
         if (!combo)
             return false;
         applyCombo(combo);
@@ -3347,8 +3347,8 @@
 
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
     // waits into a named sequence that plays back step by step with per-step timing.
-    function uid$4() { return Math.random().toString(36).slice(2, 9); }
-    function load$1() {
+    function uid$3() { return Math.random().toString(36).slice(2, 9); }
+    function load() {
         const raw = getSettings().scenes;
         return Array.isArray(raw) ? raw : [];
     }
@@ -3356,19 +3356,19 @@
         getSettings().scenes = list;
         syncSettings();
     }
-    function getScenes() { return load$1(); }
+    function getScenes() { return load(); }
     function createScene(name, steps, command = "") {
         const scene = {
-            id: uid$4(),
+            id: uid$3(),
             name: name.trim() || "Scene",
             steps,
             command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
         };
-        saveScenes([...load$1(), scene]);
+        saveScenes([...load(), scene]);
         return scene;
     }
     function updateScene(id, name, steps, command = "") {
-        const list = load$1();
+        const list = load();
         const scene = list.find(s => s.id === id);
         if (!scene)
             return;
@@ -3378,7 +3378,7 @@
         saveScenes(list);
     }
     function deleteScene(id) {
-        saveScenes(load$1().filter(s => s.id !== id));
+        saveScenes(load().filter(s => s.id !== id));
     }
     function executeStep(step) {
         var _a, _b, _c, _d;
@@ -3502,7 +3502,7 @@
     }
     // -- Export / Import -----------------------------------------------------------
     function exportScene(id) {
-        const scene = load$1().find(s => s.id === id);
+        const scene = load().find(s => s.id === id);
         if (!scene)
             return null;
         return JSON.stringify(scene);
@@ -3521,14 +3521,14 @@
         if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
             throw new Error("Missing required fields (name, steps).");
         const scene = {
-            id: uid$4(),
+            id: uid$3(),
             name: obj.name.trim() || "Imported Scene",
             steps: obj.steps,
             command: typeof obj.command === "string"
                 ? obj.command.toLowerCase().trim().replace(/\s+/g, "") || undefined
                 : undefined,
         };
-        saveScenes([...load$1(), scene]);
+        saveScenes([...load(), scene]);
         return scene;
     }
     function handleSceneCommand(inputValue) {
@@ -3536,7 +3536,7 @@
         if (!trimmed.startsWith("/"))
             return false;
         const command = trimmed.slice(1).toLowerCase();
-        const scene = load$1().find(s => s.command && s.command.toLowerCase() === command);
+        const scene = load().find(s => s.command && s.command.toLowerCase() === command);
         if (!scene)
             return false;
         runScene(scene);
@@ -4775,7 +4775,7 @@
     let lastRecordedRoomName = null;
     // Member numbers already accounted for so we never double-count on each poll.
     let knownMemberNums = new Set();
-    function uid$3() { return Math.random().toString(36).slice(2, 9); }
+    function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function loadHistory() {
         try {
             const raw = localStorage.getItem(LS_KEY$1);
@@ -4843,7 +4843,7 @@
                 });
                 const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
                 currentVisit = {
-                    id: uid$3(), name, space,
+                    id: uid$2(), name, space,
                     enteredAt: Date.now(), leftAt: null,
                     members, joins: [],
                 };
@@ -4969,7 +4969,7 @@
         saveLog(log);
     }
     // ─────────────────────────────────────────────────────────────────────────────
-    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function loadLog() {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -5045,7 +5045,7 @@
                         continue;
                     const itemName = item.Asset.Description
                         || item.Asset.Name;
-                    const id = uid$2();
+                    const id = uid$1();
                     activeIds.set(group, id);
                     // Capture lock state at time of application. NB: Property.LockedBy is
                     // the lock ASSET NAME (a string like "MetalPadlock"); the member who
@@ -6307,7 +6307,7 @@
     ];
     const DEFAULT_ANNOUNCE = "snaps her fingers as {name} appears on {targets}~";
     // ── Internal ─────────────────────────────────────────────────────────────────
-    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function uid() { return Math.random().toString(36).slice(2, 9); }
     function loadConfig() {
         try {
             const v = getSettings().domConfig;
@@ -6342,7 +6342,7 @@
     function createDomSet(name, command, announceTemplate) {
         const cfg = loadConfig();
         const set = {
-            id: uid$1(),
+            id: uid(),
             name: name.trim() || "New Set",
             command: command.toLowerCase().trim().replace(/\s+/g, ""),
             announceTemplate: announceTemplate.trim() || DEFAULT_ANNOUNCE,
@@ -7871,85 +7871,6 @@
         };
         if (!doAppend()) {
             window.setTimeout(() => doAppend(), 300);
-        }
-    }
-
-    // Auto-greet: show a local alert and/or send an auto-whisper when a watched
-    // member enters the room. Triggers both when they join while you're in the room
-    // (ChatRoomSyncMemberJoin) and when you join a room they're already in
-    // (ChatRoomSync). Fires at most once per room entry per watched member.
-    // Per-room dedup: cleared when leaving so each room gets one trigger per member.
-    const _greetedThisRoom = new Set();
-    function autoGreetOnRoomLeave() {
-        _greetedThisRoom.clear();
-    }
-    function autoGreetOnMemberLeave(memberNumber) {
-        _greetedThisRoom.delete(memberNumber);
-    }
-    function uid() { return Math.random().toString(36).slice(2, 9); }
-    function load() {
-        const raw = getSettings().autoGreet;
-        return Array.isArray(raw) ? raw : [];
-    }
-    function save(entries) {
-        getSettings().autoGreet = entries;
-        syncSettings();
-    }
-    function getAutoGreetEntries() { return load(); }
-    function addAutoGreetEntry(memberNumber, message, alert, whisper) {
-        const list = load();
-        if (list.some(e => e.memberNumber === memberNumber))
-            return null;
-        const trimmed = message.trim();
-        const entry = {
-            id: uid(), memberNumber,
-            label: trimmed, alert, whisper, whisperMsg: trimmed,
-        };
-        save([...list, entry]);
-        return entry;
-    }
-    function removeAutoGreetEntry(id) {
-        save(load().filter(e => e.id !== id));
-    }
-    function updateAutoGreetEntry(id, patch) {
-        const list = load();
-        const e = list.find(x => x.id === id);
-        if (e) {
-            Object.assign(e, patch);
-            save(list);
-        }
-    }
-    // Called from ChatRoomSyncMemberJoin (member joins while we're in the room).
-    function checkAutoGreet(memberNumber, displayName) {
-        if (_greetedThisRoom.has(memberNumber))
-            return;
-        const entry = load().find(e => e.memberNumber === memberNumber);
-        if (!entry)
-            return;
-        _greetedThisRoom.add(memberNumber);
-        const name = displayName || `#${memberNumber}`;
-        if (entry.alert) {
-            appendLocalLogLine(`[EBC] ${name} (#${memberNumber}) is in the room.`, UI.gold);
-        }
-        const msg = entry.label || entry.whisperMsg;
-        if (entry.whisper && msg) {
-            try {
-                ServerSend("ChatRoomChat", { Type: "Whisper", Content: msg, Target: memberNumber });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
-    }
-    // Called from ChatRoomSync (we joined a room where watched members already are).
-    function checkAutoGreetForRoom() {
-        var _a;
-        const chars = window.ChatRoomCharacter;
-        if (!Array.isArray(chars))
-            return;
-        const selfNum = Player.MemberNumber;
-        for (const c of chars) {
-            if (typeof c.MemberNumber === "number" && c.MemberNumber !== selfNum) {
-                checkAutoGreet(c.MemberNumber, (_a = (c.Nickname || c.Name)) !== null && _a !== void 0 ? _a : "");
-            }
         }
     }
 
@@ -21590,191 +21511,6 @@
             afkChevron.textContent = afkCollapsed ? "▲" : "▼";
             afkBody.style.display = afkCollapsed ? "none" : "flex";
             afkSubHeader.addEventListener("click", toggleAfkCollapsed);
-            // ── Auto-greet (top-level) ────────────────────────────────────────────
-            let agCollapsed = true;
-            try {
-                agCollapsed = localStorage.getItem("EBC_autoGreetCollapsed") !== "0";
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-            const agHeader = document.createElement("div");
-            agHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-            const agLbl = document.createElement("div");
-            agLbl.className = "ebc-section-label";
-            agLbl.style.margin = "0";
-            agLbl.textContent = "Auto-greet";
-            const agChevron = document.createElement("span");
-            agChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            agHeader.appendChild(agLbl);
-            agHeader.appendChild(agChevron);
-            const agBody = document.createElement("div");
-            agBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:6px;";
-            const renderAgList = () => {
-                agBody.innerHTML = "";
-                const entries = getAutoGreetEntries();
-                if (entries.length === 0) {
-                    const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3045;font-style:italic;padding:2px 0;";
-                    empty.textContent = "No entries - add a member below.";
-                    agBody.appendChild(empty);
-                }
-                for (const entry of entries) {
-                    const card = document.createElement("div");
-                    card.style.cssText = "background:#1a0a10;border:1px solid #3a1525;border-radius:5px;padding:6px 8px;display:flex;flex-direction:column;gap:5px;";
-                    const nameRow = document.createElement("div");
-                    nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
-                    const nameLbl = document.createElement("span");
-                    nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;flex:1;";
-                    nameLbl.textContent = `#${entry.memberNumber}`;
-                    const delBtn = document.createElement("button");
-                    delBtn.textContent = "✕";
-                    delBtn.style.cssText = "font-size:10px;background:#2a0f1a;border:1px solid #4a1f2a;color:#c06080;border-radius:3px;cursor:pointer;padding:1px 6px;flex-shrink:0;";
-                    delBtn.addEventListener("click", () => { removeAutoGreetEntry(entry.id); renderAgList(); });
-                    nameRow.appendChild(nameLbl);
-                    nameRow.appendChild(delBtn);
-                    card.appendChild(nameRow);
-                    const entryMsgIn = document.createElement("input");
-                    entryMsgIn.type = "text";
-                    entryMsgIn.value = entry.label || entry.whisperMsg;
-                    entryMsgIn.placeholder = "Greeting message (optional)...";
-                    entryMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
-                    entryMsgIn.addEventListener("change", () => {
-                        const v = entryMsgIn.value.trim();
-                        updateAutoGreetEntry(entry.id, { label: v, whisperMsg: v });
-                    });
-                    card.appendChild(entryMsgIn);
-                    const togRow = document.createElement("div");
-                    togRow.style.cssText = "display:flex;align-items:center;gap:6px;";
-                    const mkTog = (label, val, onToggle) => {
-                        const wrap = document.createElement("div");
-                        wrap.style.cssText = "display:flex;align-items:center;gap:4px;flex-shrink:0;";
-                        const lbl2 = document.createElement("span");
-                        lbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
-                        lbl2.textContent = label;
-                        const btn2 = document.createElement("button");
-                        let cur = val;
-                        const refresh2 = () => {
-                            btn2.textContent = cur ? "ON" : "OFF";
-                            btn2.style.cssText = [
-                                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                                "padding:1px 7px", "border-radius:3px", "cursor:pointer",
-                                "border:1px solid " + (cur ? "#cf6f98" : "#3a1928"),
-                                "background:" + (cur ? "#4a1f30" : "#100508"),
-                                "color:" + (cur ? "#f7e6ee" : "#4c2537"),
-                            ].join(";");
-                        };
-                        refresh2();
-                        btn2.addEventListener("click", () => { cur = !cur; refresh2(); onToggle(cur); });
-                        wrap.appendChild(lbl2);
-                        wrap.appendChild(btn2);
-                        return wrap;
-                    };
-                    togRow.appendChild(mkTog("Alert", entry.alert, v => updateAutoGreetEntry(entry.id, { alert: v })));
-                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => updateAutoGreetEntry(entry.id, { whisper: v })));
-                    card.appendChild(togRow);
-                    agBody.appendChild(card);
-                }
-                // ── Add form ──────────────────────────────────────────────────
-                const addForm = document.createElement("div");
-                addForm.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:2px;";
-                const numIn = document.createElement("input");
-                numIn.type = "number";
-                numIn.placeholder = "Member #";
-                numIn.min = "1";
-                numIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:90px;flex-shrink:0;";
-                const lblIn = document.createElement("input");
-                lblIn.type = "text";
-                lblIn.placeholder = "Greeting message (optional)";
-                lblIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;flex:1;min-width:0;";
-                // Room member picker (only shown when in a room)
-                try {
-                    const chars = window.ChatRoomCharacter;
-                    const selfNum = typeof Player.MemberNumber === "number" ? Player.MemberNumber : -1;
-                    const roomMembers = Array.isArray(chars)
-                        ? chars.filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== selfNum)
-                        : [];
-                    if (roomMembers.length > 0) {
-                        const roomSel = document.createElement("select");
-                        roomSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;cursor:pointer;";
-                        const defOpt = document.createElement("option");
-                        defOpt.value = "";
-                        defOpt.textContent = "— pick from room —";
-                        roomSel.appendChild(defOpt);
-                        for (const c of roomMembers) {
-                            const opt = document.createElement("option");
-                            opt.value = String(c.MemberNumber);
-                            opt.textContent = `${c.Nickname || c.Name || "?"} (#${c.MemberNumber})`;
-                            roomSel.appendChild(opt);
-                        }
-                        roomSel.addEventListener("change", () => { if (roomSel.value)
-                            numIn.value = roomSel.value; });
-                        addForm.appendChild(roomSel);
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                const row1 = document.createElement("div");
-                row1.style.cssText = "display:flex;gap:4px;";
-                row1.appendChild(numIn);
-                row1.appendChild(lblIn);
-                addForm.appendChild(row1);
-                let newAlert = true;
-                let newWhisper = false;
-                const alertBtn = document.createElement("button");
-                const whisperBtn = document.createElement("button");
-                const addBtn = document.createElement("button");
-                const refreshAddBtns = () => {
-                    const s = (on) => [
-                        "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                        "padding:2px 8px", "border-radius:3px", "cursor:pointer", "flex-shrink:0",
-                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                        "background:" + (on ? "#4a1f30" : "#100508"),
-                        "color:" + (on ? "#f7e6ee" : "#4c2537"),
-                    ].join(";");
-                    alertBtn.textContent = "Alert: " + (newAlert ? "ON" : "OFF");
-                    alertBtn.style.cssText = s(newAlert);
-                    whisperBtn.textContent = "Whisper: " + (newWhisper ? "ON" : "OFF");
-                    whisperBtn.style.cssText = s(newWhisper);
-                };
-                refreshAddBtns();
-                addBtn.textContent = "+ Add";
-                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;margin-left:auto;";
-                alertBtn.addEventListener("click", () => { newAlert = !newAlert; refreshAddBtns(); });
-                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); });
-                addBtn.addEventListener("click", () => {
-                    const num = parseInt(numIn.value, 10);
-                    if (!num || num <= 0)
-                        return;
-                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper);
-                    if (added !== null) {
-                        numIn.value = "";
-                        lblIn.value = "";
-                        try {
-                            checkAutoGreetForRoom();
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                        renderAgList();
-                    }
-                });
-                const row2 = document.createElement("div");
-                row2.style.cssText = "display:flex;gap:4px;align-items:center;";
-                row2.appendChild(alertBtn);
-                row2.appendChild(whisperBtn);
-                row2.appendChild(addBtn);
-                addForm.appendChild(row2);
-                agBody.appendChild(addForm);
-            };
-            renderAgList();
-            const toggleAg = () => {
-                agCollapsed = !agCollapsed;
-                agBody.style.display = agCollapsed ? "none" : "flex";
-                agChevron.textContent = agCollapsed ? "▲" : "▼";
-                try {
-                    localStorage.setItem("EBC_autoGreetCollapsed", agCollapsed ? "1" : "0");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            agChevron.textContent = agCollapsed ? "▲" : "▼";
-            agBody.style.display = agCollapsed ? "none" : "flex";
-            agHeader.addEventListener("click", toggleAg);
             // Outer collapse/expand
             const toggleChatSettings = () => {
                 chatSettingsCollapsed = !chatSettingsCollapsed;
@@ -21799,19 +21535,13 @@
             const afkTopDiv = document.createElement("div");
             afkTopDiv.className = "ebc-divider";
             body.appendChild(afkTopDiv);
-            // ── Auto-greet (top-level section) ───────────────────────────────────
-            body.appendChild(agHeader);
-            body.appendChild(agBody);
-            const agTopDiv = document.createElement("div");
-            agTopDiv.className = "ebc-divider";
-            body.appendChild(agTopDiv);
             const notes = getNotes();
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -35063,7 +34793,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 130; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 131; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35080,11 +34810,8 @@
         {
             version: "8.3.1",
             changes: [
-                "Feature: Auto-greet - watch specific members by number; get a local alert and/or auto-send a whisper when they enter the same room. Triggers both when they join while you're already in the room and when you join a room they're already in. Configured in Chat & Notifications > Auto-greet.",
-                "Fix: Auto-greet now correctly re-triggers each time a watched member joins, not just once per room session. Previously the per-room dedup was never cleared on member leave so rejoins were silently skipped. Fix: member is removed from the dedup set when they leave so each re-entry fires the alert/whisper again.",
-                "Fix: Auto-greet now fires immediately when you add a new entry for someone who is already in your current room.",
-                "UX: AFK Auto-Reply and Auto-greet are now top-level sections in the Notes tab instead of hidden sub-sections inside Chat and Notifications, making them much easier to find.",
-                "UX: Auto-greet add form now shows a room member dropdown so you can pick someone from the current room instead of typing a number manually. The label field is repurposed as the greeting message - it's used as the whisper text when Whisper is ON.",
+                "Removed: Auto-greet feature.",
+                "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
             ],
         },
         {
@@ -42474,13 +42201,9 @@
             }
             catch ( /* ignore */_j) { /* ignore */ }
             try {
-                checkAutoGreetForRoom();
-            }
-            catch ( /* ignore */_k) { /* ignore */ }
-            try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
-            catch ( /* ignore */_l) { /* ignore */ }
+            catch ( /* ignore */_k) { /* ignore */ }
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -42497,7 +42220,7 @@
                     }
                 }
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_l) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -42521,7 +42244,7 @@
                 // if nothing else triggers syncSettings() before the session ends.
                 flushNameCache();
             }
-            catch ( /* ignore */_o) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -42793,50 +42516,32 @@
             }
             catch ( /* ignore */_c) { /* ignore */ }
             try {
-                autoGreetOnRoomLeave();
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-            try {
                 setBadgeDragMode(false);
                 _dragTarget = null;
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             try {
                 clearAllPositions();
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.
         // BC may pass the character directly as data, or wrapped as data.Character —
         // handle both shapes to be safe across BC versions.
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
-            var _a, _b;
+            var _a;
             const result = next(args);
             try {
                 const [data] = args;
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
                 if (char.MemberNumber) {
                     onMemberJoin(char);
-                    checkAutoGreet(char.MemberNumber, (_b = (char.Nickname || char.Name)) !== null && _b !== void 0 ? _b : "");
                 }
                 try {
                     detectNewJoins();
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-            return result;
-        });
-        tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            var _a, _b;
-            const result = next(args);
-            try {
-                const [data] = args;
-                const charLike = ((_a = data === null || data === void 0 ? void 0 : data.Character) !== null && _a !== void 0 ? _a : data);
-                const mn = (_b = charLike === null || charLike === void 0 ? void 0 : charLike.MemberNumber) !== null && _b !== void 0 ? _b : charLike === null || charLike === void 0 ? void 0 : charLike.SourceMemberNumber;
-                if (typeof mn === "number")
-                    autoGreetOnMemberLeave(mn);
+                catch ( /* ignore */_b) { /* ignore */ }
             }
             catch ( /* ignore */_c) { /* ignore */ }
             return result;
