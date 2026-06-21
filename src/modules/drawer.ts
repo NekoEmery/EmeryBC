@@ -14066,25 +14066,20 @@ export class EBCDrawer {
         lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
         chatSettingsBody.appendChild(lianHint);
 
-        // ── AFK sub-section (nested collapsible) ──────────────────────────────
-        const afkSubDiv = document.createElement("div");
-        afkSubDiv.className = "ebc-divider";
-        afkSubDiv.style.margin = "2px 0";
-        chatSettingsBody.appendChild(afkSubDiv);
-
+        // ── AFK Auto-Reply (top-level) ────────────────────────────────────────
         let afkCollapsed = true;
         try { afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0"; } catch { /* ignore */ }
 
         const afkSubHeader = document.createElement("div");
-        afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
-        const afkSubLbl = document.createElement("span");
-        afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
+        afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+        const afkSubLbl = document.createElement("div");
+        afkSubLbl.className = "ebc-section-label";
+        afkSubLbl.style.margin = "0";
         afkSubLbl.textContent = t("settings.afkAutoReply");
         const afkChevron = document.createElement("span");
         afkChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         afkSubHeader.appendChild(afkSubLbl);
         afkSubHeader.appendChild(afkChevron);
-        chatSettingsBody.appendChild(afkSubHeader);
 
         const afkBody = document.createElement("div");
         afkBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:7px;";
@@ -14184,28 +14179,21 @@ export class EBCDrawer {
         afkChevron.textContent = afkCollapsed ? "▲" : "▼";
         afkBody.style.display = afkCollapsed ? "none" : "flex";
         afkSubHeader.addEventListener("click", toggleAfkCollapsed);
-        chatSettingsBody.appendChild(afkBody);
 
-        // ── Auto-greet sub-section ────────────────────────────────────────────
-        {
-            const agDiv = document.createElement("div");
-            agDiv.className = "ebc-divider";
-            agDiv.style.margin = "2px 0";
-            chatSettingsBody.appendChild(agDiv);
+        // ── Auto-greet (top-level) ────────────────────────────────────────────
+        let agCollapsed = true;
+        try { agCollapsed = localStorage.getItem("EBC_autoGreetCollapsed") !== "0"; } catch { /* ignore */ }
 
-            let agCollapsed = true;
-            try { agCollapsed = localStorage.getItem("EBC_autoGreetCollapsed") !== "0"; } catch { /* ignore */ }
-
-            const agHeader = document.createElement("div");
-            agHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
-            const agLbl = document.createElement("span");
-            agLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
-            agLbl.textContent = "Auto-greet";
-            const agChevron = document.createElement("span");
-            agChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            agHeader.appendChild(agLbl);
-            agHeader.appendChild(agChevron);
-            chatSettingsBody.appendChild(agHeader);
+        const agHeader = document.createElement("div");
+        agHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+        const agLbl = document.createElement("div");
+        agLbl.className = "ebc-section-label";
+        agLbl.style.margin = "0";
+        agLbl.textContent = "Auto-greet";
+        const agChevron = document.createElement("span");
+        agChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
+        agHeader.appendChild(agLbl);
+        agHeader.appendChild(agChevron);
 
             const agBody = document.createElement("div");
             agBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:6px;";
@@ -14379,8 +14367,6 @@ export class EBCDrawer {
             agChevron.textContent = agCollapsed ? "▲" : "▼";
             agBody.style.display = agCollapsed ? "none" : "flex";
             agHeader.addEventListener("click", toggleAg);
-            chatSettingsBody.appendChild(agBody);
-        }
 
         // Outer collapse/expand
         const toggleChatSettings = (): void => {
@@ -14398,6 +14384,22 @@ export class EBCDrawer {
         const chatSettingsDiv = document.createElement("div");
         chatSettingsDiv.className = "ebc-divider";
         body.appendChild(chatSettingsDiv);
+
+        // ── AFK Auto-Reply (top-level section) ───────────────────────────────
+        body.appendChild(afkSubHeader);
+        body.appendChild(afkBody);
+
+        const afkTopDiv = document.createElement("div");
+        afkTopDiv.className = "ebc-divider";
+        body.appendChild(afkTopDiv);
+
+        // ── Auto-greet (top-level section) ───────────────────────────────────
+        body.appendChild(agHeader);
+        body.appendChild(agBody);
+
+        const agTopDiv = document.createElement("div");
+        agTopDiv.className = "ebc-divider";
+        body.appendChild(agTopDiv);
 
         const notes = getNotes();
 
