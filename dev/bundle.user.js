@@ -7931,13 +7931,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
     }
     function getAutoGreetEntries() { return load(); }
-    function addAutoGreetEntry(memberNumber, label, alert, whisper, whisperMsg) {
+    function addAutoGreetEntry(memberNumber, message, alert, whisper) {
         const list = load();
         if (list.some(e => e.memberNumber === memberNumber))
             return null;
+        const trimmed = message.trim();
         const entry = {
             id: uid(), memberNumber,
-            label: label.trim(), alert, whisper, whisperMsg: whisperMsg.trim(),
+            label: trimmed, alert, whisper, whisperMsg: trimmed,
         };
         save([...list, entry]);
         return entry;
@@ -7961,13 +7962,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (!entry)
             return;
         _greetedThisRoom.add(memberNumber);
-        const name = entry.label || displayName || `#${memberNumber}`;
+        const name = displayName || `#${memberNumber}`;
         if (entry.alert) {
             appendLocalLogLine(`[EBC] ${name} (#${memberNumber}) is in the room.`, UI.gold);
         }
-        if (entry.whisper && entry.whisperMsg) {
+        const msg = entry.label || entry.whisperMsg;
+        if (entry.whisper && msg) {
             try {
-                ServerSend("ChatRoomChat", { Type: "Whisper", Content: entry.whisperMsg, Target: memberNumber });
+                ServerSend("ChatRoomChat", { Type: "Whisper", Content: msg, Target: memberNumber });
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -21657,7 +21659,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                     const nameLbl = document.createElement("span");
                     nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;flex:1;";
-                    nameLbl.textContent = entry.label ? `${entry.label} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                    nameLbl.textContent = `#${entry.memberNumber}`;
                     const delBtn = document.createElement("button");
                     delBtn.textContent = "✕";
                     delBtn.style.cssText = "font-size:10px;background:#2a0f1a;border:1px solid #4a1f2a;color:#c06080;border-radius:3px;cursor:pointer;padding:1px 6px;flex-shrink:0;";
@@ -21665,6 +21667,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     nameRow.appendChild(nameLbl);
                     nameRow.appendChild(delBtn);
                     card.appendChild(nameRow);
+                    const entryMsgIn = document.createElement("input");
+                    entryMsgIn.type = "text";
+                    entryMsgIn.value = entry.label || entry.whisperMsg;
+                    entryMsgIn.placeholder = "Greeting message (optional)...";
+                    entryMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
+                    entryMsgIn.addEventListener("change", () => {
+                        const v = entryMsgIn.value.trim();
+                        updateAutoGreetEntry(entry.id, { label: v, whisperMsg: v });
+                    });
+                    card.appendChild(entryMsgIn);
                     const togRow = document.createElement("div");
                     togRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                     const mkTog = (label, val, onToggle) => {
@@ -21692,27 +21704,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         return wrap;
                     };
                     togRow.appendChild(mkTog("Alert", entry.alert, v => updateAutoGreetEntry(entry.id, { alert: v })));
-                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => {
-                        updateAutoGreetEntry(entry.id, { whisper: v });
-                        renderAgList();
-                    }));
+                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => updateAutoGreetEntry(entry.id, { whisper: v })));
                     card.appendChild(togRow);
-                    if (entry.whisper) {
-                        const msgIn = document.createElement("input");
-                        msgIn.type = "text";
-                        msgIn.value = entry.whisperMsg;
-                        msgIn.placeholder = "Whisper message...";
-                        msgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
-                        msgIn.addEventListener("change", () => updateAutoGreetEntry(entry.id, { whisperMsg: msgIn.value.trim() }));
-                        card.appendChild(msgIn);
-                    }
                     agBody.appendChild(card);
                 }
                 // ── Add form ──────────────────────────────────────────────────
                 const addForm = document.createElement("div");
                 addForm.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:2px;";
-                const row1 = document.createElement("div");
-                row1.style.cssText = "display:flex;gap:4px;";
                 const numIn = document.createElement("input");
                 numIn.type = "number";
                 numIn.placeholder = "Member #";
@@ -21720,8 +21718,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 numIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:90px;flex-shrink:0;";
                 const lblIn = document.createElement("input");
                 lblIn.type = "text";
-                lblIn.placeholder = "Label (optional)";
+                lblIn.placeholder = "Greeting message (optional)";
                 lblIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;flex:1;min-width:0;";
+                // Room member picker (only shown when in a room)
+                try {
+                    const chars = window.ChatRoomCharacter;
+                    const selfNum = typeof Player.MemberNumber === "number" ? Player.MemberNumber : -1;
+                    const roomMembers = Array.isArray(chars)
+                        ? chars.filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== selfNum)
+                        : [];
+                    if (roomMembers.length > 0) {
+                        const roomSel = document.createElement("select");
+                        roomSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;cursor:pointer;";
+                        const defOpt = document.createElement("option");
+                        defOpt.value = "";
+                        defOpt.textContent = "— pick from room —";
+                        roomSel.appendChild(defOpt);
+                        for (const c of roomMembers) {
+                            const opt = document.createElement("option");
+                            opt.value = String(c.MemberNumber);
+                            opt.textContent = `${c.Nickname || c.Name || "?"} (#${c.MemberNumber})`;
+                            roomSel.appendChild(opt);
+                        }
+                        roomSel.addEventListener("change", () => { if (roomSel.value)
+                            numIn.value = roomSel.value; });
+                        addForm.appendChild(roomSel);
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                const row1 = document.createElement("div");
+                row1.style.cssText = "display:flex;gap:4px;";
                 row1.appendChild(numIn);
                 row1.appendChild(lblIn);
                 addForm.appendChild(row1);
@@ -21746,37 +21772,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 refreshAddBtns();
                 addBtn.textContent = "+ Add";
                 addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;margin-left:auto;";
-                const msgRowEl = document.createElement("div");
-                let whisperMsgIn = null;
-                const renderMsgRow = () => {
-                    msgRowEl.innerHTML = "";
-                    if (newWhisper) {
-                        whisperMsgIn = document.createElement("input");
-                        whisperMsgIn.type = "text";
-                        whisperMsgIn.placeholder = "Whisper message...";
-                        whisperMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
-                        msgRowEl.appendChild(whisperMsgIn);
-                    }
-                    else {
-                        whisperMsgIn = null;
-                    }
-                };
-                renderMsgRow();
                 alertBtn.addEventListener("click", () => { newAlert = !newAlert; refreshAddBtns(); });
-                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); renderMsgRow(); });
+                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); });
                 addBtn.addEventListener("click", () => {
-                    var _a;
                     const num = parseInt(numIn.value, 10);
                     if (!num || num <= 0)
                         return;
-                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper, (_a = whisperMsgIn === null || whisperMsgIn === void 0 ? void 0 : whisperMsgIn.value.trim()) !== null && _a !== void 0 ? _a : "");
+                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper);
                     if (added !== null) {
                         numIn.value = "";
                         lblIn.value = "";
                         try {
                             checkAutoGreetForRoom();
                         }
-                        catch ( /* ignore */_b) { /* ignore */ }
+                        catch ( /* ignore */_a) { /* ignore */ }
                         renderAgList();
                     }
                 });
@@ -21786,7 +21795,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 row2.appendChild(whisperBtn);
                 row2.appendChild(addBtn);
                 addForm.appendChild(row2);
-                addForm.appendChild(msgRowEl);
                 agBody.appendChild(addForm);
             };
             renderAgList();
@@ -35090,7 +35098,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 129; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 130; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35111,6 +35119,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: Auto-greet now correctly re-triggers each time a watched member joins, not just once per room session. Previously the per-room dedup was never cleared on member leave so rejoins were silently skipped. Fix: member is removed from the dedup set when they leave so each re-entry fires the alert/whisper again.",
                 "Fix: Auto-greet now fires immediately when you add a new entry for someone who is already in your current room.",
                 "UX: AFK Auto-Reply and Auto-greet are now top-level sections in the Notes tab instead of hidden sub-sections inside Chat and Notifications, making them much easier to find.",
+                "UX: Auto-greet add form now shows a room member dropdown so you can pick someone from the current room instead of typing a number manually. The label field is repurposed as the greeting message - it's used as the whisper text when Whisper is ON.",
             ],
         },
         {
