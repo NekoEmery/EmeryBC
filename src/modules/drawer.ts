@@ -14217,7 +14217,7 @@ export class EBCDrawer {
                     nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                     const nameLbl = document.createElement("span");
                     nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;flex:1;";
-                    nameLbl.textContent = entry.label ? `${entry.label} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                    nameLbl.textContent = `#${entry.memberNumber}`;
                     const delBtn = document.createElement("button");
                     delBtn.textContent = "✕";
                     delBtn.style.cssText = "font-size:10px;background:#2a0f1a;border:1px solid #4a1f2a;color:#c06080;border-radius:3px;cursor:pointer;padding:1px 6px;flex-shrink:0;";
@@ -14225,6 +14225,17 @@ export class EBCDrawer {
                     nameRow.appendChild(nameLbl);
                     nameRow.appendChild(delBtn);
                     card.appendChild(nameRow);
+
+                    const entryMsgIn = document.createElement("input");
+                    entryMsgIn.type = "text";
+                    entryMsgIn.value = entry.label || entry.whisperMsg;
+                    entryMsgIn.placeholder = "Greeting message (optional)...";
+                    entryMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
+                    entryMsgIn.addEventListener("change", () => {
+                        const v = entryMsgIn.value.trim();
+                        updateAutoGreetEntry(entry.id, { label: v, whisperMsg: v });
+                    });
+                    card.appendChild(entryMsgIn);
 
                     const togRow = document.createElement("div");
                     togRow.style.cssText = "display:flex;align-items:center;gap:6px;";
@@ -14255,21 +14266,8 @@ export class EBCDrawer {
                     };
 
                     togRow.appendChild(mkTog("Alert", entry.alert, v => updateAutoGreetEntry(entry.id, { alert: v })));
-                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => {
-                        updateAutoGreetEntry(entry.id, { whisper: v });
-                        renderAgList();
-                    }));
+                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => updateAutoGreetEntry(entry.id, { whisper: v })));
                     card.appendChild(togRow);
-
-                    if (entry.whisper) {
-                        const msgIn = document.createElement("input");
-                        msgIn.type = "text";
-                        msgIn.value = entry.whisperMsg;
-                        msgIn.placeholder = "Whisper message...";
-                        msgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
-                        msgIn.addEventListener("change", () => updateAutoGreetEntry(entry.id, { whisperMsg: msgIn.value.trim() }));
-                        card.appendChild(msgIn);
-                    }
 
                     agBody.appendChild(card);
                 }
@@ -14278,8 +14276,6 @@ export class EBCDrawer {
                 const addForm = document.createElement("div");
                 addForm.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:2px;";
 
-                const row1 = document.createElement("div");
-                row1.style.cssText = "display:flex;gap:4px;";
                 const numIn = document.createElement("input");
                 numIn.type = "number";
                 numIn.placeholder = "Member #";
@@ -14287,8 +14283,36 @@ export class EBCDrawer {
                 numIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:90px;flex-shrink:0;";
                 const lblIn = document.createElement("input");
                 lblIn.type = "text";
-                lblIn.placeholder = "Label (optional)";
+                lblIn.placeholder = "Greeting message (optional)";
                 lblIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;flex:1;min-width:0;";
+
+                // Room member picker (only shown when in a room)
+                try {
+                    const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                        Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    const selfNum = typeof Player.MemberNumber === "number" ? Player.MemberNumber : -1;
+                    const roomMembers = Array.isArray(chars)
+                        ? chars.filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== selfNum)
+                        : [];
+                    if (roomMembers.length > 0) {
+                        const roomSel = document.createElement("select");
+                        roomSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;cursor:pointer;";
+                        const defOpt = document.createElement("option");
+                        defOpt.value = ""; defOpt.textContent = "— pick from room —";
+                        roomSel.appendChild(defOpt);
+                        for (const c of roomMembers) {
+                            const opt = document.createElement("option");
+                            opt.value = String(c.MemberNumber);
+                            opt.textContent = `${c.Nickname || c.Name || "?"} (#${c.MemberNumber})`;
+                            roomSel.appendChild(opt);
+                        }
+                        roomSel.addEventListener("change", () => { if (roomSel.value) numIn.value = roomSel.value; });
+                        addForm.appendChild(roomSel);
+                    }
+                } catch { /* ignore */ }
+
+                const row1 = document.createElement("div");
+                row1.style.cssText = "display:flex;gap:4px;";
                 row1.appendChild(numIn);
                 row1.appendChild(lblIn);
                 addForm.appendChild(row1);
@@ -14317,28 +14341,12 @@ export class EBCDrawer {
                 addBtn.textContent = "+ Add";
                 addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;margin-left:auto;";
 
-                const msgRowEl = document.createElement("div");
-                let whisperMsgIn: HTMLInputElement | null = null;
-                const renderMsgRow = (): void => {
-                    msgRowEl.innerHTML = "";
-                    if (newWhisper) {
-                        whisperMsgIn = document.createElement("input");
-                        whisperMsgIn.type = "text";
-                        whisperMsgIn.placeholder = "Whisper message...";
-                        whisperMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
-                        msgRowEl.appendChild(whisperMsgIn);
-                    } else {
-                        whisperMsgIn = null;
-                    }
-                };
-                renderMsgRow();
-
                 alertBtn.addEventListener("click", () => { newAlert = !newAlert; refreshAddBtns(); });
-                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); renderMsgRow(); });
+                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); });
                 addBtn.addEventListener("click", () => {
                     const num = parseInt(numIn.value, 10);
                     if (!num || num <= 0) return;
-                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper, whisperMsgIn?.value.trim() ?? "");
+                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper);
                     if (added !== null) {
                         numIn.value = ""; lblIn.value = "";
                         try { checkAutoGreetForRoom(); } catch { /* ignore */ }
@@ -14352,7 +14360,6 @@ export class EBCDrawer {
                 row2.appendChild(whisperBtn);
                 row2.appendChild(addBtn);
                 addForm.appendChild(row2);
-                addForm.appendChild(msgRowEl);
                 agBody.appendChild(addForm);
             };
 

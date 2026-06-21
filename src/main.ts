@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 129;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 130;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: Auto-greet now correctly re-triggers each time a watched member joins, not just once per room session. Previously the per-room dedup was never cleared on member leave so rejoins were silently skipped. Fix: member is removed from the dedup set when they leave so each re-entry fires the alert/whisper again.",
             "Fix: Auto-greet now fires immediately when you add a new entry for someone who is already in your current room.",
             "UX: AFK Auto-Reply and Auto-greet are now top-level sections in the Notes tab instead of hidden sub-sections inside Chat and Notifications, making them much easier to find.",
+            "UX: Auto-greet add form now shows a room member dropdown so you can pick someone from the current room instead of typing a number manually. The label field is repurposed as the greeting message - it's used as the whisper text when Whisper is ON.",
         ],
     },
     {

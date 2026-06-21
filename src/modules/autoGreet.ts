@@ -42,14 +42,15 @@ function save(entries: AutoGreetEntry[]): void {
 export function getAutoGreetEntries(): AutoGreetEntry[] { return load(); }
 
 export function addAutoGreetEntry(
-    memberNumber: number, label: string,
-    alert: boolean, whisper: boolean, whisperMsg: string,
+    memberNumber: number, message: string,
+    alert: boolean, whisper: boolean,
 ): AutoGreetEntry | null {
     const list = load();
     if (list.some(e => e.memberNumber === memberNumber)) return null;
+    const trimmed = message.trim();
     const entry: AutoGreetEntry = {
         id: uid(), memberNumber,
-        label: label.trim(), alert, whisper, whisperMsg: whisperMsg.trim(),
+        label: trimmed, alert, whisper, whisperMsg: trimmed,
     };
     save([...list, entry]);
     return entry;
@@ -72,13 +73,14 @@ export function checkAutoGreet(memberNumber: number, displayName: string): void 
     if (!entry) return;
     _greetedThisRoom.add(memberNumber);
 
-    const name = entry.label || displayName || `#${memberNumber}`;
+    const name = displayName || `#${memberNumber}`;
     if (entry.alert) {
         appendLocalLogLine(`[EBC] ${name} (#${memberNumber}) is in the room.`, UI.gold);
     }
-    if (entry.whisper && entry.whisperMsg) {
+    const msg = entry.label || entry.whisperMsg;
+    if (entry.whisper && msg) {
         try {
-            ServerSend("ChatRoomChat", { Type: "Whisper", Content: entry.whisperMsg, Target: memberNumber });
+            ServerSend("ChatRoomChat", { Type: "Whisper", Content: msg, Target: memberNumber });
         } catch { /* ignore */ }
     }
 }
