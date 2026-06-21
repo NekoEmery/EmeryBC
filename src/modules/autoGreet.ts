@@ -23,6 +23,10 @@ export function autoGreetOnRoomLeave(): void {
     _greetedThisRoom.clear();
 }
 
+export function autoGreetOnMemberLeave(memberNumber: number): void {
+    _greetedThisRoom.delete(memberNumber);
+}
+
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
 function load(): AutoGreetEntry[] {

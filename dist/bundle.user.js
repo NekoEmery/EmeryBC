@@ -7918,6 +7918,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function autoGreetOnRoomLeave() {
         _greetedThisRoom.clear();
     }
+    function autoGreetOnMemberLeave(memberNumber) {
+        _greetedThisRoom.delete(memberNumber);
+    }
     function uid() { return Math.random().toString(36).slice(2, 9); }
     function load() {
         const raw = getSettings().autoGreet;
@@ -21780,6 +21783,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (added !== null) {
                             numIn.value = "";
                             lblIn.value = "";
+                            try {
+                                checkAutoGreetForRoom();
+                            }
+                            catch ( /* ignore */_b) { /* ignore */ }
                             renderAgList();
                         }
                     });
@@ -35083,7 +35090,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 127; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 128; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35100,7 +35107,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             version: "8.3.1",
             changes: [
-                "Feature: Auto-greet - watch specific members by number; get a local alert and/or auto-send a whisper when they enter the same room. Triggers both when they join while you're already in the room and when you join a room they're already in. Per-room cooldown prevents duplicate triggers on reconnects. Configured in Chat & Notifications > Auto-greet.",
+                "Feature: Auto-greet - watch specific members by number; get a local alert and/or auto-send a whisper when they enter the same room. Triggers both when they join while you're already in the room and when you join a room they're already in. Configured in Chat & Notifications > Auto-greet.",
+                "Fix: Auto-greet now correctly re-triggers each time a watched member joins, not just once per room session. Previously the per-room dedup was never cleared on member leave so rejoins were silently skipped. Fix: member is removed from the dedup set when they leave so each re-entry fires the alert/whisper again.",
+                "Fix: Auto-greet now fires immediately when you add a new entry for someone who is already in your current room.",
             ],
         },
         {
@@ -42845,7 +42854,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return result;
         });
         tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-            return next(args);
+            var _a, _b;
+            const result = next(args);
+            try {
+                const [data] = args;
+                const charLike = ((_a = data === null || data === void 0 ? void 0 : data.Character) !== null && _a !== void 0 ? _a : data);
+                const mn = (_b = charLike === null || charLike === void 0 ? void 0 : charLike.MemberNumber) !== null && _b !== void 0 ? _b : charLike === null || charLike === void 0 ? void 0 : charLike.SourceMemberNumber;
+                if (typeof mn === "number")
+                    autoGreetOnMemberLeave(mn);
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
         tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {

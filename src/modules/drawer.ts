@@ -171,7 +171,7 @@ import {
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 import { appendLocalLogLine } from "./notify";
 import { UI } from "./ui";
-import { getAutoGreetEntries, addAutoGreetEntry, removeAutoGreetEntry, updateAutoGreetEntry } from "./autoGreet";
+import { getAutoGreetEntries, addAutoGreetEntry, removeAutoGreetEntry, updateAutoGreetEntry, checkAutoGreetForRoom } from "./autoGreet";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -14351,7 +14351,11 @@ export class EBCDrawer {
                     const num = parseInt(numIn.value, 10);
                     if (!num || num <= 0) return;
                     const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper, whisperMsgIn?.value.trim() ?? "");
-                    if (added !== null) { numIn.value = ""; lblIn.value = ""; renderAgList(); }
+                    if (added !== null) {
+                        numIn.value = ""; lblIn.value = "";
+                        try { checkAutoGreetForRoom(); } catch { /* ignore */ }
+                        renderAgList();
+                    }
                 });
 
                 const row2 = document.createElement("div");
