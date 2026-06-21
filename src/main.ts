@@ -10,7 +10,6 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
-import { checkAutoGreet, checkAutoGreetForRoom, autoGreetOnRoomLeave, autoGreetOnMemberLeave } from "./modules/autoGreet";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -26,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 130;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 131;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -46,11 +45,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.1",
         changes: [
-            "Feature: Auto-greet - watch specific members by number; get a local alert and/or auto-send a whisper when they enter the same room. Triggers both when they join while you're already in the room and when you join a room they're already in. Configured in Chat & Notifications > Auto-greet.",
-            "Fix: Auto-greet now correctly re-triggers each time a watched member joins, not just once per room session. Previously the per-room dedup was never cleared on member leave so rejoins were silently skipped. Fix: member is removed from the dedup set when they leave so each re-entry fires the alert/whisper again.",
-            "Fix: Auto-greet now fires immediately when you add a new entry for someone who is already in your current room.",
-            "UX: AFK Auto-Reply and Auto-greet are now top-level sections in the Notes tab instead of hidden sub-sections inside Chat and Notifications, making them much easier to find.",
-            "UX: Auto-greet add form now shows a room member dropdown so you can pick someone from the current room instead of typing a number manually. The label field is repurposed as the greeting message - it's used as the whisper text when Whisper is ON.",
+            "Removed: Auto-greet feature.",
+            "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
         ],
     },
     {
@@ -7400,7 +7396,6 @@ function init(): void {
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
-        try { checkAutoGreetForRoom();      } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
@@ -7652,7 +7647,6 @@ function init(): void {
         try { clearCurrentRoomName(); } catch { /* ignore */ }
         try { timerOnRoomLeave(); } catch { /* ignore */ }
         try { onRoomLeave();           } catch { /* ignore */ }
-        try { autoGreetOnRoomLeave(); } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
         try { clearAllPositions(); } catch { /* ignore */ }
         return result;
@@ -7668,20 +7662,8 @@ function init(): void {
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
             if (char.MemberNumber) {
                 onMemberJoin(char);
-                checkAutoGreet(char.MemberNumber, (char.Nickname || char.Name) ?? "");
             }
             try { detectNewJoins(); } catch { /* ignore */ }
-        } catch { /* ignore */ }
-        return result;
-    });
-
-    tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-        const result = next(args);
-        try {
-            const [data] = args as [Record<string, unknown>];
-            const charLike = (data?.Character ?? data) as { MemberNumber?: number; SourceMemberNumber?: number };
-            const mn = charLike?.MemberNumber ?? charLike?.SourceMemberNumber;
-            if (typeof mn === "number") autoGreetOnMemberLeave(mn);
         } catch { /* ignore */ }
         return result;
     });
