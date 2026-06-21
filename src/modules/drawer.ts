@@ -171,6 +171,7 @@ import {
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 import { appendLocalLogLine } from "./notify";
 import { UI } from "./ui";
+import { getAutoGreetEntries, addAutoGreetEntry, removeAutoGreetEntry, updateAutoGreetEntry } from "./autoGreet";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -14184,6 +14185,198 @@ export class EBCDrawer {
         afkBody.style.display = afkCollapsed ? "none" : "flex";
         afkSubHeader.addEventListener("click", toggleAfkCollapsed);
         chatSettingsBody.appendChild(afkBody);
+
+        // ── Auto-greet sub-section ────────────────────────────────────────────
+        {
+            const agDiv = document.createElement("div");
+            agDiv.className = "ebc-divider";
+            agDiv.style.margin = "2px 0";
+            chatSettingsBody.appendChild(agDiv);
+
+            let agCollapsed = true;
+            try { agCollapsed = localStorage.getItem("EBC_autoGreetCollapsed") !== "0"; } catch { /* ignore */ }
+
+            const agHeader = document.createElement("div");
+            agHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
+            const agLbl = document.createElement("span");
+            agLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
+            agLbl.textContent = "Auto-greet";
+            const agChevron = document.createElement("span");
+            agChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            agHeader.appendChild(agLbl);
+            agHeader.appendChild(agChevron);
+            chatSettingsBody.appendChild(agHeader);
+
+            const agBody = document.createElement("div");
+            agBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:6px;";
+
+            const renderAgList = (): void => {
+                agBody.innerHTML = "";
+                const entries = getAutoGreetEntries();
+
+                if (entries.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3045;font-style:italic;padding:2px 0;";
+                    empty.textContent = "No entries - add a member below.";
+                    agBody.appendChild(empty);
+                }
+
+                for (const entry of entries) {
+                    const card = document.createElement("div");
+                    card.style.cssText = "background:#1a0a10;border:1px solid #3a1525;border-radius:5px;padding:6px 8px;display:flex;flex-direction:column;gap:5px;";
+
+                    const nameRow = document.createElement("div");
+                    nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                    const nameLbl = document.createElement("span");
+                    nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;font-weight:bold;flex:1;";
+                    nameLbl.textContent = entry.label ? `${entry.label} (#${entry.memberNumber})` : `#${entry.memberNumber}`;
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "✕";
+                    delBtn.style.cssText = "font-size:10px;background:#2a0f1a;border:1px solid #4a1f2a;color:#c06080;border-radius:3px;cursor:pointer;padding:1px 6px;flex-shrink:0;";
+                    delBtn.addEventListener("click", () => { removeAutoGreetEntry(entry.id); renderAgList(); });
+                    nameRow.appendChild(nameLbl);
+                    nameRow.appendChild(delBtn);
+                    card.appendChild(nameRow);
+
+                    const togRow = document.createElement("div");
+                    togRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+
+                    const mkTog = (label: string, val: boolean, onToggle: (v: boolean) => void): HTMLElement => {
+                        const wrap = document.createElement("div");
+                        wrap.style.cssText = "display:flex;align-items:center;gap:4px;flex-shrink:0;";
+                        const lbl2 = document.createElement("span");
+                        lbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+                        lbl2.textContent = label;
+                        const btn2 = document.createElement("button");
+                        let cur = val;
+                        const refresh2 = (): void => {
+                            btn2.textContent = cur ? "ON" : "OFF";
+                            btn2.style.cssText = [
+                                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                                "padding:1px 7px", "border-radius:3px", "cursor:pointer",
+                                "border:1px solid " + (cur ? "#cf6f98" : "#3a1928"),
+                                "background:" + (cur ? "#4a1f30" : "#100508"),
+                                "color:" + (cur ? "#f7e6ee" : "#4c2537"),
+                            ].join(";");
+                        };
+                        refresh2();
+                        btn2.addEventListener("click", () => { cur = !cur; refresh2(); onToggle(cur); });
+                        wrap.appendChild(lbl2);
+                        wrap.appendChild(btn2);
+                        return wrap;
+                    };
+
+                    togRow.appendChild(mkTog("Alert", entry.alert, v => updateAutoGreetEntry(entry.id, { alert: v })));
+                    togRow.appendChild(mkTog("Whisper", entry.whisper, v => {
+                        updateAutoGreetEntry(entry.id, { whisper: v });
+                        renderAgList();
+                    }));
+                    card.appendChild(togRow);
+
+                    if (entry.whisper) {
+                        const msgIn = document.createElement("input");
+                        msgIn.type = "text";
+                        msgIn.value = entry.whisperMsg;
+                        msgIn.placeholder = "Whisper message...";
+                        msgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
+                        msgIn.addEventListener("change", () => updateAutoGreetEntry(entry.id, { whisperMsg: msgIn.value.trim() }));
+                        card.appendChild(msgIn);
+                    }
+
+                    agBody.appendChild(card);
+                }
+
+                // ── Add form ──────────────────────────────────────────────────
+                const addForm = document.createElement("div");
+                addForm.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:2px;";
+
+                const row1 = document.createElement("div");
+                row1.style.cssText = "display:flex;gap:4px;";
+                const numIn = document.createElement("input");
+                numIn.type = "number";
+                numIn.placeholder = "Member #";
+                numIn.min = "1";
+                numIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:90px;flex-shrink:0;";
+                const lblIn = document.createElement("input");
+                lblIn.type = "text";
+                lblIn.placeholder = "Label (optional)";
+                lblIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;flex:1;min-width:0;";
+                row1.appendChild(numIn);
+                row1.appendChild(lblIn);
+                addForm.appendChild(row1);
+
+                let newAlert = true;
+                let newWhisper = false;
+                const alertBtn = document.createElement("button");
+                const whisperBtn = document.createElement("button");
+                const addBtn = document.createElement("button");
+
+                const refreshAddBtns = (): void => {
+                    const s = (on: boolean): string => [
+                        "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                        "padding:2px 8px", "border-radius:3px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                    ].join(";");
+                    alertBtn.textContent = "Alert: " + (newAlert ? "ON" : "OFF");
+                    alertBtn.style.cssText = s(newAlert);
+                    whisperBtn.textContent = "Whisper: " + (newWhisper ? "ON" : "OFF");
+                    whisperBtn.style.cssText = s(newWhisper);
+                };
+                refreshAddBtns();
+
+                addBtn.textContent = "+ Add";
+                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;margin-left:auto;";
+
+                const msgRowEl = document.createElement("div");
+                let whisperMsgIn: HTMLInputElement | null = null;
+                const renderMsgRow = (): void => {
+                    msgRowEl.innerHTML = "";
+                    if (newWhisper) {
+                        whisperMsgIn = document.createElement("input");
+                        whisperMsgIn.type = "text";
+                        whisperMsgIn.placeholder = "Whisper message...";
+                        whisperMsgIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;width:100%;box-sizing:border-box;";
+                        msgRowEl.appendChild(whisperMsgIn);
+                    } else {
+                        whisperMsgIn = null;
+                    }
+                };
+                renderMsgRow();
+
+                alertBtn.addEventListener("click", () => { newAlert = !newAlert; refreshAddBtns(); });
+                whisperBtn.addEventListener("click", () => { newWhisper = !newWhisper; refreshAddBtns(); renderMsgRow(); });
+                addBtn.addEventListener("click", () => {
+                    const num = parseInt(numIn.value, 10);
+                    if (!num || num <= 0) return;
+                    const added = addAutoGreetEntry(num, lblIn.value.trim(), newAlert, newWhisper, whisperMsgIn?.value.trim() ?? "");
+                    if (added !== null) { numIn.value = ""; lblIn.value = ""; renderAgList(); }
+                });
+
+                const row2 = document.createElement("div");
+                row2.style.cssText = "display:flex;gap:4px;align-items:center;";
+                row2.appendChild(alertBtn);
+                row2.appendChild(whisperBtn);
+                row2.appendChild(addBtn);
+                addForm.appendChild(row2);
+                addForm.appendChild(msgRowEl);
+                agBody.appendChild(addForm);
+            };
+
+            renderAgList();
+
+            const toggleAg = (): void => {
+                agCollapsed = !agCollapsed;
+                agBody.style.display = agCollapsed ? "none" : "flex";
+                agChevron.textContent = agCollapsed ? "▲" : "▼";
+                try { localStorage.setItem("EBC_autoGreetCollapsed", agCollapsed ? "1" : "0"); } catch { /* ignore */ }
+            };
+            agChevron.textContent = agCollapsed ? "▲" : "▼";
+            agBody.style.display = agCollapsed ? "none" : "flex";
+            agHeader.addEventListener("click", toggleAg);
+            chatSettingsBody.appendChild(agBody);
+        }
 
         // Outer collapse/expand
         const toggleChatSettings = (): void => {

@@ -10,6 +10,7 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
+import { checkAutoGreet, checkAutoGreetForRoom, autoGreetOnRoomLeave } from "./modules/autoGreet";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -24,8 +25,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.3.0";
-const SAL_VERSION  = 126;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.3.1";
+const SAL_VERSION  = 127;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -42,6 +43,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.3.1",
+        changes: [
+            "Feature: Auto-greet - watch specific members by number; get a local alert and/or auto-send a whisper when they enter the same room. Triggers both when they join while you're already in the room and when you join a room they're already in. Per-room cooldown prevents duplicate triggers on reconnects. Configured in Chat & Notifications > Auto-greet.",
+        ],
+    },
     {
         version: "8.3.0",
         changes: [
@@ -7389,6 +7396,7 @@ function init(): void {
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
+        try { checkAutoGreetForRoom();      } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
@@ -7639,7 +7647,8 @@ function init(): void {
         const result = next(args);
         try { clearCurrentRoomName(); } catch { /* ignore */ }
         try { timerOnRoomLeave(); } catch { /* ignore */ }
-        try { onRoomLeave();     } catch { /* ignore */ }
+        try { onRoomLeave();           } catch { /* ignore */ }
+        try { autoGreetOnRoomLeave(); } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
         try { clearAllPositions(); } catch { /* ignore */ }
         return result;
@@ -7653,7 +7662,10 @@ function init(): void {
         try {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
-            if (char.MemberNumber) onMemberJoin(char);
+            if (char.MemberNumber) {
+                onMemberJoin(char);
+                checkAutoGreet(char.MemberNumber, (char.Nickname || char.Name) ?? "");
+            }
             try { detectNewJoins(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
