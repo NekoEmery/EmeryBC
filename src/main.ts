@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 132;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 133;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +48,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Removed: Auto-greet feature.",
             "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
             "Dev: member 147036 now has access to the PiShock menu.",
+            "Fix: EBC no longer intercepts *emote sends before BC's hook chain runs, restoring UBC's whisper-emote feature. Root cause: EBC's capture-phase keydown listener and ChatRoomSendChat/ChatRoomKeyDown hooks were intercepting emotes and calling ServerSend directly, bypassing ChatRoomSendChat entirely so UBC's hook on that function never fired. Fix: removed EBC's emote interception entirely - BC's native emote handling runs the full hook chain as expected.",
+            "Fix: clicking a beep notification for a window that is already open (but minimized elsewhere) no longer snaps it to screen center. Root cause: openBeepWindow always repositioned existing windows to viewport center when re-opening. Fix: existing windows are now un-minimized and focused in place.",
         ],
     },
     {
@@ -8237,36 +8239,6 @@ function init(): void {
     // which should prevent the hook paths from seeing the same keypress, but
     // certain BC builds or other addons can reorder event handling. This timestamp
     // guard ensures the ServerSend fires at most once per 500 ms regardless.
-    let _lastEmoteSendTime = 0;
-    let _lastEmoteBody = "";
-    const handleEmoteShortcut = (raw: string): boolean => {
-        if (!raw.startsWith("*")) return false;
-        const body = raw.slice(1).replace(/^\s+/, "");
-        if (!body) return false; // bare * alone — ignore
-        // If BC has an active reply (the reply indicator is showing), let BC handle
-        // this natively via ChatRoomSendEmote so the emote includes the reply context
-        // (replyId in Dictionary) and ChatRoomMessageReplyStop() is called to clear
-        // the indicator. Intercepting here would send without reply context and leave
-        // the reply bar stuck open, allowing a second reply to be sent.
-        const w = window as unknown as Record<string, unknown>;
-        const getReplyId = w["ChatRoomMessageGetReplyId"];
-        if (typeof getReplyId === "function" && (getReplyId as () => string | null | undefined)()) return false;
-        const now = Date.now();
-        // Swallow only a re-fire of the SAME emote within the window (the same Enter
-        // keypress reaching us via more than one interceptor). A *different* emote
-        // typed quickly is a distinct send and must go through - keying the guard on
-        // the body text (not time alone) prevents dropping a fast second emote.
-        if (body === _lastEmoteBody && now - _lastEmoteSendTime < 500) return true;
-        _lastEmoteSendTime = now;
-        _lastEmoteBody = body;
-        try {
-            ServerSend("ChatRoomChat", {
-                Type: "Emote",
-                Content: body,  // BC auto-prepends sender name for Type:"Emote"
-            });
-        } catch { /* ignore */ }
-        return true;
-    };
 
     // ── Direct capture-phase keydown — fires before BC touches anything ──────
     // This is the most reliable interceptor for safewords and chat commands.
@@ -8295,8 +8267,7 @@ function init(): void {
                 || handlePoseComboCommand(raw)
                 || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
-                || handleDomCommand(raw)
-                || handleEmoteShortcut(raw)) {
+                || handleDomCommand(raw)) {
                 (el as HTMLInputElement).value = "";
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -8330,7 +8301,6 @@ function init(): void {
                     || handleExprSequenceCommand(input.value)
                     || handleSceneCommand(input.value)
                     || handleDomCommand(input.value)
-                    || handleEmoteShortcut(input.value)
                 )) {
                     input.value = "";
                     return;
@@ -8354,7 +8324,6 @@ function init(): void {
                 || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
-                || handleEmoteShortcut(raw)
             )) {
                 if (input) input.value = "";
                 return;

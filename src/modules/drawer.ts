@@ -12346,18 +12346,9 @@ export class EBCDrawer {
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
             const el = existing.el;
-            // Ensure visible - may have been hidden while outside a chatroom
             el.style.display = "";
-            // Un-minimize first so we can measure real height
             const restoreFn = (el as unknown as Record<string, unknown>)._restoreMin as (() => void) | undefined;
             restoreFn?.();
-            // Snap to viewport center
-            const winW = el.offsetWidth  || 300;
-            const winH = el.offsetHeight || 400;
-            el.style.left   = `${Math.max(0, Math.round((window.innerWidth  - winW) / 2))}px`;
-            el.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
-            el.style.right  = "";
-            el.style.top    = "";
             const refresh = (el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
             refresh?.();
             (el.querySelector(".ebc-beep-win-input") as HTMLInputElement | null)?.focus();
