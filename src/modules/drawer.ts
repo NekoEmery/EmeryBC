@@ -14422,6 +14422,28 @@ export class EBCDrawer {
         // Group chat temporarily disabled - re-enable by uncommenting this line
         // body.appendChild(grpSec);
 
+        // ── DM by member # ───────────────────────────────────────────────────
+        const dmRow = document.createElement("div");
+        dmRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:6px;";
+        const dmIn = document.createElement("input");
+        dmIn.type = "number";
+        dmIn.placeholder = "Member # to DM";
+        dmIn.min = "1";
+        dmIn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#0d0408;border:1px solid #3a1525;color:#f7e6ee;border-radius:3px;padding:3px 6px;flex:1;min-width:0;";
+        const dmBtn = document.createElement("button");
+        dmBtn.textContent = "Open DM";
+        dmBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#1a0a10;color:#cf6f98;flex-shrink:0;";
+        dmBtn.addEventListener("click", () => {
+            const num = parseInt(dmIn.value, 10);
+            if (!num || num <= 0) return;
+            dmIn.value = "";
+            try { this.openBeepWindow(num); } catch { /* ignore */ }
+        });
+        dmIn.addEventListener("keydown", (e) => { if (e.key === "Enter") dmBtn.click(); });
+        dmRow.appendChild(dmIn);
+        dmRow.appendChild(dmBtn);
+        body.appendChild(dmRow);
+
         // ── Friends ──────────────────────────────────────────────────────────
         const friendsSection = document.createElement("div");
         this.friendsSectionEl = friendsSection;
