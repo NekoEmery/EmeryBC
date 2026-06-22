@@ -12512,7 +12512,10 @@ export class EBCDrawer {
         const updateStatus = (): void => {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
-            offlineBanner.style.display = s === "away" ? "" : "none";
+            // Only show offline banner if we have reliable status info - i.e. they're
+            // a friend (BC reports their presence) or currently in our room (we can see them).
+            const statusKnown = getFriendList().includes(memberNumber) || s !== "away";
+            offlineBanner.style.display = (s === "away" && statusKnown) ? "" : "none";
 
             // Online alert - flash briefly when they come back from offline
             if (_prevStatus === "away" && s !== "away") {

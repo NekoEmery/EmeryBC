@@ -19956,7 +19956,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const updateStatus = () => {
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
-                offlineBanner.style.display = s === "away" ? "" : "none";
+                // Only show offline banner if we have reliable status info - i.e. they're
+                // a friend (BC reports their presence) or currently in our room (we can see them).
+                const statusKnown = getFriendList().includes(memberNumber) || s !== "away";
+                offlineBanner.style.display = (s === "away" && statusKnown) ? "" : "none";
                 // Online alert - flash briefly when they come back from offline
                 if (_prevStatus === "away" && s !== "away") {
                     onlineAlert.style.display = "";
@@ -34851,7 +34854,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 135; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 136; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
