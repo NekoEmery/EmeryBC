@@ -1939,12 +1939,13 @@
                 { key: "", label: "Relaxed" },
                 { key: "OverTheHead", label: "Arms Up" },
                 { key: "BackCuffs", label: "Arms Back" },
+                { key: "BackElbowCuffs", label: "Tight Back" },
                 { key: "BackBoxTie", label: "Box Tie" },
                 { key: "Yoked", label: "Yoked" },
             ],
         },
     ];
-    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
+    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowCuffs", "BackBoxTie", "Yoked"];
     function applyPoses(poses) {
         // An explicit empty string ("") in the list means "Relaxed arms" —
         // clear any active arm pose from the result set.
@@ -10325,6 +10326,8 @@
 .ebc-beep-win.minimized .ebc-qr-bar,
 .ebc-beep-win.minimized .ebc-beep-online-alert,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
+.ebc-beep-win.minimized .ebc-beep-resize-e,
+.ebc-beep-win.minimized .ebc-beep-resize-corner { display: none !important; }
 
 
 .ebc-beep-win-unread-dot {
@@ -34787,7 +34790,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 137; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 138; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34810,6 +34813,9 @@
                 "Fix: EBC no longer intercepts *emote sends before BC's hook chain runs, restoring UBC's whisper-emote feature. Root cause: EBC's capture-phase keydown listener and ChatRoomSendChat/ChatRoomKeyDown hooks were intercepting emotes and calling ServerSend directly, bypassing ChatRoomSendChat entirely so UBC's hook on that function never fired. Fix: removed EBC's emote interception entirely - BC's native emote handling runs the full hook chain as expected.",
                 "Fix: clicking a beep notification for a window that is already open (but minimized elsewhere) no longer snaps it to screen center. Root cause: openBeepWindow always repositioned existing windows to viewport center when re-opening. Fix: existing windows are now un-minimized and focused in place.",
                 "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
+                "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
+                "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
+                "Anims: added 'Tight Back' pose (BackElbowCuffs) to the Arms section.",
             ],
         },
         {
@@ -43311,8 +43317,10 @@
                     || handleExprSequenceCommand(raw)
                     || handleSceneCommand(raw)
                     || handleDomCommand(raw))) {
-                    if (input)
+                    if (input) {
                         input.value = "";
+                        input.style.height = "";
+                    }
                     return;
                 }
                 // Expression triggers — check outgoing message against saved triggers.
@@ -43332,7 +43340,15 @@
                 }
             }
             catch ( /* ignore */_c) { /* ignore */ }
-            return next(args);
+            const _r = next(args);
+            // BC skips the textarea height reset for emote sends (*message) — clear it explicitly.
+            try {
+                const inp = getChatInput();
+                if (inp)
+                    inp.style.height = "";
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            return _r;
         });
         // Delay the init-time presence broadcast the same way as the ChatRoomSync
         // hook — prevents a double spike when the addon loads while already in a room.

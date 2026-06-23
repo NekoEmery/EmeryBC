@@ -2587,6 +2587,8 @@ const CSS = `
 .ebc-beep-win.minimized .ebc-qr-bar,
 .ebc-beep-win.minimized .ebc-beep-online-alert,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
+.ebc-beep-win.minimized .ebc-beep-resize-e,
+.ebc-beep-win.minimized .ebc-beep-resize-corner { display: none !important; }
 
 
 .ebc-beep-win-unread-dot {
