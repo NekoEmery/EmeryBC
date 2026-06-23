@@ -32476,7 +32476,7 @@
         }
         // ─── Feedback / bug report — anonymous, submitted in-game to a Google Form ────
         _openFeedbackModal() {
-            var _a;
+            var _a, _b;
             // Don't stack copies if it's already open
             if (document.getElementById("ebc-feedback-overlay"))
                 return;
@@ -32553,9 +32553,26 @@
             stepsArea.style.cssText = taCss + "min-height:60px;margin-bottom:12px;";
             wireFocus(stepsArea);
             card.appendChild(stepsArea);
+            // ── Include name checkbox (off by default) ──────────────────────────
+            const _nick = (_a = (typeof Player !== "undefined" ? Player.Nickname : undefined)) !== null && _a !== void 0 ? _a : "";
+            const _uname = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.Name)) ? Player.Name : "";
+            const _nameDisplay = (_nick && _nick !== _uname) ? `${_nick} (${_uname})` : (_uname || "?");
+            const nameRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:14px;");
+            const nameCb = document.createElement("input");
+            nameCb.type = "checkbox";
+            nameCb.id = "ebc-fb-name-cb";
+            nameCb.checked = false;
+            nameCb.style.cssText = "width:14px;height:14px;accent-color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            const nameLblEl = document.createElement("label");
+            nameLblEl.htmlFor = "ebc-fb-name-cb";
+            nameLblEl.style.cssText = `${FONT}font-size:11.5px;color:#9b8fa6;cursor:pointer;user-select:none;`;
+            nameLblEl.textContent = `Include my name: ${_nameDisplay}`;
+            nameRow.appendChild(nameCb);
+            nameRow.appendChild(nameLblEl);
+            card.appendChild(nameRow);
             const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
             const _mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
-            verNote.textContent = t("feedback.verNote", { v: (_a = this.version) !== null && _a !== void 0 ? _a : "?", mn: _mn });
+            verNote.textContent = t("feedback.verNote", { v: (_b = this.version) !== null && _b !== void 0 ? _b : "?", mn: _mn });
             card.appendChild(verNote);
             // ── Buttons ──────────────────────────────────────────────────
             const errEl = mk("div", `${FONT}font-size:11px;color:#ff8a8a;margin-bottom:10px;min-height:14px;`);
@@ -32580,7 +32597,7 @@
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 close(); });
             sendBtn.addEventListener("click", () => {
-                var _a;
+                var _a, _b;
                 const what = whatArea.value.trim();
                 if (!what) {
                     errEl.textContent = t("feedback.errEmpty");
@@ -32595,7 +32612,8 @@
                 params.append(E_TYPE, selectedType);
                 params.append(E_WHAT, what);
                 params.append(E_STEPS, stepsArea.value.trim());
-                params.append(E_VER, `${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} | ${mn}`);
+                const verStr = nameCb.checked ? `${(_a = this.version) !== null && _a !== void 0 ? _a : "?"} | ${mn} | ${_nameDisplay}` : `${(_b = this.version) !== null && _b !== void 0 ? _b : "?"} | ${mn}`;
+                params.append(E_VER, verStr);
                 // no-cors: fire-and-forget; we can't read the response but the submit goes through
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
                     .then(() => { close(); this._showToyToast(t("feedback.toast")); })
@@ -34888,7 +34906,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 143; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 144; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34918,6 +34936,7 @@
                 "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
                 "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
                 "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
+                "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
             ],
         },
         {

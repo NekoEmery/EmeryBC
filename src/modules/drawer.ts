@@ -24113,6 +24113,21 @@ export class EBCDrawer {
         wireFocus(stepsArea);
         card.appendChild(stepsArea);
 
+        // ── Include name checkbox (off by default) ──────────────────────────
+        const _nick  = (typeof Player !== "undefined" ? (Player as unknown as Record<string, unknown>).Nickname as string | undefined : undefined) ?? "";
+        const _uname = (typeof Player !== "undefined" && Player?.Name) ? Player.Name : "";
+        const _nameDisplay = (_nick && _nick !== _uname) ? `${_nick} (${_uname})` : (_uname || "?");
+        const nameRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:14px;");
+        const nameCb = document.createElement("input") as HTMLInputElement;
+        nameCb.type = "checkbox"; nameCb.id = "ebc-fb-name-cb"; nameCb.checked = false;
+        nameCb.style.cssText = "width:14px;height:14px;accent-color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        const nameLblEl = document.createElement("label");
+        nameLblEl.htmlFor = "ebc-fb-name-cb";
+        nameLblEl.style.cssText = `${FONT}font-size:11.5px;color:#9b8fa6;cursor:pointer;user-select:none;`;
+        nameLblEl.textContent = `Include my name: ${_nameDisplay}`;
+        nameRow.appendChild(nameCb); nameRow.appendChild(nameLblEl);
+        card.appendChild(nameRow);
+
         const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
         const _mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
         verNote.textContent = t("feedback.verNote", { v: this.version ?? "?", mn: _mn });
@@ -24149,7 +24164,8 @@ export class EBCDrawer {
             params.append(E_TYPE, selectedType);
             params.append(E_WHAT, what);
             params.append(E_STEPS, stepsArea.value.trim());
-            params.append(E_VER, `${this.version ?? "?"} | ${mn}`);
+            const verStr = nameCb.checked ? `${this.version ?? "?"} | ${mn} | ${_nameDisplay}` : `${this.version ?? "?"} | ${mn}`;
+            params.append(E_VER, verStr);
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
