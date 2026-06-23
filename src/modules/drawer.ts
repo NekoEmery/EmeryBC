@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -13657,8 +13657,10 @@ export class EBCDrawer {
                 toast.classList.add("ebc-toast-out");
                 setTimeout(() => toast.remove(), 320);
             };
-            const timer = setTimeout(dismiss, 5000);
-            toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            if (!getToastSticky()) {
+                const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
         } catch { /* ignore */ }
     }
 
@@ -13713,8 +13715,10 @@ export class EBCDrawer {
                 toast.classList.add("ebc-toast-out");
                 setTimeout(() => toast.remove(), 320);
             };
-            const timer = setTimeout(dismiss, 5000);
-            toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            if (!getToastSticky()) {
+                const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
         } catch { /* ignore */ }
     }
 
@@ -14079,6 +14083,35 @@ export class EBCDrawer {
         lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
         lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
         chatSettingsBody.appendChild(lianHint);
+
+        // Toast sticky + duration
+        const stickyRow = mkToggleRow(
+            "Keep beep popups until dismissed",
+            getToastSticky,
+            (v) => { setToastSticky(v); durationRow.style.opacity = v ? "0.4" : "1"; durationRow.style.pointerEvents = v ? "none" : ""; },
+        );
+        chatSettingsBody.appendChild(stickyRow);
+
+        const durationRow = document.createElement("div");
+        durationRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+        if (getToastSticky()) { durationRow.style.opacity = "0.4"; durationRow.style.pointerEvents = "none"; }
+        const durationLbl = document.createElement("span");
+        durationLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
+        durationLbl.textContent = "Popup dismiss time (seconds)";
+        const durationInput = document.createElement("input");
+        durationInput.type = "number";
+        durationInput.min = "1";
+        durationInput.max = "60";
+        durationInput.step = "1";
+        durationInput.value = String(getToastDurationSec());
+        durationInput.style.cssText = "width:52px;background:#100508;border:1px solid #3a1928;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;text-align:center;";
+        durationInput.addEventListener("change", () => {
+            const val = parseInt(durationInput.value, 10);
+            if (!isNaN(val)) { setToastDurationSec(val); durationInput.value = String(getToastDurationSec()); }
+        });
+        durationRow.appendChild(durationLbl);
+        durationRow.appendChild(durationInput);
+        chatSettingsBody.appendChild(durationRow);
 
         // ── AFK Auto-Reply (top-level) ────────────────────────────────────────
         let afkCollapsed = true;
