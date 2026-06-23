@@ -25486,12 +25486,14 @@ export class EBCDrawer {
         const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
 
         const POSE_DEFS: ReadonlyArray<[string, string, string[], string]> = [
-            ["🚶", "Stand",     [],                       ""],
-            ["🧎", "Kneel",     ["Kneel"],                "into a kneeling position"],
-            ["🐈", "All Fours", ["AllFours"],             "onto all fours"],
-            ["🙌", "Hands Up",  ["OverTheHead"],          "into a hands-up pose"],
-            ["🫸", "Spread",    ["KneelingSpread"],       "into a kneeling spread"],
-            ["🤸", "Kneel+Up",  ["Kneel","OverTheHead"],  "into a kneeling position with arms raised"],
+            ["🚶", "Stand",      [],                                ""],
+            ["🧎", "Kneel",      ["Kneel"],                         "into a kneeling position"],
+            ["🐈", "All Fours",  ["AllFours"],                      "onto all fours"],
+            ["🙌", "Hands Up",   ["OverTheHead"],                   "into a hands-up pose"],
+            ["🫸", "Spread",     ["KneelingSpread"],                "into a kneeling spread"],
+            ["🤸", "Kneel+Up",   ["Kneel","OverTheHead"],           "into a kneeling position with arms raised"],
+            ["🙏", "Tight Back", ["BackElbowTouch"],                "arms pulled tight behind the back"],
+            ["🧎", "Kneel+Tight",["Kneel","BackElbowTouch"],        "into a kneeling position with arms tight behind the back"],
         ];
 
         const poseGrid = document.createElement("div");

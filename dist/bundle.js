@@ -33868,6 +33868,8 @@
                 ["🙌", "Hands Up", ["OverTheHead"], "into a hands-up pose"],
                 ["🫸", "Spread", ["KneelingSpread"], "into a kneeling spread"],
                 ["🤸", "Kneel+Up", ["Kneel", "OverTheHead"], "into a kneeling position with arms raised"],
+                ["🙏", "Tight Back", ["BackElbowTouch"], "arms pulled tight behind the back"],
+                ["🧎", "Kneel+Tight", ["Kneel", "BackElbowTouch"], "into a kneeling position with arms tight behind the back"],
             ];
             const poseGrid = document.createElement("div");
             poseGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;";
@@ -34790,7 +34792,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 139; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 140; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34815,7 +34817,7 @@
                 "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
                 "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
                 "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
-                "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section.",
+                "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
             ],
         },
         {
