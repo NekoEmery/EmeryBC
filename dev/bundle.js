@@ -1924,24 +1924,24 @@
         {
             group: "Body",
             poses: [
-                { key: "", label: "Stand" },
-                { key: "LegsClosed", label: "Legs Closed" },
-                { key: "Kneel", label: "Kneel" },
-                { key: "KneelingSpread", label: "Kneel Wide" },
-                { key: "AllFours", label: "All Fours" },
-                { key: "Hogtied", label: "Hogtied" },
-                { key: "Spread", label: "Spread" },
+                { key: "", label: "Stand", announceText: "stands up straight" },
+                { key: "LegsClosed", label: "Legs Closed", announceText: "closes their legs" },
+                { key: "Kneel", label: "Kneel", announceText: "kneels down" },
+                { key: "KneelingSpread", label: "Kneel Wide", announceText: "kneels with their legs spread wide" },
+                { key: "AllFours", label: "All Fours", announceText: "gets down on all fours" },
+                { key: "Hogtied", label: "Hogtied", announceText: "lies hogtied" },
+                { key: "Spread", label: "Spread", announceText: "spreads their legs wide" },
             ],
         },
         {
             group: "Arms",
             poses: [
-                { key: "", label: "Relaxed" },
-                { key: "OverTheHead", label: "Arms Up" },
-                { key: "BackCuffs", label: "Arms Back" },
-                { key: "BackElbowTouch", label: "Tight Back" },
-                { key: "BackBoxTie", label: "Box Tie" },
-                { key: "Yoked", label: "Yoked" },
+                { key: "", label: "Relaxed", announceText: "relaxes their arms" },
+                { key: "OverTheHead", label: "Arms Up", announceText: "raises their arms above their head" },
+                { key: "BackCuffs", label: "Arms Back", announceText: "puts their arms behind their back" },
+                { key: "BackElbowTouch", label: "Tight Back", announceText: "pulls their arms tight behind their back" },
+                { key: "BackBoxTie", label: "Box Tie", announceText: "crosses their arms behind their back" },
+                { key: "Yoked", label: "Yoked", announceText: "holds their arms in a yoked position" },
             ],
         },
     ];
@@ -17847,6 +17847,12 @@
                             // Replace arm pose but keep existing body poses
                             const bodyPoses = livePoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
                             applyPoses([...bodyPoses, preset.key]);
+                        }
+                        if (preset.announceText) {
+                            try {
+                                ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] });
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
                         }
                         this.rerender(150);
                     });
@@ -34792,7 +34798,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 140; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 141; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34818,6 +34824,7 @@
                 "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
                 "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
                 "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
+                "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
             ],
         },
         {
