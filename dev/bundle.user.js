@@ -20098,6 +20098,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 minimizeBtn.textContent = entry.minimized ? "▲" : "–";
                 minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
                 if (!entry.minimized) {
+                    // Re-clamp bottom so the header stays on-screen now that the window is full height.
+                    // While minimized the window is only 44px so it can be dragged to a high bottom
+                    // value; when expanded (~380px) that same bottom would push the header off-screen.
+                    window.requestAnimationFrame(() => {
+                        const winH = win.offsetHeight || 380;
+                        const cur = parseFloat(win.style.bottom) || 0;
+                        const max = Math.max(0, window.innerHeight - winH);
+                        if (cur > max)
+                            win.style.bottom = `${max}px`;
+                    });
                     // History just became visible - scroll to bottom (scrollHeight is 0 while hidden)
                     window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
                     unreadDot.classList.remove("visible");
@@ -21164,8 +21174,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const onMove = (e) => {
                 if (!isDrag)
                     return;
-                win.style.left = `${e.clientX - dragOX}px`;
-                win.style.top = `${e.clientY - dragOY}px`;
+                const winW = win.offsetWidth || 300;
+                const winH = win.offsetHeight || 44;
+                win.style.left = `${Math.max(0, Math.min(e.clientX - dragOX, window.innerWidth - winW))}px`;
+                win.style.top = `${Math.max(0, Math.min(e.clientY - dragOY, window.innerHeight - winH))}px`;
                 win.style.right = "";
                 win.style.bottom = "";
             };
@@ -34911,7 +34923,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 142; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 143; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34939,6 +34951,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
                 "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
                 "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
+                "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
+                "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
             ],
         },
         {
