@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 144;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 145;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -59,6 +59,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
             "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
             "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
+            "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
         ],
     },
     {
