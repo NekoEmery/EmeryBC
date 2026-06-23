@@ -34,14 +34,14 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
             { key: "",               label: "Relaxed"     },
             { key: "OverTheHead",    label: "Arms Up"     },
             { key: "BackCuffs",      label: "Arms Back"   },
-            { key: "BackElbowCuffs", label: "Tight Back"  },
+            { key: "BackElbowTouch", label: "Tight Back"  },
             { key: "BackBoxTie",     label: "Box Tie"     },
             { key: "Yoked",          label: "Yoked"       },
         ],
     },
 ];
 
-const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowCuffs", "BackBoxTie", "Yoked"];
+const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
 
 export function applyPoses(poses: string[]): void {
     // An explicit empty string ("") in the list means "Relaxed arms" —

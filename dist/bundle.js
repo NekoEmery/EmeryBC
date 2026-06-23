@@ -1939,13 +1939,13 @@
                 { key: "", label: "Relaxed" },
                 { key: "OverTheHead", label: "Arms Up" },
                 { key: "BackCuffs", label: "Arms Back" },
-                { key: "BackElbowCuffs", label: "Tight Back" },
+                { key: "BackElbowTouch", label: "Tight Back" },
                 { key: "BackBoxTie", label: "Box Tie" },
                 { key: "Yoked", label: "Yoked" },
             ],
         },
     ];
-    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowCuffs", "BackBoxTie", "Yoked"];
+    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
     function applyPoses(poses) {
         // An explicit empty string ("") in the list means "Relaxed arms" —
         // clear any active arm pose from the result set.
@@ -34790,7 +34790,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 138; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 139; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34815,7 +34815,7 @@
                 "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
                 "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
                 "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
-                "Anims: added 'Tight Back' pose (BackElbowCuffs) to the Arms section.",
+                "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section.",
             ],
         },
         {
