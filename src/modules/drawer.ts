@@ -18530,6 +18530,60 @@ export class EBCDrawer {
                     }
                 }
 
+                // -- Pose-on-fire row --
+                {
+                    const POSE_NONE = "__none__";
+                    const poseRow = document.createElement("div");
+                    poseRow.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
+                    const poseLbl = document.createElement("span");
+                    poseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                    poseLbl.textContent = "Pose:";
+
+                    const SEL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+
+                    const bodySel = document.createElement("select");
+                    bodySel.style.cssText = SEL_CSS;
+                    bodySel.title = "Body pose to apply when this button fires";
+                    const bodyNoneOpt = document.createElement("option");
+                    bodyNoneOpt.value = POSE_NONE; bodyNoneOpt.textContent = "-- body --";
+                    bodySel.appendChild(bodyNoneOpt);
+                    for (const p of (KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [])) {
+                        const opt = document.createElement("option");
+                        opt.value = p.key; opt.textContent = p.label;
+                        opt.selected = btn.bodyPoseKey !== undefined && btn.bodyPoseKey === p.key;
+                        bodySel.appendChild(opt);
+                    }
+                    if (btn.bodyPoseKey === undefined) bodySel.value = POSE_NONE;
+
+                    const armSel = document.createElement("select");
+                    armSel.style.cssText = SEL_CSS;
+                    armSel.title = "Arms pose to apply when this button fires";
+                    const armNoneOpt = document.createElement("option");
+                    armNoneOpt.value = POSE_NONE; armNoneOpt.textContent = "-- arms --";
+                    armSel.appendChild(armNoneOpt);
+                    for (const p of (KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [])) {
+                        const opt = document.createElement("option");
+                        opt.value = p.key; opt.textContent = p.label;
+                        opt.selected = btn.armPoseKey !== undefined && btn.armPoseKey === p.key;
+                        armSel.appendChild(opt);
+                    }
+                    if (btn.armPoseKey === undefined) armSel.value = POSE_NONE;
+
+                    bodySel.addEventListener("change", () => {
+                        if (bodySel.value === POSE_NONE) btns[i].bodyPoseKey = undefined;
+                        else btns[i].bodyPoseKey = bodySel.value;
+                    });
+                    armSel.addEventListener("change", () => {
+                        if (armSel.value === POSE_NONE) btns[i].armPoseKey = undefined;
+                        else btns[i].armPoseKey = armSel.value;
+                    });
+
+                    poseRow.appendChild(poseLbl);
+                    poseRow.appendChild(bodySel);
+                    poseRow.appendChild(armSel);
+                    row.appendChild(poseRow);
+                }
+
                 slotList.appendChild(row);
 
                 // -- Seq step builder (only for seq style) --

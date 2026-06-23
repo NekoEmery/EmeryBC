@@ -25,7 +25,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 141;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 142;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -55,6 +55,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
             "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
             "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
+            "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
         ],
     },
     {

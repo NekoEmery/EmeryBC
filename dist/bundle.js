@@ -4507,7 +4507,7 @@
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c, _d, _e, _f, _g;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -4571,6 +4571,26 @@
                     sendAction(btn.emote, (_f = btn.style) !== null && _f !== void 0 ? _f : "action", btn.includeNameInAnnounce !== false);
                 if (btn.exprPresetId)
                     applyExprPresetWithRevert(btn.exprPresetId, (_g = btn.exprDurationMs) !== null && _g !== void 0 ? _g : 0);
+                if (btn.bodyPoseKey !== undefined || btn.armPoseKey !== undefined) {
+                    try {
+                        const live = getCurrentPoses();
+                        const armKeys = (_j = (_h = KNOWN_POSES.find(g => g.group === "Arms")) === null || _h === void 0 ? void 0 : _h.poses.map(p => p.key).filter(Boolean)) !== null && _j !== void 0 ? _j : [];
+                        const bodyKeys = (_l = (_k = KNOWN_POSES.find(g => g.group === "Body")) === null || _k === void 0 ? void 0 : _k.poses.map(p => p.key).filter(Boolean)) !== null && _l !== void 0 ? _l : [];
+                        let result = [...live];
+                        if (btn.bodyPoseKey !== undefined) {
+                            result = result.filter(p => !bodyKeys.includes(p));
+                            if (btn.bodyPoseKey)
+                                result.push(btn.bodyPoseKey);
+                        }
+                        if (btn.armPoseKey !== undefined) {
+                            result = result.filter(p => !armKeys.includes(p));
+                            if (btn.armPoseKey)
+                                result.push(btn.armPoseKey);
+                        }
+                        applyPoses(result);
+                    }
+                    catch ( /* ignore */_m) { /* ignore */ }
+                }
                 return true;
             }
         }
@@ -25765,7 +25785,7 @@
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a, _b, _c;
+                var _a, _b, _c, _d, _e, _f, _g;
                 // Always ensure btns has a real object for every slot - prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -25975,6 +25995,64 @@
                             exprLine.appendChild(exprLineDurSel);
                             row.appendChild(exprLine);
                         }
+                    }
+                    // -- Pose-on-fire row --
+                    {
+                        const POSE_NONE = "__none__";
+                        const poseRow = document.createElement("div");
+                        poseRow.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
+                        const poseLbl = document.createElement("span");
+                        poseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                        poseLbl.textContent = "Pose:";
+                        const SEL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+                        const bodySel = document.createElement("select");
+                        bodySel.style.cssText = SEL_CSS;
+                        bodySel.title = "Body pose to apply when this button fires";
+                        const bodyNoneOpt = document.createElement("option");
+                        bodyNoneOpt.value = POSE_NONE;
+                        bodyNoneOpt.textContent = "-- body --";
+                        bodySel.appendChild(bodyNoneOpt);
+                        for (const p of ((_e = (_d = KNOWN_POSES.find(g => g.group === "Body")) === null || _d === void 0 ? void 0 : _d.poses) !== null && _e !== void 0 ? _e : [])) {
+                            const opt = document.createElement("option");
+                            opt.value = p.key;
+                            opt.textContent = p.label;
+                            opt.selected = btn.bodyPoseKey !== undefined && btn.bodyPoseKey === p.key;
+                            bodySel.appendChild(opt);
+                        }
+                        if (btn.bodyPoseKey === undefined)
+                            bodySel.value = POSE_NONE;
+                        const armSel = document.createElement("select");
+                        armSel.style.cssText = SEL_CSS;
+                        armSel.title = "Arms pose to apply when this button fires";
+                        const armNoneOpt = document.createElement("option");
+                        armNoneOpt.value = POSE_NONE;
+                        armNoneOpt.textContent = "-- arms --";
+                        armSel.appendChild(armNoneOpt);
+                        for (const p of ((_g = (_f = KNOWN_POSES.find(g => g.group === "Arms")) === null || _f === void 0 ? void 0 : _f.poses) !== null && _g !== void 0 ? _g : [])) {
+                            const opt = document.createElement("option");
+                            opt.value = p.key;
+                            opt.textContent = p.label;
+                            opt.selected = btn.armPoseKey !== undefined && btn.armPoseKey === p.key;
+                            armSel.appendChild(opt);
+                        }
+                        if (btn.armPoseKey === undefined)
+                            armSel.value = POSE_NONE;
+                        bodySel.addEventListener("change", () => {
+                            if (bodySel.value === POSE_NONE)
+                                btns[i].bodyPoseKey = undefined;
+                            else
+                                btns[i].bodyPoseKey = bodySel.value;
+                        });
+                        armSel.addEventListener("change", () => {
+                            if (armSel.value === POSE_NONE)
+                                btns[i].armPoseKey = undefined;
+                            else
+                                btns[i].armPoseKey = armSel.value;
+                        });
+                        poseRow.appendChild(poseLbl);
+                        poseRow.appendChild(bodySel);
+                        poseRow.appendChild(armSel);
+                        row.appendChild(poseRow);
                     }
                     slotList.appendChild(row);
                     // -- Seq step builder (only for seq style) --
@@ -34798,7 +34876,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 141; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 142; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34825,6 +34903,7 @@
                 "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
                 "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
                 "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
+                "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
             ],
         },
         {

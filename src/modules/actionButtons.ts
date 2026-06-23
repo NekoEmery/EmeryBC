@@ -2,6 +2,7 @@
 import { UI } from "./ui";
 import { callBC, getSettings, syncSettings } from "./bcUtils";
 import { applyExprPresetWithRevert } from "./expressions";
+import { applyPoses, getCurrentPoses, KNOWN_POSES } from "./poses";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -17,6 +18,8 @@ export interface ActionButton {
     includeNameInAnnounce?: boolean; // default true; only applies to "action" style
     exprPresetId?: string;    // optional expression preset to apply on fire
     exprDurationMs?: number;  // ms before reverting back (0 = keep forever)
+    bodyPoseKey?: string;     // undefined = no change; "" = Stand; pose key = apply
+    armPoseKey?: string;      // undefined = no change; "" = Relaxed; pose key = apply
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -934,6 +937,23 @@ export function handleActionButtonClick(): boolean {
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             if (btn.exprPresetId) applyExprPresetWithRevert(btn.exprPresetId, btn.exprDurationMs ?? 0);
+            if (btn.bodyPoseKey !== undefined || btn.armPoseKey !== undefined) {
+                try {
+                    const live = getCurrentPoses();
+                    const armKeys = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
+                    const bodyKeys = KNOWN_POSES.find(g => g.group === "Body")?.poses.map(p => p.key).filter(Boolean) ?? [];
+                    let result = [...live];
+                    if (btn.bodyPoseKey !== undefined) {
+                        result = result.filter(p => !bodyKeys.includes(p));
+                        if (btn.bodyPoseKey) result.push(btn.bodyPoseKey);
+                    }
+                    if (btn.armPoseKey !== undefined) {
+                        result = result.filter(p => !armKeys.includes(p));
+                        if (btn.armPoseKey) result.push(btn.armPoseKey);
+                    }
+                    applyPoses(result);
+                } catch { /* ignore */ }
+            }
             return true;
         }
     }
