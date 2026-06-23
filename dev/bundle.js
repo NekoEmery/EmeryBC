@@ -2733,6 +2733,41 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Beep toast duration / sticky ---------------------------------------------
+    function getToastSticky() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setToastSticky(value) {
+        try {
+            getSettings().toastSticky = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Returns the auto-dismiss duration in seconds (1-60). Default: 5. */
+    function getToastDurationSec() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
+            if (typeof v === "number" && v >= 1 && v <= 60)
+                return v;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return 5;
+    }
+    function setToastDurationSec(value) {
+        try {
+            getSettings().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Quick replies -------------------------------------------------------------
     // Configurable one-click phrases shown as buttons inside beep windows.
     // Clicking inserts the text into the input so the user can review/edit before sending.
@@ -21043,8 +21078,10 @@
                     toast.classList.add("ebc-toast-out");
                     setTimeout(() => toast.remove(), 320);
                 };
-                const timer = setTimeout(dismiss, 5000);
-                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                if (!getToastSticky()) {
+                    const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                    toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                }
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -21099,8 +21136,10 @@
                     toast.classList.add("ebc-toast-out");
                     setTimeout(() => toast.remove(), 320);
                 };
-                const timer = setTimeout(dismiss, 5000);
-                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                if (!getToastSticky()) {
+                    const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                    toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                }
             }
             catch ( /* ignore */_b) { /* ignore */ }
         }
@@ -21438,6 +21477,35 @@
             lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
             lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
             chatSettingsBody.appendChild(lianHint);
+            // Toast sticky + duration
+            const stickyRow = mkToggleRow("Keep beep popups until dismissed", getToastSticky, (v) => { setToastSticky(v); durationRow.style.opacity = v ? "0.4" : "1"; durationRow.style.pointerEvents = v ? "none" : ""; });
+            chatSettingsBody.appendChild(stickyRow);
+            const durationRow = document.createElement("div");
+            durationRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            if (getToastSticky()) {
+                durationRow.style.opacity = "0.4";
+                durationRow.style.pointerEvents = "none";
+            }
+            const durationLbl = document.createElement("span");
+            durationLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
+            durationLbl.textContent = "Popup dismiss time (seconds)";
+            const durationInput = document.createElement("input");
+            durationInput.type = "number";
+            durationInput.min = "1";
+            durationInput.max = "60";
+            durationInput.step = "1";
+            durationInput.value = String(getToastDurationSec());
+            durationInput.style.cssText = "width:52px;background:#100508;border:1px solid #3a1928;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;text-align:center;";
+            durationInput.addEventListener("change", () => {
+                const val = parseInt(durationInput.value, 10);
+                if (!isNaN(val)) {
+                    setToastDurationSec(val);
+                    durationInput.value = String(getToastDurationSec());
+                }
+            });
+            durationRow.appendChild(durationLbl);
+            durationRow.appendChild(durationInput);
+            chatSettingsBody.appendChild(durationRow);
             // ── AFK Auto-Reply (top-level) ────────────────────────────────────────
             let afkCollapsed = true;
             try {
@@ -34909,7 +34977,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 145; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 146; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34941,6 +35009,7 @@
                 "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
                 "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
                 "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
+                "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
             ],
         },
         {
