@@ -10331,6 +10331,9 @@ export class EBCDrawer {
                         );
                         applyPoses([...bodyPoses, preset.key]);
                     }
+                    if (preset.announceText) {
+                        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] }); } catch { /* ignore */ }
+                    }
                     this.rerender(150);
                 });
                 grid.appendChild(btn);
