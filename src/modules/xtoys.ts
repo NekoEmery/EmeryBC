@@ -62,6 +62,10 @@ export function isXToysUser(memberNumber: number | null | undefined): boolean {
     return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
 }
 
+export function isXToysEnabled(): boolean {
+    try { return getSettings().xtoysEnabled === true; } catch { return false; }
+}
+
 // ── Connection ─────────────────────────────────────────────────────────────────
 
 export function xtoysConnect(webhookId?: string): void {

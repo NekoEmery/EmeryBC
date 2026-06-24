@@ -2733,6 +2733,41 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Beep toast duration / sticky ---------------------------------------------
+    function getToastSticky() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setToastSticky(value) {
+        try {
+            getSettings().toastSticky = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Returns the auto-dismiss duration in seconds (1-60). Default: 5. */
+    function getToastDurationSec() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
+            if (typeof v === "number" && v >= 1 && v <= 60)
+                return v;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return 5;
+    }
+    function setToastDurationSec(value) {
+        try {
+            getSettings().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Quick replies -------------------------------------------------------------
     // Configurable one-click phrases shown as buttons inside beep windows.
     // Clicking inserts the text into the input so the user can review/edit before sending.
@@ -5961,7 +5996,7 @@
     // Enable logging via the DEV tab toggle; disabled by default so it
     // doesn't accumulate garbage in rooms where the user never opens DEV.
     const MAX_ENTRIES$1 = 60;
-    const _log$1 = [];
+    const _log$2 = [];
     let _enabled = false;
     function isDevLogEnabled() { return _enabled; }
     function setDevLogEnabled(v) { _enabled = v; }
@@ -5970,32 +6005,243 @@
         if (!_enabled)
             return;
         try {
-            _log$1.push({
+            _log$2.push({
                 timestamp: new Date(),
                 type: String((_a = data.Type) !== null && _a !== void 0 ? _a : "?"),
                 content: String((_b = data.Content) !== null && _b !== void 0 ? _b : ""),
                 sender: typeof data.Sender === "number" ? data.Sender : undefined,
                 dictionary: data.Dictionary,
             });
-            if (_log$1.length > MAX_ENTRIES$1)
-                _log$1.shift();
+            if (_log$2.length > MAX_ENTRIES$1)
+                _log$2.shift();
         }
         catch ( /* ignore */_c) { /* ignore */ }
     }
-    function getDevLog() { return _log$1; }
-    function clearDevLog() { _log$1.length = 0; }
+    function getDevLog() { return _log$2; }
+    function clearDevLog() { _log$2.length = 0; }
     // Push a UI test entry directly — bypasses the enabled guard so it works
     // even when logging is off, letting the user verify the log display itself.
     function pushTestEntry() {
-        _log$1.push({
+        _log$2.push({
             timestamp: new Date(),
             type: "Test",
             content: "[EBC] Log UI is working — this is a test entry.",
             sender: undefined,
             dictionary: { note: "manually injected, not a real server message" },
         });
-        if (_log$1.length > MAX_ENTRIES$1)
-            _log$1.shift();
+        if (_log$2.length > MAX_ENTRIES$1)
+            _log$2.shift();
+    }
+
+    // XToys WebSocket integration.
+    // Sends BC game events (activities, vibrator changes, shocks) to the XToys
+    // webhook so physical toys respond to in-game actions.
+    // Restricted to specific member numbers only.
+    const XTOYS_MEMBERS = [130267, 230466]; // Emery, Lucy
+    const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
+    const MAX_RETRIES = 3;
+    const LOG_MAX = 30;
+    let _ws = null;
+    let _currentId = "";
+    let _retries = 0;
+    let _reconnectTimer = null;
+    let _status = "disconnected";
+    const _log$1 = [];
+    let _listeners$1 = [];
+    // ── Status ─────────────────────────────────────────────────────────────────────
+    function xtoysStatus() { return _status; }
+    function xtoysLog() { return [..._log$1]; }
+    function _setStatus(s) {
+        _status = s;
+        for (const cb of _listeners$1) {
+            try {
+                cb(s);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+    }
+    function _pushLog(label, text) {
+        const d = new Date();
+        const ts = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+        _log$1.unshift({ ts, label, text });
+        if (_log$1.length > LOG_MAX)
+            _log$1.pop();
+    }
+    // ── Settings ───────────────────────────────────────────────────────────────────
+    function getXToysWebhookId() {
+        try {
+            const v = getSettings().xtoysWebhookId;
+            return typeof v === "string" ? v : "";
+        }
+        catch (_a) {
+            return "";
+        }
+    }
+    function setXToysWebhookId(id) {
+        try {
+            getSettings().xtoysWebhookId = id.trim();
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function isXToysUser(memberNumber) {
+        return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
+    }
+    function isXToysEnabled() {
+        try {
+            return getSettings().xtoysEnabled === true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    // ── Connection ─────────────────────────────────────────────────────────────────
+    function xtoysConnect(webhookId) {
+        const id = (webhookId !== null && webhookId !== void 0 ? webhookId : getXToysWebhookId()).trim();
+        if (!id)
+            return;
+        _currentId = id;
+        setXToysWebhookId(id);
+        _retries = 0;
+        _doConnect();
+    }
+    function _doConnect() {
+        if (_reconnectTimer !== null) {
+            clearTimeout(_reconnectTimer);
+            _reconnectTimer = null;
+        }
+        if (_ws) {
+            try {
+                _ws.close();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            _ws = null;
+        }
+        const url = _currentId.startsWith("wss://") || _currentId.startsWith("ws://")
+            ? _currentId
+            : `${XTOYS_WS_BASE}${_currentId}`;
+        _setStatus("connecting");
+        try {
+            const ws = new WebSocket(url);
+            _ws = ws;
+            ws.addEventListener("open", () => {
+                _retries = 0;
+                _setStatus("connected");
+                _pushLog("sys", "connected");
+            });
+            ws.addEventListener("close", (ev) => {
+                _ws = null;
+                if (_retries < MAX_RETRIES) {
+                    _retries++;
+                    const delay = 3000 * _retries;
+                    _setStatus("connecting");
+                    _pushLog("sys", `reconnecting in ${delay / 1000}s (attempt ${_retries}/${MAX_RETRIES})`);
+                    _reconnectTimer = setTimeout(_doConnect, delay);
+                }
+                else {
+                    _setStatus("disconnected");
+                    _pushLog("sys", `disconnected (code ${ev.code})`);
+                }
+            });
+            ws.addEventListener("error", () => {
+                _setStatus("error");
+                _pushLog("err", "connection error");
+            });
+        }
+        catch (_b) {
+            _setStatus("error");
+            _pushLog("err", "failed to open WebSocket");
+        }
+    }
+    function xtoysDisconnect() {
+        if (_reconnectTimer !== null) {
+            clearTimeout(_reconnectTimer);
+            _reconnectTimer = null;
+        }
+        if (_ws) {
+            try {
+                _ws.close();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            _ws = null;
+        }
+        _retries = MAX_RETRIES; // prevent auto-reconnect
+        _currentId = "";
+        _setStatus("disconnected");
+        _pushLog("sys", "disconnected by user");
+    }
+    // ── Send ───────────────────────────────────────────────────────────────────────
+    function xtoysSend(payload) {
+        var _a;
+        if (!_ws || _ws.readyState !== WebSocket.OPEN)
+            return;
+        try {
+            _ws.send(JSON.stringify(payload));
+            const action = String((_a = payload.action) !== null && _a !== void 0 ? _a : "?");
+            const detail = [payload.activityGroup, payload.actionName, payload.assetName, payload.toyState]
+                .filter(Boolean).join(" / ");
+            _pushLog("out", detail ? `${action}: ${detail}` : action);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // ── Event helpers ──────────────────────────────────────────────────────────────
+    function xtoysActivityEvent(activityGroup, actionName, assetName) {
+        const p = { action: "activityEvent", activityGroup, actionName };
+        xtoysSend(p);
+    }
+    function xtoysActivityOnOtherEvent(activityGroup, actionName, assetName) {
+        const p = { action: "activityOnOtherEvent", activityGroup, actionName };
+        xtoysSend(p);
+    }
+    function xtoysItemAdded(assetGroup, assetName) {
+        xtoysSend({ action: "itemAdded", assetGroup, assetName });
+    }
+    function xtoysItemRemoved(assetGroup, assetName) {
+        xtoysSend({ action: "itemRemoved", assetGroup, assetName });
+    }
+    function xtoysShockEvent() {
+        xtoysSend({ action: "shockEvent" });
+    }
+    function xtoysToyEvent(toyState, assetGroup) {
+        const p = { action: "toyEvent", toyState };
+        if (assetGroup)
+            p.assetGroup = assetGroup;
+        xtoysSend(p);
+    }
+    function parseXToysActivity(dict) {
+        let targetNum;
+        let sourceNum;
+        let actGroup;
+        let actName;
+        for (const item of dict) {
+            // Target
+            if ("TargetCharacter" in item && typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
+                targetNum = item.TargetCharacter.MemberNumber;
+            }
+            if (item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") {
+                if (typeof item.MemberNumber === "number")
+                    targetNum = item.MemberNumber;
+            }
+            // Source
+            if ("SourceCharacter" in item && typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
+                sourceNum = item.SourceCharacter.MemberNumber;
+            }
+            if (item.Tag === "SourceCharacter") {
+                if (typeof item.MemberNumber === "number")
+                    sourceNum = item.MemberNumber;
+            }
+            // Asset group
+            if (typeof item.ActivityAssetGroup === "string")
+                actGroup = item.ActivityAssetGroup;
+            if (item.Tag === "AssetGroupName" && typeof item.AssetGroupName === "string")
+                actGroup = item.AssetGroupName;
+            // Activity name
+            if (typeof item.ActivityAsset === "string")
+                actName = item.ActivityAsset;
+            if (item.Tag === "ActivityName" && typeof item.ActivityName === "string")
+                actName = item.ActivityName;
+        }
+        return { targetNum, sourceNum, actGroup, actName };
     }
 
     // Safeword system — two-word safety protocol.
@@ -21043,8 +21289,10 @@
                     toast.classList.add("ebc-toast-out");
                     setTimeout(() => toast.remove(), 320);
                 };
-                const timer = setTimeout(dismiss, 5000);
-                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                if (!getToastSticky()) {
+                    const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                    toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                }
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -21099,8 +21347,10 @@
                     toast.classList.add("ebc-toast-out");
                     setTimeout(() => toast.remove(), 320);
                 };
-                const timer = setTimeout(dismiss, 5000);
-                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                if (!getToastSticky()) {
+                    const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                    toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+                }
             }
             catch ( /* ignore */_b) { /* ignore */ }
         }
@@ -21438,6 +21688,35 @@
             lianHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);padding:0 2px 2px;";
             lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
             chatSettingsBody.appendChild(lianHint);
+            // Toast sticky + duration
+            const stickyRow = mkToggleRow("Keep beep popups until dismissed", getToastSticky, (v) => { setToastSticky(v); durationRow.style.opacity = v ? "0.4" : "1"; durationRow.style.pointerEvents = v ? "none" : ""; });
+            chatSettingsBody.appendChild(stickyRow);
+            const durationRow = document.createElement("div");
+            durationRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            if (getToastSticky()) {
+                durationRow.style.opacity = "0.4";
+                durationRow.style.pointerEvents = "none";
+            }
+            const durationLbl = document.createElement("span");
+            durationLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
+            durationLbl.textContent = "Popup dismiss time (seconds)";
+            const durationInput = document.createElement("input");
+            durationInput.type = "number";
+            durationInput.min = "1";
+            durationInput.max = "60";
+            durationInput.step = "1";
+            durationInput.value = String(getToastDurationSec());
+            durationInput.style.cssText = "width:52px;background:#100508;border:1px solid #3a1928;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;text-align:center;";
+            durationInput.addEventListener("change", () => {
+                const val = parseInt(durationInput.value, 10);
+                if (!isNaN(val)) {
+                    setToastDurationSec(val);
+                    durationInput.value = String(getToastDurationSec());
+                }
+            });
+            durationRow.appendChild(durationLbl);
+            durationRow.appendChild(durationInput);
+            chatSettingsBody.appendChild(durationRow);
             // ── AFK Auto-Reply (top-level) ────────────────────────────────────────
             let afkCollapsed = true;
             try {
@@ -31399,6 +31678,116 @@
                 }
                 card.appendChild(psWrap);
             }
+            // ── XToys (Emery + Lucy only) ─────────────────────────────────────────
+            const _xMn = Player.MemberNumber;
+            if (isXToysUser(_xMn)) {
+                card.appendChild(sep());
+                const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open");
+                if (s.xtoysEnabled !== true) {
+                    const note = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                    note.textContent = t("toys.enableAbove");
+                    xtContent.appendChild(note);
+                }
+                else {
+                    const xtHdr = (txt) => {
+                        const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
+                        d.textContent = txt;
+                        return d;
+                    };
+                    // Connection card
+                    const connBox = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    // Status row
+                    const statusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                    const statusDot = mk("span", "font-size:14px;flex-shrink:0;");
+                    const statusLbl = mk("span", `${FONT}font-size:11px;flex:1;`);
+                    const refreshStatus = () => {
+                        const st = xtoysStatus();
+                        statusDot.textContent = st === "connected" ? "🟢" : st === "connecting" ? "🟡" : st === "error" ? "🔴" : "⚫";
+                        const [col, txt] = st === "connected" ? ["#70c080", "Connected"]
+                            : st === "connecting" ? ["#c0a040", "Connecting..."]
+                                : st === "error" ? ["#e07070", "Connection error"]
+                                    : ["var(--ebc-text-muted)", "Disconnected"];
+                        statusLbl.textContent = txt;
+                        statusLbl.style.color = col;
+                    };
+                    refreshStatus();
+                    statusRow.appendChild(statusDot);
+                    statusRow.appendChild(statusLbl);
+                    connBox.appendChild(statusRow);
+                    const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;`);
+                    hint.textContent = "Paste the Webhook ID from xtoys.app (run the BC XToys script there first to get one).";
+                    connBox.appendChild(hint);
+                    // Webhook ID input
+                    const idRow = mk("div", "display:flex;gap:6px;align-items:center;margin-bottom:6px;");
+                    const idInp = document.createElement("input");
+                    idInp.type = "password";
+                    idInp.placeholder = "Webhook ID";
+                    idInp.value = getXToysWebhookId();
+                    idInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:5px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;min-width:0;outline:none;`;
+                    const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    eyeBtn.addEventListener("click", () => { idInp.type = idInp.type === "password" ? "text" : "password"; });
+                    idRow.appendChild(idInp);
+                    idRow.appendChild(eyeBtn);
+                    connBox.appendChild(idRow);
+                    // Connect / Disconnect buttons
+                    const btnRow = mk("div", "display:flex;gap:6px;");
+                    const connBtn = mkBtn("Connect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                    connBtn.addEventListener("click", () => {
+                        const id = idInp.value.trim();
+                        if (!id)
+                            return;
+                        xtoysConnect(id);
+                        // Poll status briefly so the dot updates without a full re-render
+                        let polls = 0;
+                        const poll = setInterval(() => {
+                            refreshStatus();
+                            polls++;
+                            const st = xtoysStatus();
+                            if (st === "connected" || st === "disconnected" || polls > 30)
+                                clearInterval(poll);
+                        }, 400);
+                    });
+                    const discBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                    discBtn.addEventListener("click", () => { xtoysDisconnect(); refreshStatus(); });
+                    btnRow.appendChild(connBtn);
+                    btnRow.appendChild(discBtn);
+                    connBox.appendChild(btnRow);
+                    xtContent.appendChild(connBox);
+                    // Event log
+                    xtContent.appendChild(xtHdr("Event Log"));
+                    const logRefreshBtn = mkBtn("Refresh", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                    const logEl = mk("div", `font-family:monospace;font-size:10px;overflow-y:auto;max-height:130px;padding:5px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:4px;`);
+                    const renderLog = () => {
+                        while (logEl.firstChild)
+                            logEl.removeChild(logEl.firstChild);
+                        const entries = xtoysLog();
+                        if (!entries.length) {
+                            const empty = mk("div", "color:#666;");
+                            empty.textContent = "No events yet.";
+                            logEl.appendChild(empty);
+                            return;
+                        }
+                        for (const e of entries) {
+                            const row = mk("div", "display:flex;gap:6px;padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04);");
+                            const tsEl = mk("span", "color:#555;white-space:nowrap;flex-shrink:0;");
+                            tsEl.textContent = e.ts;
+                            const lblEl = mk("span", `color:${e.label === "out" ? "#70c0e8" : e.label === "err" ? "#e07070" : "#a8a0c0"};white-space:nowrap;flex-shrink:0;width:24px;`);
+                            lblEl.textContent = e.label;
+                            const txtEl = mk("span", "color:#bbb;flex:1;word-break:break-all;");
+                            txtEl.textContent = e.text;
+                            row.appendChild(tsEl);
+                            row.appendChild(lblEl);
+                            row.appendChild(txtEl);
+                            logEl.appendChild(row);
+                        }
+                    };
+                    renderLog();
+                    logRefreshBtn.addEventListener("click", () => { refreshStatus(); renderLog(); });
+                    xtContent.appendChild(logRefreshBtn);
+                    xtContent.appendChild(logEl);
+                }
+                card.appendChild(xtWrap);
+            }
             body.appendChild(card);
         }
         async fireLovense(intensity, duration, allowedNames) {
@@ -34909,7 +35298,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 145; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 149; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -34941,6 +35330,10 @@
                 "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
                 "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
                 "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
+                "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
+                "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
+                "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
+                "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
             ],
         },
         {
@@ -42072,8 +42465,17 @@
                     drawer === null || drawer === void 0 ? void 0 : drawer._updateVersionTitle();
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
+                // Auto-connect XToys if a webhook ID was saved for this player
+                try {
+                    if (isXToysUser(Player.MemberNumber)) {
+                        const xtId = getXToysWebhookId();
+                        if (xtId && isXToysEnabled())
+                            xtoysConnect(xtId);
+                    }
+                }
+                catch ( /* ignore */_e) { /* ignore */ }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
@@ -43426,6 +43828,119 @@
                 }
             }
             catch ( /* ignore */_c) { /* ignore */ }
+            return next(args);
+        });
+        // ── XToys BC event hooks ──────────────────────────────────────────────────
+        // All guards: early-return when the logged-in player isn't an XToys user,
+        // XToys isn't enabled, or the WebSocket isn't open.
+        modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (!isXToysEnabled())
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const data = args[0];
+                // Activities arrive as Type="Activity" (older BC) or Type="Action" (newer BC)
+                if ((data === null || data === void 0 ? void 0 : data.Type) === "Activity" || (data === null || data === void 0 ? void 0 : data.Type) === "Action") {
+                    const dict = Array.isArray(data.Dictionary)
+                        ? data.Dictionary
+                        : [];
+                    const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                    if (actGroup && actName) {
+                        const pn = Player.MemberNumber;
+                        if (targetNum === pn)
+                            xtoysActivityEvent(actGroup, actName);
+                        else if (sourceNum === pn)
+                            xtoysActivityOnOtherEvent(actGroup, actName);
+                    }
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
+            var _a, _b, _c;
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (!isXToysEnabled())
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const item = args[1];
+                    const mode = String((_a = args[2]) !== null && _a !== void 0 ? _a : "");
+                    if (mode)
+                        xtoysToyEvent(mode, (_c = (_b = item === null || item === void 0 ? void 0 : item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name);
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "PropertyShockPublishAction", 0, (args, next) => {
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (!isXToysEnabled())
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber)
+                    xtoysShockEvent();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "InventoryWear", 0, (args, next) => {
+            var _a, _b, _c, _d, _e;
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (!isXToysEnabled())
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const item = args[1];
+                    const grp = (_c = (_b = (_a = item === null || item === void 0 ? void 0 : item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) !== null && _c !== void 0 ? _c : "";
+                    const name = (_e = (_d = item === null || item === void 0 ? void 0 : item.Asset) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : "";
+                    if (grp && name)
+                        xtoysItemAdded(grp, name);
+                }
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "InventoryRemove", 0, (args, next) => {
+            var _a, _b, _c, _d;
+            // InventoryRemove(C, groupName) fires BEFORE the item is actually removed,
+            // so we can still look up the asset name from the appearance.
+            if (!isXToysUser(Player.MemberNumber))
+                return next(args);
+            if (!isXToysEnabled())
+                return next(args);
+            if (xtoysStatus() !== "connected")
+                return next(args);
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const grp = String((_a = args[1]) !== null && _a !== void 0 ? _a : "");
+                    const slot = (_b = C === null || C === void 0 ? void 0 : C.Appearance) === null || _b === void 0 ? void 0 : _b.find(a => { var _a, _b; return ((_b = (_a = a === null || a === void 0 ? void 0 : a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === grp; });
+                    const name = (_d = (_c = slot === null || slot === void 0 ? void 0 : slot.Asset) === null || _c === void 0 ? void 0 : _c.Name) !== null && _d !== void 0 ? _d : grp;
+                    if (grp)
+                        xtoysItemRemoved(grp, name);
+                }
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
