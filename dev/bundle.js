@@ -113,7 +113,7 @@
         }
     }
     /** Returns the live in-memory settings object shared by all EBC modules. */
-    function getSettings() {
+    function getSettings$1() {
         if (!_initialized)
             initSettings();
         return _mem;
@@ -423,7 +423,7 @@
     // -- Presets (saved full-face snapshots for quick-apply) -----------------------
     function getExpressionPresets() {
         try {
-            const list = getSettings().expressionPresets;
+            const list = getSettings$1().expressionPresets;
             return Array.isArray(list) ? list : [];
         }
         catch (_a) {
@@ -432,7 +432,7 @@
     }
     function saveExpressionPresets(presets) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.expressionPresets = presets;
             syncSettings();
         }
@@ -484,7 +484,7 @@
     // -- Sequences -----------------------------------------------------------------
     function getExpressionSequences() {
         try {
-            const list = getSettings().expressionSequences;
+            const list = getSettings$1().expressionSequences;
             return Array.isArray(list) ? list : [];
         }
         catch (_a) {
@@ -493,7 +493,7 @@
     }
     function saveExpressionSequences(seqs) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.expressionSequences = seqs;
             syncSettings();
         }
@@ -535,7 +535,7 @@
     // null = clear all groups back to neutral.
     function getDefaultExprPresetId() {
         try {
-            const v = getSettings().defaultExprPresetId;
+            const v = getSettings$1().defaultExprPresetId;
             return typeof v === "string" && v ? v : null;
         }
         catch (_a) {
@@ -544,7 +544,7 @@
     }
     function setDefaultExprPresetId(id) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             if (id) {
                 store.defaultExprPresetId = id;
             }
@@ -560,7 +560,7 @@
     // the player enters a room (on ChatRoomSync hook in main.ts).
     function getAutoApplyDefaultFace() {
         try {
-            const v = getSettings().autoApplyDefaultFace;
+            const v = getSettings$1().autoApplyDefaultFace;
             return v === true;
         }
         catch (_a) {
@@ -569,7 +569,7 @@
     }
     function setAutoApplyDefaultFace(on) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             if (on) {
                 store.autoApplyDefaultFace = true;
             }
@@ -582,7 +582,7 @@
     }
     function getExpressionTriggers() {
         try {
-            const v = getSettings().expressionTriggers;
+            const v = getSettings$1().expressionTriggers;
             return Array.isArray(v) ? v : [];
         }
         catch (_a) {
@@ -591,7 +591,7 @@
     }
     function saveExpressionTriggers(triggers) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.expressionTriggers = triggers;
             syncSettings();
         }
@@ -757,7 +757,7 @@
     let refreshScheduled = false;
     let cachedOutfits = null;
     function loadOutfitsFromSettings() {
-        const list = getSettings().outfits;
+        const list = getSettings$1().outfits;
         const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
         cachedOutfits = outfits;
         return outfits;
@@ -766,25 +766,25 @@
         return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
     }
     function getDefaultNickname() {
-        const raw = getSettings().defaultNickname;
+        const raw = getSettings$1().defaultNickname;
         return typeof raw === "string" ? raw : "";
     }
     function setDefaultNickname(nick) {
-        getSettings().defaultNickname = nick.trim();
+        getSettings$1().defaultNickname = nick.trim();
         syncSettings();
     }
     function getDefaultTitle() {
-        const raw = getSettings().defaultTitle;
+        const raw = getSettings$1().defaultTitle;
         return typeof raw === "string" ? raw : "";
     }
     function setDefaultTitle(title) {
-        getSettings().defaultTitle = title;
+        getSettings$1().defaultTitle = title;
         syncSettings();
     }
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedOutfits = sanitized;
-        getSettings().outfits = sanitized;
+        getSettings$1().outfits = sanitized;
         syncSettings();
     }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
@@ -1185,11 +1185,11 @@
         }
     }
     function getOutfitTags() {
-        const raw = getSettings().outfitTags;
+        const raw = getSettings$1().outfitTags;
         return Array.isArray(raw) ? raw : [];
     }
     function saveOutfitTags(tags) {
-        getSettings().outfitTags = tags;
+        getSettings$1().outfitTags = tags;
         syncSettings();
     }
     function createOutfitTag(name, color) {
@@ -1325,11 +1325,11 @@
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
-        const list = getSettings().outfitSchedules;
+        const list = getSettings$1().outfitSchedules;
         return Array.isArray(list) ? list : [];
     }
     function saveSchedules(schedules) {
-        getSettings().outfitSchedules = schedules;
+        getSettings$1().outfitSchedules = schedules;
         syncSettings();
     }
     function addSchedule(outfitId, time) {
@@ -1375,7 +1375,7 @@
     // -- Restraint Sets -----------------------------------------------------------
     let cachedRestraints = null;
     function loadRestraintsFromSettings() {
-        const list = getSettings().restraints;
+        const list = getSettings$1().restraints;
         const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
         cachedRestraints = restraints;
         return restraints;
@@ -1386,7 +1386,7 @@
     function saveRestraints(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedRestraints = sanitized;
-        getSettings().restraints = sanitized;
+        getSettings$1().restraints = sanitized;
         syncSettings();
     }
     function captureRestraints() {
@@ -1575,11 +1575,11 @@
     // Group names (slot keys) whose current item should never be touched by any
     // outfit or restraint-set apply. Stored in ExtensionSettings server-side.
     function getOutfitWhitelist() {
-        const raw = getSettings().outfitWhitelist;
+        const raw = getSettings$1().outfitWhitelist;
         return Array.isArray(raw) ? raw : [];
     }
     function setOutfitWhitelist(groups) {
-        getSettings().outfitWhitelist = groups;
+        getSettings$1().outfitWhitelist = groups;
         syncSettings();
     }
     function addToOutfitWhitelist(group) {
@@ -1686,14 +1686,14 @@
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
     function load$2() {
-        const list = getSettings().palettes;
+        const list = getSettings$1().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getSettings().palettes = list;
+        getSettings$1().palettes = list;
         syncSettings();
     }
     function uid$5() {
@@ -1779,11 +1779,11 @@
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getSettings().customColors = list;
+        getSettings$1().customColors = list;
         syncSettings();
     }
     function getCustomColors() {
-        const v = getSettings().customColors;
+        const v = getSettings$1().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -1891,11 +1891,11 @@
         });
     }
     function saveRestraintPresets(list) {
-        getSettings().restraintPresets = list;
+        getSettings$1().restraintPresets = list;
         syncSettings();
     }
     function getRestraintPresets() {
-        const v = getSettings().restraintPresets;
+        const v = getSettings$1().restraintPresets;
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
@@ -2176,14 +2176,14 @@
     // -- Combo storage -------------------------------------------------------
     function uid$4() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getSettings().poseCombos;
+        const list = getSettings$1().poseCombos;
         if (!Array.isArray(list))
             return [];
         // Sanitize each combo — old data may have undefined/null poses array
         return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
     }
     function saveCombos(list) {
-        getSettings().poseCombos = list;
+        getSettings$1().poseCombos = list;
         syncSettings();
     }
     function getPoseCombos() { return load$1(); }
@@ -2258,7 +2258,7 @@
     function getShowSalVersion() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
         }
         catch (_b) {
             return false;
@@ -2266,7 +2266,7 @@
     }
     function setShowSalVersion(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.showSalVersion = value;
             syncSettings();
         }
@@ -2279,7 +2279,7 @@
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -2287,7 +2287,7 @@
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.badgeEnabled = value;
             syncSettings();
         }
@@ -2299,7 +2299,7 @@
     function getShowOthersBadge() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
         }
         catch (_b) {
             return true;
@@ -2307,7 +2307,7 @@
     }
     function setShowOthersBadge(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.showOthersBadge = value;
             syncSettings();
         }
@@ -2319,7 +2319,7 @@
     function getShowVersionBadge() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -2327,7 +2327,7 @@
     }
     function setShowVersionBadge(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.showVersionBadge = value;
             syncSettings();
         }
@@ -2339,7 +2339,7 @@
     function getShowOthersVersionBadge() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -2347,7 +2347,7 @@
     }
     function setShowOthersVersionBadge(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.showOthersVersionBadge = value;
             syncSettings();
         }
@@ -2359,7 +2359,7 @@
     function getAntiRestraintEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
         }
         catch (_b) {
             return false;
@@ -2367,7 +2367,7 @@
     }
     function setAntiRestraintEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.antiRestraint = value;
             syncSettings();
         }
@@ -2378,7 +2378,7 @@
     function getAntiRestraintAnnounce() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintAnnounce) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintAnnounce) !== false;
         }
         catch (_b) {
             return true;
@@ -2386,7 +2386,7 @@
     }
     function setAntiRestraintAnnounce(value) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.antiRestraintAnnounce = value;
             syncSettings();
         }
@@ -2399,7 +2399,7 @@
     function getEscapeEmoteText() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.escapeEmoteText;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.escapeEmoteText;
             return typeof v === "string" ? v : "";
         }
         catch (_b) {
@@ -2408,7 +2408,7 @@
     }
     function setEscapeEmoteText(text) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.escapeEmoteText = text;
             syncSettings();
         }
@@ -2419,7 +2419,7 @@
     function getDomSetAnnounce() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.domSetAnnounce) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.domSetAnnounce) !== false;
         }
         catch (_b) {
             return true;
@@ -2427,7 +2427,7 @@
     }
     function setDomSetAnnounce(value) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.domSetAnnounce = value;
             syncSettings();
         }
@@ -2439,7 +2439,7 @@
     function getAntiRestraintWhitelist() {
         var _a;
         try {
-            const list = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            const list = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -2452,7 +2452,7 @@
     function getSpecialFriends() {
         var _a;
         try {
-            const list = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.specialFriends;
+            const list = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.specialFriends;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -2464,7 +2464,7 @@
     }
     function addSpecialFriend(memberNumber) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             const list = getSpecialFriends();
             if (!list.includes(memberNumber)) {
                 store.specialFriends = [...list, memberNumber];
@@ -2475,7 +2475,7 @@
     }
     function removeSpecialFriend(memberNumber) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
             syncSettings();
         }
@@ -2487,7 +2487,7 @@
     function getAntiRestraintConfirm() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
         }
         catch (_b) {
             return false;
@@ -2495,7 +2495,7 @@
     }
     function setAntiRestraintConfirm(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.antiRestraintConfirm = value;
             syncSettings();
         }
@@ -2507,7 +2507,7 @@
     function getSuppressNativeBeep() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
         }
         catch (_b) {
             return true;
@@ -2515,7 +2515,7 @@
     }
     function setSuppressNativeBeep(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.suppressNativeBeep = value;
             syncSettings();
         }
@@ -2527,7 +2527,7 @@
     function getLianChatCompat() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.lianChatCompat) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.lianChatCompat) === true;
         }
         catch (_b) {
             return false;
@@ -2535,7 +2535,7 @@
     }
     function setLianChatCompat(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.lianChatCompat = value;
             syncSettings();
         }
@@ -2545,7 +2545,7 @@
     function getOnlineSoundEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.onlineSoundEnabled) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.onlineSoundEnabled) !== false;
         }
         catch (_b) {
             return true;
@@ -2553,7 +2553,7 @@
     }
     function setOnlineSoundEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.onlineSoundEnabled = value;
             syncSettings();
         }
@@ -2564,7 +2564,7 @@
     function getUseNativeBeepSound() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.useNativeBeepSound) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.useNativeBeepSound) === true;
         }
         catch (_b) {
             return false;
@@ -2572,7 +2572,7 @@
     }
     function setUseNativeBeepSound(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.useNativeBeepSound = value;
             syncSettings();
         }
@@ -2585,7 +2585,7 @@
     function getUpdateNotify() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
         }
         catch (_b) {
             return true;
@@ -2593,7 +2593,7 @@
     }
     function setUpdateNotify(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.updateNotify = value;
             syncSettings();
         }
@@ -2605,7 +2605,7 @@
     function getAfkEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2613,7 +2613,7 @@
     }
     function setAfkEnabled(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.afkEnabled = v;
             syncSettings();
         }
@@ -2623,7 +2623,7 @@
     function getAfkThreshold() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
             return typeof v === "number" && v >= 1 ? v : 300;
         }
         catch (_b) {
@@ -2632,7 +2632,7 @@
     }
     function setAfkThreshold(n) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
             syncSettings();
         }
@@ -2641,7 +2641,7 @@
     function getAfkMessage() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkMessage;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkMessage;
             return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
         }
         catch (_b) {
@@ -2650,7 +2650,7 @@
     }
     function setAfkMessage(msg) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.afkMessage = msg.slice(0, 200).trim();
             syncSettings();
         }
@@ -2663,7 +2663,7 @@
     function getOocEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2671,7 +2671,7 @@
     }
     function setOocEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.oocEnabled = value;
             syncSettings();
         }
@@ -2682,7 +2682,7 @@
     function getRoomHistoryEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2690,7 +2690,7 @@
     }
     function setRoomHistoryEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.roomHistoryEnabled = value;
             syncSettings();
         }
@@ -2701,7 +2701,7 @@
     function getRestraintLogEnabled() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2709,7 +2709,7 @@
     }
     function setRestraintLogEnabled(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.restraintLogEnabled = value;
             syncSettings();
         }
@@ -2719,7 +2719,7 @@
     function getBeepMuted() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
         }
         catch (_b) {
             return false;
@@ -2727,7 +2727,7 @@
     }
     function setBeepMuted(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.beepMuted = value;
             syncSettings();
         }
@@ -2737,7 +2737,7 @@
     function getToastSticky() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
         }
         catch (_b) {
             return false;
@@ -2745,7 +2745,7 @@
     }
     function setToastSticky(value) {
         try {
-            getSettings().toastSticky = value;
+            getSettings$1().toastSticky = value;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -2754,7 +2754,7 @@
     function getToastDurationSec() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
             if (typeof v === "number" && v >= 1 && v <= 60)
                 return v;
         }
@@ -2763,7 +2763,7 @@
     }
     function setToastDurationSec(value) {
         try {
-            getSettings().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
+            getSettings$1().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -2775,7 +2775,7 @@
     function getQuickReplies() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.quickReplies;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.quickReplies;
             if (Array.isArray(v))
                 return v;
         }
@@ -2784,7 +2784,7 @@
     }
     function saveQuickReplies(replies) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.quickReplies = replies;
             syncSettings();
         }
@@ -2794,7 +2794,7 @@
     function getActionButtonsVisible() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) === true;
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) === true;
         }
         catch (_b) {
             return false;
@@ -2802,7 +2802,7 @@
     }
     function setActionButtonsVisible(value) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.actionButtonsVisible = value;
             syncSettings();
         }
@@ -2843,7 +2843,7 @@
     function _pmServerLoad() {
         var _a;
         try {
-            const raw = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.peopleMet;
+            const raw = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.peopleMet;
             return Array.isArray(raw) ? raw : [];
         }
         catch (_b) {
@@ -2905,7 +2905,7 @@
             }
             _pmLocalSave(local);
             // 2. Update server list (most recent PEOPLE_MET_SERVER_CAP entries only)
-            const store = getSettings();
+            const store = getSettings$1();
             const server = _pmServerLoad();
             const sIdx = server.findIndex(p => p.n === memberNumber);
             if (sIdx >= 0) {
@@ -2927,7 +2927,7 @@
     }
     function clearPeopleMet() {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.peopleMet = [];
             try {
                 localStorage.removeItem(PEOPLE_MET_LOCAL_KEY);
@@ -2940,7 +2940,7 @@
     function getBadgeStyle() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -2948,7 +2948,7 @@
     }
     function setBadgeStyle(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.badgeStyle = v;
             syncSettings();
         }
@@ -2960,7 +2960,7 @@
     function getOthersBadgeStyle() {
         var _a;
         try {
-            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -2968,7 +2968,7 @@
     }
     function setOthersBadgeStyle(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.othersBadgeStyle = v;
             syncSettings();
         }
@@ -2981,7 +2981,7 @@
     function getBadgeScale() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeScale;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
         }
         catch (_b) {
@@ -2992,7 +2992,7 @@
     // Both fall back to the legacy `badgeScale` value on first use (migration).
     function getTextBadgeScale() {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             const v = s === null || s === void 0 ? void 0 : s.textBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -3002,7 +3002,7 @@
     }
     function setTextBadgeScale(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
             syncSettings();
         }
@@ -3010,7 +3010,7 @@
     }
     function getCatBadgeScale() {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -3020,7 +3020,7 @@
     }
     function setCatBadgeScale(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
             syncSettings();
         }
@@ -3032,7 +3032,7 @@
     function getBadgeBgOpacity() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -3041,7 +3041,7 @@
     }
     function setBadgeBgOpacity(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.badgeBgOpacity = Math.max(0, Math.min(1, v));
             syncSettings();
         }
@@ -3053,7 +3053,7 @@
     function getBadgeTextOpacity() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -3062,7 +3062,7 @@
     }
     function setBadgeTextOpacity(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.badgeTextOpacity = Math.max(0, Math.min(1, v));
             syncSettings();
         }
@@ -3076,7 +3076,7 @@
     function getBadgeOffsetX() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -3085,7 +3085,7 @@
     }
     function setBadgeOffsetX(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.badgeOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3094,7 +3094,7 @@
     function getBadgeOffsetY() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72;
         }
         catch (_b) {
@@ -3103,7 +3103,7 @@
     }
     function setBadgeOffsetY(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
             syncSettings();
         }
@@ -3118,7 +3118,7 @@
     // Falls back to the shared badgeOffsetX/Y on first use (migration).
     function getCatBadgeOffsetX() {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
         }
@@ -3128,7 +3128,7 @@
     }
     function setCatBadgeOffsetX(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.catBadgeOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3136,7 +3136,7 @@
     }
     function getCatBadgeOffsetY() {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
         }
@@ -3146,7 +3146,7 @@
     }
     function setCatBadgeOffsetY(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
             syncSettings();
         }
@@ -3162,7 +3162,7 @@
     function getVersionTextOffsetX() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -3171,7 +3171,7 @@
     }
     function setVersionTextOffsetX(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.versionTextOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3180,7 +3180,7 @@
     function getVersionTextOffsetY() {
         var _a;
         try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
+            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95;
         }
         catch (_b) {
@@ -3189,7 +3189,7 @@
     }
     function setVersionTextOffsetY(v) {
         try {
-            const s = getSettings();
+            const s = getSettings$1();
             s.versionTextOffsetY = Math.round(v);
             syncSettings();
         }
@@ -3385,11 +3385,11 @@
     // waits into a named sequence that plays back step by step with per-step timing.
     function uid$3() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const raw = getSettings().scenes;
+        const raw = getSettings$1().scenes;
         return Array.isArray(raw) ? raw : [];
     }
     function saveScenes(list) {
-        getSettings().scenes = list;
+        getSettings$1().scenes = list;
         syncSettings();
     }
     function getScenes() { return load(); }
@@ -3596,7 +3596,7 @@
     // Per-restraint-group timestamps (ms since epoch), keyed by group name (e.g. "ItemArms").
     function loadRestraintTimers() {
         try {
-            const v = getSettings().restraintTimers;
+            const v = getSettings$1().restraintTimers;
             return (v && typeof v === "object" && !Array.isArray(v)) ? Object.assign({}, v) : {};
         }
         catch (_a) {
@@ -3605,7 +3605,7 @@
     }
     function saveRestraintTimers(timers) {
         try {
-            getSettings().restraintTimers = timers;
+            getSettings$1().restraintTimers = timers;
         }
         catch ( /* ignore */_a) { /* ignore */ }
         if (!savePending) {
@@ -3621,7 +3621,7 @@
     // ---------------------------------------------------------------------------
     function getTimerExcludedGroups() {
         try {
-            const v = getSettings().timerExcludedGroups;
+            const v = getSettings$1().timerExcludedGroups;
             if (Array.isArray(v))
                 return new Set(v);
         }
@@ -3638,7 +3638,7 @@
             current.add(group);
         else
             current.delete(group);
-        getSettings().timerExcludedGroups = [...current];
+        getSettings$1().timerExcludedGroups = [...current];
         syncSettings();
     }
     // ---------------------------------------------------------------------------
@@ -3733,7 +3733,7 @@
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
     function getNotes() {
         try {
-            const raw = getSettings().characterNotes;
+            const raw = getSettings$1().characterNotes;
             return (raw && typeof raw === "object" && !Array.isArray(raw))
                 ? raw
                 : {};
@@ -3744,7 +3744,7 @@
     }
     function saveNote(memberNumber, name, note) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             const notes = getNotes();
             const key = String(memberNumber);
             if (note.trim()) {
@@ -3779,7 +3779,7 @@
     let _legacyStyleScanned = false;
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getSettings();
+        const store = getSettings$1();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -3824,7 +3824,7 @@
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getSettings();
+        const store = getSettings$1();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -3832,7 +3832,7 @@
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getSettings();
+        const store = getSettings$1();
         store.activeCategoryIndex = idx;
         syncSettings();
     }
@@ -3845,7 +3845,7 @@
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getSettings();
+        const store = getSettings$1();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -3854,7 +3854,7 @@
         syncSettings();
     }
     function saveCategories(categories, activeIndex) {
-        const store = getSettings();
+        const store = getSettings$1();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         syncSettings();
@@ -5224,7 +5224,7 @@
     }
     // -- Name cache ----------------------------------------------------------------
     function getCachedNames() {
-        const v = getSettings().friendNames;
+        const v = getSettings$1().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     const MAX_NAME_CACHE = 500;
@@ -5237,7 +5237,7 @@
         }
     }
     function cacheName(memberNumber, name) {
-        const store = getSettings();
+        const store = getSettings$1();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
         const d = store.friendNames;
@@ -5250,11 +5250,11 @@
     // (.Nickname). When a person uses a nickname, both are preserved so the
     // friends list can show "Nickname (AccountName)" for easy identification.
     function getCachedAccountNames() {
-        const v = getSettings().friendAccountNames;
+        const v = getSettings$1().friendAccountNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     function cacheAccountName(memberNumber, accountName) {
-        const store = getSettings();
+        const store = getSettings$1();
         if (!store.friendAccountNames || typeof store.friendAccountNames !== "object")
             store.friendAccountNames = {};
         const d = store.friendAccountNames;
@@ -5457,7 +5457,7 @@
         const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
         if (nowOffline.length > 0) {
             try {
-                const store = getSettings();
+                const store = getSettings$1();
                 const data = getLastSeenMap();
                 const now = Date.now();
                 for (const num of nowOffline)
@@ -5549,7 +5549,7 @@
     const LAST_SEEN_CAP = 300;
     function getLastSeenMap() {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             // One-time migration from localStorage → ExtensionSettings
             if (!store.lastSeenMigrated) {
                 try {
@@ -5608,7 +5608,7 @@
     // (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
     function syncFriendsSince() {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -5630,7 +5630,7 @@
     }
     function getFriendSince(memberNumber) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -5672,14 +5672,14 @@
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
-        const v = getSettings().pinnedFriends;
+        const v = getSettings$1().pinnedFriends;
         return Array.isArray(v) ? v : [];
     }
     function isFriendPinned(memberNumber) {
         return getPinnedFriends().includes(memberNumber);
     }
     function togglePinFriend(memberNumber) {
-        const store = getSettings();
+        const store = getSettings$1();
         const list = getPinnedFriends();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -5696,14 +5696,14 @@
         _onFriendCameOnline = fn;
     }
     function getOnlineWatchList() {
-        const v = getSettings().onlineWatchList;
+        const v = getSettings$1().onlineWatchList;
         return Array.isArray(v) ? v : [];
     }
     function isOnWatchList(memberNumber) {
         return getOnlineWatchList().includes(memberNumber);
     }
     function toggleOnlineWatch(memberNumber) {
-        const store = getSettings();
+        const store = getSettings$1();
         const list = getOnlineWatchList();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -5762,7 +5762,7 @@
         return [];
     }
     function getFriendTagList(memberNumber) {
-        const store = getSettings();
+        const store = getSettings$1();
         const raw = store.friendTags;
         const userTags = (!raw || typeof raw !== "object" || Array.isArray(raw))
             ? []
@@ -5775,7 +5775,7 @@
     function setFriendTagList(memberNumber, tagList) {
         // Strip any locked tags before saving — they must never enter storage
         const toSave = tagList.filter(t => !t.locked);
-        const store = getSettings();
+        const store = getSettings$1();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
@@ -5788,11 +5788,11 @@
     // -- Beep history --------------------------------------------------------------
     const MAX_ENTRIES$2 = 100; // 100 entries × up to 1 KB each ≈ 100 KB max for history
     function getBeepHistory() {
-        const v = getSettings().beepHistory;
+        const v = getSettings$1().beepHistory;
         return Array.isArray(v) ? v : [];
     }
     function addBeepEntry(entry) {
-        const store = getSettings();
+        const store = getSettings$1();
         const history = getBeepHistory();
         // Strip mod metadata before persisting — WCE/FBC append large JSON blobs to
         // messages that bloat stored history. stripBeepMetadata removes those blobs,
@@ -5814,7 +5814,7 @@
     function clearConversation(memberNumber) {
         var _a;
         const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-        const store = getSettings();
+        const store = getSettings$1();
         const history = getBeepHistory();
         store.beepHistory = history.filter(e => !((e.from === memberNumber && e.to === self) ||
             (e.from === self && e.to === memberNumber)));
@@ -5966,7 +5966,7 @@
     }
     function getGroups() {
         try {
-            const d = getSettings().groups;
+            const d = getSettings$1().groups;
             if (Array.isArray(d))
                 return d;
         }
@@ -5974,7 +5974,7 @@
         return [];
     }
     function saveGroups(groups) {
-        getSettings().groups = groups;
+        getSettings$1().groups = groups;
         syncSettings();
     }
     function addGroupBeepEntry(groupId, entry) {
@@ -5996,7 +5996,7 @@
     // Enable logging via the DEV tab toggle; disabled by default so it
     // doesn't accumulate garbage in rooms where the user never opens DEV.
     const MAX_ENTRIES$1 = 60;
-    const _log$1 = [];
+    const _log$2 = [];
     let _enabled = false;
     function isDevLogEnabled() { return _enabled; }
     function setDevLogEnabled(v) { _enabled = v; }
@@ -6005,32 +6005,235 @@
         if (!_enabled)
             return;
         try {
-            _log$1.push({
+            _log$2.push({
                 timestamp: new Date(),
                 type: String((_a = data.Type) !== null && _a !== void 0 ? _a : "?"),
                 content: String((_b = data.Content) !== null && _b !== void 0 ? _b : ""),
                 sender: typeof data.Sender === "number" ? data.Sender : undefined,
                 dictionary: data.Dictionary,
             });
-            if (_log$1.length > MAX_ENTRIES$1)
-                _log$1.shift();
+            if (_log$2.length > MAX_ENTRIES$1)
+                _log$2.shift();
         }
         catch ( /* ignore */_c) { /* ignore */ }
     }
-    function getDevLog() { return _log$1; }
-    function clearDevLog() { _log$1.length = 0; }
+    function getDevLog() { return _log$2; }
+    function clearDevLog() { _log$2.length = 0; }
     // Push a UI test entry directly — bypasses the enabled guard so it works
     // even when logging is off, letting the user verify the log display itself.
     function pushTestEntry() {
-        _log$1.push({
+        _log$2.push({
             timestamp: new Date(),
             type: "Test",
             content: "[EBC] Log UI is working — this is a test entry.",
             sender: undefined,
             dictionary: { note: "manually injected, not a real server message" },
         });
-        if (_log$1.length > MAX_ENTRIES$1)
-            _log$1.shift();
+        if (_log$2.length > MAX_ENTRIES$1)
+            _log$2.shift();
+    }
+
+    // XToys WebSocket integration.
+    // Sends BC game events (activities, vibrator changes, shocks) to the XToys
+    // webhook so physical toys respond to in-game actions.
+    // Restricted to specific member numbers only.
+    const XTOYS_MEMBERS = [130267, 230466]; // Emery, Lucy
+    const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
+    const MAX_RETRIES = 3;
+    const LOG_MAX = 30;
+    let _ws = null;
+    let _currentId = "";
+    let _retries = 0;
+    let _reconnectTimer = null;
+    let _status = "disconnected";
+    const _log$1 = [];
+    let _listeners$1 = [];
+    // ── Status ─────────────────────────────────────────────────────────────────────
+    function xtoysStatus() { return _status; }
+    function xtoysLog() { return [..._log$1]; }
+    function _setStatus(s) {
+        _status = s;
+        for (const cb of _listeners$1) {
+            try {
+                cb(s);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+    }
+    function _pushLog(label, text) {
+        const d = new Date();
+        const ts = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+        _log$1.unshift({ ts, label, text });
+        if (_log$1.length > LOG_MAX)
+            _log$1.pop();
+    }
+    // ── Settings ───────────────────────────────────────────────────────────────────
+    function getXToysWebhookId() {
+        try {
+            const v = getSettings$1().xtoysWebhookId;
+            return typeof v === "string" ? v : "";
+        }
+        catch (_a) {
+            return "";
+        }
+    }
+    function setXToysWebhookId(id) {
+        try {
+            getSettings$1().xtoysWebhookId = id.trim();
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function isXToysUser(memberNumber) {
+        return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
+    }
+    // ── Connection ─────────────────────────────────────────────────────────────────
+    function xtoysConnect(webhookId) {
+        const id = (webhookId !== null && webhookId !== void 0 ? webhookId : getXToysWebhookId()).trim();
+        if (!id)
+            return;
+        _currentId = id;
+        setXToysWebhookId(id);
+        _retries = 0;
+        _doConnect();
+    }
+    function _doConnect() {
+        if (_reconnectTimer !== null) {
+            clearTimeout(_reconnectTimer);
+            _reconnectTimer = null;
+        }
+        if (_ws) {
+            try {
+                _ws.close();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            _ws = null;
+        }
+        const url = _currentId.startsWith("wss://") || _currentId.startsWith("ws://")
+            ? _currentId
+            : `${XTOYS_WS_BASE}${_currentId}`;
+        _setStatus("connecting");
+        try {
+            const ws = new WebSocket(url);
+            _ws = ws;
+            ws.addEventListener("open", () => {
+                _retries = 0;
+                _setStatus("connected");
+                _pushLog("sys", "connected");
+            });
+            ws.addEventListener("close", (ev) => {
+                _ws = null;
+                if (_retries < MAX_RETRIES) {
+                    _retries++;
+                    const delay = 3000 * _retries;
+                    _setStatus("connecting");
+                    _pushLog("sys", `reconnecting in ${delay / 1000}s (attempt ${_retries}/${MAX_RETRIES})`);
+                    _reconnectTimer = setTimeout(_doConnect, delay);
+                }
+                else {
+                    _setStatus("disconnected");
+                    _pushLog("sys", `disconnected (code ${ev.code})`);
+                }
+            });
+            ws.addEventListener("error", () => {
+                _setStatus("error");
+                _pushLog("err", "connection error");
+            });
+        }
+        catch (_b) {
+            _setStatus("error");
+            _pushLog("err", "failed to open WebSocket");
+        }
+    }
+    function xtoysDisconnect() {
+        if (_reconnectTimer !== null) {
+            clearTimeout(_reconnectTimer);
+            _reconnectTimer = null;
+        }
+        if (_ws) {
+            try {
+                _ws.close();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            _ws = null;
+        }
+        _retries = MAX_RETRIES; // prevent auto-reconnect
+        _currentId = "";
+        _setStatus("disconnected");
+        _pushLog("sys", "disconnected by user");
+    }
+    // ── Send ───────────────────────────────────────────────────────────────────────
+    function xtoysSend(payload) {
+        var _a;
+        if (!_ws || _ws.readyState !== WebSocket.OPEN)
+            return;
+        try {
+            _ws.send(JSON.stringify(payload));
+            const action = String((_a = payload.action) !== null && _a !== void 0 ? _a : "?");
+            const detail = [payload.activityGroup, payload.actionName, payload.assetName, payload.toyState]
+                .filter(Boolean).join(" / ");
+            _pushLog("out", detail ? `${action}: ${detail}` : action);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // ── Event helpers ──────────────────────────────────────────────────────────────
+    function xtoysActivityEvent(activityGroup, actionName, assetName) {
+        const p = { action: "activityEvent", activityGroup, actionName };
+        xtoysSend(p);
+    }
+    function xtoysActivityOnOtherEvent(activityGroup, actionName, assetName) {
+        const p = { action: "activityOnOtherEvent", activityGroup, actionName };
+        xtoysSend(p);
+    }
+    function xtoysItemAdded(assetGroup, assetName) {
+        xtoysSend({ action: "itemAdded", assetGroup, assetName });
+    }
+    function xtoysItemRemoved(assetGroup, assetName) {
+        xtoysSend({ action: "itemRemoved", assetGroup, assetName });
+    }
+    function xtoysShockEvent() {
+        xtoysSend({ action: "shockEvent" });
+    }
+    function xtoysToyEvent(toyState, assetGroup) {
+        const p = { action: "toyEvent", toyState };
+        if (assetGroup)
+            p.assetGroup = assetGroup;
+        xtoysSend(p);
+    }
+    function parseXToysActivity(dict) {
+        let targetNum;
+        let sourceNum;
+        let actGroup;
+        let actName;
+        for (const item of dict) {
+            // Target
+            if ("TargetCharacter" in item && typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
+                targetNum = item.TargetCharacter.MemberNumber;
+            }
+            if (item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") {
+                if (typeof item.MemberNumber === "number")
+                    targetNum = item.MemberNumber;
+            }
+            // Source
+            if ("SourceCharacter" in item && typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
+                sourceNum = item.SourceCharacter.MemberNumber;
+            }
+            if (item.Tag === "SourceCharacter") {
+                if (typeof item.MemberNumber === "number")
+                    sourceNum = item.MemberNumber;
+            }
+            // Asset group
+            if (typeof item.ActivityAssetGroup === "string")
+                actGroup = item.ActivityAssetGroup;
+            if (item.Tag === "AssetGroupName" && typeof item.AssetGroupName === "string")
+                actGroup = item.AssetGroupName;
+            // Activity name
+            if (typeof item.ActivityAsset === "string")
+                actName = item.ActivityAsset;
+            if (item.Tag === "ActivityName" && typeof item.ActivityName === "string")
+                actName = item.ActivityName;
+        }
+        return { targetNum, sourceNum, actGroup, actName };
     }
 
     // Safeword system — two-word safety protocol.
@@ -6055,7 +6258,7 @@
         redLeave: true,
     };
     function getSafewordConfig() {
-        const raw = getSettings().safeword;
+        const raw = getSettings$1().safeword;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
@@ -6079,7 +6282,7 @@
     }
     function setSafewordConfig(cfg) {
         try {
-            const store = getSettings();
+            const store = getSettings$1();
             store.safeword = cfg;
             // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
             // may return a rejecting Promise that a bare call would silently swallow.
@@ -6366,7 +6569,7 @@
     function uid() { return Math.random().toString(36).slice(2, 9); }
     function loadConfig() {
         try {
-            const v = getSettings().domConfig;
+            const v = getSettings$1().domConfig;
             if (v && Array.isArray(v.targets)) {
                 return {
                     targets: v.targets,
@@ -6379,7 +6582,7 @@
     }
     function saveConfig(cfg) {
         try {
-            getSettings().domConfig = cfg;
+            getSettings$1().domConfig = cfg;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -7157,11 +7360,11 @@
     ];
     // ── Storage helpers ───────────────────────────────────────────────────────────
     function kGet(key, fallback) {
-        const v = getSettings()[key];
+        const v = getSettings$1()[key];
         return v !== undefined ? v : fallback;
     }
     function kSet(key, val) {
-        getSettings()[key] = val;
+        getSettings$1()[key] = val;
         syncSettings();
     }
     function getKittyMood() {
@@ -13037,14 +13240,14 @@
                 // it up correctly. Writing directly to Player.ExtensionSettings.EmeryBC
                 // was previously used, but flushToExtensionSettings() would overwrite it
                 // 400 ms later with the stale _mem.panelPos value (null from the server).
-                getSettings().panelPos = pos !== null && pos !== void 0 ? pos : null;
+                getSettings$1().panelPos = pos !== null && pos !== void 0 ? pos : null;
                 syncSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
             try {
-                const v = getSettings().panelPos;
+                const v = getSettings$1().panelPos;
                 if (v && typeof v.x === "number" && typeof v.y === "number") {
                     // Clamp to current viewport so a position saved on a wider/taller screen
                     // doesn't put the panel off-screen on the next load.
@@ -14408,7 +14611,7 @@
             const exportBadgeCode = () => {
                 try {
                     // Read from the live in-memory store (getSettings()) - always up to date
-                    const store = getSettings();
+                    const store = getSettings$1();
                     const settings = {};
                     for (const k of BADGE_KEYS) {
                         if (k in store)
@@ -14430,7 +14633,7 @@
                 // Write to the in-memory store (_mem) - syncSettings() flushes _mem →
                 // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
                 // syncSettings() would overwrite it with the old _mem values.
-                const mem = getSettings();
+                const mem = getSettings$1();
                 for (const k of BADGE_KEYS) {
                     if (k in incoming)
                         mem[k] = incoming[k];
@@ -29368,7 +29571,7 @@
             }
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            const s = getSettings();
+            const s = getSettings$1();
             const mk = (tag, css) => {
                 const el = document.createElement(tag);
                 if (css)
@@ -29593,7 +29796,7 @@
                             }
                             if (!char)
                                 throw new Error("No writable characteristic found");
-                            const connS = getSettings();
+                            const connS = getSettings$1();
                             const toyDefI = typeof connS.lovenseIntensity === "number" ? connS.lovenseIntensity : 10;
                             const toyDefD = typeof connS.lovenseDuration === "number" ? connS.lovenseDuration : 5;
                             this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
@@ -31467,10 +31670,120 @@
                 }
                 card.appendChild(psWrap);
             }
+            // ── XToys (Emery + Lucy only) ─────────────────────────────────────────
+            const _xMn = Player.MemberNumber;
+            if (isXToysUser(_xMn)) {
+                card.appendChild(sep());
+                const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open");
+                if (s.xtoysEnabled !== true) {
+                    const note = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                    note.textContent = t("toys.enableAbove");
+                    xtContent.appendChild(note);
+                }
+                else {
+                    const xtHdr = (txt) => {
+                        const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
+                        d.textContent = txt;
+                        return d;
+                    };
+                    // Connection card
+                    const connBox = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+                    // Status row
+                    const statusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                    const statusDot = mk("span", "font-size:14px;flex-shrink:0;");
+                    const statusLbl = mk("span", `${FONT}font-size:11px;flex:1;`);
+                    const refreshStatus = () => {
+                        const st = xtoysStatus();
+                        statusDot.textContent = st === "connected" ? "🟢" : st === "connecting" ? "🟡" : st === "error" ? "🔴" : "⚫";
+                        const [col, txt] = st === "connected" ? ["#70c080", "Connected"]
+                            : st === "connecting" ? ["#c0a040", "Connecting..."]
+                                : st === "error" ? ["#e07070", "Connection error"]
+                                    : ["var(--ebc-text-muted)", "Disconnected"];
+                        statusLbl.textContent = txt;
+                        statusLbl.style.color = col;
+                    };
+                    refreshStatus();
+                    statusRow.appendChild(statusDot);
+                    statusRow.appendChild(statusLbl);
+                    connBox.appendChild(statusRow);
+                    const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;`);
+                    hint.textContent = "Paste the Webhook ID from xtoys.app (run the BC XToys script there first to get one).";
+                    connBox.appendChild(hint);
+                    // Webhook ID input
+                    const idRow = mk("div", "display:flex;gap:6px;align-items:center;margin-bottom:6px;");
+                    const idInp = document.createElement("input");
+                    idInp.type = "password";
+                    idInp.placeholder = "Webhook ID";
+                    idInp.value = getXToysWebhookId();
+                    idInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:5px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;min-width:0;outline:none;`;
+                    const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                    eyeBtn.addEventListener("click", () => { idInp.type = idInp.type === "password" ? "text" : "password"; });
+                    idRow.appendChild(idInp);
+                    idRow.appendChild(eyeBtn);
+                    connBox.appendChild(idRow);
+                    // Connect / Disconnect buttons
+                    const btnRow = mk("div", "display:flex;gap:6px;");
+                    const connBtn = mkBtn("Connect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                    connBtn.addEventListener("click", () => {
+                        const id = idInp.value.trim();
+                        if (!id)
+                            return;
+                        xtoysConnect(id);
+                        // Poll status briefly so the dot updates without a full re-render
+                        let polls = 0;
+                        const poll = setInterval(() => {
+                            refreshStatus();
+                            polls++;
+                            const st = xtoysStatus();
+                            if (st === "connected" || st === "disconnected" || polls > 30)
+                                clearInterval(poll);
+                        }, 400);
+                    });
+                    const discBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                    discBtn.addEventListener("click", () => { xtoysDisconnect(); refreshStatus(); });
+                    btnRow.appendChild(connBtn);
+                    btnRow.appendChild(discBtn);
+                    connBox.appendChild(btnRow);
+                    xtContent.appendChild(connBox);
+                    // Event log
+                    xtContent.appendChild(xtHdr("Event Log"));
+                    const logRefreshBtn = mkBtn("Refresh", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                    const logEl = mk("div", `font-family:monospace;font-size:10px;overflow-y:auto;max-height:130px;padding:5px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:4px;`);
+                    const renderLog = () => {
+                        while (logEl.firstChild)
+                            logEl.removeChild(logEl.firstChild);
+                        const entries = xtoysLog();
+                        if (!entries.length) {
+                            const empty = mk("div", "color:#666;");
+                            empty.textContent = "No events yet.";
+                            logEl.appendChild(empty);
+                            return;
+                        }
+                        for (const e of entries) {
+                            const row = mk("div", "display:flex;gap:6px;padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04);");
+                            const tsEl = mk("span", "color:#555;white-space:nowrap;flex-shrink:0;");
+                            tsEl.textContent = e.ts;
+                            const lblEl = mk("span", `color:${e.label === "out" ? "#70c0e8" : e.label === "err" ? "#e07070" : "#a8a0c0"};white-space:nowrap;flex-shrink:0;width:24px;`);
+                            lblEl.textContent = e.label;
+                            const txtEl = mk("span", "color:#bbb;flex:1;word-break:break-all;");
+                            txtEl.textContent = e.text;
+                            row.appendChild(tsEl);
+                            row.appendChild(lblEl);
+                            row.appendChild(txtEl);
+                            logEl.appendChild(row);
+                        }
+                    };
+                    renderLog();
+                    logRefreshBtn.addEventListener("click", () => { refreshStatus(); renderLog(); });
+                    xtContent.appendChild(logRefreshBtn);
+                    xtContent.appendChild(logEl);
+                }
+                card.appendChild(xtWrap);
+            }
             body.appendChild(card);
         }
         async fireLovense(intensity, duration, allowedNames) {
-            const s = getSettings();
+            const s = getSettings$1();
             if (s.lovenseEnabled !== true)
                 return "";
             const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
@@ -31547,7 +31860,7 @@
             this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
         }
         startBCLiveSync() {
-            const s = getSettings();
+            const s = getSettings$1();
             if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true)
                 return;
             if (this._bcLiveSyncPoller !== null)
@@ -31568,7 +31881,7 @@
         _tickBCLiveSync() {
             var _a, _b, _c;
             try {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
                     this.stopBCLiveSync();
                     return;
@@ -31799,7 +32112,7 @@
         }
         checkLovenseTriggers(content) {
             try {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (s.lovenseEnabled !== true)
                     return;
                 const lower = content.toLowerCase();
@@ -32009,7 +32322,7 @@
             try {
                 if (typeof Player === "undefined" || ((Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== EMERY_MEMBER && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== 147036))
                     return;
-                const s = getSettings();
+                const s = getSettings$1();
                 if (s["psEnabled"] !== true)
                     return;
                 const lower = content.toLowerCase();
@@ -32049,7 +32362,7 @@
             try {
                 if (typeof Player === "undefined" || (Player.MemberNumber !== EMERY_MEMBER && Player.MemberNumber !== 147036))
                     return;
-                const s = getSettings();
+                const s = getSettings$1();
                 if (s["psEnabled"] !== true)
                     return;
                 const shockers = EBCDrawer.getPsShockers();
@@ -32070,7 +32383,7 @@
         }
         checkLovenseActivityTrigger(activityName, assetGroup) {
             try {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (s.lovenseEnabled !== true)
                     return;
                 // Body touch triggers (checked first; BC sync skipped if one matches)
@@ -32192,7 +32505,7 @@
             var _a, _b;
             try {
                 if (type === "REQ") {
-                    const s = getSettings();
+                    const s = getSettings$1();
                     if (s["irlToyAllowRequests"] !== true) {
                         this.sendIrlToyMsg(senderNumber, "DEN");
                         return;
@@ -32316,7 +32629,7 @@
         handleGameToyMsg(senderNumber, senderName, type, intensity, duration) {
             var _a, _b;
             try {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (type === "REQ") {
                     const wl = EBCDrawer.getGameToyWhitelist();
                     const isWl = wl.includes(senderNumber);
@@ -34411,11 +34724,11 @@
             // persistence helpers
             const getCurseRecord = (memberId) => {
                 var _a, _b;
-                const dc = ((_a = getSettings().domCurses) !== null && _a !== void 0 ? _a : {});
+                const dc = ((_a = getSettings$1().domCurses) !== null && _a !== void 0 ? _a : {});
                 return [...((_b = dc[String(memberId)]) !== null && _b !== void 0 ? _b : [])];
             };
             const setCurseRecord = (memberId, groups) => {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (!s.domCurses)
                     s.domCurses = {};
                 const dc = s.domCurses;
@@ -34427,11 +34740,11 @@
             };
             const getDomCurseExpiry = (memberId) => {
                 var _a, _b;
-                const ex = ((_a = getSettings().domCurseExpiries) !== null && _a !== void 0 ? _a : {});
+                const ex = ((_a = getSettings$1().domCurseExpiries) !== null && _a !== void 0 ? _a : {});
                 return (_b = ex[String(memberId)]) !== null && _b !== void 0 ? _b : null;
             };
             const setDomCurseExpiry = (memberId, ts) => {
-                const s = getSettings();
+                const s = getSettings$1();
                 if (!s.domCurseExpiries)
                     s.domCurseExpiries = {};
                 const ex = s.domCurseExpiries;
@@ -34977,7 +35290,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 146; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 147; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35010,6 +35323,7 @@
                 "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
                 "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
                 "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
+                "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
             ],
         },
         {
@@ -42141,8 +42455,17 @@
                     drawer === null || drawer === void 0 ? void 0 : drawer._updateVersionTitle();
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
+                // Auto-connect XToys if a webhook ID was saved for this player
+                try {
+                    if (isXToysUser(Player.MemberNumber)) {
+                        const xtId = getXToysWebhookId();
+                        if (xtId && getSettings().xtoysEnabled === true)
+                            xtoysConnect(xtId);
+                    }
+                }
+                catch ( /* ignore */_e) { /* ignore */ }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             return result;
         });
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
@@ -43495,6 +43818,119 @@
                 }
             }
             catch ( /* ignore */_c) { /* ignore */ }
+            return next(args);
+        });
+        // ── XToys BC event hooks ──────────────────────────────────────────────────
+        // All guards: early-return when the logged-in player isn't an XToys user,
+        // XToys isn't enabled, or the WebSocket isn't open.
+        modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (getSettings().xtoysEnabled !== true)
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const data = args[0];
+                // Activities arrive as Type="Activity" (older BC) or Type="Action" (newer BC)
+                if ((data === null || data === void 0 ? void 0 : data.Type) === "Activity" || (data === null || data === void 0 ? void 0 : data.Type) === "Action") {
+                    const dict = Array.isArray(data.Dictionary)
+                        ? data.Dictionary
+                        : [];
+                    const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                    if (actGroup && actName) {
+                        const pn = Player.MemberNumber;
+                        if (targetNum === pn)
+                            xtoysActivityEvent(actGroup, actName);
+                        else if (sourceNum === pn)
+                            xtoysActivityOnOtherEvent(actGroup, actName);
+                    }
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
+            var _a, _b, _c;
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (getSettings().xtoysEnabled !== true)
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const item = args[1];
+                    const mode = String((_a = args[2]) !== null && _a !== void 0 ? _a : "");
+                    if (mode)
+                        xtoysToyEvent(mode, (_c = (_b = item === null || item === void 0 ? void 0 : item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name);
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "PropertyShockPublishAction", 0, (args, next) => {
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (getSettings().xtoysEnabled !== true)
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber)
+                    xtoysShockEvent();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "InventoryWear", 0, (args, next) => {
+            var _a, _b, _c, _d, _e;
+            const _r = next(args);
+            if (!isXToysUser(Player.MemberNumber))
+                return _r;
+            if (getSettings().xtoysEnabled !== true)
+                return _r;
+            if (xtoysStatus() !== "connected")
+                return _r;
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const item = args[1];
+                    const grp = (_c = (_b = (_a = item === null || item === void 0 ? void 0 : item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) !== null && _c !== void 0 ? _c : "";
+                    const name = (_e = (_d = item === null || item === void 0 ? void 0 : item.Asset) === null || _d === void 0 ? void 0 : _d.Name) !== null && _e !== void 0 ? _e : "";
+                    if (grp && name)
+                        xtoysItemAdded(grp, name);
+                }
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
+            return _r;
+        });
+        tryHookFunction(modAPI, "InventoryRemove", 0, (args, next) => {
+            var _a, _b, _c, _d;
+            // InventoryRemove(C, groupName) fires BEFORE the item is actually removed,
+            // so we can still look up the asset name from the appearance.
+            if (!isXToysUser(Player.MemberNumber))
+                return next(args);
+            if (getSettings().xtoysEnabled !== true)
+                return next(args);
+            if (xtoysStatus() !== "connected")
+                return next(args);
+            try {
+                const C = args[0];
+                if ((C === null || C === void 0 ? void 0 : C.MemberNumber) === Player.MemberNumber) {
+                    const grp = String((_a = args[1]) !== null && _a !== void 0 ? _a : "");
+                    const slot = (_b = C === null || C === void 0 ? void 0 : C.Appearance) === null || _b === void 0 ? void 0 : _b.find(a => { var _a, _b; return ((_b = (_a = a === null || a === void 0 ? void 0 : a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === grp; });
+                    const name = (_d = (_c = slot === null || slot === void 0 ? void 0 : slot.Asset) === null || _c === void 0 ? void 0 : _c.Name) !== null && _d !== void 0 ? _d : grp;
+                    if (grp)
+                        xtoysItemRemoved(grp, name);
+                }
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
