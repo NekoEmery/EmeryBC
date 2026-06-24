@@ -6122,6 +6122,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function isXToysUser(memberNumber) {
         return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
     }
+    function isXToysEnabled() {
+        try {
+            return getSettings().xtoysEnabled === true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
     // ── Connection ─────────────────────────────────────────────────────────────────
     function xtoysConnect(webhookId) {
         const id = (webhookId !== null && webhookId !== void 0 ? webhookId : getXToysWebhookId()).trim();
@@ -35325,7 +35333,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 148; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 149; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35360,6 +35368,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
                 "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
                 "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
+                "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
             ],
         },
         {
@@ -42495,7 +42504,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     if (isXToysUser(Player.MemberNumber)) {
                         const xtId = getXToysWebhookId();
-                        if (xtId && getSettings().xtoysEnabled === true)
+                        if (xtId && isXToysEnabled())
                             xtoysConnect(xtId);
                     }
                 }
@@ -43863,7 +43872,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _r = next(args);
             if (!isXToysUser(Player.MemberNumber))
                 return _r;
-            if (getSettings().xtoysEnabled !== true)
+            if (!isXToysEnabled())
                 return _r;
             if (xtoysStatus() !== "connected")
                 return _r;
@@ -43892,7 +43901,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _r = next(args);
             if (!isXToysUser(Player.MemberNumber))
                 return _r;
-            if (getSettings().xtoysEnabled !== true)
+            if (!isXToysEnabled())
                 return _r;
             if (xtoysStatus() !== "connected")
                 return _r;
@@ -43912,7 +43921,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _r = next(args);
             if (!isXToysUser(Player.MemberNumber))
                 return _r;
-            if (getSettings().xtoysEnabled !== true)
+            if (!isXToysEnabled())
                 return _r;
             if (xtoysStatus() !== "connected")
                 return _r;
@@ -43929,7 +43938,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _r = next(args);
             if (!isXToysUser(Player.MemberNumber))
                 return _r;
-            if (getSettings().xtoysEnabled !== true)
+            if (!isXToysEnabled())
                 return _r;
             if (xtoysStatus() !== "connected")
                 return _r;
@@ -43952,7 +43961,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // so we can still look up the asset name from the appearance.
             if (!isXToysUser(Player.MemberNumber))
                 return next(args);
-            if (getSettings().xtoysEnabled !== true)
+            if (!isXToysEnabled())
                 return next(args);
             if (xtoysStatus() !== "connected")
                 return next(args);
