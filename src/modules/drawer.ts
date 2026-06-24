@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -2587,6 +2587,8 @@ const CSS = `
 .ebc-beep-win.minimized .ebc-qr-bar,
 .ebc-beep-win.minimized .ebc-beep-online-alert,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
+.ebc-beep-win.minimized .ebc-beep-resize-e,
+.ebc-beep-win.minimized .ebc-beep-resize-corner { display: none !important; }
 
 
 .ebc-beep-win-unread-dot {
@@ -10329,6 +10331,9 @@ export class EBCDrawer {
                         );
                         applyPoses([...bodyPoses, preset.key]);
                     }
+                    if (preset.announceText) {
+                        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] }); } catch { /* ignore */ }
+                    }
                     this.rerender(150);
                 });
                 grid.appendChild(btn);
@@ -12346,18 +12351,9 @@ export class EBCDrawer {
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
             const el = existing.el;
-            // Ensure visible - may have been hidden while outside a chatroom
             el.style.display = "";
-            // Un-minimize first so we can measure real height
             const restoreFn = (el as unknown as Record<string, unknown>)._restoreMin as (() => void) | undefined;
             restoreFn?.();
-            // Snap to viewport center
-            const winW = el.offsetWidth  || 300;
-            const winH = el.offsetHeight || 400;
-            el.style.left   = `${Math.max(0, Math.round((window.innerWidth  - winW) / 2))}px`;
-            el.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
-            el.style.right  = "";
-            el.style.top    = "";
             const refresh = (el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
             refresh?.();
             (el.querySelector(".ebc-beep-win-input") as HTMLInputElement | null)?.focus();
@@ -12521,7 +12517,10 @@ export class EBCDrawer {
         const updateStatus = (): void => {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
-            offlineBanner.style.display = s === "away" ? "" : "none";
+            // Only show offline banner if we have reliable status info - i.e. they're
+            // a friend (BC reports their presence) or currently in our room (we can see them).
+            const statusKnown = getFriendList().includes(memberNumber) || s !== "away";
+            offlineBanner.style.display = (s === "away" && statusKnown) ? "" : "none";
 
             // Online alert - flash briefly when they come back from offline
             if (_prevStatus === "away" && s !== "away") {
@@ -12640,6 +12639,15 @@ export class EBCDrawer {
             minimizeBtn.textContent = entry.minimized ? "▲" : "–";
             minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
             if (!entry.minimized) {
+                // Re-clamp bottom so the header stays on-screen now that the window is full height.
+                // While minimized the window is only 44px so it can be dragged to a high bottom
+                // value; when expanded (~380px) that same bottom would push the header off-screen.
+                window.requestAnimationFrame(() => {
+                    const winH = win.offsetHeight || 380;
+                    const cur  = parseFloat(win.style.bottom) || 0;
+                    const max  = Math.max(0, window.innerHeight - winH);
+                    if (cur > max) win.style.bottom = `${max}px`;
+                });
                 // History just became visible - scroll to bottom (scrollHeight is 0 while hidden)
                 window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
                 unreadDot.classList.remove("visible");
@@ -13436,12 +13444,15 @@ export class EBCDrawer {
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
                     beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + dX));
-                    // Drag down = taller: bottom edge follows cursor, top stays fixed
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + dY));
-                    const actualDY = beepH - startH;
+                    // Clamp bottom first so height growth stops when the bottom edge
+                    // hits the viewport - prevents the window growing upward when the
+                    // user drags past the screen bottom.
+                    const newBottom = Math.max(0, startBottom - dY);
+                    const actualDY  = startBottom - newBottom;
+                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + actualDY));
                     win.style.width  = `${beepW}px`;
                     win.style.height = `${beepH}px`;
-                    win.style.bottom = `${Math.max(0, startBottom - actualDY)}px`;
+                    win.style.bottom = `${newBottom}px`;
                 },
                 () => {
                     resizeBWCorner.classList.remove("ebc-resizing");
@@ -13646,8 +13657,10 @@ export class EBCDrawer {
                 toast.classList.add("ebc-toast-out");
                 setTimeout(() => toast.remove(), 320);
             };
-            const timer = setTimeout(dismiss, 5000);
-            toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            if (!getToastSticky()) {
+                const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
         } catch { /* ignore */ }
     }
 
@@ -13702,8 +13715,10 @@ export class EBCDrawer {
                 toast.classList.add("ebc-toast-out");
                 setTimeout(() => toast.remove(), 320);
             };
-            const timer = setTimeout(dismiss, 5000);
-            toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            if (!getToastSticky()) {
+                const timer = setTimeout(dismiss, getToastDurationSec() * 1000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
         } catch { /* ignore */ }
     }
 
@@ -13743,8 +13758,12 @@ export class EBCDrawer {
         });
         const onMove = (e: MouseEvent): void => {
             if (!isDrag) return;
-            win.style.left = `${e.clientX - dragOX}px`; win.style.top = `${e.clientY - dragOY}px`;
-            win.style.right = ""; win.style.bottom = "";
+            const winW = win.offsetWidth  || 300;
+            const winH = win.offsetHeight || 44;
+            win.style.left   = `${Math.max(0, Math.min(e.clientX - dragOX, window.innerWidth  - winW))}px`;
+            win.style.top    = `${Math.max(0, Math.min(e.clientY - dragOY, window.innerHeight - winH))}px`;
+            win.style.right  = "";
+            win.style.bottom = "";
         };
         const onUp = (): void => { isDrag = false; };
         document.addEventListener("mousemove", onMove);
@@ -14065,25 +14084,49 @@ export class EBCDrawer {
         lianHint.textContent = "⚠ Enables LianChat/WCE beep hook passthrough — beeps will also appear in BC's default chat.";
         chatSettingsBody.appendChild(lianHint);
 
-        // ── AFK sub-section (nested collapsible) ──────────────────────────────
-        const afkSubDiv = document.createElement("div");
-        afkSubDiv.className = "ebc-divider";
-        afkSubDiv.style.margin = "2px 0";
-        chatSettingsBody.appendChild(afkSubDiv);
+        // Toast sticky + duration
+        const stickyRow = mkToggleRow(
+            "Keep beep popups until dismissed",
+            getToastSticky,
+            (v) => { setToastSticky(v); durationRow.style.opacity = v ? "0.4" : "1"; durationRow.style.pointerEvents = v ? "none" : ""; },
+        );
+        chatSettingsBody.appendChild(stickyRow);
 
+        const durationRow = document.createElement("div");
+        durationRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+        if (getToastSticky()) { durationRow.style.opacity = "0.4"; durationRow.style.pointerEvents = "none"; }
+        const durationLbl = document.createElement("span");
+        durationLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;flex:1;";
+        durationLbl.textContent = "Popup dismiss time (seconds)";
+        const durationInput = document.createElement("input");
+        durationInput.type = "number";
+        durationInput.min = "1";
+        durationInput.max = "60";
+        durationInput.step = "1";
+        durationInput.value = String(getToastDurationSec());
+        durationInput.style.cssText = "width:52px;background:#100508;border:1px solid #3a1928;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 6px;text-align:center;";
+        durationInput.addEventListener("change", () => {
+            const val = parseInt(durationInput.value, 10);
+            if (!isNaN(val)) { setToastDurationSec(val); durationInput.value = String(getToastDurationSec()); }
+        });
+        durationRow.appendChild(durationLbl);
+        durationRow.appendChild(durationInput);
+        chatSettingsBody.appendChild(durationRow);
+
+        // ── AFK Auto-Reply (top-level) ────────────────────────────────────────
         let afkCollapsed = true;
         try { afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0"; } catch { /* ignore */ }
 
         const afkSubHeader = document.createElement("div");
-        afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
-        const afkSubLbl = document.createElement("span");
-        afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a6878;font-weight:bold;";
+        afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+        const afkSubLbl = document.createElement("div");
+        afkSubLbl.className = "ebc-section-label";
+        afkSubLbl.style.margin = "0";
         afkSubLbl.textContent = t("settings.afkAutoReply");
         const afkChevron = document.createElement("span");
         afkChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         afkSubHeader.appendChild(afkSubLbl);
         afkSubHeader.appendChild(afkChevron);
-        chatSettingsBody.appendChild(afkSubHeader);
 
         const afkBody = document.createElement("div");
         afkBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:7px;";
@@ -14183,7 +14226,6 @@ export class EBCDrawer {
         afkChevron.textContent = afkCollapsed ? "▲" : "▼";
         afkBody.style.display = afkCollapsed ? "none" : "flex";
         afkSubHeader.addEventListener("click", toggleAfkCollapsed);
-        chatSettingsBody.appendChild(afkBody);
 
         // Outer collapse/expand
         const toggleChatSettings = (): void => {
@@ -14201,6 +14243,14 @@ export class EBCDrawer {
         const chatSettingsDiv = document.createElement("div");
         chatSettingsDiv.className = "ebc-divider";
         body.appendChild(chatSettingsDiv);
+
+        // ── AFK Auto-Reply (top-level section) ───────────────────────────────
+        body.appendChild(afkSubHeader);
+        body.appendChild(afkBody);
+
+        const afkTopDiv = document.createElement("div");
+        afkTopDiv.className = "ebc-divider";
+        body.appendChild(afkTopDiv);
 
         const notes = getNotes();
 
@@ -18529,6 +18579,60 @@ export class EBCDrawer {
                     }
                 }
 
+                // -- Pose-on-fire row --
+                {
+                    const POSE_NONE = "__none__";
+                    const poseRow = document.createElement("div");
+                    poseRow.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
+                    const poseLbl = document.createElement("span");
+                    poseLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
+                    poseLbl.textContent = "Pose:";
+
+                    const SEL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+
+                    const bodySel = document.createElement("select");
+                    bodySel.style.cssText = SEL_CSS;
+                    bodySel.title = "Body pose to apply when this button fires";
+                    const bodyNoneOpt = document.createElement("option");
+                    bodyNoneOpt.value = POSE_NONE; bodyNoneOpt.textContent = "-- body --";
+                    bodySel.appendChild(bodyNoneOpt);
+                    for (const p of (KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [])) {
+                        const opt = document.createElement("option");
+                        opt.value = p.key; opt.textContent = p.label;
+                        opt.selected = btn.bodyPoseKey !== undefined && btn.bodyPoseKey === p.key;
+                        bodySel.appendChild(opt);
+                    }
+                    if (btn.bodyPoseKey === undefined) bodySel.value = POSE_NONE;
+
+                    const armSel = document.createElement("select");
+                    armSel.style.cssText = SEL_CSS;
+                    armSel.title = "Arms pose to apply when this button fires";
+                    const armNoneOpt = document.createElement("option");
+                    armNoneOpt.value = POSE_NONE; armNoneOpt.textContent = "-- arms --";
+                    armSel.appendChild(armNoneOpt);
+                    for (const p of (KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [])) {
+                        const opt = document.createElement("option");
+                        opt.value = p.key; opt.textContent = p.label;
+                        opt.selected = btn.armPoseKey !== undefined && btn.armPoseKey === p.key;
+                        armSel.appendChild(opt);
+                    }
+                    if (btn.armPoseKey === undefined) armSel.value = POSE_NONE;
+
+                    bodySel.addEventListener("change", () => {
+                        if (bodySel.value === POSE_NONE) btns[i].bodyPoseKey = undefined;
+                        else btns[i].bodyPoseKey = bodySel.value;
+                    });
+                    armSel.addEventListener("change", () => {
+                        if (armSel.value === POSE_NONE) btns[i].armPoseKey = undefined;
+                        else btns[i].armPoseKey = armSel.value;
+                    });
+
+                    poseRow.appendChild(poseLbl);
+                    poseRow.appendChild(bodySel);
+                    poseRow.appendChild(armSel);
+                    row.appendChild(poseRow);
+                }
+
                 slotList.appendChild(row);
 
                 // -- Seq step builder (only for seq style) --
@@ -22585,7 +22689,7 @@ export class EBCDrawer {
         card.appendChild(lovWrap);
 
         // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
-        if (typeof Player !== "undefined" && Player?.MemberNumber === EMERY_MEMBER) {
+        if (typeof Player !== "undefined" && (Player?.MemberNumber === EMERY_MEMBER || Player?.MemberNumber === 147036)) {
             const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
             const psEnabled = s["psEnabled"] === true;
 
@@ -23507,7 +23611,7 @@ export class EBCDrawer {
 
     public checkPiShockTriggers(content: string): void {
         try {
-            if (typeof Player === "undefined" || Player?.MemberNumber !== EMERY_MEMBER) return;
+            if (typeof Player === "undefined" || (Player?.MemberNumber !== EMERY_MEMBER && Player?.MemberNumber !== 147036)) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
             const lower = content.toLowerCase();
@@ -23537,7 +23641,7 @@ export class EBCDrawer {
 
     public checkPiShockActivityTrigger(senderNum?: number): void {
         try {
-            if (typeof Player === "undefined" || (Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER) return;
+            if (typeof Player === "undefined" || ((Player as {MemberNumber?: number}).MemberNumber !== EMERY_MEMBER && (Player as {MemberNumber?: number}).MemberNumber !== 147036)) return;
             const s = getSettings();
             if (s["psEnabled"] !== true) return;
             const shockers = EBCDrawer.getPsShockers();
@@ -24045,6 +24149,21 @@ export class EBCDrawer {
         wireFocus(stepsArea);
         card.appendChild(stepsArea);
 
+        // ── Include name checkbox (off by default) ──────────────────────────
+        const _nick  = (typeof Player !== "undefined" ? (Player as unknown as Record<string, unknown>).Nickname as string | undefined : undefined) ?? "";
+        const _uname = (typeof Player !== "undefined" && Player?.Name) ? Player.Name : "";
+        const _nameDisplay = (_nick && _nick !== _uname) ? `${_nick} (${_uname})` : (_uname || "?");
+        const nameRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:14px;");
+        const nameCb = document.createElement("input") as HTMLInputElement;
+        nameCb.type = "checkbox"; nameCb.id = "ebc-fb-name-cb"; nameCb.checked = false;
+        nameCb.style.cssText = "width:14px;height:14px;accent-color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        const nameLblEl = document.createElement("label");
+        nameLblEl.htmlFor = "ebc-fb-name-cb";
+        nameLblEl.style.cssText = `${FONT}font-size:11.5px;color:#9b8fa6;cursor:pointer;user-select:none;`;
+        nameLblEl.textContent = `Include my name: ${_nameDisplay}`;
+        nameRow.appendChild(nameCb); nameRow.appendChild(nameLblEl);
+        card.appendChild(nameRow);
+
         const verNote = mk("div", `${FONT}font-size:10.5px;color:#7a6a8a;margin-bottom:18px;`);
         const _mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
         verNote.textContent = t("feedback.verNote", { v: this.version ?? "?", mn: _mn });
@@ -24081,7 +24200,8 @@ export class EBCDrawer {
             params.append(E_TYPE, selectedType);
             params.append(E_WHAT, what);
             params.append(E_STEPS, stepsArea.value.trim());
-            params.append(E_VER, `${this.version ?? "?"} | ${mn}`);
+            const verStr = nameCb.checked ? `${this.version ?? "?"} | ${mn} | ${_nameDisplay}` : `${this.version ?? "?"} | ${mn}`;
+            params.append(E_VER, verStr);
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
@@ -25488,12 +25608,14 @@ export class EBCDrawer {
         const { panel: posePanel } = makeDomAccordion("🧎", "POSES", actionsCard);
 
         const POSE_DEFS: ReadonlyArray<[string, string, string[], string]> = [
-            ["🚶", "Stand",     [],                       ""],
-            ["🧎", "Kneel",     ["Kneel"],                "into a kneeling position"],
-            ["🐈", "All Fours", ["AllFours"],             "onto all fours"],
-            ["🙌", "Hands Up",  ["OverTheHead"],          "into a hands-up pose"],
-            ["🫸", "Spread",    ["KneelingSpread"],       "into a kneeling spread"],
-            ["🤸", "Kneel+Up",  ["Kneel","OverTheHead"],  "into a kneeling position with arms raised"],
+            ["🚶", "Stand",      [],                                ""],
+            ["🧎", "Kneel",      ["Kneel"],                         "into a kneeling position"],
+            ["🐈", "All Fours",  ["AllFours"],                      "onto all fours"],
+            ["🙌", "Hands Up",   ["OverTheHead"],                   "into a hands-up pose"],
+            ["🫸", "Spread",     ["KneelingSpread"],                "into a kneeling spread"],
+            ["🤸", "Kneel+Up",   ["Kneel","OverTheHead"],           "into a kneeling position with arms raised"],
+            ["🙏", "Tight Back", ["BackElbowTouch"],                "arms pulled tight behind the back"],
+            ["🧎", "Kneel+Tight",["Kneel","BackElbowTouch"],        "into a kneeling position with arms tight behind the back"],
         ];
 
         const poseGrid = document.createElement("div");

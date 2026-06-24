@@ -15,32 +15,33 @@ export interface PoseCombo {
 
 // Well-known BC pose names grouped by type.
 // Body and arm poses can be freely combined (e.g. Kneel + BackCuffs).
-export const KNOWN_POSES: { group: string; poses: { key: string; label: string }[] }[] = [
+export const KNOWN_POSES: { group: string; poses: { key: string; label: string; announceText?: string }[] }[] = [
     {
         group: "Body",
         poses: [
-            { key: "",               label: "Stand"        },
-            { key: "LegsClosed",     label: "Legs Closed"  },
-            { key: "Kneel",          label: "Kneel"        },
-            { key: "KneelingSpread", label: "Kneel Wide"   },
-            { key: "AllFours",       label: "All Fours"    },
-            { key: "Hogtied",        label: "Hogtied"      },
-            { key: "Spread",         label: "Spread"       },
+            { key: "",               label: "Stand",       announceText: "stands up straight"                  },
+            { key: "LegsClosed",     label: "Legs Closed", announceText: "closes their legs"                   },
+            { key: "Kneel",          label: "Kneel",       announceText: "kneels down"                         },
+            { key: "KneelingSpread", label: "Kneel Wide",  announceText: "kneels with their legs spread wide"  },
+            { key: "AllFours",       label: "All Fours",   announceText: "gets down on all fours"              },
+            { key: "Hogtied",        label: "Hogtied",     announceText: "lies hogtied"                        },
+            { key: "Spread",         label: "Spread",      announceText: "spreads their legs wide"             },
         ],
     },
     {
         group: "Arms",
         poses: [
-            { key: "",               label: "Relaxed"     },
-            { key: "OverTheHead",    label: "Arms Up"     },
-            { key: "BackCuffs",      label: "Arms Back"   },
-            { key: "BackBoxTie",     label: "Box Tie"     },
-            { key: "Yoked",          label: "Yoked"       },
+            { key: "",               label: "Relaxed",    announceText: "relaxes their arms"                          },
+            { key: "OverTheHead",    label: "Arms Up",    announceText: "raises their arms above their head"           },
+            { key: "BackCuffs",      label: "Arms Back",  announceText: "puts their arms behind their back"            },
+            { key: "BackElbowTouch", label: "Tight Back", announceText: "pulls their arms tight behind their back"     },
+            { key: "BackBoxTie",     label: "Box Tie",    announceText: "crosses their arms behind their back"         },
+            { key: "Yoked",          label: "Yoked",      announceText: "holds their arms in a yoked position"         },
         ],
     },
 ];
 
-const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
+const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
 
 export function applyPoses(poses: string[]): void {
     // An explicit empty string ("") in the list means "Relaxed arms" —

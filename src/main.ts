@@ -24,8 +24,8 @@ import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modu
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.6";
-const SAL_VERSION  = 125;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "5.5.7";
+const SAL_VERSION  = 146;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -43,9 +43,35 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.5.6",
+        version: "5.5.7",
         changes: [
-            "Stability and correctness release. Safeword no longer strips owner-timer locks (OwnerTimerPadlock typo fixed). Live support badge now holds state inside chat rooms and refreshes promptly on return to lobby. Toys tab no longer leaks a background poller on every re-render. Outfit/restraint apply flag can no longer get permanently stuck after a sync error. Restraint log now shows the correct locker name instead of the lock asset name. Distinct *emotes typed in quick succession are no longer silently dropped. Scene steps with corrupt NaN delays no longer fire all remaining steps at once. Friends oldest/newest sort is stable when both entries lack a date. Action sidebar per-frame DOM overhead significantly reduced.",
+            "Fixes: chat textarea now resets height after *emote sends; resize hitbox hidden on minimized beep windows; beep windows and group chat windows can no longer be dragged off-screen; restoring a minimized beep window no longer pushes the header off-screen; resizing a beep window past the viewport bottom no longer grows it upward.",
+            "Anims: added 'Tight Back' arm pose (BackElbowTouch), new pose combos (Tight Back, Kneel+Tight), pose buttons now announce the action in room chat.",
+            "Action buttons: each button can now bind a body and/or arm pose that applies automatically when the button fires.",
+            "Removed: 'Member # to DM' field (AccountBeep unreliable to non-friends).",
+            "Feedback form: optional 'Include my name' checkbox (off by default).",
+            "Chat and notifications: 'Keep beep popups until dismissed' toggle and configurable dismiss time (1-60 s).",
+        ],
+    },
+    {
+        version: "8.3.1",
+        changes: [
+            "Removed: Auto-greet feature.",
+            "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
+            "Dev: member 147036 now has access to the PiShock menu.",
+            "Fix: EBC no longer intercepts *emote sends before BC's hook chain runs, restoring UBC's whisper-emote feature. Root cause: EBC's capture-phase keydown listener and ChatRoomSendChat/ChatRoomKeyDown hooks were intercepting emotes and calling ServerSend directly, bypassing ChatRoomSendChat entirely so UBC's hook on that function never fired. Fix: removed EBC's emote interception entirely - BC's native emote handling runs the full hook chain as expected.",
+            "Fix: clicking a beep notification for a window that is already open (but minimized elsewhere) no longer snaps it to screen center. Root cause: openBeepWindow always repositioned existing windows to viewport center when re-opening. Fix: existing windows are now un-minimized and focused in place.",
+            "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
+            "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
+            "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
+            "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
+            "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
+            "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
+            "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
+            "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
+            "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
+            "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
+            "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
         ],
     },
     {
@@ -7645,7 +7671,7 @@ function init(): void {
         const result = next(args);
         try { clearCurrentRoomName(); } catch { /* ignore */ }
         try { timerOnRoomLeave(); } catch { /* ignore */ }
-        try { onRoomLeave();     } catch { /* ignore */ }
+        try { onRoomLeave();           } catch { /* ignore */ }
         try { setBadgeDragMode(false); _dragTarget = null; } catch { /* ignore */ }
         try { clearAllPositions(); } catch { /* ignore */ }
         return result;
@@ -7659,14 +7685,12 @@ function init(): void {
         try {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
-            if (char.MemberNumber) onMemberJoin(char);
+            if (char.MemberNumber) {
+                onMemberJoin(char);
+            }
             try { detectNewJoins(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
-    });
-
-    tryHookFunction(modAPI, "ChatRoomSyncMemberLeave", 3, (args, next) => {
-        return next(args);
     });
 
     // Keep restraint timer up to date on every draw tick (lightweight check)
@@ -8237,36 +8261,6 @@ function init(): void {
     // which should prevent the hook paths from seeing the same keypress, but
     // certain BC builds or other addons can reorder event handling. This timestamp
     // guard ensures the ServerSend fires at most once per 500 ms regardless.
-    let _lastEmoteSendTime = 0;
-    let _lastEmoteBody = "";
-    const handleEmoteShortcut = (raw: string): boolean => {
-        if (!raw.startsWith("*")) return false;
-        const body = raw.slice(1).replace(/^\s+/, "");
-        if (!body) return false; // bare * alone — ignore
-        // If BC has an active reply (the reply indicator is showing), let BC handle
-        // this natively via ChatRoomSendEmote so the emote includes the reply context
-        // (replyId in Dictionary) and ChatRoomMessageReplyStop() is called to clear
-        // the indicator. Intercepting here would send without reply context and leave
-        // the reply bar stuck open, allowing a second reply to be sent.
-        const w = window as unknown as Record<string, unknown>;
-        const getReplyId = w["ChatRoomMessageGetReplyId"];
-        if (typeof getReplyId === "function" && (getReplyId as () => string | null | undefined)()) return false;
-        const now = Date.now();
-        // Swallow only a re-fire of the SAME emote within the window (the same Enter
-        // keypress reaching us via more than one interceptor). A *different* emote
-        // typed quickly is a distinct send and must go through - keying the guard on
-        // the body text (not time alone) prevents dropping a fast second emote.
-        if (body === _lastEmoteBody && now - _lastEmoteSendTime < 500) return true;
-        _lastEmoteSendTime = now;
-        _lastEmoteBody = body;
-        try {
-            ServerSend("ChatRoomChat", {
-                Type: "Emote",
-                Content: body,  // BC auto-prepends sender name for Type:"Emote"
-            });
-        } catch { /* ignore */ }
-        return true;
-    };
 
     // ── Direct capture-phase keydown — fires before BC touches anything ──────
     // This is the most reliable interceptor for safewords and chat commands.
@@ -8295,8 +8289,7 @@ function init(): void {
                 || handlePoseComboCommand(raw)
                 || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
-                || handleDomCommand(raw)
-                || handleEmoteShortcut(raw)) {
+                || handleDomCommand(raw)) {
                 (el as HTMLInputElement).value = "";
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -8330,7 +8323,6 @@ function init(): void {
                     || handleExprSequenceCommand(input.value)
                     || handleSceneCommand(input.value)
                     || handleDomCommand(input.value)
-                    || handleEmoteShortcut(input.value)
                 )) {
                     input.value = "";
                     return;
@@ -8354,9 +8346,8 @@ function init(): void {
                 || handleExprSequenceCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
-                || handleEmoteShortcut(raw)
             )) {
-                if (input) input.value = "";
+                if (input) { input.value = ""; input.style.height = ""; }
                 return;
             }
             // Expression triggers — check outgoing message against saved triggers.
@@ -8371,7 +8362,10 @@ function init(): void {
                 }
             }
         } catch { /* ignore */ }
-        return next(args);
+        const _r = next(args);
+        // BC skips the textarea height reset for emote sends (*message) — clear it explicitly.
+        try { const inp = getChatInput(); if (inp) inp.style.height = ""; } catch { /* ignore */ }
+        return _r;
     });
 
     // Delay the init-time presence broadcast the same way as the ChatRoomSync
