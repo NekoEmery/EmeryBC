@@ -21,11 +21,12 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
+import { isXToysUser, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 146;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 147;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -61,6 +62,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
             "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
             "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
+            "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
         ],
     },
     {
@@ -7209,6 +7211,13 @@ function init(): void {
             // the drawer was built before server settings arrived, so the SAL
             // version suffix would be missing if it was saved as enabled.
             try { drawer?._updateVersionTitle(); } catch { /* ignore */ }
+            // Auto-connect XToys if a webhook ID was saved for this player
+            try {
+                if (isXToysUser(Player.MemberNumber)) {
+                    const xtId = getXToysWebhookId();
+                    if (xtId && getSettings().xtoysEnabled === true) xtoysConnect(xtId);
+                }
+            } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
@@ -8316,6 +8325,96 @@ function init(): void {
                     input.value = "";
                     return;
                 }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // ── XToys BC event hooks ──────────────────────────────────────────────────
+    // All guards: early-return when the logged-in player isn't an XToys user,
+    // XToys isn't enabled, or the WebSocket isn't open.
+
+    modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (getSettings().xtoysEnabled !== true) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const data = args[0] as Record<string, unknown>;
+            // Activities arrive as Type="Activity" (older BC) or Type="Action" (newer BC)
+            if (data?.Type === "Activity" || data?.Type === "Action") {
+                const dict = Array.isArray(data.Dictionary)
+                    ? data.Dictionary as Record<string, unknown>[]
+                    : [];
+                const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                if (actGroup && actName) {
+                    const pn = Player.MemberNumber;
+                    if (targetNum === pn) xtoysActivityEvent(actGroup, actName);
+                    else if (sourceNum === pn) xtoysActivityOnOtherEvent(actGroup, actName);
+                }
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (getSettings().xtoysEnabled !== true) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const item = args[1] as { Asset?: { Group?: { Name?: string } } } | undefined;
+                const mode = String(args[2] ?? "");
+                if (mode) xtoysToyEvent(mode, item?.Asset?.Group?.Name);
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "PropertyShockPublishAction", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (getSettings().xtoysEnabled !== true) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) xtoysShockEvent();
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "InventoryWear", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (getSettings().xtoysEnabled !== true) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const item = args[1] as { Asset?: { Name?: string; Group?: { Name?: string } } } | undefined;
+                const grp  = item?.Asset?.Group?.Name ?? "";
+                const name = item?.Asset?.Name ?? "";
+                if (grp && name) xtoysItemAdded(grp, name);
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "InventoryRemove", 0, (args, next) => {
+        // InventoryRemove(C, groupName) fires BEFORE the item is actually removed,
+        // so we can still look up the asset name from the appearance.
+        if (!isXToysUser(Player.MemberNumber)) return next(args);
+        if (getSettings().xtoysEnabled !== true) return next(args);
+        if (xtoysStatus() !== "connected") return next(args);
+        try {
+            const C = args[0] as { MemberNumber?: number; Appearance?: Array<{ Asset?: { Name?: string; Group?: { Name?: string } } }> } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const grp  = String(args[1] ?? "");
+                const slot = C?.Appearance?.find(a => a?.Asset?.Group?.Name === grp);
+                const name = slot?.Asset?.Name ?? grp;
+                if (grp) xtoysItemRemoved(grp, name);
             }
         } catch { /* ignore */ }
         return next(args);
