@@ -113,7 +113,7 @@
         }
     }
     /** Returns the live in-memory settings object shared by all EBC modules. */
-    function getSettings$1() {
+    function getSettings() {
         if (!_initialized)
             initSettings();
         return _mem;
@@ -423,7 +423,7 @@
     // -- Presets (saved full-face snapshots for quick-apply) -----------------------
     function getExpressionPresets() {
         try {
-            const list = getSettings$1().expressionPresets;
+            const list = getSettings().expressionPresets;
             return Array.isArray(list) ? list : [];
         }
         catch (_a) {
@@ -432,7 +432,7 @@
     }
     function saveExpressionPresets(presets) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.expressionPresets = presets;
             syncSettings();
         }
@@ -484,7 +484,7 @@
     // -- Sequences -----------------------------------------------------------------
     function getExpressionSequences() {
         try {
-            const list = getSettings$1().expressionSequences;
+            const list = getSettings().expressionSequences;
             return Array.isArray(list) ? list : [];
         }
         catch (_a) {
@@ -493,7 +493,7 @@
     }
     function saveExpressionSequences(seqs) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.expressionSequences = seqs;
             syncSettings();
         }
@@ -535,7 +535,7 @@
     // null = clear all groups back to neutral.
     function getDefaultExprPresetId() {
         try {
-            const v = getSettings$1().defaultExprPresetId;
+            const v = getSettings().defaultExprPresetId;
             return typeof v === "string" && v ? v : null;
         }
         catch (_a) {
@@ -544,7 +544,7 @@
     }
     function setDefaultExprPresetId(id) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             if (id) {
                 store.defaultExprPresetId = id;
             }
@@ -560,7 +560,7 @@
     // the player enters a room (on ChatRoomSync hook in main.ts).
     function getAutoApplyDefaultFace() {
         try {
-            const v = getSettings$1().autoApplyDefaultFace;
+            const v = getSettings().autoApplyDefaultFace;
             return v === true;
         }
         catch (_a) {
@@ -569,7 +569,7 @@
     }
     function setAutoApplyDefaultFace(on) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             if (on) {
                 store.autoApplyDefaultFace = true;
             }
@@ -582,7 +582,7 @@
     }
     function getExpressionTriggers() {
         try {
-            const v = getSettings$1().expressionTriggers;
+            const v = getSettings().expressionTriggers;
             return Array.isArray(v) ? v : [];
         }
         catch (_a) {
@@ -591,7 +591,7 @@
     }
     function saveExpressionTriggers(triggers) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.expressionTriggers = triggers;
             syncSettings();
         }
@@ -757,7 +757,7 @@
     let refreshScheduled = false;
     let cachedOutfits = null;
     function loadOutfitsFromSettings() {
-        const list = getSettings$1().outfits;
+        const list = getSettings().outfits;
         const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
         cachedOutfits = outfits;
         return outfits;
@@ -766,25 +766,25 @@
         return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
     }
     function getDefaultNickname() {
-        const raw = getSettings$1().defaultNickname;
+        const raw = getSettings().defaultNickname;
         return typeof raw === "string" ? raw : "";
     }
     function setDefaultNickname(nick) {
-        getSettings$1().defaultNickname = nick.trim();
+        getSettings().defaultNickname = nick.trim();
         syncSettings();
     }
     function getDefaultTitle() {
-        const raw = getSettings$1().defaultTitle;
+        const raw = getSettings().defaultTitle;
         return typeof raw === "string" ? raw : "";
     }
     function setDefaultTitle(title) {
-        getSettings$1().defaultTitle = title;
+        getSettings().defaultTitle = title;
         syncSettings();
     }
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedOutfits = sanitized;
-        getSettings$1().outfits = sanitized;
+        getSettings().outfits = sanitized;
         syncSettings();
     }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
@@ -1185,11 +1185,11 @@
         }
     }
     function getOutfitTags() {
-        const raw = getSettings$1().outfitTags;
+        const raw = getSettings().outfitTags;
         return Array.isArray(raw) ? raw : [];
     }
     function saveOutfitTags(tags) {
-        getSettings$1().outfitTags = tags;
+        getSettings().outfitTags = tags;
         syncSettings();
     }
     function createOutfitTag(name, color) {
@@ -1325,11 +1325,11 @@
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
-        const list = getSettings$1().outfitSchedules;
+        const list = getSettings().outfitSchedules;
         return Array.isArray(list) ? list : [];
     }
     function saveSchedules(schedules) {
-        getSettings$1().outfitSchedules = schedules;
+        getSettings().outfitSchedules = schedules;
         syncSettings();
     }
     function addSchedule(outfitId, time) {
@@ -1375,7 +1375,7 @@
     // -- Restraint Sets -----------------------------------------------------------
     let cachedRestraints = null;
     function loadRestraintsFromSettings() {
-        const list = getSettings$1().restraints;
+        const list = getSettings().restraints;
         const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
         cachedRestraints = restraints;
         return restraints;
@@ -1386,7 +1386,7 @@
     function saveRestraints(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedRestraints = sanitized;
-        getSettings$1().restraints = sanitized;
+        getSettings().restraints = sanitized;
         syncSettings();
     }
     function captureRestraints() {
@@ -1575,11 +1575,11 @@
     // Group names (slot keys) whose current item should never be touched by any
     // outfit or restraint-set apply. Stored in ExtensionSettings server-side.
     function getOutfitWhitelist() {
-        const raw = getSettings$1().outfitWhitelist;
+        const raw = getSettings().outfitWhitelist;
         return Array.isArray(raw) ? raw : [];
     }
     function setOutfitWhitelist(groups) {
-        getSettings$1().outfitWhitelist = groups;
+        getSettings().outfitWhitelist = groups;
         syncSettings();
     }
     function addToOutfitWhitelist(group) {
@@ -1686,14 +1686,14 @@
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
     function load$2() {
-        const list = getSettings$1().palettes;
+        const list = getSettings().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getSettings$1().palettes = list;
+        getSettings().palettes = list;
         syncSettings();
     }
     function uid$5() {
@@ -1779,11 +1779,11 @@
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getSettings$1().customColors = list;
+        getSettings().customColors = list;
         syncSettings();
     }
     function getCustomColors() {
-        const v = getSettings$1().customColors;
+        const v = getSettings().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -1891,11 +1891,11 @@
         });
     }
     function saveRestraintPresets(list) {
-        getSettings$1().restraintPresets = list;
+        getSettings().restraintPresets = list;
         syncSettings();
     }
     function getRestraintPresets() {
-        const v = getSettings$1().restraintPresets;
+        const v = getSettings().restraintPresets;
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
@@ -2176,14 +2176,14 @@
     // -- Combo storage -------------------------------------------------------
     function uid$4() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getSettings$1().poseCombos;
+        const list = getSettings().poseCombos;
         if (!Array.isArray(list))
             return [];
         // Sanitize each combo — old data may have undefined/null poses array
         return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
     }
     function saveCombos(list) {
-        getSettings$1().poseCombos = list;
+        getSettings().poseCombos = list;
         syncSettings();
     }
     function getPoseCombos() { return load$1(); }
@@ -2258,7 +2258,7 @@
     function getShowSalVersion() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showSalVersion) === true;
         }
         catch (_b) {
             return false;
@@ -2266,7 +2266,7 @@
     }
     function setShowSalVersion(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.showSalVersion = value;
             syncSettings();
         }
@@ -2279,7 +2279,7 @@
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -2287,7 +2287,7 @@
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.badgeEnabled = value;
             syncSettings();
         }
@@ -2299,7 +2299,7 @@
     function getShowOthersBadge() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showOthersBadge) !== false;
         }
         catch (_b) {
             return true;
@@ -2307,7 +2307,7 @@
     }
     function setShowOthersBadge(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.showOthersBadge = value;
             syncSettings();
         }
@@ -2319,7 +2319,7 @@
     function getShowVersionBadge() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -2327,7 +2327,7 @@
     }
     function setShowVersionBadge(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.showVersionBadge = value;
             syncSettings();
         }
@@ -2339,7 +2339,7 @@
     function getShowOthersVersionBadge() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -2347,7 +2347,7 @@
     }
     function setShowOthersVersionBadge(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.showOthersVersionBadge = value;
             syncSettings();
         }
@@ -2359,7 +2359,7 @@
     function getAntiRestraintEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
         }
         catch (_b) {
             return false;
@@ -2367,7 +2367,7 @@
     }
     function setAntiRestraintEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.antiRestraint = value;
             syncSettings();
         }
@@ -2378,7 +2378,7 @@
     function getAntiRestraintAnnounce() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintAnnounce) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintAnnounce) !== false;
         }
         catch (_b) {
             return true;
@@ -2386,7 +2386,7 @@
     }
     function setAntiRestraintAnnounce(value) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.antiRestraintAnnounce = value;
             syncSettings();
         }
@@ -2399,7 +2399,7 @@
     function getEscapeEmoteText() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.escapeEmoteText;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.escapeEmoteText;
             return typeof v === "string" ? v : "";
         }
         catch (_b) {
@@ -2408,7 +2408,7 @@
     }
     function setEscapeEmoteText(text) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.escapeEmoteText = text;
             syncSettings();
         }
@@ -2419,7 +2419,7 @@
     function getDomSetAnnounce() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.domSetAnnounce) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.domSetAnnounce) !== false;
         }
         catch (_b) {
             return true;
@@ -2427,7 +2427,7 @@
     }
     function setDomSetAnnounce(value) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.domSetAnnounce = value;
             syncSettings();
         }
@@ -2439,7 +2439,7 @@
     function getAntiRestraintWhitelist() {
         var _a;
         try {
-            const list = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            const list = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -2452,7 +2452,7 @@
     function getSpecialFriends() {
         var _a;
         try {
-            const list = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.specialFriends;
+            const list = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.specialFriends;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -2464,7 +2464,7 @@
     }
     function addSpecialFriend(memberNumber) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             const list = getSpecialFriends();
             if (!list.includes(memberNumber)) {
                 store.specialFriends = [...list, memberNumber];
@@ -2475,7 +2475,7 @@
     }
     function removeSpecialFriend(memberNumber) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
             syncSettings();
         }
@@ -2487,7 +2487,7 @@
     function getAntiRestraintConfirm() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
         }
         catch (_b) {
             return false;
@@ -2495,7 +2495,7 @@
     }
     function setAntiRestraintConfirm(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.antiRestraintConfirm = value;
             syncSettings();
         }
@@ -2507,7 +2507,7 @@
     function getSuppressNativeBeep() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
         }
         catch (_b) {
             return true;
@@ -2515,7 +2515,7 @@
     }
     function setSuppressNativeBeep(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.suppressNativeBeep = value;
             syncSettings();
         }
@@ -2527,7 +2527,7 @@
     function getLianChatCompat() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.lianChatCompat) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.lianChatCompat) === true;
         }
         catch (_b) {
             return false;
@@ -2535,7 +2535,7 @@
     }
     function setLianChatCompat(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.lianChatCompat = value;
             syncSettings();
         }
@@ -2545,7 +2545,7 @@
     function getOnlineSoundEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.onlineSoundEnabled) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.onlineSoundEnabled) !== false;
         }
         catch (_b) {
             return true;
@@ -2553,7 +2553,7 @@
     }
     function setOnlineSoundEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.onlineSoundEnabled = value;
             syncSettings();
         }
@@ -2564,7 +2564,7 @@
     function getUseNativeBeepSound() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.useNativeBeepSound) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.useNativeBeepSound) === true;
         }
         catch (_b) {
             return false;
@@ -2572,7 +2572,7 @@
     }
     function setUseNativeBeepSound(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.useNativeBeepSound = value;
             syncSettings();
         }
@@ -2585,7 +2585,7 @@
     function getUpdateNotify() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
         }
         catch (_b) {
             return true;
@@ -2593,7 +2593,7 @@
     }
     function setUpdateNotify(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.updateNotify = value;
             syncSettings();
         }
@@ -2605,7 +2605,7 @@
     function getAfkEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2613,7 +2613,7 @@
     }
     function setAfkEnabled(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.afkEnabled = v;
             syncSettings();
         }
@@ -2623,7 +2623,7 @@
     function getAfkThreshold() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
             return typeof v === "number" && v >= 1 ? v : 300;
         }
         catch (_b) {
@@ -2632,7 +2632,7 @@
     }
     function setAfkThreshold(n) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
             syncSettings();
         }
@@ -2641,7 +2641,7 @@
     function getAfkMessage() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.afkMessage;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.afkMessage;
             return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
         }
         catch (_b) {
@@ -2650,7 +2650,7 @@
     }
     function setAfkMessage(msg) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.afkMessage = msg.slice(0, 200).trim();
             syncSettings();
         }
@@ -2663,7 +2663,7 @@
     function getOocEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2671,7 +2671,7 @@
     }
     function setOocEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.oocEnabled = value;
             syncSettings();
         }
@@ -2682,7 +2682,7 @@
     function getRoomHistoryEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2690,7 +2690,7 @@
     }
     function setRoomHistoryEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.roomHistoryEnabled = value;
             syncSettings();
         }
@@ -2701,7 +2701,7 @@
     function getRestraintLogEnabled() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
         }
         catch (_b) {
             return false;
@@ -2709,7 +2709,7 @@
     }
     function setRestraintLogEnabled(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.restraintLogEnabled = value;
             syncSettings();
         }
@@ -2719,7 +2719,7 @@
     function getBeepMuted() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
         }
         catch (_b) {
             return false;
@@ -2727,7 +2727,7 @@
     }
     function setBeepMuted(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.beepMuted = value;
             syncSettings();
         }
@@ -2737,7 +2737,7 @@
     function getToastSticky() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastSticky) === true;
         }
         catch (_b) {
             return false;
@@ -2745,7 +2745,7 @@
     }
     function setToastSticky(value) {
         try {
-            getSettings$1().toastSticky = value;
+            getSettings().toastSticky = value;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -2754,7 +2754,7 @@
     function getToastDurationSec() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.toastDurationSec;
             if (typeof v === "number" && v >= 1 && v <= 60)
                 return v;
         }
@@ -2763,7 +2763,7 @@
     }
     function setToastDurationSec(value) {
         try {
-            getSettings$1().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
+            getSettings().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -2775,7 +2775,7 @@
     function getQuickReplies() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.quickReplies;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.quickReplies;
             if (Array.isArray(v))
                 return v;
         }
@@ -2784,7 +2784,7 @@
     }
     function saveQuickReplies(replies) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.quickReplies = replies;
             syncSettings();
         }
@@ -2794,7 +2794,7 @@
     function getActionButtonsVisible() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) === true;
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) === true;
         }
         catch (_b) {
             return false;
@@ -2802,7 +2802,7 @@
     }
     function setActionButtonsVisible(value) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.actionButtonsVisible = value;
             syncSettings();
         }
@@ -2843,7 +2843,7 @@
     function _pmServerLoad() {
         var _a;
         try {
-            const raw = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.peopleMet;
+            const raw = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.peopleMet;
             return Array.isArray(raw) ? raw : [];
         }
         catch (_b) {
@@ -2905,7 +2905,7 @@
             }
             _pmLocalSave(local);
             // 2. Update server list (most recent PEOPLE_MET_SERVER_CAP entries only)
-            const store = getSettings$1();
+            const store = getSettings();
             const server = _pmServerLoad();
             const sIdx = server.findIndex(p => p.n === memberNumber);
             if (sIdx >= 0) {
@@ -2927,7 +2927,7 @@
     }
     function clearPeopleMet() {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.peopleMet = [];
             try {
                 localStorage.removeItem(PEOPLE_MET_LOCAL_KEY);
@@ -2940,7 +2940,7 @@
     function getBadgeStyle() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -2948,7 +2948,7 @@
     }
     function setBadgeStyle(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.badgeStyle = v;
             syncSettings();
         }
@@ -2960,7 +2960,7 @@
     function getOthersBadgeStyle() {
         var _a;
         try {
-            return ((_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
         }
         catch (_b) {
             return "text";
@@ -2968,7 +2968,7 @@
     }
     function setOthersBadgeStyle(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.othersBadgeStyle = v;
             syncSettings();
         }
@@ -2981,7 +2981,7 @@
     function getBadgeScale() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeScale;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
         }
         catch (_b) {
@@ -2992,7 +2992,7 @@
     // Both fall back to the legacy `badgeScale` value on first use (migration).
     function getTextBadgeScale() {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             const v = s === null || s === void 0 ? void 0 : s.textBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -3002,7 +3002,7 @@
     }
     function setTextBadgeScale(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
             syncSettings();
         }
@@ -3010,7 +3010,7 @@
     }
     function getCatBadgeScale() {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeScale;
             return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
         }
@@ -3020,7 +3020,7 @@
     }
     function setCatBadgeScale(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
             syncSettings();
         }
@@ -3032,7 +3032,7 @@
     function getBadgeBgOpacity() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -3041,7 +3041,7 @@
     }
     function setBadgeBgOpacity(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.badgeBgOpacity = Math.max(0, Math.min(1, v));
             syncSettings();
         }
@@ -3053,7 +3053,7 @@
     function getBadgeTextOpacity() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
             return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
@@ -3062,7 +3062,7 @@
     }
     function setBadgeTextOpacity(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.badgeTextOpacity = Math.max(0, Math.min(1, v));
             syncSettings();
         }
@@ -3076,7 +3076,7 @@
     function getBadgeOffsetX() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -3085,7 +3085,7 @@
     }
     function setBadgeOffsetX(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.badgeOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3094,7 +3094,7 @@
     function getBadgeOffsetY() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72;
         }
         catch (_b) {
@@ -3103,7 +3103,7 @@
     }
     function setBadgeOffsetY(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
             syncSettings();
         }
@@ -3118,7 +3118,7 @@
     // Falls back to the shared badgeOffsetX/Y on first use (migration).
     function getCatBadgeOffsetX() {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
         }
@@ -3128,7 +3128,7 @@
     }
     function setCatBadgeOffsetX(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.catBadgeOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3136,7 +3136,7 @@
     }
     function getCatBadgeOffsetY() {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
         }
@@ -3146,7 +3146,7 @@
     }
     function setCatBadgeOffsetY(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
             syncSettings();
         }
@@ -3162,7 +3162,7 @@
     function getVersionTextOffsetX() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
             return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
         }
         catch (_b) {
@@ -3171,7 +3171,7 @@
     }
     function setVersionTextOffsetX(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.versionTextOffsetX = Math.round(v);
             syncSettings();
         }
@@ -3180,7 +3180,7 @@
     function getVersionTextOffsetY() {
         var _a;
         try {
-            const v = (_a = getSettings$1()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
             return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95;
         }
         catch (_b) {
@@ -3189,7 +3189,7 @@
     }
     function setVersionTextOffsetY(v) {
         try {
-            const s = getSettings$1();
+            const s = getSettings();
             s.versionTextOffsetY = Math.round(v);
             syncSettings();
         }
@@ -3385,11 +3385,11 @@
     // waits into a named sequence that plays back step by step with per-step timing.
     function uid$3() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const raw = getSettings$1().scenes;
+        const raw = getSettings().scenes;
         return Array.isArray(raw) ? raw : [];
     }
     function saveScenes(list) {
-        getSettings$1().scenes = list;
+        getSettings().scenes = list;
         syncSettings();
     }
     function getScenes() { return load(); }
@@ -3596,7 +3596,7 @@
     // Per-restraint-group timestamps (ms since epoch), keyed by group name (e.g. "ItemArms").
     function loadRestraintTimers() {
         try {
-            const v = getSettings$1().restraintTimers;
+            const v = getSettings().restraintTimers;
             return (v && typeof v === "object" && !Array.isArray(v)) ? Object.assign({}, v) : {};
         }
         catch (_a) {
@@ -3605,7 +3605,7 @@
     }
     function saveRestraintTimers(timers) {
         try {
-            getSettings$1().restraintTimers = timers;
+            getSettings().restraintTimers = timers;
         }
         catch ( /* ignore */_a) { /* ignore */ }
         if (!savePending) {
@@ -3621,7 +3621,7 @@
     // ---------------------------------------------------------------------------
     function getTimerExcludedGroups() {
         try {
-            const v = getSettings$1().timerExcludedGroups;
+            const v = getSettings().timerExcludedGroups;
             if (Array.isArray(v))
                 return new Set(v);
         }
@@ -3638,7 +3638,7 @@
             current.add(group);
         else
             current.delete(group);
-        getSettings$1().timerExcludedGroups = [...current];
+        getSettings().timerExcludedGroups = [...current];
         syncSettings();
     }
     // ---------------------------------------------------------------------------
@@ -3733,7 +3733,7 @@
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
     function getNotes() {
         try {
-            const raw = getSettings$1().characterNotes;
+            const raw = getSettings().characterNotes;
             return (raw && typeof raw === "object" && !Array.isArray(raw))
                 ? raw
                 : {};
@@ -3744,7 +3744,7 @@
     }
     function saveNote(memberNumber, name, note) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             const notes = getNotes();
             const key = String(memberNumber);
             if (note.trim()) {
@@ -3779,7 +3779,7 @@
     let _legacyStyleScanned = false;
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getSettings$1();
+        const store = getSettings();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -3824,7 +3824,7 @@
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getSettings$1();
+        const store = getSettings();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -3832,7 +3832,7 @@
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getSettings$1();
+        const store = getSettings();
         store.activeCategoryIndex = idx;
         syncSettings();
     }
@@ -3845,7 +3845,7 @@
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getSettings$1();
+        const store = getSettings();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -3854,7 +3854,7 @@
         syncSettings();
     }
     function saveCategories(categories, activeIndex) {
-        const store = getSettings$1();
+        const store = getSettings();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         syncSettings();
@@ -5224,7 +5224,7 @@
     }
     // -- Name cache ----------------------------------------------------------------
     function getCachedNames() {
-        const v = getSettings$1().friendNames;
+        const v = getSettings().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     const MAX_NAME_CACHE = 500;
@@ -5237,7 +5237,7 @@
         }
     }
     function cacheName(memberNumber, name) {
-        const store = getSettings$1();
+        const store = getSettings();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
         const d = store.friendNames;
@@ -5250,11 +5250,11 @@
     // (.Nickname). When a person uses a nickname, both are preserved so the
     // friends list can show "Nickname (AccountName)" for easy identification.
     function getCachedAccountNames() {
-        const v = getSettings$1().friendAccountNames;
+        const v = getSettings().friendAccountNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     function cacheAccountName(memberNumber, accountName) {
-        const store = getSettings$1();
+        const store = getSettings();
         if (!store.friendAccountNames || typeof store.friendAccountNames !== "object")
             store.friendAccountNames = {};
         const d = store.friendAccountNames;
@@ -5457,7 +5457,7 @@
         const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
         if (nowOffline.length > 0) {
             try {
-                const store = getSettings$1();
+                const store = getSettings();
                 const data = getLastSeenMap();
                 const now = Date.now();
                 for (const num of nowOffline)
@@ -5549,7 +5549,7 @@
     const LAST_SEEN_CAP = 300;
     function getLastSeenMap() {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             // One-time migration from localStorage → ExtensionSettings
             if (!store.lastSeenMigrated) {
                 try {
@@ -5608,7 +5608,7 @@
     // (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
     function syncFriendsSince() {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -5630,7 +5630,7 @@
     }
     function getFriendSince(memberNumber) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -5672,14 +5672,14 @@
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
-        const v = getSettings$1().pinnedFriends;
+        const v = getSettings().pinnedFriends;
         return Array.isArray(v) ? v : [];
     }
     function isFriendPinned(memberNumber) {
         return getPinnedFriends().includes(memberNumber);
     }
     function togglePinFriend(memberNumber) {
-        const store = getSettings$1();
+        const store = getSettings();
         const list = getPinnedFriends();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -5696,14 +5696,14 @@
         _onFriendCameOnline = fn;
     }
     function getOnlineWatchList() {
-        const v = getSettings$1().onlineWatchList;
+        const v = getSettings().onlineWatchList;
         return Array.isArray(v) ? v : [];
     }
     function isOnWatchList(memberNumber) {
         return getOnlineWatchList().includes(memberNumber);
     }
     function toggleOnlineWatch(memberNumber) {
-        const store = getSettings$1();
+        const store = getSettings();
         const list = getOnlineWatchList();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -5762,7 +5762,7 @@
         return [];
     }
     function getFriendTagList(memberNumber) {
-        const store = getSettings$1();
+        const store = getSettings();
         const raw = store.friendTags;
         const userTags = (!raw || typeof raw !== "object" || Array.isArray(raw))
             ? []
@@ -5775,7 +5775,7 @@
     function setFriendTagList(memberNumber, tagList) {
         // Strip any locked tags before saving — they must never enter storage
         const toSave = tagList.filter(t => !t.locked);
-        const store = getSettings$1();
+        const store = getSettings();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
@@ -5788,11 +5788,11 @@
     // -- Beep history --------------------------------------------------------------
     const MAX_ENTRIES$2 = 100; // 100 entries × up to 1 KB each ≈ 100 KB max for history
     function getBeepHistory() {
-        const v = getSettings$1().beepHistory;
+        const v = getSettings().beepHistory;
         return Array.isArray(v) ? v : [];
     }
     function addBeepEntry(entry) {
-        const store = getSettings$1();
+        const store = getSettings();
         const history = getBeepHistory();
         // Strip mod metadata before persisting — WCE/FBC append large JSON blobs to
         // messages that bloat stored history. stripBeepMetadata removes those blobs,
@@ -5814,7 +5814,7 @@
     function clearConversation(memberNumber) {
         var _a;
         const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-        const store = getSettings$1();
+        const store = getSettings();
         const history = getBeepHistory();
         store.beepHistory = history.filter(e => !((e.from === memberNumber && e.to === self) ||
             (e.from === self && e.to === memberNumber)));
@@ -5966,7 +5966,7 @@
     }
     function getGroups() {
         try {
-            const d = getSettings$1().groups;
+            const d = getSettings().groups;
             if (Array.isArray(d))
                 return d;
         }
@@ -5974,7 +5974,7 @@
         return [];
     }
     function saveGroups(groups) {
-        getSettings$1().groups = groups;
+        getSettings().groups = groups;
         syncSettings();
     }
     function addGroupBeepEntry(groupId, entry) {
@@ -6070,7 +6070,7 @@
     // ── Settings ───────────────────────────────────────────────────────────────────
     function getXToysWebhookId() {
         try {
-            const v = getSettings$1().xtoysWebhookId;
+            const v = getSettings().xtoysWebhookId;
             return typeof v === "string" ? v : "";
         }
         catch (_a) {
@@ -6079,7 +6079,7 @@
     }
     function setXToysWebhookId(id) {
         try {
-            getSettings$1().xtoysWebhookId = id.trim();
+            getSettings().xtoysWebhookId = id.trim();
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -6258,7 +6258,7 @@
         redLeave: true,
     };
     function getSafewordConfig() {
-        const raw = getSettings$1().safeword;
+        const raw = getSettings().safeword;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
@@ -6282,7 +6282,7 @@
     }
     function setSafewordConfig(cfg) {
         try {
-            const store = getSettings$1();
+            const store = getSettings();
             store.safeword = cfg;
             // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
             // may return a rejecting Promise that a bare call would silently swallow.
@@ -6569,7 +6569,7 @@
     function uid() { return Math.random().toString(36).slice(2, 9); }
     function loadConfig() {
         try {
-            const v = getSettings$1().domConfig;
+            const v = getSettings().domConfig;
             if (v && Array.isArray(v.targets)) {
                 return {
                     targets: v.targets,
@@ -6582,7 +6582,7 @@
     }
     function saveConfig(cfg) {
         try {
-            getSettings$1().domConfig = cfg;
+            getSettings().domConfig = cfg;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -7360,11 +7360,11 @@
     ];
     // ── Storage helpers ───────────────────────────────────────────────────────────
     function kGet(key, fallback) {
-        const v = getSettings$1()[key];
+        const v = getSettings()[key];
         return v !== undefined ? v : fallback;
     }
     function kSet(key, val) {
-        getSettings$1()[key] = val;
+        getSettings()[key] = val;
         syncSettings();
     }
     function getKittyMood() {
@@ -13240,14 +13240,14 @@
                 // it up correctly. Writing directly to Player.ExtensionSettings.EmeryBC
                 // was previously used, but flushToExtensionSettings() would overwrite it
                 // 400 ms later with the stale _mem.panelPos value (null from the server).
-                getSettings$1().panelPos = pos !== null && pos !== void 0 ? pos : null;
+                getSettings().panelPos = pos !== null && pos !== void 0 ? pos : null;
                 syncSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
             try {
-                const v = getSettings$1().panelPos;
+                const v = getSettings().panelPos;
                 if (v && typeof v.x === "number" && typeof v.y === "number") {
                     // Clamp to current viewport so a position saved on a wider/taller screen
                     // doesn't put the panel off-screen on the next load.
@@ -14611,7 +14611,7 @@
             const exportBadgeCode = () => {
                 try {
                     // Read from the live in-memory store (getSettings()) - always up to date
-                    const store = getSettings$1();
+                    const store = getSettings();
                     const settings = {};
                     for (const k of BADGE_KEYS) {
                         if (k in store)
@@ -14633,7 +14633,7 @@
                 // Write to the in-memory store (_mem) - syncSettings() flushes _mem →
                 // ExtensionSettings, so writing directly to ExtensionSettings was wrong:
                 // syncSettings() would overwrite it with the old _mem values.
-                const mem = getSettings$1();
+                const mem = getSettings();
                 for (const k of BADGE_KEYS) {
                     if (k in incoming)
                         mem[k] = incoming[k];
@@ -29571,7 +29571,7 @@
             }
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            const s = getSettings$1();
+            const s = getSettings();
             const mk = (tag, css) => {
                 const el = document.createElement(tag);
                 if (css)
@@ -29796,7 +29796,7 @@
                             }
                             if (!char)
                                 throw new Error("No writable characteristic found");
-                            const connS = getSettings$1();
+                            const connS = getSettings();
                             const toyDefI = typeof connS.lovenseIntensity === "number" ? connS.lovenseIntensity : 10;
                             const toyDefD = typeof connS.lovenseDuration === "number" ? connS.lovenseDuration : 5;
                             this._lovConnections.set(connKey, { device, char, name: devName, intensity: toyDefI, duration: toyDefD });
@@ -31783,7 +31783,7 @@
             body.appendChild(card);
         }
         async fireLovense(intensity, duration, allowedNames) {
-            const s = getSettings$1();
+            const s = getSettings();
             if (s.lovenseEnabled !== true)
                 return "";
             const defI = typeof s.lovenseIntensity === "number" ? s.lovenseIntensity : 10;
@@ -31860,7 +31860,7 @@
             this._versionTitleEl.textContent = "EBC" + (this.version ? " v" + this.version : "") + salSuffix;
         }
         startBCLiveSync() {
-            const s = getSettings$1();
+            const s = getSettings();
             if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true)
                 return;
             if (this._bcLiveSyncPoller !== null)
@@ -31881,7 +31881,7 @@
         _tickBCLiveSync() {
             var _a, _b, _c;
             try {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (s.lovenseEnabled !== true || s.lovenseBcSyncEnabled !== true) {
                     this.stopBCLiveSync();
                     return;
@@ -32112,7 +32112,7 @@
         }
         checkLovenseTriggers(content) {
             try {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (s.lovenseEnabled !== true)
                     return;
                 const lower = content.toLowerCase();
@@ -32322,7 +32322,7 @@
             try {
                 if (typeof Player === "undefined" || ((Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== EMERY_MEMBER && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== 147036))
                     return;
-                const s = getSettings$1();
+                const s = getSettings();
                 if (s["psEnabled"] !== true)
                     return;
                 const lower = content.toLowerCase();
@@ -32362,7 +32362,7 @@
             try {
                 if (typeof Player === "undefined" || (Player.MemberNumber !== EMERY_MEMBER && Player.MemberNumber !== 147036))
                     return;
-                const s = getSettings$1();
+                const s = getSettings();
                 if (s["psEnabled"] !== true)
                     return;
                 const shockers = EBCDrawer.getPsShockers();
@@ -32383,7 +32383,7 @@
         }
         checkLovenseActivityTrigger(activityName, assetGroup) {
             try {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (s.lovenseEnabled !== true)
                     return;
                 // Body touch triggers (checked first; BC sync skipped if one matches)
@@ -32505,7 +32505,7 @@
             var _a, _b;
             try {
                 if (type === "REQ") {
-                    const s = getSettings$1();
+                    const s = getSettings();
                     if (s["irlToyAllowRequests"] !== true) {
                         this.sendIrlToyMsg(senderNumber, "DEN");
                         return;
@@ -32629,7 +32629,7 @@
         handleGameToyMsg(senderNumber, senderName, type, intensity, duration) {
             var _a, _b;
             try {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (type === "REQ") {
                     const wl = EBCDrawer.getGameToyWhitelist();
                     const isWl = wl.includes(senderNumber);
@@ -34724,11 +34724,11 @@
             // persistence helpers
             const getCurseRecord = (memberId) => {
                 var _a, _b;
-                const dc = ((_a = getSettings$1().domCurses) !== null && _a !== void 0 ? _a : {});
+                const dc = ((_a = getSettings().domCurses) !== null && _a !== void 0 ? _a : {});
                 return [...((_b = dc[String(memberId)]) !== null && _b !== void 0 ? _b : [])];
             };
             const setCurseRecord = (memberId, groups) => {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (!s.domCurses)
                     s.domCurses = {};
                 const dc = s.domCurses;
@@ -34740,11 +34740,11 @@
             };
             const getDomCurseExpiry = (memberId) => {
                 var _a, _b;
-                const ex = ((_a = getSettings$1().domCurseExpiries) !== null && _a !== void 0 ? _a : {});
+                const ex = ((_a = getSettings().domCurseExpiries) !== null && _a !== void 0 ? _a : {});
                 return (_b = ex[String(memberId)]) !== null && _b !== void 0 ? _b : null;
             };
             const setDomCurseExpiry = (memberId, ts) => {
-                const s = getSettings$1();
+                const s = getSettings();
                 if (!s.domCurseExpiries)
                     s.domCurseExpiries = {};
                 const ex = s.domCurseExpiries;
@@ -35290,7 +35290,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 147; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 148; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35324,6 +35324,7 @@
                 "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
                 "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
                 "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
+                "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
             ],
         },
         {
