@@ -99,6 +99,7 @@ import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } 
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
+import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
@@ -2423,6 +2424,8 @@ const CSS = `
     cursor: grab;
     user-select: none;
     flex-shrink: 0;
+    position: relative;
+    z-index: 201; /* above resize handles (z-index:200) so close/minimize buttons stay clickable */
 }
 .ebc-beep-win-header:active { cursor: grabbing; }
 
@@ -12666,6 +12669,13 @@ export class EBCDrawer {
             win.classList.remove("minimized");
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
+            // Re-clamp bottom so the header stays on-screen after restore.
+            window.requestAnimationFrame(() => {
+                const winH = win.offsetHeight || 380;
+                const cur  = parseFloat(win.style.bottom) || 0;
+                const max  = Math.max(0, window.innerHeight - winH);
+                if (cur > max) win.style.bottom = `${max}px`;
+            });
             // History just became visible - scroll to bottom
             window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
         };
@@ -13423,10 +13433,11 @@ export class EBCDrawer {
 
         addPointerDown(resizeE, (start, e) => {
             e.preventDefault();
-            const startW = win.offsetWidth;
+            const startW    = win.offsetWidth;
+            const startLeft = parseFloat(win.style.left) || 0;
             addPointerTracking(
                 (pos) => {
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + (pos.clientX - start.clientX)));
                     win.style.width = `${beepW}px`;
                 },
                 () => { saveBeepSize(); },
@@ -13438,18 +13449,19 @@ export class EBCDrawer {
             const startW      = win.offsetWidth;
             const startH      = win.offsetHeight;
             const startBottom = parseFloat(win.style.bottom) || 0;
+            const startLeft   = parseFloat(win.style.left) || 0;
             resizeBWCorner.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + dX));
-                    // Clamp bottom first so height growth stops when the bottom edge
-                    // hits the viewport - prevents the window growing upward when the
-                    // user drags past the screen bottom.
-                    const newBottom = Math.max(0, startBottom - dY);
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + dX));
+                    // Clamp bottom so the minimum-height window's header always stays on screen.
+                    // Without this, dragging the corner upward can push newBottom past
+                    // innerHeight - minHeight, which sends the header above y=0.
+                    const newBottom = Math.max(0, Math.min(window.innerHeight - 204, startBottom - dY));
                     const actualDY  = startBottom - newBottom;
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + actualDY));
+                    beepH = Math.max(200, Math.min(window.innerHeight - newBottom - 4, startH + actualDY));
                     win.style.width  = `${beepW}px`;
                     win.style.height = `${beepH}px`;
                     win.style.bottom = `${newBottom}px`;
@@ -13885,10 +13897,28 @@ export class EBCDrawer {
             win.classList.toggle("minimized", e.minimized);
             minBtn.textContent = e.minimized ? "▲" : "–";
             minBtn.title = e.minimized ? "Restore" : "Minimize";
+            if (!e.minimized) {
+                window.requestAnimationFrame(() => {
+                    const winH = win.offsetHeight || 300;
+                    const cur  = parseFloat(win.style.bottom) || 0;
+                    const max  = Math.max(0, window.innerHeight - winH);
+                    if (cur > max) win.style.bottom = `${max}px`;
+                });
+            }
         });
         (win as unknown as Record<string, unknown>)._restore = (): void => {
             const e = this.groupWins.get(group.id);
-            if (e) { e.minimized = false; win.classList.remove("minimized"); minBtn.textContent = "–"; minBtn.title = "Minimize"; }
+            if (!e) return;
+            e.minimized = false;
+            win.classList.remove("minimized");
+            minBtn.textContent = "–";
+            minBtn.title = "Minimize";
+            window.requestAnimationFrame(() => {
+                const winH = win.offsetHeight || 300;
+                const cur  = parseFloat(win.style.bottom) || 0;
+                const max  = Math.max(0, window.innerHeight - winH);
+                if (cur > max) win.style.bottom = `${max}px`;
+            });
         };
         closeBtn.addEventListener("click", () => {
             document.removeEventListener("mousemove", onMove);
@@ -23178,6 +23208,113 @@ export class EBCDrawer {
             }
 
             card.appendChild(psWrap);
+        }
+
+        // ── XToys (Emery + Lucy only) ─────────────────────────────────────────
+        const _xMn = (Player as unknown as Record<string, unknown>).MemberNumber as number | undefined;
+        if (isXToysUser(_xMn)) {
+            card.appendChild(sep());
+            const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open");
+
+            if (s.xtoysEnabled !== true) {
+                const note = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
+                note.textContent = t("toys.enableAbove");
+                xtContent.appendChild(note);
+            } else {
+                const xtHdr = (txt: string): HTMLElement => {
+                    const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
+                    d.textContent = txt; return d;
+                };
+
+                // Connection card
+                const connBox = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;");
+
+                // Status row
+                const statusRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
+                const statusDot = mk("span", "font-size:14px;flex-shrink:0;");
+                const statusLbl = mk("span", `${FONT}font-size:11px;flex:1;`);
+                const refreshStatus = (): void => {
+                    const st = xtoysStatus();
+                    statusDot.textContent = st === "connected" ? "🟢" : st === "connecting" ? "🟡" : st === "error" ? "🔴" : "⚫";
+                    const [col, txt] = st === "connected"   ? ["#70c080", "Connected"]
+                                     : st === "connecting" ? ["#c0a040", "Connecting..."]
+                                     : st === "error"      ? ["#e07070", "Connection error"]
+                                     :                       ["var(--ebc-text-muted)", "Disconnected"];
+                    statusLbl.textContent = txt;
+                    statusLbl.style.color = col;
+                };
+                refreshStatus();
+                statusRow.appendChild(statusDot);
+                statusRow.appendChild(statusLbl);
+                connBox.appendChild(statusRow);
+
+                const hint = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);margin-bottom:8px;`);
+                hint.textContent = "Paste the Webhook ID from xtoys.app (run the BC XToys script there first to get one).";
+                connBox.appendChild(hint);
+
+                // Webhook ID input
+                const idRow = mk("div", "display:flex;gap:6px;align-items:center;margin-bottom:6px;");
+                const idInp = document.createElement("input");
+                idInp.type = "password";
+                idInp.placeholder = "Webhook ID";
+                idInp.value = getXToysWebhookId();
+                idInp.style.cssText = `${FONT}flex:1;font-size:11px;padding:5px 9px;background:var(--ebc-bg);border:1px solid var(--ebc-border);color:var(--ebc-text-bright);border-radius:6px;min-width:0;outline:none;`;
+                const eyeBtn = mkBtn("👁", `${FONT}font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);flex-shrink:0;`);
+                eyeBtn.addEventListener("click", () => { (idInp as HTMLInputElement).type = (idInp as HTMLInputElement).type === "password" ? "text" : "password"; });
+                idRow.appendChild(idInp);
+                idRow.appendChild(eyeBtn);
+                connBox.appendChild(idRow);
+
+                // Connect / Disconnect buttons
+                const btnRow = mk("div", "display:flex;gap:6px;");
+                const connBtn = mkBtn("Connect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);`);
+                connBtn.addEventListener("click", () => {
+                    const id = (idInp as HTMLInputElement).value.trim();
+                    if (!id) return;
+                    xtoysConnect(id);
+                    // Poll status briefly so the dot updates without a full re-render
+                    let polls = 0;
+                    const poll = setInterval(() => {
+                        refreshStatus();
+                        polls++;
+                        const st = xtoysStatus();
+                        if (st === "connected" || st === "disconnected" || polls > 30) clearInterval(poll);
+                    }, 400);
+                });
+                const discBtn = mkBtn("Disconnect", `${FONT}font-size:11px;padding:4px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);`);
+                discBtn.addEventListener("click", () => { xtoysDisconnect(); refreshStatus(); });
+                btnRow.appendChild(connBtn);
+                btnRow.appendChild(discBtn);
+                connBox.appendChild(btnRow);
+                xtContent.appendChild(connBox);
+
+                // Event log
+                xtContent.appendChild(xtHdr("Event Log"));
+                const logRefreshBtn = mkBtn("Refresh", `${FONT}font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-bottom:4px;`);
+                const logEl = mk("div", `font-family:monospace;font-size:10px;overflow-y:auto;max-height:130px;padding:5px 6px;background:var(--ebc-bg);border:1px solid var(--ebc-border);border-radius:4px;`);
+                const renderLog = (): void => {
+                    while (logEl.firstChild) logEl.removeChild(logEl.firstChild);
+                    const entries = xtoysLog();
+                    if (!entries.length) {
+                        const empty = mk("div", "color:#666;"); empty.textContent = "No events yet."; logEl.appendChild(empty); return;
+                    }
+                    for (const e of entries) {
+                        const row = mk("div", "display:flex;gap:6px;padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.04);");
+                        const tsEl  = mk("span", "color:#555;white-space:nowrap;flex-shrink:0;"); tsEl.textContent = e.ts;
+                        const lblEl = mk("span", `color:${e.label === "out" ? "#70c0e8" : e.label === "err" ? "#e07070" : "#a8a0c0"};white-space:nowrap;flex-shrink:0;width:24px;`);
+                        lblEl.textContent = e.label;
+                        const txtEl = mk("span", "color:#bbb;flex:1;word-break:break-all;"); txtEl.textContent = e.text;
+                        row.appendChild(tsEl); row.appendChild(lblEl); row.appendChild(txtEl);
+                        logEl.appendChild(row);
+                    }
+                };
+                renderLog();
+                logRefreshBtn.addEventListener("click", () => { refreshStatus(); renderLog(); });
+                xtContent.appendChild(logRefreshBtn);
+                xtContent.appendChild(logEl);
+            }
+
+            card.appendChild(xtWrap);
         }
 
         body.appendChild(card);

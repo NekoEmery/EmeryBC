@@ -664,6 +664,45 @@ export function initDragListener(): void {
  * border, and mouse-hover highlight all work exactly as before — then
  * overlays our own canvas text centred both horizontally and vertically.
  */
+// DOM tooltip shown when hovering sidebar elements — floats above BC's chat overlay
+// so it's never hidden behind BC's native DOM elements.
+let _tooltip: HTMLDivElement | null = null;
+let _tooltipLastText = "";
+function _ensureTooltip(): HTMLDivElement {
+    if (_tooltip && _tooltip.isConnected) return _tooltip;
+    const el = document.createElement("div");
+    el.style.cssText = [
+        "position:fixed",
+        "background:#f8f3c0",
+        "border:2px solid #b0a020",
+        "border-radius:4px",
+        "padding:3px 10px",
+        "font-family:Arial,sans-serif",
+        "font-size:14px",
+        "color:#000",
+        "z-index:10000000",
+        "pointer-events:none",
+        "white-space:nowrap",
+        "display:none",
+    ].join(";");
+    document.body.appendChild(el);
+    _tooltip = el;
+    return el;
+}
+function _showTooltip(text: string, canvasAnchorY: number): void {
+    const tt = _ensureTooltip();
+    if (text !== _tooltipLastText) { tt.textContent = text; _tooltipLastText = text; }
+    const { scaleX, scaleY, left, top } = getCanvasScale();
+    const sx = left + (sidebarX + CHIP_W + 6) / scaleX;
+    const sy = top  + canvasAnchorY / scaleY;
+    tt.style.left    = `${Math.max(0, Math.min(window.innerWidth - 220, sx))}px`;
+    tt.style.top     = `${Math.max(4, sy)}px`;
+    tt.style.display = "block";
+}
+function _hideTooltip(): void {
+    if (_tooltip) _tooltip.style.display = "none";
+}
+
 // These draw helpers run per visible button per animation frame (~60 fps). Cache
 // the MainCanvas 2d context instead of re-querying the DOM each call, and memoize
 // the fitted font size per (label,size) instead of re-measuring text every frame.
@@ -788,7 +827,7 @@ function withAlpha(hex: string, alpha: number): string {
 }
 
 export function drawActionButtons(): void {
-    if (CurrentScreen !== "ChatRoom") return;
+    if (CurrentScreen !== "ChatRoom") { _hideTooltip(); return; }
 
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;
@@ -833,7 +872,7 @@ export function drawActionButtons(): void {
     DrawRect(bX, bMid - 4, bW, bH, bCol);
     DrawRect(bX, bMid + 2, bW, bH, bCol);
 
-    if (sidebarCollapsed) return;
+    if (sidebarCollapsed) { _hideTooltip(); return; }
 
     // Category switcher chip: [◀] Name [▶]
     const cats  = getCategories();
@@ -843,15 +882,14 @@ export function drawActionButtons(): void {
         : cats[idx].name.slice(0, 7);
 
     DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H,
-        "◀", idx > 0 ? bgChip : bgInactive, "", idx > 0 ? "Previous category" : "");
+        "◀", idx > 0 ? bgChip : bgInactive, "", "");
     if (cats.length > 1) {
         DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
-            label, bgChip, "", cats[idx].name);
+            label, bgChip, "", "");
         DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
-            "▶", idx < cats.length - 1 ? bgChip : bgInactive, "",
-            idx < cats.length - 1 ? "Next category" : "");
+            "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", "");
     } else {
-        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
+        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
     }
 
     const buttons = getButtons();
@@ -866,9 +904,38 @@ export function drawActionButtons(): void {
             drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
         } else {
             drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE,
-                btn.label, withAlpha(btn.color || "#c2185b", 0.90), btn.emote);
+                btn.label, withAlpha(btn.color || "#c2185b", 0.90));
         }
     }
+
+    // DOM tooltip - floats above BC's DOM chat layer so it's never hidden behind it
+    const mx2 = (window as unknown as Record<string, number>).MouseX ?? 0;
+    const my2 = (window as unknown as Record<string, number>).MouseY ?? 0;
+    let ttText: string | null = null;
+    let ttY = catChipY;
+
+    if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sidebarX && mx2 <= sidebarX + CHIP_W) {
+        if (cats.length > 1) {
+            if (mx2 <= sidebarX + CAT_ARR_W)                             { ttText = idx > 0 ? "Previous category" : null; }
+            else if (mx2 >= sidebarX + CHIP_W - CAT_ARR_W)              { ttText = idx < cats.length - 1 ? "Next category" : null; }
+            else                                                          { ttText = cats[idx].name; }
+        }
+    }
+    if (!ttText) {
+        for (let ti = 0; ti < buttons.length; ti++) {
+            const tbtn = buttons[ti];
+            if (!tbtn?.enabled || !tbtn.label || !tbtn.emote) continue;
+            const ty = btnStartY + ti * BTN_SIZE;
+            if (mx2 >= sidebarX && mx2 <= sidebarX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
+                ttText = tbtn.emote;
+                ttY = ty;
+                break;
+            }
+        }
+    }
+
+    if (ttText) _showTooltip(ttText, ttY);
+    else _hideTooltip();
 }
 
 export function handleActionButtonClick(): boolean {
@@ -893,7 +960,8 @@ export function handleActionButtonClick(): boolean {
     // Category prev/next arrows
     const cats = getCategories();
     const idx  = getActiveCategoryIndex();
-    if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
+    if (my >= catChipY && my <= catChipY + CAT_CHIP_H &&
+        mx >= sidebarX && mx <= sidebarX + CHIP_W) {
         if (cats.length > 1) {
             if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
                 if (idx > 0) setActiveCategoryIndex(idx - 1);

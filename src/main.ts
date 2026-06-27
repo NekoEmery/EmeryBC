@@ -21,12 +21,13 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
+import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.7";
-const SAL_VERSION  = 146;   // internal sub-version - shown when Emery Versioning is ON
-const IS_DEV_BUILD = false; // true on dev branch, false on master
+const MOD_VERSION = "8.3.1";
+const SAL_VERSION  = 153;   // internal sub-version - shown when Emery Versioning is ON
+const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
 // Set to true by the beep hook when we want to let the mod chain through
@@ -72,6 +73,15 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
             "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
             "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
+            "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
+            "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
+            "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
+            "Fix: beep window header buttons (close, minimize) could not be clicked in Firefox. Root cause: the right-edge resize handle strip (position:absolute; top:0; bottom:0; z-index:200) overlapped the header. Fix: added position:relative; z-index:201 to the header so it sits above the resize layer.",
+            "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
+            "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
+            "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
+            "Fix: dragging the beep window corner resize handle upward could push the header above the viewport. Root cause: newBottom was unclamped, so dragging far enough made newBottom > innerHeight - minHeight and the 200px height floor couldn't compensate. Fix: clamp newBottom to innerHeight - 204 so the header always stays on screen, and clamp height to innerHeight - newBottom - 4 for proportional sizing.",
+            "Fix: sidebar button hover tooltip was hidden behind BC's chat log when the sidebar was positioned in a corner. Root cause: BC renders hover text on its canvas, which sits below BC's DOM chat elements. Fix: replaced BC's canvas hover text with a DOM tooltip element (z-index: 10000000) that always floats above BC's chat overlay.",
         ],
     },
     {
@@ -7220,6 +7230,13 @@ function init(): void {
             // the drawer was built before server settings arrived, so the SAL
             // version suffix would be missing if it was saved as enabled.
             try { drawer?._updateVersionTitle(); } catch { /* ignore */ }
+            // Auto-connect XToys if a webhook ID was saved for this player
+            try {
+                if (isXToysUser(Player.MemberNumber)) {
+                    const xtId = getXToysWebhookId();
+                    if (xtId && isXToysEnabled()) xtoysConnect(xtId);
+                }
+            } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
@@ -8327,6 +8344,96 @@ function init(): void {
                     input.value = "";
                     return;
                 }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // ── XToys BC event hooks ──────────────────────────────────────────────────
+    // All guards: early-return when the logged-in player isn't an XToys user,
+    // XToys isn't enabled, or the WebSocket isn't open.
+
+    modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (!isXToysEnabled()) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const data = args[0] as Record<string, unknown>;
+            // Activities arrive as Type="Activity" (older BC) or Type="Action" (newer BC)
+            if (data?.Type === "Activity" || data?.Type === "Action") {
+                const dict = Array.isArray(data.Dictionary)
+                    ? data.Dictionary as Record<string, unknown>[]
+                    : [];
+                const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                if (actGroup && actName) {
+                    const pn = Player.MemberNumber;
+                    if (targetNum === pn) xtoysActivityEvent(actGroup, actName);
+                    else if (sourceNum === pn) xtoysActivityOnOtherEvent(actGroup, actName);
+                }
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (!isXToysEnabled()) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const item = args[1] as { Asset?: { Group?: { Name?: string } } } | undefined;
+                const mode = String(args[2] ?? "");
+                if (mode) xtoysToyEvent(mode, item?.Asset?.Group?.Name);
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "PropertyShockPublishAction", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (!isXToysEnabled()) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) xtoysShockEvent();
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "InventoryWear", 0, (args, next) => {
+        const _r = next(args);
+        if (!isXToysUser(Player.MemberNumber)) return _r;
+        if (!isXToysEnabled()) return _r;
+        if (xtoysStatus() !== "connected") return _r;
+        try {
+            const C = args[0] as { MemberNumber?: number } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const item = args[1] as { Asset?: { Name?: string; Group?: { Name?: string } } } | undefined;
+                const grp  = item?.Asset?.Group?.Name ?? "";
+                const name = item?.Asset?.Name ?? "";
+                if (grp && name) xtoysItemAdded(grp, name);
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    tryHookFunction(modAPI, "InventoryRemove", 0, (args, next) => {
+        // InventoryRemove(C, groupName) fires BEFORE the item is actually removed,
+        // so we can still look up the asset name from the appearance.
+        if (!isXToysUser(Player.MemberNumber)) return next(args);
+        if (!isXToysEnabled()) return next(args);
+        if (xtoysStatus() !== "connected") return next(args);
+        try {
+            const C = args[0] as { MemberNumber?: number; Appearance?: Array<{ Asset?: { Name?: string; Group?: { Name?: string } } }> } | null;
+            if (C?.MemberNumber === Player.MemberNumber) {
+                const grp  = String(args[1] ?? "");
+                const slot = C?.Appearance?.find(a => a?.Asset?.Group?.Name === grp);
+                const name = slot?.Asset?.Name ?? grp;
+                if (grp) xtoysItemRemoved(grp, name);
             }
         } catch { /* ignore */ }
         return next(args);
