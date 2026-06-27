@@ -25,9 +25,9 @@ import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEv
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.3.1";
+const MOD_VERSION = "5.5.8";
 const SAL_VERSION  = 153;   // internal sub-version - shown when Emery Versioning is ON
-const IS_DEV_BUILD = true; // true on dev branch, false on master
+const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
 // Set to true by the beep hook when we want to let the mod chain through
@@ -55,33 +55,14 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         ],
     },
     {
-        version: "8.3.1",
+        version: "5.5.8",
         changes: [
-            "Removed: Auto-greet feature.",
-            "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
-            "Dev: member 147036 now has access to the PiShock menu.",
-            "Fix: EBC no longer intercepts *emote sends before BC's hook chain runs, restoring UBC's whisper-emote feature. Root cause: EBC's capture-phase keydown listener and ChatRoomSendChat/ChatRoomKeyDown hooks were intercepting emotes and calling ServerSend directly, bypassing ChatRoomSendChat entirely so UBC's hook on that function never fired. Fix: removed EBC's emote interception entirely - BC's native emote handling runs the full hook chain as expected.",
-            "Fix: clicking a beep notification for a window that is already open (but minimized elsewhere) no longer snaps it to screen center. Root cause: openBeepWindow always repositioned existing windows to viewport center when re-opening. Fix: existing windows are now un-minimized and focused in place.",
-            "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
-            "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
-            "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
-            "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
-            "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
-            "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
-            "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
-            "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
-            "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
-            "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
-            "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
-            "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
-            "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
-            "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
-            "Fix: beep window header buttons (close, minimize) could not be clicked in Firefox. Root cause: the right-edge resize handle strip (position:absolute; top:0; bottom:0; z-index:200) overlapped the header. Fix: added position:relative; z-index:201 to the header so it sits above the resize layer.",
-            "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
-            "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
-            "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
-            "Fix: dragging the beep window corner resize handle upward could push the header above the viewport. Root cause: newBottom was unclamped, so dragging far enough made newBottom > innerHeight - minHeight and the 200px height floor couldn't compensate. Fix: clamp newBottom to innerHeight - 204 so the header always stays on screen, and clamp height to innerHeight - newBottom - 4 for proportional sizing.",
-            "Fix: sidebar button hover tooltip was hidden behind BC's chat log when the sidebar was positioned in a corner. Root cause: BC renders hover text on its canvas, which sits below BC's DOM chat elements. Fix: replaced BC's canvas hover text with a DOM tooltip element (z-index: 10000000) that always floats above BC's chat overlay.",
+            "XToys integration (Emery + Lucy only): connect to xtoys.app via webhook ID - BC game events forwarded to toys in real time. Fixed crash ('getSettings is not defined') that affected XToys hooks.",
+            "Action buttons: each button can now bind a body and/or arm pose that applies automatically when it fires. Sidebar no longer blocks clicks on BC native buttons when repositioned. Hover tooltip now always visible above BC's chat overlay.",
+            "Anims: added 'Tight Back' arm pose, new pose combos, pose buttons now announce the action in chat.",
+            "AFK Auto-Reply moved to its own top-level Notes tab section. Removed: Auto-greet. Removed: 'Member # to DM' field.",
+            "Feedback form: optional 'Include my name' checkbox.",
+            "Fixes: beep window corner drag can no longer push the header off-screen; resizing past viewport edges now clamped in all directions; clicking a beep notification for an already-open window no longer snaps it to center; header buttons (close/minimize) now clickable in Firefox; chat textarea height resets correctly after *emote sends.",
         ],
     },
     {
