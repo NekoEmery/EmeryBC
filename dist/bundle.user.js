@@ -21228,12 +21228,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
                     beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + dX));
-                    // Clamp bottom first so height growth stops when the bottom edge
-                    // hits the viewport - prevents the window growing upward when the
-                    // user drags past the screen bottom.
-                    const newBottom = Math.max(0, startBottom - dY);
+                    // Clamp bottom so the minimum-height window's header always stays on screen.
+                    // Without this, dragging the corner upward can push newBottom past
+                    // innerHeight - minHeight, which sends the header above y=0.
+                    const newBottom = Math.max(0, Math.min(window.innerHeight - 204, startBottom - dY));
                     const actualDY = startBottom - newBottom;
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + actualDY));
+                    beepH = Math.max(200, Math.min(window.innerHeight - newBottom - 4, startH + actualDY));
                     win.style.width = `${beepW}px`;
                     win.style.height = `${beepH}px`;
                     win.style.bottom = `${newBottom}px`;
@@ -35444,7 +35444,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 152; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 153; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35484,6 +35484,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
                 "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
                 "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
+                "Fix: dragging the beep window corner resize handle upward could push the header above the viewport. Root cause: newBottom was unclamped, so dragging far enough made newBottom > innerHeight - minHeight and the 200px height floor couldn't compensate. Fix: clamp newBottom to innerHeight - 204 so the header always stays on screen, and clamp height to innerHeight - newBottom - 4 for proportional sizing.",
                 "Fix: sidebar button hover tooltip was hidden behind BC's chat log when the sidebar was positioned in a corner. Root cause: BC renders hover text on its canvas, which sits below BC's DOM chat elements. Fix: replaced BC's canvas hover text with a DOM tooltip element (z-index: 10000000) that always floats above BC's chat overlay.",
             ],
         },

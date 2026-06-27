@@ -13456,12 +13456,12 @@ export class EBCDrawer {
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
                     beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + dX));
-                    // Clamp bottom first so height growth stops when the bottom edge
-                    // hits the viewport - prevents the window growing upward when the
-                    // user drags past the screen bottom.
-                    const newBottom = Math.max(0, startBottom - dY);
+                    // Clamp bottom so the minimum-height window's header always stays on screen.
+                    // Without this, dragging the corner upward can push newBottom past
+                    // innerHeight - minHeight, which sends the header above y=0.
+                    const newBottom = Math.max(0, Math.min(window.innerHeight - 204, startBottom - dY));
                     const actualDY  = startBottom - newBottom;
-                    beepH = Math.max(200, Math.min(window.innerHeight - 100, startH + actualDY));
+                    beepH = Math.max(200, Math.min(window.innerHeight - newBottom - 4, startH + actualDY));
                     win.style.width  = `${beepW}px`;
                     win.style.height = `${beepH}px`;
                     win.style.bottom = `${newBottom}px`;
