@@ -4399,6 +4399,49 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      * border, and mouse-hover highlight all work exactly as before — then
      * overlays our own canvas text centred both horizontally and vertically.
      */
+    // DOM tooltip shown when hovering sidebar elements — floats above BC's chat overlay
+    // so it's never hidden behind BC's native DOM elements.
+    let _tooltip = null;
+    let _tooltipLastText = "";
+    function _ensureTooltip() {
+        if (_tooltip && _tooltip.isConnected)
+            return _tooltip;
+        const el = document.createElement("div");
+        el.style.cssText = [
+            "position:fixed",
+            "background:#f8f3c0",
+            "border:2px solid #b0a020",
+            "border-radius:4px",
+            "padding:3px 10px",
+            "font-family:Arial,sans-serif",
+            "font-size:14px",
+            "color:#000",
+            "z-index:10000000",
+            "pointer-events:none",
+            "white-space:nowrap",
+            "display:none",
+        ].join(";");
+        document.body.appendChild(el);
+        _tooltip = el;
+        return el;
+    }
+    function _showTooltip(text, canvasAnchorY) {
+        const tt = _ensureTooltip();
+        if (text !== _tooltipLastText) {
+            tt.textContent = text;
+            _tooltipLastText = text;
+        }
+        const { scaleX, scaleY, left, top } = getCanvasScale();
+        const sx = left + (sidebarX + CHIP_W + 6) / scaleX;
+        const sy = top + canvasAnchorY / scaleY;
+        tt.style.left = `${Math.max(0, Math.min(window.innerWidth - 220, sx))}px`;
+        tt.style.top = `${Math.max(4, sy)}px`;
+        tt.style.display = "block";
+    }
+    function _hideTooltip() {
+        if (_tooltip)
+            _tooltip.style.display = "none";
+    }
     // These draw helpers run per visible button per animation frame (~60 fps). Cache
     // the MainCanvas 2d context instead of re-querying the DOM each call, and memoize
     // the fitted font size per (label,size) instead of re-measuring text every frame.
@@ -4505,9 +4548,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return `rgba(${r},${g},${b},${alpha})`;
     }
     function drawActionButtons() {
-        var _a;
-        if (CurrentScreen !== "ChatRoom")
+        var _a, _b, _c;
+        if (CurrentScreen !== "ChatRoom") {
+            _hideTooltip();
             return;
+        }
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
@@ -4543,21 +4588,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const bMid = sidebarY + Math.floor(CHIP_H / 2);
         DrawRect(bX, bMid - 4, bW, bH, bCol);
         DrawRect(bX, bMid + 2, bW, bH, bCol);
-        if (sidebarCollapsed)
+        if (sidebarCollapsed) {
+            _hideTooltip();
             return;
+        }
         // Category switcher chip: [◀] Name [▶]
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         const label = cats.length > 1
             ? cats[idx].name.slice(0, 5)
             : cats[idx].name.slice(0, 7);
-        DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H, "◀", idx > 0 ? bgChip : bgInactive, "", idx > 0 ? "Previous category" : "");
+        DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H, "◀", idx > 0 ? bgChip : bgInactive, "", "");
         if (cats.length > 1) {
-            DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
-            DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H, "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", idx < cats.length - 1 ? "Next category" : "");
+            DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H, label, bgChip, "", "");
+            DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H, "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", "");
         }
         else {
-            DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
+            DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
         }
         const buttons = getButtons();
         const now = Date.now();
@@ -4572,9 +4619,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
             }
             else {
-                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), btn.emote);
+                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90));
             }
         }
+        // DOM tooltip - floats above BC's DOM chat layer so it's never hidden behind it
+        const mx2 = (_b = window.MouseX) !== null && _b !== void 0 ? _b : 0;
+        const my2 = (_c = window.MouseY) !== null && _c !== void 0 ? _c : 0;
+        let ttText = null;
+        let ttY = catChipY;
+        if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sidebarX && mx2 <= sidebarX + CHIP_W) {
+            if (cats.length > 1) {
+                if (mx2 <= sidebarX + CAT_ARR_W) {
+                    ttText = idx > 0 ? "Previous category" : null;
+                }
+                else if (mx2 >= sidebarX + CHIP_W - CAT_ARR_W) {
+                    ttText = idx < cats.length - 1 ? "Next category" : null;
+                }
+                else {
+                    ttText = cats[idx].name;
+                }
+            }
+        }
+        if (!ttText) {
+            for (let ti = 0; ti < buttons.length; ti++) {
+                const tbtn = buttons[ti];
+                if (!(tbtn === null || tbtn === void 0 ? void 0 : tbtn.enabled) || !tbtn.label || !tbtn.emote)
+                    continue;
+                const ty = btnStartY + ti * BTN_SIZE;
+                if (mx2 >= sidebarX && mx2 <= sidebarX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
+                    ttText = tbtn.emote;
+                    ttY = ty;
+                    break;
+                }
+            }
+        }
+        if (ttText)
+            _showTooltip(ttText, ttY);
+        else
+            _hideTooltip();
     }
     function handleActionButtonClick() {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
@@ -35362,7 +35444,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 151; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 152; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35402,6 +35484,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
                 "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
                 "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
+                "Fix: sidebar button hover tooltip was hidden behind BC's chat log when the sidebar was positioned in a corner. Root cause: BC renders hover text on its canvas, which sits below BC's DOM chat elements. Fix: replaced BC's canvas hover text with a DOM tooltip element (z-index: 10000000) that always floats above BC's chat overlay.",
             ],
         },
         {
