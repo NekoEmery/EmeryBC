@@ -10463,6 +10463,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     cursor: grab;
     user-select: none;
     flex-shrink: 0;
+    position: relative;
+    z-index: 201; /* above resize handles (z-index:200) so close/minimize buttons stay clickable */
 }
 .ebc-beep-win-header:active { cursor: grabbing; }
 
@@ -20375,6 +20377,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 win.classList.remove("minimized");
                 minimizeBtn.textContent = "–";
                 minimizeBtn.title = "Minimize";
+                // Re-clamp bottom so the header stays on-screen after restore.
+                window.requestAnimationFrame(() => {
+                    const winH = win.offsetHeight || 380;
+                    const cur = parseFloat(win.style.bottom) || 0;
+                    const max = Math.max(0, window.innerHeight - winH);
+                    if (cur > max)
+                        win.style.bottom = `${max}px`;
+                });
                 // History just became visible - scroll to bottom
                 window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
             };
@@ -21118,8 +21128,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addPointerDown(resizeE, (start, e) => {
                 e.preventDefault();
                 const startW = win.offsetWidth;
+                const startLeft = parseFloat(win.style.left) || 0;
                 addPointerTracking((pos) => {
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + (pos.clientX - start.clientX)));
                     win.style.width = `${beepW}px`;
                 }, () => { saveBeepSize(); });
             });
@@ -21128,11 +21139,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const startW = win.offsetWidth;
                 const startH = win.offsetHeight;
                 const startBottom = parseFloat(win.style.bottom) || 0;
+                const startLeft = parseFloat(win.style.left) || 0;
                 resizeBWCorner.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + dX));
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + dX));
                     // Clamp bottom first so height growth stops when the bottom edge
                     // hits the viewport - prevents the window growing upward when the
                     // user drags past the screen bottom.
@@ -21555,15 +21567,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 win.classList.toggle("minimized", e.minimized);
                 minBtn.textContent = e.minimized ? "▲" : "–";
                 minBtn.title = e.minimized ? "Restore" : "Minimize";
+                if (!e.minimized) {
+                    window.requestAnimationFrame(() => {
+                        const winH = win.offsetHeight || 300;
+                        const cur = parseFloat(win.style.bottom) || 0;
+                        const max = Math.max(0, window.innerHeight - winH);
+                        if (cur > max)
+                            win.style.bottom = `${max}px`;
+                    });
+                }
             });
             win._restore = () => {
                 const e = this.groupWins.get(group.id);
-                if (e) {
-                    e.minimized = false;
-                    win.classList.remove("minimized");
-                    minBtn.textContent = "–";
-                    minBtn.title = "Minimize";
-                }
+                if (!e)
+                    return;
+                e.minimized = false;
+                win.classList.remove("minimized");
+                minBtn.textContent = "–";
+                minBtn.title = "Minimize";
+                window.requestAnimationFrame(() => {
+                    const winH = win.offsetHeight || 300;
+                    const cur = parseFloat(win.style.bottom) || 0;
+                    const max = Math.max(0, window.innerHeight - winH);
+                    if (cur > max)
+                        win.style.bottom = `${max}px`;
+                });
             };
             closeBtn.addEventListener("click", () => {
                 document.removeEventListener("mousemove", onMove);
@@ -35333,7 +35361,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 149; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 150; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35369,6 +35397,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
                 "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
                 "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
+                "Fix: beep window header buttons (close, minimize) could not be clicked in Firefox. Root cause: the right-edge resize handle strip (position:absolute; top:0; bottom:0; z-index:200) overlapped the header. Fix: added position:relative; z-index:201 to the header so it sits above the resize layer.",
+                "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
+                "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
             ],
         },
         {

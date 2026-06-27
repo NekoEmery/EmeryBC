@@ -2424,6 +2424,8 @@ const CSS = `
     cursor: grab;
     user-select: none;
     flex-shrink: 0;
+    position: relative;
+    z-index: 201; /* above resize handles (z-index:200) so close/minimize buttons stay clickable */
 }
 .ebc-beep-win-header:active { cursor: grabbing; }
 
@@ -12667,6 +12669,13 @@ export class EBCDrawer {
             win.classList.remove("minimized");
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
+            // Re-clamp bottom so the header stays on-screen after restore.
+            window.requestAnimationFrame(() => {
+                const winH = win.offsetHeight || 380;
+                const cur  = parseFloat(win.style.bottom) || 0;
+                const max  = Math.max(0, window.innerHeight - winH);
+                if (cur > max) win.style.bottom = `${max}px`;
+            });
             // History just became visible - scroll to bottom
             window.setTimeout(() => { history.scrollTop = history.scrollHeight; }, 20);
         };
@@ -13424,10 +13433,11 @@ export class EBCDrawer {
 
         addPointerDown(resizeE, (start, e) => {
             e.preventDefault();
-            const startW = win.offsetWidth;
+            const startW    = win.offsetWidth;
+            const startLeft = parseFloat(win.style.left) || 0;
             addPointerTracking(
                 (pos) => {
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + (pos.clientX - start.clientX)));
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + (pos.clientX - start.clientX)));
                     win.style.width = `${beepW}px`;
                 },
                 () => { saveBeepSize(); },
@@ -13439,12 +13449,13 @@ export class EBCDrawer {
             const startW      = win.offsetWidth;
             const startH      = win.offsetHeight;
             const startBottom = parseFloat(win.style.bottom) || 0;
+            const startLeft   = parseFloat(win.style.left) || 0;
             resizeBWCorner.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
                     const dX = pos.clientX - start.clientX;
                     const dY = pos.clientY - start.clientY;
-                    beepW = Math.max(220, Math.min(window.innerWidth - 16, startW + dX));
+                    beepW = Math.max(220, Math.min(window.innerWidth - startLeft - 8, startW + dX));
                     // Clamp bottom first so height growth stops when the bottom edge
                     // hits the viewport - prevents the window growing upward when the
                     // user drags past the screen bottom.
@@ -13886,10 +13897,28 @@ export class EBCDrawer {
             win.classList.toggle("minimized", e.minimized);
             minBtn.textContent = e.minimized ? "▲" : "–";
             minBtn.title = e.minimized ? "Restore" : "Minimize";
+            if (!e.minimized) {
+                window.requestAnimationFrame(() => {
+                    const winH = win.offsetHeight || 300;
+                    const cur  = parseFloat(win.style.bottom) || 0;
+                    const max  = Math.max(0, window.innerHeight - winH);
+                    if (cur > max) win.style.bottom = `${max}px`;
+                });
+            }
         });
         (win as unknown as Record<string, unknown>)._restore = (): void => {
             const e = this.groupWins.get(group.id);
-            if (e) { e.minimized = false; win.classList.remove("minimized"); minBtn.textContent = "–"; minBtn.title = "Minimize"; }
+            if (!e) return;
+            e.minimized = false;
+            win.classList.remove("minimized");
+            minBtn.textContent = "–";
+            minBtn.title = "Minimize";
+            window.requestAnimationFrame(() => {
+                const winH = win.offsetHeight || 300;
+                const cur  = parseFloat(win.style.bottom) || 0;
+                const max  = Math.max(0, window.innerHeight - winH);
+                if (cur > max) win.style.bottom = `${max}px`;
+            });
         };
         closeBtn.addEventListener("click", () => {
             document.removeEventListener("mousemove", onMove);
