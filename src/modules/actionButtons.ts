@@ -893,7 +893,8 @@ export function handleActionButtonClick(): boolean {
     // Category prev/next arrows
     const cats = getCategories();
     const idx  = getActiveCategoryIndex();
-    if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
+    if (my >= catChipY && my <= catChipY + CAT_CHIP_H &&
+        mx >= sidebarX && mx <= sidebarX + CHIP_W) {
         if (cats.length > 1) {
             if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
                 if (idx > 0) setActiveCategoryIndex(idx - 1);

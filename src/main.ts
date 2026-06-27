@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 150;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 151;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -68,6 +68,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: beep window header buttons (close, minimize) could not be clicked in Firefox. Root cause: the right-edge resize handle strip (position:absolute; top:0; bottom:0; z-index:200) overlapped the header. Fix: added position:relative; z-index:201 to the header so it sits above the resize layer.",
             "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
             "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
+            "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
         ],
     },
     {
