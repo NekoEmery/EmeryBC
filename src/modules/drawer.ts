@@ -2774,7 +2774,16 @@ const CSS = `
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 130px; }
+.ebc-beep-room-drawer.open { max-height: 180px; }
+.ebc-beep-room-drawer-btnrow { display: flex; gap: 5px; }
+.ebc-beep-room-drawer-with {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #7a5a6a;
+    align-self: center;
+    flex-shrink: 0;
+    user-select: none;
+}
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -2798,32 +2807,32 @@ const CSS = `
 .ebc-beep-room-drawer-join {
     background: #3a1028;
     border: 1px solid #cf6f98;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #cf6f98;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
 .ebc-beep-room-drawer-copy {
     background: transparent;
     border: 1px solid #4a2038;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #9a6080;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
-    padding: 3px 0;
+    padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
 /* Room bar dropdown hint - hidden when there is nothing to drop down */
-.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▾"; opacity: 0.55; }
+.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▼"; font-size: 7px; opacity: 0.55; }
 
 /* Friend Rooms section (Users tab) - room cards with member chips */
 .ebc-friend-rooms-card {
@@ -12559,8 +12568,40 @@ export class EBCDrawer {
             window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
         });
 
-        roomDrawerInner.appendChild(roomDrawerCopy);
-        roomDrawerInner.appendChild(roomDrawerJoin);
+        // Chips row - which of your friends are in the same room (click = open chat)
+        const roomDrawerChips = document.createElement("div");
+        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
+        roomDrawerChips.style.display = "none";
+
+        const fillRoomChips = (nums: number[]): void => {
+            roomDrawerChips.innerHTML = "";
+            if (nums.length === 0) { roomDrawerChips.style.display = "none"; return; }
+            const withLbl = document.createElement("span");
+            withLbl.className = "ebc-beep-room-drawer-with";
+            withLbl.textContent = "Also here:";
+            roomDrawerChips.appendChild(withLbl);
+            for (const n of nums) {
+                const chip = document.createElement("button");
+                chip.className = "ebc-friend-rooms-chip";
+                chip.textContent = `${resolveName(n)} #${n}`;
+                chip.title = "Open chat";
+                chip.addEventListener("click", (ev: Event) => {
+                    ev.stopPropagation();
+                    this.beepUnread.delete(n);
+                    this.openBeepWindow(n);
+                });
+                roomDrawerChips.appendChild(chip);
+            }
+            roomDrawerChips.style.display = "";
+        };
+
+        const roomDrawerBtnRow = document.createElement("div");
+        roomDrawerBtnRow.className = "ebc-beep-room-drawer-btnrow";
+        roomDrawerBtnRow.appendChild(roomDrawerJoin);
+        roomDrawerBtnRow.appendChild(roomDrawerCopy);
+
+        roomDrawerInner.appendChild(roomDrawerChips);
+        roomDrawerInner.appendChild(roomDrawerBtnRow);
         roomDrawer.appendChild(roomDrawerInner);
 
         // Hover: open on mouseenter, close after short delay on mouseleave.
@@ -12620,6 +12661,8 @@ export class EBCDrawer {
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "";
                 roomDrawerCopy.style.display = "";
+                fillRoomChips(getFriendList().filter(n =>
+                    n !== memberNumber && getFriendOnlineInfo(n)?.roomName === info.roomName));
             } else if (isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name - use our tracked name.
                 const sameRoomName = getCurrentRoomName();
@@ -12631,11 +12674,14 @@ export class EBCDrawer {
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
                     roomDrawerCopy.style.display = "";
+                    fillRoomChips(getFriendList().filter(n =>
+                        n !== memberNumber && getFriendStatus(n) === "room"));
                 } else {
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                     roomDrawerCopy.style.display = "none";
+                    fillRoomChips([]);
                 }
             } else if (info?.isPrivate) {
                 // BC sets Private: true when the friend is in a private/restricted room.
@@ -12647,6 +12693,7 @@ export class EBCDrawer {
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
             } else if (s !== "away" && getFriendList().includes(memberNumber)) {
                 // Online friend with no room info = in the main hall / lobby.
                 roomBar.textContent = "🏛 In the lobby";
@@ -12656,12 +12703,14 @@ export class EBCDrawer {
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
             } else {
                 // Offline or status unknown - nothing to show
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;

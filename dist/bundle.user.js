@@ -10971,7 +10971,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 130px; }
+.ebc-beep-room-drawer.open { max-height: 180px; }
+.ebc-beep-room-drawer-btnrow { display: flex; gap: 5px; }
+.ebc-beep-room-drawer-with {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #7a5a6a;
+    align-self: center;
+    flex-shrink: 0;
+    user-select: none;
+}
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -10995,32 +11004,32 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-beep-room-drawer-join {
     background: #3a1028;
     border: 1px solid #cf6f98;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #cf6f98;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
 .ebc-beep-room-drawer-copy {
     background: transparent;
     border: 1px solid #4a2038;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #9a6080;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
-    padding: 3px 0;
+    padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
 /* Room bar dropdown hint - hidden when there is nothing to drop down */
-.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▾"; opacity: 0.55; }
+.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▼"; font-size: 7px; opacity: 0.55; }
 
 /* Friend Rooms section (Users tab) - room cards with member chips */
 .ebc-friend-rooms-card {
@@ -20435,8 +20444,40 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 roomDrawerCopy.textContent = "Copied ✓";
                 window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
             });
-            roomDrawerInner.appendChild(roomDrawerCopy);
-            roomDrawerInner.appendChild(roomDrawerJoin);
+            // Chips row - which of your friends are in the same room (click = open chat)
+            const roomDrawerChips = document.createElement("div");
+            roomDrawerChips.className = "ebc-beep-room-drawer-chips";
+            roomDrawerChips.style.display = "none";
+            const fillRoomChips = (nums) => {
+                roomDrawerChips.innerHTML = "";
+                if (nums.length === 0) {
+                    roomDrawerChips.style.display = "none";
+                    return;
+                }
+                const withLbl = document.createElement("span");
+                withLbl.className = "ebc-beep-room-drawer-with";
+                withLbl.textContent = "Also here:";
+                roomDrawerChips.appendChild(withLbl);
+                for (const n of nums) {
+                    const chip = document.createElement("button");
+                    chip.className = "ebc-friend-rooms-chip";
+                    chip.textContent = `${resolveName(n)} #${n}`;
+                    chip.title = "Open chat";
+                    chip.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        this.beepUnread.delete(n);
+                        this.openBeepWindow(n);
+                    });
+                    roomDrawerChips.appendChild(chip);
+                }
+                roomDrawerChips.style.display = "";
+            };
+            const roomDrawerBtnRow = document.createElement("div");
+            roomDrawerBtnRow.className = "ebc-beep-room-drawer-btnrow";
+            roomDrawerBtnRow.appendChild(roomDrawerJoin);
+            roomDrawerBtnRow.appendChild(roomDrawerCopy);
+            roomDrawerInner.appendChild(roomDrawerChips);
+            roomDrawerInner.appendChild(roomDrawerBtnRow);
             roomDrawer.appendChild(roomDrawerInner);
             // Hover: open on mouseenter, close after short delay on mouseleave.
             // The delay lets the cursor travel from the bar into the drawer without it snapping shut.
@@ -20493,6 +20534,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "";
                     roomDrawerCopy.style.display = "";
+                    fillRoomChips(getFriendList().filter(n => { var _a; return n !== memberNumber && ((_a = getFriendOnlineInfo(n)) === null || _a === void 0 ? void 0 : _a.roomName) === info.roomName; }));
                 }
                 else if (isInCurrentRoom(memberNumber)) {
                     // Friend is in our room but BC didn't return a room name - use our tracked name.
@@ -20505,12 +20547,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         roomDrawer.style.display = "";
                         roomDrawerJoin.style.display = "none"; // already in the same room
                         roomDrawerCopy.style.display = "";
+                        fillRoomChips(getFriendList().filter(n => n !== memberNumber && getFriendStatus(n) === "room"));
                     }
                     else {
                         roomBar.style.display = "none";
                         roomDrawer.classList.remove("open");
                         roomDrawer.style.display = "none";
                         roomDrawerCopy.style.display = "none";
+                        fillRoomChips([]);
                     }
                 }
                 else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
@@ -20523,6 +20567,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                     roomDrawerCopy.style.display = "none";
+                    fillRoomChips([]);
                 }
                 else if (s !== "away" && getFriendList().includes(memberNumber)) {
                     // Online friend with no room info = in the main hall / lobby.
@@ -20533,6 +20578,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                     roomDrawerCopy.style.display = "none";
+                    fillRoomChips([]);
                 }
                 else {
                     // Offline or status unknown - nothing to show
@@ -20540,6 +20586,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                     roomDrawerCopy.style.display = "none";
+                    fillRoomChips([]);
                 }
             };
             win._updateStatus = updateStatus;
@@ -35830,7 +35877,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 156; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 157; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35853,7 +35900,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Friends: new collapsible 'Friend rooms' section in the Users tab - shows where every online friend is, grouped by room. Public rooms get a Join button; private rooms and the lobby are listed separately. Updates live with the friends list.",
                 "Fix: beep windows could open collapsed to just the input bar (header and chat hidden). Root cause: older EBC versions kept resize handles active on minimized windows, so a width-drag there persisted the 44px minimized height to localStorage - the saved size was then restored unclamped on every open. Fix: saved sizes are clamped to the resize minimums (220x200) on both load and save, so stale bad values self-heal on next open.",
                 "Friend rooms: redesigned as room cards - each room shows its name, member count, and a Join button, with each friend as a clickable chip that opens their chat window.",
-                "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▾ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
+                "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
+                "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
             ],
         },
         {
