@@ -2795,13 +2795,20 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // -- Favorite rooms ------------------------------------------------------------
-    // Rooms the user saved for one-click joining from the Users tab.
     function getFavoriteRooms() {
         var _a;
         try {
             const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.favoriteRooms;
-            return Array.isArray(v) ? v.filter(r => typeof r === "string" && !!r.trim()) : [];
+            if (!Array.isArray(v))
+                return [];
+            return v.map((e) => {
+                if (typeof e === "string")
+                    return e.trim() ? { name: e.trim() } : null;
+                if (e && typeof e === "object" && typeof e.name === "string" && (e.name).trim()) {
+                    return e;
+                }
+                return null;
+            }).filter((x) => x !== null);
         }
         catch (_b) {
             return [];
@@ -2814,55 +2821,69 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // -- Do Not Disturb ------------------------------------------------------------
-    // Temporarily silences EBC beep sounds and toast popups. Messages still arrive;
-    // history and unread counters still update. Stored in localStorage (device-local,
-    // survives reloads). Value: -1 = until manually turned off, else expiry timestamp.
-    const DND_LS_KEY = "EBC_dndUntil";
-    function isDndActive() {
+    /** Snapshots the current room's full settings for later rebuild.
+     *  Returns null when not in a room (no ChatRoomData). */
+    function captureCurrentRoomSnapshot() {
         try {
-            const raw = localStorage.getItem(DND_LS_KEY);
-            if (!raw)
-                return false;
-            const until = Number(raw);
-            if (until === -1)
-                return true;
-            if (!until || Date.now() >= until) {
-                localStorage.removeItem(DND_LS_KEY);
-                return false;
+            const w = window;
+            const d = w.ChatRoomData;
+            if (!d || typeof d.Name !== "string" || !d.Name.trim())
+                return null;
+            const str = (x) => typeof x === "string" ? x : undefined;
+            const num = (x) => typeof x === "number" ? x : undefined;
+            const numArr = (x) => Array.isArray(x) ? x.filter((n) => typeof n === "number") : undefined;
+            const strArr = (x) => Array.isArray(x) ? x.filter((v) => typeof v === "string") : undefined;
+            const out = { name: d.Name.trim() };
+            const desc = str(d.Description);
+            if (desc !== undefined)
+                out.description = desc.slice(0, 300);
+            const bg = str(d.Background);
+            if (bg !== undefined)
+                out.background = bg;
+            const lim = num(d.Limit);
+            if (lim !== undefined)
+                out.limit = lim;
+            const adm = numArr(d.Admin);
+            if (adm)
+                out.admin = adm.slice(0, 50);
+            const ban = numArr(d.Ban);
+            if (ban)
+                out.ban = ban.slice(0, 100);
+            const wl = numArr(d.Whitelist);
+            if (wl)
+                out.whitelist = wl.slice(0, 100);
+            const bc = strArr(d.BlockCategory);
+            if (bc)
+                out.blockCategory = bc;
+            const game = str(d.Game);
+            if (game !== undefined)
+                out.game = game;
+            const lang = str(d.Language);
+            if (lang !== undefined)
+                out.language = lang;
+            const spc = str(d.Space);
+            if (spc !== undefined)
+                out.space = spc;
+            if (d.Visibility !== undefined)
+                out.visibility = d.Visibility;
+            if (d.Access !== undefined)
+                out.access = d.Access;
+            if (d.Custom !== undefined)
+                out.custom = d.Custom;
+            // Map tile data can be huge - only keep it when it stays well under the
+            // ExtensionSettings size budget.
+            if (d.MapData !== undefined) {
+                try {
+                    if (JSON.stringify(d.MapData).length <= 20000)
+                        out.mapData = d.MapData;
+                }
+                catch ( /* skip */_a) { /* skip */ }
             }
-            return true;
+            out.savedAt = Date.now();
+            return out;
         }
-        catch (_a) {
-            return false;
-        }
-    }
-    /** minutes > 0: DND for that long; minutes === -1: until turned off; 0: off. */
-    function setDndMinutes(minutes) {
-        try {
-            if (minutes === 0)
-                localStorage.removeItem(DND_LS_KEY);
-            else if (minutes === -1)
-                localStorage.setItem(DND_LS_KEY, "-1");
-            else
-                localStorage.setItem(DND_LS_KEY, String(Date.now() + minutes * 60000));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    /** -1 = until turned off; 0 = inactive; otherwise ms remaining. */
-    function getDndRemainingMs() {
-        try {
-            const raw = localStorage.getItem(DND_LS_KEY);
-            if (!raw)
-                return 0;
-            const until = Number(raw);
-            if (until === -1)
-                return -1;
-            const rem = until - Date.now();
-            return rem > 0 ? rem : 0;
-        }
-        catch (_a) {
-            return 0;
+        catch (_b) {
+            return null;
         }
     }
     // -- Quick replies -------------------------------------------------------------
@@ -21260,30 +21281,6 @@
                 charCounter.style.color = rem <= 10 ? "#cf4060" : rem <= 40 ? "#d08030" : "#a07080";
             };
             input.addEventListener("input", updateCounter);
-            // Draft persistence - unsent text survives closing the window / page reloads.
-            const draftKey = `EBC_beepDraft_${memberNumber}`;
-            const saveDraft = () => {
-                try {
-                    if (input.value)
-                        localStorage.setItem(draftKey, input.value);
-                    else
-                        localStorage.removeItem(draftKey);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            input.addEventListener("input", saveDraft);
-            try {
-                const draft = localStorage.getItem(draftKey);
-                if (draft) {
-                    input.value = draft;
-                    updateCounter();
-                    window.requestAnimationFrame(() => {
-                        input.style.height = "auto";
-                        input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
-                    });
-                }
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
             // ── Emoji picker ─────────────────────────────────────────────────────
             const EMOTE_CATS = [
                 {
@@ -21293,7 +21290,10 @@
                 },
                 {
                     icon: "🐱", label: "Cats",
-                    items: ["🐱", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"],
+                    items: [
+                        "🐱", "😺", "😸", "😹", "😻", "😼", "😽", "🙀",
+                        "😿", "😾", "🐈", "🦁", "🐯", "🐅",
+                    ],
                 },
                 {
                     icon: "😊", label: "Faces",
@@ -21304,6 +21304,11 @@
                         "😅", "😌", "🥲", "😮", "😲", "😱", "🤯", "🤗",
                         "🙃", "😒", "😔", "😞", "😓", "😣", "😫", "😩",
                         "🥱", "😴", "🤐", "🤢", "🤧", "🥵", "🥶", "💀",
+                        "😀", "😃", "🙂", "😉", "😋", "🤤", "🤫", "🧐",
+                        "🤨", "😑", "😐", "🫥", "🤔", "🫣", "😰", "😨",
+                        "😯", "🥴", "😵", "🤒", "🤕", "🤑", "🤠", "🥳",
+                        "😎", "🤓", "🫡", "😤", "😡", "😠", "🤬", "👿",
+                        "🤡", "👻", "👽", "🤖", "🎃", "🤷",
                     ],
                 },
                 {
@@ -21311,39 +21316,79 @@
                     items: [
                         "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🩷",
                         "💕", "💗", "💖", "💞", "💝", "💓", "💘", "💔",
-                        "💋", "🫦", "🫂", "🫶",
+                        "❤️‍🔥", "❤️‍🩹", "🩵", "🩶", "🤍", "🤎", "💟", "♥️",
+                        "💋", "🫦", "🫂", "🫶", "💌", "💍",
+                    ],
+                },
+                {
+                    icon: "👋", label: "Hands",
+                    items: [
+                        "👋", "🤚", "✋", "🖐️", "👌", "🤌", "🤏", "✌️",
+                        "🤞", "🫰", "🤟", "🤘", "🤙", "👈", "👉", "👆",
+                        "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜",
+                        "👏", "🙌", "👐", "🤲", "🙏", "💅", "🤝", "💪",
+                        "🫳", "🫴",
                     ],
                 },
                 {
                     icon: "✨", label: "Sparkles",
                     items: [
-                        "✨", "💫", "⭐", "🌟", "🌈", "🌙", "☀️", "🎀",
-                        "👀", "👉", "👈", "💪", "🫶", "🙌", "👏", "🤝",
+                        "✨", "💫", "⭐", "🌟", "🌠", "🌈", "🌙", "☀️",
+                        "🌤️", "☁️", "🌧️", "⛈️", "❄️", "☃️", "🌊", "💧",
+                        "💦", "💨", "🔥", "⚡", "🎀", "🎇", "🎆", "🎉",
+                        "🎊", "🎈", "💥", "💢", "💤", "🕯️", "🪄", "🔮",
                     ],
                 },
                 {
-                    icon: "🌸", label: "Floral & Food",
+                    icon: "🌸", label: "Flowers",
                     items: [
-                        "🌸", "🌺", "🌹", "🌷", "🌼", "🌻", "💮", "🏵️",
-                        "🍒", "🍓", "🍑", "🍭", "🧁", "🎂", "🍰", "🍫",
+                        "🌸", "💮", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼",
+                        "🌷", "🪷", "🪻", "🌱", "🌿", "☘️", "🍀", "🍃",
+                        "🍂", "🍁", "🌵", "🌴", "🪴", "🌳",
+                    ],
+                },
+                {
+                    icon: "🍰", label: "Food",
+                    items: [
+                        "🍒", "🍓", "🫐", "🍑", "🍉", "🍊", "🍋", "🍌",
+                        "🍍", "🥭", "🍎", "🍭", "🍬", "🍫", "🧁", "🎂",
+                        "🍰", "🍪", "🍩", "🍦", "🍨", "🥞", "🧇", "🍯",
+                        "🥛", "🍼", "☕", "🍵", "🧋", "🥤", "🧃", "🍹",
                     ],
                 },
                 {
                     icon: "🐾", label: "Animals",
                     items: [
-                        "🐾", "🐰", "🦊", "🐻", "🐼", "🐨", "🐶", "🐺",
-                        "🦝", "🦋", "🌊", "🦄", "🐸", "🐹", "🐭", "🐯",
+                        "🐾", "🐰", "🐇", "🦊", "🐻", "🐼", "🐨", "🐶",
+                        "🐕", "🐺", "🦝", "🦋", "🦄", "🐴", "🐸", "🐹",
+                        "🐭", "🐣", "🐤", "🐧", "🦉", "🦇", "🐢", "🐍",
+                        "🐙", "🦑", "🦈", "🐬", "🐳", "🐟", "🦭", "🐑",
+                        "🐮", "🐷", "🦌", "🦔",
+                    ],
+                },
+                {
+                    icon: "💬", label: "Symbols",
+                    items: [
+                        "💬", "💭", "🗨️", "❗", "❕", "❓", "❔", "💯",
+                        "✅", "❌", "⭕", "🚫", "🔞", "⚠️", "🔔", "🔕",
+                        "🔒", "🔓", "🔑", "⛓️", "🧸", "🎁", "🎵", "🎶",
+                        "🎧", "📢", "🏳️‍🌈", "🏳️‍⚧️", "♾️", "☮️", "⚜️", "🎮",
                     ],
                 },
                 {
                     icon: "OwO", label: "Text emotes", text: true,
                     items: [
                         "OwO", "UwU", ">w<", "^w^", "=w=", "qwq", "TwT", "nwn",
+                        "ÒwÓ", "ÕwÕ", "@w@", "x3", ">:3", "uwu~", "owo;;", "=^w^=",
                         "<.<", ">.>", ">.<", ">_<", "o.o", "o_o", "-.-", ">///<",
                         ":3", ";3", "c:", "cx", ":P", ":D", "xD", ";)", ":)", ":(",
+                        ":<", ">:(", "D:", ":o", ":O", ":x", ":|", ":/", "._.", "o7",
+                        "T_T", ";-;", "q-q", "ಠ_ಠ", "(¬‿¬)", "(・ω・)", "(・_・;)", "(#`Д´)",
                         "^_^", "^.^", "^///^", "(*^ω^*)", "(≧◡≦)", "(◕‿◕)✧",
                         "(づ◕‿◕)づ", "(✿◠‿◠)", "( ˘ω˘)", "(╹ω╹)",
-                        "(⌒ω⌒)", "(≧ω≦)", "(◠‿◠✿)", "♡", "~nya~", "~mew~",
+                        "(⌒ω⌒)", "(≧ω≦)", "(◠‿◠✿)", "(≧▽≦)", "(╥﹏╥)", "(´,,•ω•,,)♡",
+                        "(=^・ω・^=)", "ฅ^•ﻌ•^ฅ", "(ノ°▽°)ノ", "♪(´▽`)", "(o´ω`o)", "☆ミ",
+                        "♡", "☆", "~nya~", "~mew~", "~purr~", "*boop*",
                     ],
                 },
             ];
@@ -21381,7 +21426,6 @@
                         input.setSelectionRange(pos, pos);
                         updateCounter();
                         pushRecentEmoji(em);
-                        saveDraft();
                         input.focus();
                         emojiPicker.style.display = "none";
                     });
@@ -21434,10 +21478,6 @@
                 clearReply();
                 sendBeep(memberNumber, full);
                 input.value = "";
-                try {
-                    localStorage.removeItem(draftKey);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
                 input.style.height = "auto";
                 updateCounter();
                 renderHistory();
@@ -21575,7 +21615,7 @@
                     }
                 }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const saveBeepSize = () => {
                 try {
                     // Never persist a minimized/collapsed measurement - clamp to the
@@ -21761,8 +21801,6 @@
             this.showBeepToast(fromNum);
         }
         showBeepToast(fromNum) {
-            if (isDndActive())
-                return; // Do Not Disturb - suppress the popup (history/unread still update)
             try {
                 const msgs = getConversation(fromNum);
                 const last = msgs[msgs.length - 1];
@@ -21999,28 +22037,6 @@
             input.className = "ebc-beep-win-input";
             input.placeholder = "Message group…";
             input.rows = 1;
-            // Draft persistence - unsent text survives closing the window / page reloads.
-            const gDraftKey = `EBC_beepDraftG_${group.id}`;
-            try {
-                const draft = localStorage.getItem(gDraftKey);
-                if (draft) {
-                    input.value = draft;
-                    window.requestAnimationFrame(() => {
-                        input.style.height = "auto";
-                        input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
-                    });
-                }
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-            input.addEventListener("input", () => {
-                try {
-                    if (input.value)
-                        localStorage.setItem(gDraftKey, input.value);
-                    else
-                        localStorage.removeItem(gDraftKey);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
@@ -22029,10 +22045,6 @@
                 if (!text)
                     return;
                 input.value = "";
-                try {
-                    localStorage.removeItem(gDraftKey);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
                 input.style.height = "auto";
                 addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
                 // Include all members (self + others) so any recipient can reconstruct the group
@@ -22041,7 +22053,7 @@
                     try {
                         sendBeep(m, `${text}${tag}`);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_a) { /* ignore */ }
                 }
                 renderGroupHistory();
             };
@@ -22654,8 +22666,60 @@
                 }
             }, 80);
         }
+        /** Recreates a favorited room from its saved snapshot via ChatRoomCreate.
+         *  BC only accepts creates outside a room, so when in one we run BC's own
+         *  leave first, switch to the search screen (whose handlers auto-enter the
+         *  new room on success), then send the create after the server settles. */
+        rebuildFavoriteRoom(fav) {
+            var _a, _b, _c, _d, _e, _f, _g, _h;
+            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+            if (me && !admin.includes(me))
+                admin.unshift(me); // always keep ourselves admin of the rebuilt room
+            const payload = {
+                Name: fav.name,
+                Description: (_b = fav.description) !== null && _b !== void 0 ? _b : "",
+                Background: (_c = fav.background) !== null && _c !== void 0 ? _c : "BrickWall",
+                Limit: typeof fav.limit === "number" ? fav.limit : 10,
+                Admin: admin,
+                Ban: Array.isArray(fav.ban) ? fav.ban : [],
+                Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+                BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
+                Game: (_d = fav.game) !== null && _d !== void 0 ? _d : "",
+                Language: (_e = fav.language) !== null && _e !== void 0 ? _e : "EN",
+                Space: (_f = fav.space) !== null && _f !== void 0 ? _f : "X",
+            };
+            if (fav.visibility !== undefined)
+                payload.Visibility = fav.visibility;
+            if (fav.access !== undefined)
+                payload.Access = fav.access;
+            if (fav.custom !== undefined)
+                payload.Custom = fav.custom;
+            if (fav.mapData !== undefined)
+                payload.MapData = fav.mapData;
+            const w = window;
+            const doCreate = () => { try {
+                ServerSend("ChatRoomCreate", payload);
+            }
+            catch ( /* ignore */_a) { /* ignore */ } };
+            this.close();
+            if (w.CurrentScreen === "ChatRoom") {
+                try {
+                    (_g = w.ChatRoomLeave) === null || _g === void 0 ? void 0 : _g.call(w);
+                }
+                catch ( /* ignore */_j) { /* ignore */ }
+                try {
+                    (_h = w.CommonSetScreen) === null || _h === void 0 ? void 0 : _h.call(w, "Online", "ChatSearch");
+                }
+                catch ( /* ignore */_k) { /* ignore */ }
+                window.setTimeout(doCreate, 700);
+            }
+            else {
+                doCreate();
+            }
+        }
         renderFriendRows(body) {
-            var _a, _b;
+            var _a, _b, _c;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -22698,7 +22762,7 @@
                     try {
                         this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_d) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
@@ -22999,7 +23063,7 @@
                 try {
                     this.favRoomsCollapsed = localStorage.getItem("EBC_favRoomsCollapsed") === "1";
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const favContainer = document.createElement("div");
                 const favToggle = document.createElement("div");
                 const updateFavToggle = () => {
@@ -23029,7 +23093,8 @@
                     catch ( /* ignore */_a) { /* ignore */ }
                     updateFavToggle();
                 });
-                for (const rn of favs) {
+                for (const fav of favs) {
+                    const rn = fav.name;
                     const card = document.createElement("div");
                     card.className = "ebc-friend-rooms-card";
                     const head = document.createElement("div");
@@ -23040,7 +23105,16 @@
                     const nm = document.createElement("span");
                     nm.className = "ebc-friend-rooms-name";
                     nm.textContent = rn;
-                    nm.title = rn;
+                    {
+                        const bits = [rn];
+                        if (fav.description)
+                            bits.push(fav.description);
+                        if (typeof fav.limit === "number")
+                            bits.push(`Limit: ${fav.limit}`);
+                        if ((_a = fav.admin) === null || _a === void 0 ? void 0 : _a.length)
+                            bits.push(`Admins: ${fav.admin.join(", ")}`);
+                        nm.title = bits.join("\n");
+                    }
                     head.appendChild(ic);
                     head.appendChild(nm);
                     const jb = document.createElement("button");
@@ -23057,41 +23131,82 @@
                         jb.textContent = "→ …";
                         joinRoom(rn);
                     });
+                    // Rebuild - recreate the room from its saved snapshot (for when it's closed)
+                    const hasSnap = fav.background !== undefined || fav.admin !== undefined || fav.description !== undefined;
+                    const rb = document.createElement("button");
+                    rb.className = "ebc-friend-rooms-del";
+                    rb.textContent = "🔨";
+                    rb.style.fontSize = "10px";
+                    if (hasSnap) {
+                        rb.title = "Rebuild this room from its saved settings - use when the room is closed";
+                        rb.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            const go = () => { try {
+                                this.rebuildFavoriteRoom(fav);
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ } };
+                            if (window.CurrentScreen === "ChatRoom") {
+                                showConfirmOverlay(`Leave your current room and rebuild "${rn}"?`, "Cancel", "Rebuild", go);
+                            }
+                            else {
+                                go();
+                            }
+                        });
+                    }
+                    else {
+                        rb.title = "No saved room settings - open the room and press 'Update saved room settings' to capture them";
+                        rb.disabled = true;
+                        rb.style.opacity = "0.4";
+                        rb.style.cursor = "default";
+                    }
                     const del = document.createElement("button");
                     del.className = "ebc-friend-rooms-del";
                     del.textContent = "×";
                     del.title = "Remove from favorites";
                     del.addEventListener("click", (e) => {
                         e.stopPropagation();
-                        setFavoriteRooms(getFavoriteRooms().filter(r => r.toLowerCase() !== rn.toLowerCase()));
+                        setFavoriteRooms(getFavoriteRooms().filter(r => r.name.toLowerCase() !== rn.toLowerCase()));
                         try {
                             this.renderFriendRows(body);
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                     });
                     head.appendChild(jb);
+                    head.appendChild(rb);
                     head.appendChild(del);
                     card.appendChild(head);
                     favContainer.appendChild(card);
                 }
-                const canSave = !!curRoom && !favs.some(r => r.toLowerCase() === curRoom.toLowerCase());
+                const canSave = !!curRoom && !favs.some(r => r.name.toLowerCase() === curRoom.toLowerCase());
                 const addBtn = document.createElement("button");
                 addBtn.className = "ebc-friend-rooms-add";
                 if (canSave) {
                     addBtn.textContent = `+ Save "${curRoom.length > 26 ? curRoom.slice(0, 24) + "…" : curRoom}"`;
-                    addBtn.title = `Save "${curRoom}" to favorites`;
+                    addBtn.title = `Save "${curRoom}" and its settings (description, admins, background...) to favorites`;
                     addBtn.addEventListener("click", () => {
-                        setFavoriteRooms([...getFavoriteRooms(), curRoom]);
+                        var _a;
+                        const snap = (_a = captureCurrentRoomSnapshot()) !== null && _a !== void 0 ? _a : { name: curRoom };
+                        setFavoriteRooms([...getFavoriteRooms(), snap]);
                         try {
                             this.renderFriendRows(body);
                         }
-                        catch ( /* ignore */_a) { /* ignore */ }
+                        catch ( /* ignore */_b) { /* ignore */ }
                     });
                 }
                 else if (curRoom) {
-                    addBtn.textContent = "Current room is saved ✓";
-                    addBtn.disabled = true;
-                    addBtn.style.cursor = "default";
+                    addBtn.textContent = "Update saved room settings ↻";
+                    addBtn.title = "Re-capture this room's settings (description, admins, background...) into the favorite";
+                    addBtn.addEventListener("click", () => {
+                        const snap = captureCurrentRoomSnapshot();
+                        if (!snap)
+                            return;
+                        setFavoriteRooms(getFavoriteRooms().map(r => r.name.toLowerCase() === curRoom.toLowerCase() ? snap : r));
+                        addBtn.textContent = "Updated ✓";
+                        window.setTimeout(() => { try {
+                            this.renderFriendRows(body);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ } }, 900);
+                    });
                 }
                 else {
                     addBtn.textContent = "Join a room to save it here";
@@ -23118,7 +23233,7 @@
                     }
                     const info = getFriendOnlineInfo(num);
                     if (info === null || info === void 0 ? void 0 : info.roomName) {
-                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
+                        const arr = (_b = publicRooms.get(info.roomName)) !== null && _b !== void 0 ? _b : [];
                         arr.push(num);
                         publicRooms.set(info.roomName, arr);
                     }
@@ -23146,7 +23261,7 @@
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
-                    catch ( /* ignore */_e) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                     const roomsContainer = document.createElement("div");
                     const roomsToggle = document.createElement("div");
                     const updateRoomsToggle = () => {
@@ -23264,9 +23379,9 @@
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_b = localStorage.getItem("EBC_friendSort")) !== null && _b !== void 0 ? _b : "status";
+                    this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -23298,36 +23413,6 @@
                     catch ( /* ignore */_b) { /* ignore */ }
                 });
                 lblF.appendChild(sortSel);
-                // ── Do Not Disturb dropdown ────────────────────────────────────────
-                // Silences beep sounds + popups (messages still arrive and count as unread).
-                const dndSel = document.createElement("select");
-                const dndOffOpt = document.createElement("option");
-                dndOffOpt.value = "0";
-                dndSel.appendChild(dndOffOpt);
-                for (const [val, lbl] of [["30", "🔕 30 min"], ["60", "🔕 1 hour"], ["180", "🔕 3 hours"], ["-1", "🔕 Until off"]]) {
-                    const opt = document.createElement("option");
-                    opt.value = val;
-                    opt.textContent = lbl;
-                    dndSel.appendChild(opt);
-                }
-                const paintDnd = () => {
-                    const rem = getDndRemainingMs();
-                    const active = rem !== 0;
-                    dndOffOpt.textContent = active
-                        ? (rem === -1 ? "🔕 On - turn off" : `🔕 On (${Math.ceil(rem / 60000)}m) - turn off`)
-                        : "🔔 DND off";
-                    dndSel.value = "0";
-                    dndSel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid ${active ? "#cf6f98" : "#3a1928"};background:#140a10;color:${active ? "#cf6f98" : "#b08090"};cursor:pointer;flex-shrink:0;outline:none;`;
-                    dndSel.title = active
-                        ? "Do Not Disturb is ON - beep sounds and popups are silenced"
-                        : "Do Not Disturb - silence beep sounds and popups for a while";
-                };
-                paintDnd();
-                dndSel.addEventListener("change", () => {
-                    setDndMinutes(Number(dndSel.value));
-                    paintDnd();
-                });
-                lblF.appendChild(dndSel);
                 if (this.beepUnread.size > 0) {
                     const markReadBtn = document.createElement("button");
                     markReadBtn.textContent = "✓ All read";
@@ -24223,7 +24308,7 @@
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -24241,7 +24326,7 @@
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_h) { /* ignore */ }
+                        catch ( /* ignore */_j) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -36172,7 +36257,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 158; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 159; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36197,10 +36282,8 @@
                 "Friend rooms: redesigned as room cards - each room shows its name, member count, and a Join button, with each friend as a clickable chip that opens their chat window.",
                 "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
                 "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
-                "Favorite rooms: new collapsible section in the Users tab - save rooms with '+ Save current room' and rejoin them with one click. Synced to your BC account like other EBC settings.",
-                "Beep drafts: unsent text in a chat window (personal and group) is now kept if you close the window or reload - it comes back when you reopen the chat. Cleared on send.",
-                "Do Not Disturb: new dropdown next to the friends sort - silence all beep sounds and popups for 30 min / 1 h / 3 h / until turned off. Messages still arrive and count as unread; the control glows pink while active. Also silences online-friend toasts.",
-                "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions.",
+                "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
+                "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
         },
@@ -41949,8 +42032,6 @@
     ];
     function showOnlineToast(memberNumber, fallbackName) {
         var _a;
-        if (isDndActive())
-            return; // Do Not Disturb - no toast, no sound
         try {
             // Player.FriendNames is BC's authoritative name map, populated after our hook calls next().
             // The callback fires on next tick so this is already up-to-date.
@@ -44405,7 +44486,7 @@
                     const grpTag = extractGroupTag(rawMsg);
                     if (grpTag) {
                         addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
-                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum) && !isDndActive()) {
+                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
@@ -44420,7 +44501,7 @@
                     const msg = stripBeepMetadata(rawMsg);
                     if (msg) {
                         addBeepEntry({ from: fromNum, to: (_e = Player.MemberNumber) !== null && _e !== void 0 ? _e : 0, message: msg, ts: Date.now() });
-                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum) && !isDndActive()) {
+                        if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
