@@ -2861,10 +2861,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // background...). Throttled, and only writes when something actually changed so
     // the server sync isn't spammed.
     let _lastFavSnapshotCheck = 0;
-    function autoUpdateFavoriteSnapshot() {
+    function autoUpdateFavoriteSnapshot(force = false) {
         try {
             const now = Date.now();
-            if (now - _lastFavSnapshotCheck < 30000)
+            if (!force && now - _lastFavSnapshotCheck < 30000)
                 return;
             _lastFavSnapshotCheck = now;
             const snap = captureCurrentRoomSnapshot();
@@ -36485,7 +36485,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 166; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 167; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36518,6 +36518,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
                 "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
                 "Favorite rooms: joining a closed room now asks first - a confirm dialog offers to recreate it with the saved settings instead of rebuilding automatically.",
+                "Fix: favorite room snapshots could keep stale/default settings. Root cause: the auto-capture only ran on room join and on a throttled 60s poll - saving changes in the room admin screen and leaving shortly after never got captured, so rebuilds restored the old state. Fix: EBC now captures the favorited room's settings the moment a room-properties update arrives (admin Save, background/description change), and the on-join capture waits 5s so a rebuild's own settings-restore lands first. To fix an already-stale favorite: open the room, adjust it (or press Save once in the room admin screen), and the favorite updates instantly.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43898,6 +43899,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
+        // Room property updates (admin saves, background/description changes...) -
+        // capture the favorited room's new state immediately, so a quick
+        // edit-then-leave doesn't lose the changes to the 60s poll window.
+        tryHookFunction(modAPI, "ChatRoomSyncRoomProperties", 1, (args, next) => {
+            const result = next(args);
+            window.setTimeout(() => { try {
+                autoUpdateFavoriteSnapshot(true);
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 500);
+            return result;
+        });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
@@ -43952,11 +43964,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_k) { /* ignore */ }
             // Favorited room? Silently refresh its saved snapshot once BC has fully
-            // populated ChatRoomData for the new room.
+            // populated ChatRoomData - delayed 5s so a rebuild's settings-restore
+            // update (1.2s after entry) has landed before we capture.
             window.setTimeout(() => { try {
                 autoUpdateFavoriteSnapshot();
             }
-            catch ( /* ignore */_a) { /* ignore */ } }, 2000);
+            catch ( /* ignore */_a) { /* ignore */ } }, 5000);
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {

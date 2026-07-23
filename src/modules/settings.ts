@@ -490,10 +490,10 @@ export function setFavoriteRooms(rooms: FavoriteRoomData[]): void {
 // the server sync isn't spammed.
 let _lastFavSnapshotCheck = 0;
 
-export function autoUpdateFavoriteSnapshot(): void {
+export function autoUpdateFavoriteSnapshot(force = false): void {
     try {
         const now = Date.now();
-        if (now - _lastFavSnapshotCheck < 30_000) return;
+        if (!force && now - _lastFavSnapshotCheck < 30_000) return;
         _lastFavSnapshotCheck = now;
         const snap = captureCurrentRoomSnapshot();
         if (!snap) return;
