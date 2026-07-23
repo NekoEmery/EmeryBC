@@ -25,8 +25,8 @@ import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEv
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "8.3.1";
-const SAL_VERSION  = 153;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "8.3.2";
+const SAL_VERSION  = 154;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -43,6 +43,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "8.3.2",
+        changes: [
+            "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
+            "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
+            "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
+            "Friends: new collapsible 'Friend rooms' section in the Users tab - shows where every online friend is, grouped by room. Public rooms get a Join button; private rooms and the lobby are listed separately. Updates live with the friends list.",
+        ],
+    },
     {
         version: "8.3.1",
         changes: [

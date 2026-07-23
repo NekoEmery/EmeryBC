@@ -219,6 +219,38 @@ function markPendingMessage(memberNumber: number, message: string): void {
     persistOfflineQueue();
 }
 
+/** Cleaned texts of messages still queued for offline delivery to this member.
+ *  Cleaned the same way addBeepEntry cleans history entries, so the values
+ *  compare equal to stored BeepEntry.message - used by the beep window to mark
+ *  undelivered bubbles. */
+export function getPendingMessagesCleaned(memberNumber: number): string[] {
+    const raw = pendingOfflineMessages.get(memberNumber) ?? [];
+    return raw.map(m => stripBeepMetadata(m).slice(0, 1000));
+}
+
+/** Cancels ONE queued offline message whose cleaned text matches.
+ *  Returns true if a queue entry was removed. */
+export function cancelPendingMessage(memberNumber: number, cleanedText: string): boolean {
+    const raw = pendingOfflineMessages.get(memberNumber);
+    if (!raw) return false;
+    const i = raw.findIndex(m => stripBeepMetadata(m).slice(0, 1000) === cleanedText);
+    if (i === -1) return false;
+    raw.splice(i, 1);
+    if (raw.length === 0) {
+        pendingOfflineMessages.delete(memberNumber);
+        pendingOfflineQueuedAt.delete(memberNumber);
+    }
+    persistOfflineQueue();
+    return true;
+}
+
+// Fired when a member's queued offline messages are handed to the server for
+// re-delivery (they came online) - lets the beep window drop its ⏳ markers.
+let _onQueueDelivered: ((memberNumber: number) => void) | null = null;
+export function setQueueDeliveredCallback(cb: (memberNumber: number) => void): void {
+    _onQueueDelivered = cb;
+}
+
 // Timestamp when this module was first loaded — used to add a startup grace
 // window before offline messages are re-delivered so EBC's burst of beeps
 // doesn't stack on top of BC's own login traffic and trip the rate limiter.
@@ -345,6 +377,7 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
                     } catch { /* ignore */ }
                 }, delay);
             }
+            try { _onQueueDelivered?.(num); } catch { /* ignore */ }
         }
     }
     if (queueChanged) persistOfflineQueue();
@@ -660,6 +693,19 @@ export function getConversation(memberNumber: number): BeepEntry[] {
         (e.from === memberNumber && e.to === self) ||
         (e.from === self && e.to === memberNumber),
     );
+}
+
+/** Removes ONE beep history entry, matched by from/to/ts/message. */
+export function deleteBeepEntry(entry: BeepEntry): void {
+    const store = getSettings();
+    const history = getBeepHistory();
+    const i = history.findIndex(e =>
+        e.from === entry.from && e.to === entry.to &&
+        e.ts === entry.ts && e.message === entry.message);
+    if (i === -1) return;
+    history.splice(i, 1);
+    store.beepHistory = history;
+    sync();
 }
 
 /** Removes all beep history entries between the local player and the given member. */

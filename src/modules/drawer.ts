@@ -97,7 +97,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
@@ -4009,6 +4009,7 @@ export class EBCDrawer {
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
+    private friendRoomsCollapsed = false;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -4109,6 +4110,13 @@ export class EBCDrawer {
         this.isDev      = isDev;
         this.salVersion = salVersion;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
+        // When queued offline messages get handed to the server (recipient came
+        // online), refresh that member's open beep window so ⏳ markers disappear.
+        setQueueDeliveredCallback((n) => {
+            const entry = this.beepWins.get(n);
+            const refresh = (entry?.el as unknown as Record<string, unknown> | undefined)?._refresh as (() => void) | undefined;
+            if (refresh) try { refresh(); } catch { /* ignore */ }
+        });
         // Live-update the DEV tab whisper log section when new messages arrive
         setWhisperUpdateCallback(() => {
             if (this.isOpen && this.currentTab === "dev") {
@@ -12812,6 +12820,17 @@ export class EBCDrawer {
             history.appendChild(spacer);
             const entries = getConversation(memberNumber);
             const self = Player.MemberNumber ?? 0;
+            // Mark entries still queued for offline delivery. Matched newest-first so
+            // an older delivered message with identical text isn't marked instead of
+            // the newly queued one.
+            const pendingLeft  = getPendingMessagesCleaned(memberNumber);
+            const pendingMarks = new Set<BeepEntry>();
+            for (let pi = entries.length - 1; pi >= 0 && pendingLeft.length > 0; pi--) {
+                const pe = entries[pi];
+                if (pe.from !== self) continue;
+                const qIdx = pendingLeft.indexOf(stripBeepMetadata(pe.message));
+                if (qIdx !== -1) { pendingLeft.splice(qIdx, 1); pendingMarks.add(pe); }
+            }
             if (entries.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "text-align:center;color:#8a6070;font-size:11px;padding:20px 0;";
@@ -13013,6 +13032,29 @@ export class EBCDrawer {
                 }
 
                 wrap.appendChild(bubble);
+
+                // Undelivered marker + cancel button for messages still queued for
+                // offline delivery (recipient hasn't come online yet).
+                if (isSent && pendingMarks.has(e)) {
+                    bubble.style.opacity = "0.72";
+                    const pRow = document.createElement("div");
+                    pRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:1px 3px 0;";
+                    const pLbl = document.createElement("span");
+                    pLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09a58;";
+                    pLbl.textContent = "⏳ Not delivered - sends when they come online";
+                    const pCancel = document.createElement("button");
+                    pCancel.className = "ebc-bubble-copy-btn";
+                    pCancel.textContent = "Cancel";
+                    pCancel.title = "Delete this message so it is never delivered";
+                    pCancel.addEventListener("click", () => {
+                        cancelPendingMessage(memberNumber, cleanMsg);
+                        deleteBeepEntry(e);
+                        renderHistory();
+                    });
+                    pRow.appendChild(pLbl);
+                    pRow.appendChild(pCancel);
+                    wrap.appendChild(pRow);
+                }
 
                 // Reply button - only show on received messages
                 if (!isSent) {
@@ -14824,6 +14866,154 @@ export class EBCDrawer {
                 if (!this.roomPeopleCollapsed) {
                     for (const c of roomList) buildRoomRow(c, roomContainer);
                 }
+            }
+        }
+
+        // ── Friend Rooms - where online friends are, with join buttons ────────
+        {
+            interface RoomGroup { label: string; nums: number[]; joinable: boolean; icon: string }
+            const myRoomNums:  number[] = [];
+            const privateNums: number[] = [];
+            const lobbyNums:   number[] = [];
+            const publicRooms = new Map<string, number[]>();
+            for (const num of friendList) {
+                const status = getFriendStatus(num);
+                if (status === "away") continue;
+                if (status === "room") { myRoomNums.push(num); continue; }
+                const info = getFriendOnlineInfo(num);
+                if (info?.roomName) {
+                    const arr = publicRooms.get(info.roomName) ?? [];
+                    arr.push(num);
+                    publicRooms.set(info.roomName, arr);
+                } else if (info?.isPrivate) {
+                    privateNums.push(num);
+                } else {
+                    lobbyNums.push(num);
+                }
+            }
+
+            const groups: RoomGroup[] = [];
+            if (myRoomNums.length > 0) groups.push({ label: "Your current room", nums: myRoomNums, joinable: false, icon: "🐾" });
+            [...publicRooms.entries()]
+                .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+                .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
+            if (privateNums.length > 0) groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
+            if (lobbyNums.length > 0)   groups.push({ label: "Lobby / hidden",    nums: lobbyNums,   joinable: false, icon: "🏛" });
+
+            if (groups.length > 0) {
+                const divRm = document.createElement("div");
+                divRm.className = "ebc-divider";
+                body.appendChild(divRm);
+
+                try { this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1"; } catch { /* ignore */ }
+
+                const roomsContainer = document.createElement("div");
+
+                const roomsToggle = document.createElement("div");
+                const updateRoomsToggle = (): void => {
+                    const col = this.friendRoomsCollapsed;
+                    roomsToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
+                    roomsToggle.innerHTML = "";
+                    const arrow = document.createElement("span");
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
+                    arrow.textContent = col ? "▶" : "▼";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                    lbl.textContent = "Friend rooms";
+                    const cnt = document.createElement("span");
+                    cnt.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:11px",
+                        "font-weight:bold",
+                        "color:#e8b4c4",
+                        "background:rgba(192,100,130,0.18)",
+                        "border:1px solid rgba(192,100,130,0.35)",
+                        "border-radius:10px",
+                        "padding:0 7px",
+                        "line-height:16px",
+                        "min-width:18px",
+                        "text-align:center",
+                        "flex-shrink:0",
+                    ].join(";");
+                    cnt.textContent = String(groups.length);
+                    roomsToggle.appendChild(arrow);
+                    roomsToggle.appendChild(lbl);
+                    roomsToggle.appendChild(cnt);
+                    roomsContainer.style.display = col ? "none" : "block";
+                };
+                updateRoomsToggle();
+                roomsToggle.addEventListener("click", () => {
+                    this.friendRoomsCollapsed = !this.friendRoomsCollapsed;
+                    try { localStorage.setItem("EBC_friendRoomsCollapsed", this.friendRoomsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                    updateRoomsToggle();
+                });
+
+                // Same join path as the beep window's 📍 shortcut - BC handles the
+                // implicit leave from the current room.
+                let joinTs = 0;
+                const joinRoom = (rName: string): void => {
+                    const now = Date.now();
+                    if (now - joinTs < 1500) return;
+                    joinTs = now;
+                    try {
+                        const wj = window as unknown as Record<string, unknown>;
+                        const joinFn = wj.ChatRoomJoin as ((n: string) => void) | undefined;
+                        if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
+                        try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
+                    } catch { /* ignore */ }
+                };
+
+                for (const g of groups) {
+                    const gWrap = document.createElement("div");
+                    gWrap.style.cssText = "padding:4px 4px 5px;border-bottom:1px solid rgba(58,25,40,0.45);";
+
+                    const headRow = document.createElement("div");
+                    headRow.style.cssText = "display:flex;align-items:center;gap:5px;min-width:0;";
+                    const rIcon = document.createElement("span");
+                    rIcon.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                    rIcon.textContent = g.icon;
+                    const rName = document.createElement("span");
+                    rName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:600;color:#e0b0c8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    rName.textContent = g.label;
+                    rName.title = g.label;
+                    const rCnt = document.createElement("span");
+                    rCnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                    rCnt.textContent = `${g.nums.length}`;
+                    headRow.appendChild(rIcon);
+                    headRow.appendChild(rName);
+                    headRow.appendChild(rCnt);
+
+                    if (g.joinable) {
+                        const joinBtn = document.createElement("button");
+                        joinBtn.textContent = "Join →";
+                        joinBtn.title = `Join "${g.label}"`;
+                        joinBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #cf6f98;background:#1e0c18;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+                        joinBtn.addEventListener("mouseenter", () => { joinBtn.style.background = "#2e1424"; });
+                        joinBtn.addEventListener("mouseleave", () => { joinBtn.style.background = "#1e0c18"; });
+                        joinBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            if (getCurrentRoomName().toLowerCase() === g.label.toLowerCase()) {
+                                joinBtn.textContent = "Here ✓";
+                                window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                return;
+                            }
+                            joinBtn.textContent = "→ …";
+                            joinRoom(g.label);
+                        });
+                        headRow.appendChild(joinBtn);
+                    }
+                    gWrap.appendChild(headRow);
+
+                    const namesRow = document.createElement("div");
+                    namesRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;padding:1px 0 0 20px;line-height:1.5;";
+                    namesRow.textContent = g.nums.map(n => `${resolveName(n)} #${n}`).join(" · ");
+                    gWrap.appendChild(namesRow);
+
+                    roomsContainer.appendChild(gWrap);
+                }
+
+                body.appendChild(roomsToggle);
+                body.appendChild(roomsContainer);
             }
         }
 
@@ -24239,6 +24429,9 @@ export class EBCDrawer {
         const wireFocus = (el: HTMLElement): void => {
             el.addEventListener("focus", () => { el.style.borderColor = "#cf6f98"; el.style.boxShadow = "0 0 0 3px rgba(207,111,152,0.16)"; });
             el.addEventListener("blur", () => { el.style.borderColor = "#33283c"; el.style.boxShadow = "none"; });
+            // Stop keystrokes reaching BC's document-level key handler - on map rooms
+            // WASD/arrow keys would otherwise move the character and eat the letters.
+            el.addEventListener("keydown", (e) => e.stopPropagation());
         };
         const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
 

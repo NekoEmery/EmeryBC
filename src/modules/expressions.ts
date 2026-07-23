@@ -98,6 +98,25 @@ export function getExprGroupOptions(group: string): string[] {
     return EXPR_FALLBACK[group] ?? [];
 }
 
+// -- Expression name validation -------------------------------------------------
+// BC validates expression names against the GROUP's AllowExpression list and
+// silently ignores unknown names. Older EBC versions captured the worn asset's
+// STYLE name (e.g. "Eyebrows2") for default-state face parts, which is not a
+// valid expression - applying such a preset left those parts unchanged instead
+// of resetting them to default. This helper maps any invalid name to null
+// (= default state). If the group's AllowExpression list can't be read, the
+// name is returned unchanged so BC's own validation stays the authority.
+function validExprOrNull(group: string, name: string | null): string | null {
+    if (!name) return null;
+    try {
+        const item = (Player.Appearance as Item[]).find(i => i.Asset.Group.Name === group);
+        const allow = (item?.Asset.Group as unknown as Record<string, unknown> | undefined)?.AllowExpression as
+            Array<string | null> | undefined;
+        if (Array.isArray(allow)) return allow.includes(name) ? name : null;
+    } catch { /* fall through */ }
+    return name;
+}
+
 // -- Single-expression apply ---------------------------------------------------
 // Uses CharacterSetFacialExpression (BC's proper API) if available,
 // otherwise falls back to direct Appearance manipulation.
@@ -108,6 +127,10 @@ export function getExprGroupOptions(group: string): string[] {
 // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
 export function applyExprGroup(group: string, exprName: string | null, noSync = false): void {
     try {
+        // Sanitize: presets saved by older versions may carry a style name instead of
+        // an expression. BC would silently ignore it - map it to null so the part
+        // actually resets to its default state as the preset intended.
+        exprName = validExprOrNull(group, exprName);
         // Prefer BC's official API — it validates the expression name internally via its
         // own AssetGet call and returns early for invalid names without touching Appearance.
         // We do NOT pre-validate here: our own AssetGet call can behave differently from
@@ -204,11 +227,13 @@ export function captureCurrentExpression(name: string): ExpressionPreset {
         for (const group of EXPR_GROUPS) {
             const item = Player.Appearance.find((i: Item) => i.Asset.Group.Name === group);
             if (item) {
-                // BC stores the active expression variant in Asset.Name (always reliable).
-                // Property.Expression mirrors it in most builds; use it as the primary source
-                // and fall back to Asset.Name so capture works regardless of BC version.
+                // Property.Expression is BC's canonical expression state - null/unset
+                // means the part is in its DEFAULT state. Asset.Name is the body-part
+                // STYLE (e.g. "Eyebrows2"), not an expression; only fall back to it if
+                // it happens to be a valid expression name for the group (defensive,
+                // for hypothetical builds that store the expression there).
                 const propExpr = (item.Property as Record<string, unknown> | undefined)?.Expression as string | null | undefined;
-                const exprName = propExpr || item.Asset.Name || null;
+                const exprName = propExpr || validExprOrNull(group, item.Asset.Name || null);
                 groups[group] = exprName
                     ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
                     : null;
