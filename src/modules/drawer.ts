@@ -14820,45 +14820,50 @@ export class EBCDrawer {
 
     /** Recreates a favorited room from its saved snapshot.
      *  Mirrors BC's own LastChatRoom recreate flow: create the room with
-     *  ourselves as the sole admin and PUBLIC access/visibility so entry always
-     *  succeeds and the client-side room validation passes (Visibility/Access
-     *  must be string arrays), then - once inside - push the full saved
-     *  settings (real admin list, whitelist, bans, access) as a room update.
-     *  Server caps: Name 20 chars, Description 100, Limit 2-10. */
+     *  ourselves as the sole admin and PUBLIC access/visibility (entry always
+     *  succeeds and client-side validation passes), then - once inside - push
+     *  the full saved settings as a room update.
+     *  "RoomAlreadyExist" first tries joining; if the join then reports
+     *  CannotFindRoom the name is squatted by a ghost/private room, so we retry
+     *  the create with a numbered suffix ("Name 2"), exactly like BC does.
+     *  All server responses are logged to the console for diagnosis. */
     private rebuildFavoriteRoom(fav: FavoriteRoomData): void {
         const me = Player?.MemberNumber ?? 0;
         const strArr = (v: unknown): string[] | null =>
             Array.isArray(v) && v.every(x => typeof x === "string") ? v as string[] : null;
 
-        const createPayload: Record<string, unknown> = {
-            Name: fav.name.trim().slice(0, 20),
-            Description: (fav.description ?? "").trim().slice(0, 100),
-            Background: fav.background ?? "BrickWall",
-            Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
-            Admin: [me],
-            Whitelist: [],
-            Ban: [],
-            BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
-            Game: fav.game ?? "",
-            Language: fav.language ?? "EN",
-            Space: fav.space ?? "X",
-            Visibility: strArr(fav.visibility) ?? ["All"],
-            Access: ["All"],
+        const baseName = fav.name.trim().slice(0, 20);
+        let attempt = 0; // 0 = original name, 1+ = numbered suffix
+        const currentName = (): string => {
+            if (attempt === 0) return baseName;
+            const suffix = " " + (attempt + 1);
+            return baseName.slice(0, Math.min(baseName.length, 20 - suffix.length)) + suffix;
         };
-        if (fav.custom  !== undefined) createPayload.Custom = fav.custom;
-        if (fav.mapData !== undefined) createPayload.MapData = fav.mapData;
 
-        // Full settings pushed as an update after we're inside - restores the
-        // real admin list (with us kept in), whitelist, bans and access mode.
-        const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-        if (me && !admin.includes(me)) admin.unshift(me);
-        const restorePayload: Record<string, unknown> = {
-            ...createPayload,
-            Admin: admin,
-            Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
-            Ban: Array.isArray(fav.ban) ? fav.ban : [],
-            Access: strArr(fav.access) ?? ["All"],
+        // Server caps: Name 20 chars, Description 100, Limit 2-10.
+        const mkCreatePayload = (name: string): Record<string, unknown> => {
+            const p: Record<string, unknown> = {
+                Name: name,
+                Description: (fav.description ?? "").trim().slice(0, 100),
+                Background: fav.background ?? "BrickWall",
+                Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
+                Admin: [me],
+                Whitelist: [],
+                Ban: [],
+                BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
+                Game: fav.game ?? "",
+                Language: fav.language ?? "EN",
+                Space: fav.space ?? "X",
+                Visibility: strArr(fav.visibility) ?? ["All"],
+                Access: ["All"],
+            };
+            if (fav.custom  !== undefined) p.Custom = fav.custom;
+            if (fav.mapData !== undefined) p.MapData = fav.mapData;
+            return p;
         };
+
+        const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+        if (me && !fullAdmin.includes(me)) fullAdmin.unshift(me);
 
         const w = window as unknown as Record<string, unknown>;
         const sock = w.ServerSocket as {
@@ -14866,18 +14871,36 @@ export class EBCDrawer {
             off?: (ev: string, cb: (d: unknown) => void) => void;
         } | undefined;
 
+        let joinPending = false;
         let cleanupTimer: number | null = null;
         const cleanup = (): void => {
             if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
-            try { sock?.off?.("ChatRoomCreateResponse", onResp); } catch { /* ignore */ }
+            try { sock?.off?.("ChatRoomCreateResponse", onCreateResp); } catch { /* ignore */ }
+            try { sock?.off?.("ChatRoomSearchResponse", onSearchResp); } catch { /* ignore */ }
         };
-        const onResp = (data: unknown): void => {
+
+        const doCreate = (): void => {
+            const p = mkCreatePayload(currentName());
+            try { console.info("[EBC] Rebuild: sending ChatRoomCreate", JSON.parse(JSON.stringify(p))); } catch { /* ignore */ }
+            try { ServerSend("ChatRoomCreate", p); } catch { /* ignore */ }
+        };
+
+        const onCreateResp = (data: unknown): void => {
+            try { console.info("[EBC] Rebuild: ChatRoomCreateResponse =", data); } catch { /* ignore */ }
             if (data === "ChatRoomCreated") {
                 cleanup();
-                this._showToyToast(`Rebuilt "${fav.name}" ✓`);
+                this._showToyToast(`Rebuilt "${currentName()}" ✓`);
                 // Restore the full saved settings once the room sync has settled -
                 // same follow-up-update trick BC's own recreate uses for admins.
+                const restorePayload: Record<string, unknown> = {
+                    ...mkCreatePayload(currentName()),
+                    Admin: fullAdmin,
+                    Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+                    Ban: Array.isArray(fav.ban) ? fav.ban : [],
+                    Access: strArr(fav.access) ?? ["All"],
+                };
                 window.setTimeout(() => {
+                    try { console.info("[EBC] Rebuild: restoring full settings", JSON.parse(JSON.stringify(restorePayload))); } catch { /* ignore */ }
                     try {
                         ServerSend("ChatRoomAdmin", {
                             MemberNumber: (Player as unknown as { ID?: number }).ID ?? 0,
@@ -14885,20 +14908,48 @@ export class EBCDrawer {
                             Action: "Update",
                         });
                     } catch { /* ignore */ }
-                }, 1000);
+                }, 1200);
             } else if (data === "RoomAlreadyExist") {
-                cleanup();
-                this._showToyToast(`"${fav.name}" is already open - joining it`);
-                window.setTimeout(() => { try { ServerSend("ChatRoomJoin", { Name: fav.name }); } catch { /* ignore */ } }, 400);
+                // Maybe it is genuinely open - try joining. If the join comes back
+                // CannotFindRoom the name is squatted by a ghost/private room.
+                joinPending = true;
+                this._showToyToast(`"${currentName()}" name is taken - trying to join it`);
+                window.setTimeout(() => { try { ServerSend("ChatRoomJoin", { Name: currentName() }); } catch { /* ignore */ } }, 400);
             } else {
                 cleanup();
                 this._showToyToast(`Rebuild failed (${String(data)})`);
             }
         };
-        try { sock?.on?.("ChatRoomCreateResponse", onResp); } catch { /* ignore */ }
-        cleanupTimer = window.setTimeout(cleanup, 15000);
 
-        const doCreate = (): void => { try { ServerSend("ChatRoomCreate", createPayload); } catch { /* ignore */ } };
+        const onSearchResp = (data: unknown): void => {
+            if (!joinPending) return;
+            try { console.info("[EBC] Rebuild: join response =", data); } catch { /* ignore */ }
+            if (data === "CannotFindRoom") {
+                joinPending = false;
+                attempt++;
+                if (attempt <= 5) {
+                    this._showToyToast(`Name blocked by a hidden room - rebuilding as "${currentName()}"`);
+                    window.setTimeout(doCreate, 600);
+                } else {
+                    cleanup();
+                    this._showToyToast("Rebuild failed - the room name is stuck on the server");
+                }
+            } else if (data === "RoomFull" || data === "RoomLocked" || data === "RoomBanned" || data === "RoomKicked") {
+                joinPending = false;
+                cleanup();
+                this._showToyToast(`Room exists but can't be joined (${String(data)})`);
+            } else {
+                // JoinedRoom (or anything else) - we're entering, all done.
+                joinPending = false;
+                cleanup();
+            }
+        };
+
+        try { sock?.on?.("ChatRoomCreateResponse", onCreateResp); } catch { /* ignore */ }
+        try { sock?.on?.("ChatRoomSearchResponse", onSearchResp); } catch { /* ignore */ }
+        cleanupTimer = window.setTimeout(cleanup, 30000);
+
+        this._showToyToast(`Rebuilding "${baseName}"…`);
         this.close();
         if (w.CurrentScreen === "ChatRoom") {
             try { (w.ChatRoomLeave as ((c?: boolean) => void) | undefined)?.(); } catch { /* ignore */ }
