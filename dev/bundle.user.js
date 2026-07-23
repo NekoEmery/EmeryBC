@@ -22755,11 +22755,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_a) { /* ignore */ }
                 if (data === "CannotFindRoom") {
                     cleanup();
-                    this._showToyToast(`"${fav.name}" is closed - rebuilding it with the saved settings`);
-                    window.setTimeout(() => { try {
+                    // Ask before recreating - the user may have only wanted to join.
+                    showConfirmOverlay(`"${fav.name}" is closed. Recreate it with the saved settings (background, description, admins...)?`, "Cancel", "Recreate", () => { try {
                         this.rebuildFavoriteRoom(fav);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ } }, 400);
+                    catch ( /* ignore */_a) { /* ignore */ } });
                 }
                 else {
                     // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
@@ -36485,7 +36485,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 165; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 166; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36517,6 +36517,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: 🔨 Rebuild could loop 'Room doesn't exist anymore'. Root cause: the server answered RoomAlreadyExist (the name is squatted by a ghost or private room), EBC fell back to joining, and the join failed with CannotFindRoom - a dead end. Fix: the join response is now watched - when the name turns out to be squatted, the rebuild retries with a numbered name ('Emy Dungeon 2'), the same trick BC's own recreate uses. Full-room and locked cases show their reason instead. A 'Rebuilding…' toast confirms the click, and every create/join response is logged to the browser console for diagnosis.",
                 "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
                 "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
+                "Favorite rooms: joining a closed room now asks first - a confirm dialog offers to recreate it with the saved settings instead of rebuilding automatically.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
