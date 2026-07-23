@@ -13456,13 +13456,26 @@ export class EBCDrawer {
             const saved = localStorage.getItem(savedSizeKey);
             if (saved) {
                 const p = JSON.parse(saved) as { w: number; h: number };
-                beepW = p.w; beepH = p.h;
-                win.style.width  = `${p.w}px`;
-                win.style.height = `${p.h}px`;
+                // Clamp to the same minimums the resize handlers enforce. Old EBC
+                // versions could persist the 44px MINIMIZED height here (resize
+                // handles used to stay active while minimized), which reopened the
+                // window collapsed to just its footer.
+                if (typeof p.w === "number" && typeof p.h === "number") {
+                    beepW = Math.max(220, Math.min(window.innerWidth - 16, p.w));
+                    beepH = Math.max(200, Math.min(window.innerHeight - 8, p.h));
+                    win.style.width  = `${beepW}px`;
+                    win.style.height = `${beepH}px`;
+                }
             }
         } catch { /* ignore */ }
         const saveBeepSize = (): void => {
-            try { localStorage.setItem(savedSizeKey, JSON.stringify({ w: beepW ?? win.offsetWidth, h: beepH ?? win.offsetHeight })); } catch { /* */ }
+            try {
+                // Never persist a minimized/collapsed measurement - clamp to the
+                // resize minimums so a bad value can't survive a session.
+                const w = Math.max(220, beepW ?? win.offsetWidth);
+                const h = Math.max(200, beepH ?? win.offsetHeight);
+                localStorage.setItem(savedSizeKey, JSON.stringify({ w, h }));
+            } catch { /* */ }
         };
 
         const resizeE = document.createElement("div");
