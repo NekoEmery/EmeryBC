@@ -22694,61 +22694,44 @@
                 }
             }, 80);
         }
-        /** Recreates a favorited room from its saved snapshot via ChatRoomCreate.
-         *  BC only accepts creates outside a room, so when in one we run BC's own
-         *  leave first, switch to the search screen (whose handlers auto-enter the
-         *  new room on success), then send the create after the server settles.
-         *  The server's ChatRoomCreateResponse is watched so failures are visible:
-         *  "RoomAlreadyExist" falls back to joining, "InvalidRoomData" retries once
-         *  with a minimal payload (drops version-sensitive fields), anything else
-         *  shows a toast with the reason. */
+        /** Recreates a favorited room from its saved snapshot.
+         *  Mirrors BC's own LastChatRoom recreate flow: create the room with
+         *  ourselves as the sole admin and PUBLIC access/visibility so entry always
+         *  succeeds and the client-side room validation passes (Visibility/Access
+         *  must be string arrays), then - once inside - push the full saved
+         *  settings (real admin list, whitelist, bans, access) as a room update.
+         *  Server caps: Name 20 chars, Description 100, Limit 2-10. */
         rebuildFavoriteRoom(fav) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
             const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-            const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-            if (me && !admin.includes(me))
-                admin.unshift(me); // always keep ourselves admin of the rebuilt room
-            // Server-side validation caps: Name 20 chars, Description 100, Limit 2-20.
-            // Anything over gets the whole create rejected as InvalidRoomData.
-            const fullPayload = {
-                Name: fav.name.slice(0, 20),
-                Description: ((_b = fav.description) !== null && _b !== void 0 ? _b : "").slice(0, 100),
+            const strArr = (v) => Array.isArray(v) && v.every(x => typeof x === "string") ? v : null;
+            const createPayload = {
+                Name: fav.name.trim().slice(0, 20),
+                Description: ((_b = fav.description) !== null && _b !== void 0 ? _b : "").trim().slice(0, 100),
                 Background: (_c = fav.background) !== null && _c !== void 0 ? _c : "BrickWall",
-                Limit: Math.max(2, Math.min(20, typeof fav.limit === "number" ? fav.limit : 10)),
-                Admin: admin,
-                Ban: Array.isArray(fav.ban) ? fav.ban : [],
-                Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+                Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
+                Admin: [me],
+                Whitelist: [],
+                Ban: [],
                 BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
                 Game: (_d = fav.game) !== null && _d !== void 0 ? _d : "",
                 Language: (_e = fav.language) !== null && _e !== void 0 ? _e : "EN",
                 Space: (_f = fav.space) !== null && _f !== void 0 ? _f : "X",
+                Visibility: (_g = strArr(fav.visibility)) !== null && _g !== void 0 ? _g : ["All"],
+                Access: ["All"],
             };
-            if (fav.visibility !== undefined)
-                fullPayload.Visibility = fav.visibility;
-            if (fav.access !== undefined)
-                fullPayload.Access = fav.access;
             if (fav.custom !== undefined)
-                fullPayload.Custom = fav.custom;
+                createPayload.Custom = fav.custom;
             if (fav.mapData !== undefined)
-                fullPayload.MapData = fav.mapData;
-            // Fallback when the full payload is rejected - keeps the essentials and
-            // drops the fields whose shape changes between BC versions.
-            const minimalPayload = {
-                Name: fullPayload.Name,
-                Description: fullPayload.Description,
-                Background: fullPayload.Background,
-                Limit: fullPayload.Limit,
-                Admin: admin,
-                Ban: [],
-                Whitelist: [],
-                BlockCategory: [],
-                Game: "",
-                Language: fullPayload.Language,
-                Space: fullPayload.Space,
-            };
+                createPayload.MapData = fav.mapData;
+            // Full settings pushed as an update after we're inside - restores the
+            // real admin list (with us kept in), whitelist, bans and access mode.
+            const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+            if (me && !admin.includes(me))
+                admin.unshift(me);
+            const restorePayload = Object.assign(Object.assign({}, createPayload), { Admin: admin, Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [], Ban: Array.isArray(fav.ban) ? fav.ban : [], Access: (_h = strArr(fav.access)) !== null && _h !== void 0 ? _h : ["All"] });
             const w = window;
             const sock = w.ServerSocket;
-            let usedMinimal = false;
             let cleanupTimer = null;
             const cleanup = () => {
                 var _a;
@@ -22765,6 +22748,19 @@
                 if (data === "ChatRoomCreated") {
                     cleanup();
                     this._showToyToast(`Rebuilt "${fav.name}" ✓`);
+                    // Restore the full saved settings once the room sync has settled -
+                    // same follow-up-update trick BC's own recreate uses for admins.
+                    window.setTimeout(() => {
+                        var _a;
+                        try {
+                            ServerSend("ChatRoomAdmin", {
+                                MemberNumber: (_a = Player.ID) !== null && _a !== void 0 ? _a : 0,
+                                Room: restorePayload,
+                                Action: "Update",
+                            });
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                    }, 1000);
                 }
                 else if (data === "RoomAlreadyExist") {
                     cleanup();
@@ -22774,37 +22770,30 @@
                     }
                     catch ( /* ignore */_a) { /* ignore */ } }, 400);
                 }
-                else if (!usedMinimal) {
-                    usedMinimal = true;
-                    window.setTimeout(() => { try {
-                        ServerSend("ChatRoomCreate", minimalPayload);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } }, 600);
-                }
                 else {
                     cleanup();
                     this._showToyToast(`Rebuild failed (${String(data)})`);
                 }
             };
             try {
-                (_g = sock === null || sock === void 0 ? void 0 : sock.on) === null || _g === void 0 ? void 0 : _g.call(sock, "ChatRoomCreateResponse", onResp);
+                (_j = sock === null || sock === void 0 ? void 0 : sock.on) === null || _j === void 0 ? void 0 : _j.call(sock, "ChatRoomCreateResponse", onResp);
             }
-            catch ( /* ignore */_k) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
             cleanupTimer = window.setTimeout(cleanup, 15000);
             const doCreate = () => { try {
-                ServerSend("ChatRoomCreate", fullPayload);
+                ServerSend("ChatRoomCreate", createPayload);
             }
             catch ( /* ignore */_a) { /* ignore */ } };
             this.close();
             if (w.CurrentScreen === "ChatRoom") {
                 try {
-                    (_h = w.ChatRoomLeave) === null || _h === void 0 ? void 0 : _h.call(w);
+                    (_k = w.ChatRoomLeave) === null || _k === void 0 ? void 0 : _k.call(w);
                 }
-                catch ( /* ignore */_l) { /* ignore */ }
+                catch ( /* ignore */_o) { /* ignore */ }
                 try {
-                    (_j = w.CommonSetScreen) === null || _j === void 0 ? void 0 : _j.call(w, "Online", "ChatSearch");
+                    (_l = w.CommonSetScreen) === null || _l === void 0 ? void 0 : _l.call(w, "Online", "ChatSearch");
                 }
-                catch ( /* ignore */_m) { /* ignore */ }
+                catch ( /* ignore */_p) { /* ignore */ }
                 window.setTimeout(doCreate, 1200);
             }
             else {
@@ -36354,7 +36343,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 161; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 162; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36382,6 +36371,7 @@
                 "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
                 "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
                 "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
+                "Fix: 🔨 Rebuild now actually puts you in the rebuilt room with the correct settings. Root cause: the create payload could omit or malform Visibility/Access (BC R128 requires string arrays) - the room got created but BC's client-side room validation instantly ejected you, and saved admin lists were sent at create time where the server may not honor them. Fix: mirrors BC's own room-recreate flow exactly - create with yourself as sole admin and PUBLIC access/visibility (entry always succeeds), then push the full saved settings (real admins, whitelist, bans, access mode) as a room update one second after entering. Limit clamped to BC's real 2-10 range.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

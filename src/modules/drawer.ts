@@ -14818,52 +14818,46 @@ export class EBCDrawer {
         }, 80);
     }
 
-    /** Recreates a favorited room from its saved snapshot via ChatRoomCreate.
-     *  BC only accepts creates outside a room, so when in one we run BC's own
-     *  leave first, switch to the search screen (whose handlers auto-enter the
-     *  new room on success), then send the create after the server settles.
-     *  The server's ChatRoomCreateResponse is watched so failures are visible:
-     *  "RoomAlreadyExist" falls back to joining, "InvalidRoomData" retries once
-     *  with a minimal payload (drops version-sensitive fields), anything else
-     *  shows a toast with the reason. */
+    /** Recreates a favorited room from its saved snapshot.
+     *  Mirrors BC's own LastChatRoom recreate flow: create the room with
+     *  ourselves as the sole admin and PUBLIC access/visibility so entry always
+     *  succeeds and the client-side room validation passes (Visibility/Access
+     *  must be string arrays), then - once inside - push the full saved
+     *  settings (real admin list, whitelist, bans, access) as a room update.
+     *  Server caps: Name 20 chars, Description 100, Limit 2-10. */
     private rebuildFavoriteRoom(fav: FavoriteRoomData): void {
         const me = Player?.MemberNumber ?? 0;
-        const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-        if (me && !admin.includes(me)) admin.unshift(me); // always keep ourselves admin of the rebuilt room
-        // Server-side validation caps: Name 20 chars, Description 100, Limit 2-20.
-        // Anything over gets the whole create rejected as InvalidRoomData.
-        const fullPayload: Record<string, unknown> = {
-            Name: fav.name.slice(0, 20),
-            Description: (fav.description ?? "").slice(0, 100),
+        const strArr = (v: unknown): string[] | null =>
+            Array.isArray(v) && v.every(x => typeof x === "string") ? v as string[] : null;
+
+        const createPayload: Record<string, unknown> = {
+            Name: fav.name.trim().slice(0, 20),
+            Description: (fav.description ?? "").trim().slice(0, 100),
             Background: fav.background ?? "BrickWall",
-            Limit: Math.max(2, Math.min(20, typeof fav.limit === "number" ? fav.limit : 10)),
-            Admin: admin,
-            Ban: Array.isArray(fav.ban) ? fav.ban : [],
-            Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+            Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
+            Admin: [me],
+            Whitelist: [],
+            Ban: [],
             BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
             Game: fav.game ?? "",
             Language: fav.language ?? "EN",
             Space: fav.space ?? "X",
+            Visibility: strArr(fav.visibility) ?? ["All"],
+            Access: ["All"],
         };
-        if (fav.visibility !== undefined) fullPayload.Visibility = fav.visibility;
-        if (fav.access     !== undefined) fullPayload.Access = fav.access;
-        if (fav.custom     !== undefined) fullPayload.Custom = fav.custom;
-        if (fav.mapData    !== undefined) fullPayload.MapData = fav.mapData;
+        if (fav.custom  !== undefined) createPayload.Custom = fav.custom;
+        if (fav.mapData !== undefined) createPayload.MapData = fav.mapData;
 
-        // Fallback when the full payload is rejected - keeps the essentials and
-        // drops the fields whose shape changes between BC versions.
-        const minimalPayload: Record<string, unknown> = {
-            Name: fullPayload.Name,
-            Description: fullPayload.Description,
-            Background: fullPayload.Background,
-            Limit: fullPayload.Limit,
+        // Full settings pushed as an update after we're inside - restores the
+        // real admin list (with us kept in), whitelist, bans and access mode.
+        const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+        if (me && !admin.includes(me)) admin.unshift(me);
+        const restorePayload: Record<string, unknown> = {
+            ...createPayload,
             Admin: admin,
-            Ban: [],
-            Whitelist: [],
-            BlockCategory: [],
-            Game: "",
-            Language: fullPayload.Language,
-            Space: fullPayload.Space,
+            Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+            Ban: Array.isArray(fav.ban) ? fav.ban : [],
+            Access: strArr(fav.access) ?? ["All"],
         };
 
         const w = window as unknown as Record<string, unknown>;
@@ -14872,7 +14866,6 @@ export class EBCDrawer {
             off?: (ev: string, cb: (d: unknown) => void) => void;
         } | undefined;
 
-        let usedMinimal = false;
         let cleanupTimer: number | null = null;
         const cleanup = (): void => {
             if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
@@ -14882,13 +14875,21 @@ export class EBCDrawer {
             if (data === "ChatRoomCreated") {
                 cleanup();
                 this._showToyToast(`Rebuilt "${fav.name}" ✓`);
+                // Restore the full saved settings once the room sync has settled -
+                // same follow-up-update trick BC's own recreate uses for admins.
+                window.setTimeout(() => {
+                    try {
+                        ServerSend("ChatRoomAdmin", {
+                            MemberNumber: (Player as unknown as { ID?: number }).ID ?? 0,
+                            Room: restorePayload,
+                            Action: "Update",
+                        });
+                    } catch { /* ignore */ }
+                }, 1000);
             } else if (data === "RoomAlreadyExist") {
                 cleanup();
                 this._showToyToast(`"${fav.name}" is already open - joining it`);
                 window.setTimeout(() => { try { ServerSend("ChatRoomJoin", { Name: fav.name }); } catch { /* ignore */ } }, 400);
-            } else if (!usedMinimal) {
-                usedMinimal = true;
-                window.setTimeout(() => { try { ServerSend("ChatRoomCreate", minimalPayload); } catch { /* ignore */ } }, 600);
             } else {
                 cleanup();
                 this._showToyToast(`Rebuild failed (${String(data)})`);
@@ -14897,7 +14898,7 @@ export class EBCDrawer {
         try { sock?.on?.("ChatRoomCreateResponse", onResp); } catch { /* ignore */ }
         cleanupTimer = window.setTimeout(cleanup, 15000);
 
-        const doCreate = (): void => { try { ServerSend("ChatRoomCreate", fullPayload); } catch { /* ignore */ } };
+        const doCreate = (): void => { try { ServerSend("ChatRoomCreate", createPayload); } catch { /* ignore */ } };
         this.close();
         if (w.CurrentScreen === "ChatRoom") {
             try { (w.ChatRoomLeave as ((c?: boolean) => void) | undefined)?.(); } catch { /* ignore */ }
