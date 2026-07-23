@@ -11975,7 +11975,7 @@
             "display:flex", "flex-direction:column", "gap:12px",
         ].join(";");
         const msg = document.createElement("div");
-        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;white-space:pre-wrap;";
         msg.textContent = message;
         overlay.appendChild(msg);
         const btns = document.createElement("div");
@@ -22718,14 +22718,28 @@
                 catch ( /* ignore */_b) { /* ignore */ }
             };
             const onResp = (data) => {
+                var _a, _b, _c, _d;
                 try {
                     console.info("[EBC] Favorite join response =", data);
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 if (data === "CannotFindRoom") {
                     cleanup();
-                    // Ask before recreating - the user may have only wanted to join.
-                    showConfirmOverlay(`"${fav.name}" is closed. Recreate it with the saved settings (background, description, admins...)?`, "Cancel", "Recreate", () => { try {
+                    // Ask before recreating - and SHOW what the snapshot holds, so a
+                    // stale/default snapshot is obvious before the room gets created.
+                    const accessArr = Array.isArray(fav.access) && fav.access.every(x => typeof x === "string")
+                        ? fav.access : ["All"];
+                    const visArr = Array.isArray(fav.visibility) && fav.visibility.every(x => typeof x === "string")
+                        ? fav.visibility : ["All"];
+                    const desc = ((_a = fav.description) !== null && _a !== void 0 ? _a : "").trim();
+                    const summary = [
+                        `Background: ${(_b = fav.background) !== null && _b !== void 0 ? _b : "BrickWall (default)"}`,
+                        `Size: ${typeof fav.limit === "number" ? fav.limit : 10}`,
+                        `Admins: ${((_d = (_c = fav.admin) === null || _c === void 0 ? void 0 : _c.length) !== null && _d !== void 0 ? _d : 0) > 0 ? fav.admin.join(", ") : "(just you)"}`,
+                        `Visibility: ${visArr.length ? visArr.join("/") : "Unlisted"} · Access: ${accessArr.join("/")}`,
+                        desc ? `Description: "${desc.slice(0, 60)}${desc.length > 60 ? "…" : ""}"` : "Description: (empty)",
+                    ].join("\n");
+                    showConfirmOverlay(`"${fav.name}" is closed. Recreate it with the saved settings?\n\n${summary}\n\nIf this looks wrong, open the room, set it up, and press Save in the room admin - the favorite updates instantly.`, "Cancel", "Recreate", () => { try {
                         this.rebuildFavoriteRoom(fav);
                     }
                     catch ( /* ignore */_a) { /* ignore */ } });
@@ -36473,7 +36487,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 169; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 170; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36509,6 +36523,7 @@
                 "Fix: favorite room snapshots could keep stale/default settings. Root cause: the auto-capture only ran on room join and on a throttled 60s poll - saving changes in the room admin screen and leaving shortly after never got captured, so rebuilds restored the old state. Fix: EBC now captures the favorited room's settings the moment a room-properties update arrives (admin Save, background/description change), and the on-join capture waits 5s so a rebuild's own settings-restore lands first. To fix an already-stale favorite: open the room, adjust it (or press Save once in the room admin screen), and the favorite updates instantly.",
                 "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
                 "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
+                "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

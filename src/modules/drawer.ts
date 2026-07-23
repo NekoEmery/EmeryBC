@@ -3696,7 +3696,7 @@ export function showConfirmOverlay(
     ].join(";");
 
     const msg = document.createElement("div");
-    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;white-space:pre-wrap;";
     msg.textContent = message;
     overlay.appendChild(msg);
 
@@ -14837,9 +14837,22 @@ export class EBCDrawer {
             try { console.info("[EBC] Favorite join response =", data); } catch { /* ignore */ }
             if (data === "CannotFindRoom") {
                 cleanup();
-                // Ask before recreating - the user may have only wanted to join.
+                // Ask before recreating - and SHOW what the snapshot holds, so a
+                // stale/default snapshot is obvious before the room gets created.
+                const accessArr = Array.isArray(fav.access) && fav.access.every(x => typeof x === "string")
+                    ? (fav.access as string[]) : ["All"];
+                const visArr = Array.isArray(fav.visibility) && fav.visibility.every(x => typeof x === "string")
+                    ? (fav.visibility as string[]) : ["All"];
+                const desc = (fav.description ?? "").trim();
+                const summary = [
+                    `Background: ${fav.background ?? "BrickWall (default)"}`,
+                    `Size: ${typeof fav.limit === "number" ? fav.limit : 10}`,
+                    `Admins: ${(fav.admin?.length ?? 0) > 0 ? fav.admin!.join(", ") : "(just you)"}`,
+                    `Visibility: ${visArr.length ? visArr.join("/") : "Unlisted"} · Access: ${accessArr.join("/")}`,
+                    desc ? `Description: "${desc.slice(0, 60)}${desc.length > 60 ? "…" : ""}"` : "Description: (empty)",
+                ].join("\n");
                 showConfirmOverlay(
-                    `"${fav.name}" is closed. Recreate it with the saved settings (background, description, admins...)?`,
+                    `"${fav.name}" is closed. Recreate it with the saved settings?\n\n${summary}\n\nIf this looks wrong, open the room, set it up, and press Save in the room admin - the favorite updates instantly.`,
                     "Cancel", "Recreate",
                     () => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } },
                 );
