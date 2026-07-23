@@ -14837,8 +14837,12 @@ export class EBCDrawer {
             try { console.info("[EBC] Favorite join response =", data); } catch { /* ignore */ }
             if (data === "CannotFindRoom") {
                 cleanup();
-                this._showToyToast(`"${fav.name}" is closed - rebuilding it with the saved settings`);
-                window.setTimeout(() => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } }, 400);
+                // Ask before recreating - the user may have only wanted to join.
+                showConfirmOverlay(
+                    `"${fav.name}" is closed. Recreate it with the saved settings (background, description, admins...)?`,
+                    "Cancel", "Recreate",
+                    () => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } },
+                );
             } else {
                 // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
                 cleanup();
