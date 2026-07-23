@@ -506,6 +506,7 @@ export function autoUpdateFavoriteSnapshot(force = false): void {
         if (stored === fresh) return;
         favs[idx] = snap;
         setFavoriteRooms(favs);
+        try { console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap))); } catch { /* ignore */ }
     } catch { /* ignore */ }
 }
 

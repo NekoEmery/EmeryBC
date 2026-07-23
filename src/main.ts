@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 167;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 168;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -63,6 +63,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
             "Favorite rooms: joining a closed room now asks first - a confirm dialog offers to recreate it with the saved settings instead of rebuilding automatically.",
             "Fix: favorite room snapshots could keep stale/default settings. Root cause: the auto-capture only ran on room join and on a throttled 60s poll - saving changes in the room admin screen and leaving shortly after never got captured, so rebuilds restored the old state. Fix: EBC now captures the favorited room's settings the moment a room-properties update arrives (admin Save, background/description change), and the on-join capture waits 5s so a rebuild's own settings-restore lands first. To fix an already-stale favorite: open the room, adjust it (or press Save once in the room admin screen), and the favorite updates instantly.",
+            "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

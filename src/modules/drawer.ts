@@ -14859,18 +14859,23 @@ export class EBCDrawer {
     }
 
     /** Recreates a favorited room from its saved snapshot.
-     *  Mirrors BC's own LastChatRoom recreate flow: create the room with
-     *  ourselves as the sole admin and PUBLIC access/visibility (entry always
-     *  succeeds and client-side validation passes), then - once inside - push
-     *  the full saved settings as a room update.
-     *  "RoomAlreadyExist" first tries joining; if the join then reports
-     *  CannotFindRoom the name is squatted by a ghost/private room, so we retry
-     *  the create with a numbered suffix ("Name 2"), exactly like BC does.
-     *  All server responses are logged to the console for diagnosis. */
+     *  The create carries ALL saved settings directly (description, background,
+     *  size, admin list, whitelist, bans, visibility, access/lock, custom
+     *  theme). Visibility/Access are guaranteed string arrays so BC R130's
+     *  client-side validation passes. 3s after entering, the actual room state
+     *  is compared against the snapshot and any field the server ignored is
+     *  corrected with a ChatRoomAdmin update (always carrying MapData - room
+     *  updates without it crash every client).
+     *  "RoomAlreadyExist" first tries joining; if that join then reports
+     *  CannotFindRoom the name is squatted by a ghost/private room, so the
+     *  create retries with a numbered suffix ("Name 2") like BC itself does.
+     *  Every step is logged to the console as [EBC] Rebuild. */
     private rebuildFavoriteRoom(fav: FavoriteRoomData): void {
         const me = Player?.MemberNumber ?? 0;
         const strArr = (v: unknown): string[] | null =>
             Array.isArray(v) && v.every(x => typeof x === "string") ? v as string[] : null;
+
+        try { console.info("[EBC] Rebuild: saved snapshot for", fav.name, JSON.parse(JSON.stringify(fav))); } catch { /* ignore */ }
 
         const baseName = fav.name.trim().slice(0, 20);
         let attempt = 0; // 0 = original name, 1+ = numbered suffix
@@ -14880,36 +14885,67 @@ export class EBCDrawer {
             return baseName.slice(0, Math.min(baseName.length, 20 - suffix.length)) + suffix;
         };
 
+        const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+        if (me && !fullAdmin.includes(me)) fullAdmin.unshift(me);
+
         // Server caps: Name 20 chars, Description 100, Limit 2-10.
-        const mkCreatePayload = (name: string): Record<string, unknown> => {
+        const mkRoomSettings = (name: string): Record<string, unknown> => {
             const p: Record<string, unknown> = {
                 Name: name,
                 Description: (fav.description ?? "").trim().slice(0, 100),
                 Background: fav.background ?? "BrickWall",
                 Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
-                Admin: [me],
-                Whitelist: [],
-                Ban: [],
+                Admin: fullAdmin,
+                Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+                Ban: Array.isArray(fav.ban) ? fav.ban : [],
                 BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
                 Game: fav.game ?? "",
                 Language: fav.language ?? "EN",
                 Space: fav.space ?? "X",
                 Visibility: strArr(fav.visibility) ?? ["All"],
-                Access: ["All"],
+                Access: strArr(fav.access) ?? ["All"],
             };
-            if (fav.custom  !== undefined) p.Custom = fav.custom;
-            if (fav.mapData !== undefined) p.MapData = fav.mapData;
+            if (fav.custom !== undefined) p.Custom = fav.custom;
             return p;
         };
-
-        const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-        if (me && !fullAdmin.includes(me)) fullAdmin.unshift(me);
 
         const w = window as unknown as Record<string, unknown>;
         const sock = w.ServerSocket as {
             on?:  (ev: string, cb: (d: unknown) => void) => void;
             off?: (ev: string, cb: (d: unknown) => void) => void;
         } | undefined;
+
+        // 3s after entering: compare the live room against the snapshot and push
+        // one corrective update if the server ignored anything from the create.
+        const verifyAndCorrect = (createdName: string): void => {
+            try {
+                const d = w.ChatRoomData as Record<string, unknown> | null | undefined;
+                if (!d || d.Name !== createdName) return;
+                const want = mkRoomSettings(createdName);
+                const differs: string[] = [];
+                for (const key of ["Description", "Background", "Limit", "Admin", "Whitelist", "Ban", "BlockCategory", "Game", "Language", "Space", "Visibility", "Access"]) {
+                    const a = JSON.stringify((want as Record<string, unknown>)[key] ?? null);
+                    const b = JSON.stringify(d[key] ?? null);
+                    if (a !== b) differs.push(`${key}: room=${b} saved=${a}`);
+                }
+                if (differs.length === 0) {
+                    console.info("[EBC] Rebuild: verify OK - room matches the snapshot");
+                    return;
+                }
+                console.info("[EBC] Rebuild: correcting fields the server ignored:", differs);
+                const update: Record<string, unknown> = {
+                    ...want,
+                    // Room UPDATES must always carry MapData - omitting it makes the
+                    // server null the room's map state, crashing every client.
+                    MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" },
+                };
+                ServerSend("ChatRoomAdmin", {
+                    MemberNumber: (Player as unknown as { ID?: number }).ID ?? 0,
+                    Room: update,
+                    Action: "Update",
+                });
+            } catch { /* ignore */ }
+        };
 
         let joinPending = false;
         let cleanupTimer: number | null = null;
@@ -14920,7 +14956,8 @@ export class EBCDrawer {
         };
 
         const doCreate = (): void => {
-            const p = mkCreatePayload(currentName());
+            const p = mkRoomSettings(currentName());
+            if (fav.mapData !== undefined) p.MapData = fav.mapData;
             try { console.info("[EBC] Rebuild: sending ChatRoomCreate", JSON.parse(JSON.stringify(p))); } catch { /* ignore */ }
             try { ServerSend("ChatRoomCreate", p); } catch { /* ignore */ }
         };
@@ -14930,29 +14967,8 @@ export class EBCDrawer {
             if (data === "ChatRoomCreated") {
                 cleanup();
                 this._showToyToast(`Rebuilt "${currentName()}" ✓`);
-                // Restore the full saved settings once the room sync has settled -
-                // same follow-up-update trick BC's own recreate uses for admins.
-                const restorePayload: Record<string, unknown> = {
-                    ...mkCreatePayload(currentName()),
-                    Admin: fullAdmin,
-                    Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
-                    Ban: Array.isArray(fav.ban) ? fav.ban : [],
-                    Access: strArr(fav.access) ?? ["All"],
-                    // Room UPDATES must always carry MapData - omitting it makes the
-                    // server null the room's map state, which crashes every client in
-                    // ChatRoomSyncRoomProperties (reads MapData.Type). "Never" = no map.
-                    MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" },
-                };
-                window.setTimeout(() => {
-                    try { console.info("[EBC] Rebuild: restoring full settings", JSON.parse(JSON.stringify(restorePayload))); } catch { /* ignore */ }
-                    try {
-                        ServerSend("ChatRoomAdmin", {
-                            MemberNumber: (Player as unknown as { ID?: number }).ID ?? 0,
-                            Room: restorePayload,
-                            Action: "Update",
-                        });
-                    } catch { /* ignore */ }
-                }, 1200);
+                const createdName = currentName();
+                window.setTimeout(() => verifyAndCorrect(createdName), 3000);
             } else if (data === "RoomAlreadyExist") {
                 // Maybe it is genuinely open - try joining. If the join comes back
                 // CannotFindRoom the name is squatted by a ghost/private room.
