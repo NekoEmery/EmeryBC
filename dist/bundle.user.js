@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      8.3.1
+// @version      8.3.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -357,6 +357,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function uid$7() {
         return Math.random().toString(36).slice(2, 9);
     }
+    // -- Expression name validation -------------------------------------------------
+    // BC validates expression names against the GROUP's AllowExpression list and
+    // silently ignores unknown names. Older EBC versions captured the worn asset's
+    // STYLE name (e.g. "Eyebrows2") for default-state face parts, which is not a
+    // valid expression - applying such a preset left those parts unchanged instead
+    // of resetting them to default. This helper maps any invalid name to null
+    // (= default state). If the group's AllowExpression list can't be read, the
+    // name is returned unchanged so BC's own validation stays the authority.
+    function validExprOrNull(group, name) {
+        var _a;
+        if (!name)
+            return null;
+        try {
+            const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+            const allow = (_a = item === null || item === void 0 ? void 0 : item.Asset.Group) === null || _a === void 0 ? void 0 : _a.AllowExpression;
+            if (Array.isArray(allow))
+                return allow.includes(name) ? name : null;
+        }
+        catch ( /* fall through */_b) { /* fall through */ }
+        return name;
+    }
     // -- Single-expression apply ---------------------------------------------------
     // Uses CharacterSetFacialExpression (BC's proper API) if available,
     // otherwise falls back to direct Appearance manipulation.
@@ -366,6 +387,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // That prevents 8× CharacterRefresh hook traversals (and potential WCE auto-syncs) per preset.
     function applyExprGroup(group, exprName, noSync = false) {
         try {
+            // Sanitize: presets saved by older versions may carry a style name instead of
+            // an expression. BC would silently ignore it - map it to null so the part
+            // actually resets to its default state as the preset intended.
+            exprName = validExprOrNull(group, exprName);
             // Prefer BC's official API — it validates the expression name internally via its
             // own AssetGet call and returns early for invalid names without touching Appearance.
             // We do NOT pre-validate here: our own AssetGet call can behave differently from
@@ -480,11 +505,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             for (const group of EXPR_GROUPS) {
                 const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
                 if (item) {
-                    // BC stores the active expression variant in Asset.Name (always reliable).
-                    // Property.Expression mirrors it in most builds; use it as the primary source
-                    // and fall back to Asset.Name so capture works regardless of BC version.
+                    // Property.Expression is BC's canonical expression state - null/unset
+                    // means the part is in its DEFAULT state. Asset.Name is the body-part
+                    // STYLE (e.g. "Eyebrows2"), not an expression; only fall back to it if
+                    // it happens to be a valid expression name for the group (defensive,
+                    // for hypothetical builds that store the expression there).
                     const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
-                    const exprName = propExpr || item.Asset.Name || null;
+                    const exprName = propExpr || validExprOrNull(group, item.Asset.Name || null);
                     groups[group] = exprName
                         ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
                         : null;
@@ -5502,6 +5529,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         pendingOfflineMessages.set(memberNumber, queue);
         persistOfflineQueue();
     }
+    /** Cleaned texts of messages still queued for offline delivery to this member.
+     *  Cleaned the same way addBeepEntry cleans history entries, so the values
+     *  compare equal to stored BeepEntry.message - used by the beep window to mark
+     *  undelivered bubbles. */
+    function getPendingMessagesCleaned(memberNumber) {
+        var _a;
+        const raw = (_a = pendingOfflineMessages.get(memberNumber)) !== null && _a !== void 0 ? _a : [];
+        return raw.map(m => stripBeepMetadata(m).slice(0, 1000));
+    }
+    /** Cancels ONE queued offline message whose cleaned text matches.
+     *  Returns true if a queue entry was removed. */
+    function cancelPendingMessage(memberNumber, cleanedText) {
+        const raw = pendingOfflineMessages.get(memberNumber);
+        if (!raw)
+            return false;
+        const i = raw.findIndex(m => stripBeepMetadata(m).slice(0, 1000) === cleanedText);
+        if (i === -1)
+            return false;
+        raw.splice(i, 1);
+        if (raw.length === 0) {
+            pendingOfflineMessages.delete(memberNumber);
+            pendingOfflineQueuedAt.delete(memberNumber);
+        }
+        persistOfflineQueue();
+        return true;
+    }
+    // Fired when a member's queued offline messages are handed to the server for
+    // re-delivery (they came online) - lets the beep window drop its ⏳ markers.
+    let _onQueueDelivered = null;
+    function setQueueDeliveredCallback(cb) {
+        _onQueueDelivered = cb;
+    }
     // Timestamp when this module was first loaded — used to add a startup grace
     // window before offline messages are re-delivered so EBC's burst of beeps
     // doesn't stack on top of BC's own login traffic and trip the rate limiter.
@@ -5639,6 +5698,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         catch ( /* ignore */_a) { /* ignore */ }
                     }, delay);
                 }
+                try {
+                    _onQueueDelivered === null || _onQueueDelivered === void 0 ? void 0 : _onQueueDelivered(num);
+                }
+                catch ( /* ignore */_e) { /* ignore */ }
             }
         }
         if (queueChanged)
@@ -5927,6 +5990,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
         return getBeepHistory().filter(e => (e.from === memberNumber && e.to === self) ||
             (e.from === self && e.to === memberNumber));
+    }
+    /** Removes ONE beep history entry, matched by from/to/ts/message. */
+    function deleteBeepEntry(entry) {
+        const store = getSettings();
+        const history = getBeepHistory();
+        const i = history.findIndex(e => e.from === entry.from && e.to === entry.to &&
+            e.ts === entry.ts && e.message === entry.message);
+        if (i === -1)
+            return;
+        history.splice(i, 1);
+        store.beepHistory = history;
+        sync();
     }
     /** Removes all beep history entries between the local player and the given member. */
     function clearConversation(memberNumber) {
@@ -12073,6 +12148,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.friendRefreshDebounce = null;
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
+            this.friendRoomsCollapsed = false;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
             this.friendSearch = ""; // live search query - not persisted
             // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -12143,6 +12219,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.version = version;
             this.isDev = isDev;
             this.salVersion = salVersion;
+            // When queued offline messages get handed to the server (recipient came
+            // online), refresh that member's open beep window so ⏳ markers disappear.
+            setQueueDeliveredCallback((n) => {
+                var _a;
+                const entry = this.beepWins.get(n);
+                const refresh = (_a = entry === null || entry === void 0 ? void 0 : entry.el) === null || _a === void 0 ? void 0 : _a._refresh;
+                if (refresh)
+                    try {
+                        refresh();
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+            });
             // Live-update the DEV tab whisper log section when new messages arrive
             setWhisperUpdateCallback(() => {
                 if (this.isOpen && this.currentTab === "dev") {
@@ -20596,6 +20684,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 history.appendChild(spacer);
                 const entries = getConversation(memberNumber);
                 const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+                // Mark entries still queued for offline delivery. Matched newest-first so
+                // an older delivered message with identical text isn't marked instead of
+                // the newly queued one.
+                const pendingLeft = getPendingMessagesCleaned(memberNumber);
+                const pendingMarks = new Set();
+                for (let pi = entries.length - 1; pi >= 0 && pendingLeft.length > 0; pi--) {
+                    const pe = entries[pi];
+                    if (pe.from !== self)
+                        continue;
+                    const qIdx = pendingLeft.indexOf(stripBeepMetadata(pe.message));
+                    if (qIdx !== -1) {
+                        pendingLeft.splice(qIdx, 1);
+                        pendingMarks.add(pe);
+                    }
+                }
                 if (entries.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "text-align:center;color:#8a6070;font-size:11px;padding:20px 0;";
@@ -20798,6 +20901,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                     wrap.appendChild(bubble);
+                    // Undelivered marker + cancel button for messages still queued for
+                    // offline delivery (recipient hasn't come online yet).
+                    if (isSent && pendingMarks.has(e)) {
+                        bubble.style.opacity = "0.72";
+                        const pRow = document.createElement("div");
+                        pRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:1px 3px 0;";
+                        const pLbl = document.createElement("span");
+                        pLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09a58;";
+                        pLbl.textContent = "⏳ Not delivered - sends when they come online";
+                        const pCancel = document.createElement("button");
+                        pCancel.className = "ebc-bubble-copy-btn";
+                        pCancel.textContent = "Cancel";
+                        pCancel.title = "Delete this message so it is never delivered";
+                        pCancel.addEventListener("click", () => {
+                            cancelPendingMessage(memberNumber, cleanMsg);
+                            deleteBeepEntry(e);
+                            renderHistory();
+                        });
+                        pRow.appendChild(pLbl);
+                        pRow.appendChild(pCancel);
+                        wrap.appendChild(pRow);
+                    }
                     // Reply button - only show on received messages
                     if (!isSent) {
                         const replyBtn = document.createElement("button");
@@ -22243,7 +22368,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }, 80);
         }
         renderFriendRows(body) {
-            var _a;
+            var _a, _b;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -22261,7 +22386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
@@ -22552,6 +22677,166 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
+            // ── Friend Rooms - where online friends are, with join buttons ────────
+            {
+                const myRoomNums = [];
+                const privateNums = [];
+                const lobbyNums = [];
+                const publicRooms = new Map();
+                for (const num of friendList) {
+                    const status = getFriendStatus(num);
+                    if (status === "away")
+                        continue;
+                    if (status === "room") {
+                        myRoomNums.push(num);
+                        continue;
+                    }
+                    const info = getFriendOnlineInfo(num);
+                    if (info === null || info === void 0 ? void 0 : info.roomName) {
+                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
+                        arr.push(num);
+                        publicRooms.set(info.roomName, arr);
+                    }
+                    else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
+                        privateNums.push(num);
+                    }
+                    else {
+                        lobbyNums.push(num);
+                    }
+                }
+                const groups = [];
+                if (myRoomNums.length > 0)
+                    groups.push({ label: "Your current room", nums: myRoomNums, joinable: false, icon: "🐾" });
+                [...publicRooms.entries()]
+                    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+                    .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
+                if (privateNums.length > 0)
+                    groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
+                if (lobbyNums.length > 0)
+                    groups.push({ label: "Lobby / hidden", nums: lobbyNums, joinable: false, icon: "🏛" });
+                if (groups.length > 0) {
+                    const divRm = document.createElement("div");
+                    divRm.className = "ebc-divider";
+                    body.appendChild(divRm);
+                    try {
+                        this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
+                    }
+                    catch ( /* ignore */_d) { /* ignore */ }
+                    const roomsContainer = document.createElement("div");
+                    const roomsToggle = document.createElement("div");
+                    const updateRoomsToggle = () => {
+                        const col = this.friendRoomsCollapsed;
+                        roomsToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
+                        roomsToggle.innerHTML = "";
+                        const arrow = document.createElement("span");
+                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
+                        arrow.textContent = col ? "▶" : "▼";
+                        const lbl = document.createElement("span");
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                        lbl.textContent = "Friend rooms";
+                        const cnt = document.createElement("span");
+                        cnt.style.cssText = [
+                            "font-family:'Trebuchet MS',serif",
+                            "font-size:11px",
+                            "font-weight:bold",
+                            "color:#e8b4c4",
+                            "background:rgba(192,100,130,0.18)",
+                            "border:1px solid rgba(192,100,130,0.35)",
+                            "border-radius:10px",
+                            "padding:0 7px",
+                            "line-height:16px",
+                            "min-width:18px",
+                            "text-align:center",
+                            "flex-shrink:0",
+                        ].join(";");
+                        cnt.textContent = String(groups.length);
+                        roomsToggle.appendChild(arrow);
+                        roomsToggle.appendChild(lbl);
+                        roomsToggle.appendChild(cnt);
+                        roomsContainer.style.display = col ? "none" : "block";
+                    };
+                    updateRoomsToggle();
+                    roomsToggle.addEventListener("click", () => {
+                        this.friendRoomsCollapsed = !this.friendRoomsCollapsed;
+                        try {
+                            localStorage.setItem("EBC_friendRoomsCollapsed", this.friendRoomsCollapsed ? "1" : "0");
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        updateRoomsToggle();
+                    });
+                    // Same join path as the beep window's 📍 shortcut - BC handles the
+                    // implicit leave from the current room.
+                    let joinTs = 0;
+                    const joinRoom = (rName) => {
+                        const now = Date.now();
+                        if (now - joinTs < 1500)
+                            return;
+                        joinTs = now;
+                        try {
+                            const wj = window;
+                            const joinFn = wj.ChatRoomJoin;
+                            if (typeof joinFn === "function") {
+                                try {
+                                    joinFn(rName);
+                                    return;
+                                }
+                                catch ( /* fall through */_a) { /* fall through */ }
+                            }
+                            try {
+                                ServerSend("ChatRoomJoin", { Name: rName });
+                            }
+                            catch ( /* ignore */_b) { /* ignore */ }
+                        }
+                        catch ( /* ignore */_c) { /* ignore */ }
+                    };
+                    for (const g of groups) {
+                        const gWrap = document.createElement("div");
+                        gWrap.style.cssText = "padding:4px 4px 5px;border-bottom:1px solid rgba(58,25,40,0.45);";
+                        const headRow = document.createElement("div");
+                        headRow.style.cssText = "display:flex;align-items:center;gap:5px;min-width:0;";
+                        const rIcon = document.createElement("span");
+                        rIcon.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                        rIcon.textContent = g.icon;
+                        const rName = document.createElement("span");
+                        rName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:600;color:#e0b0c8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        rName.textContent = g.label;
+                        rName.title = g.label;
+                        const rCnt = document.createElement("span");
+                        rCnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                        rCnt.textContent = `${g.nums.length}`;
+                        headRow.appendChild(rIcon);
+                        headRow.appendChild(rName);
+                        headRow.appendChild(rCnt);
+                        if (g.joinable) {
+                            const joinBtn = document.createElement("button");
+                            joinBtn.textContent = "Join →";
+                            joinBtn.title = `Join "${g.label}"`;
+                            joinBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #cf6f98;background:#1e0c18;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+                            joinBtn.addEventListener("mouseenter", () => { joinBtn.style.background = "#2e1424"; });
+                            joinBtn.addEventListener("mouseleave", () => { joinBtn.style.background = "#1e0c18"; });
+                            joinBtn.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                if (getCurrentRoomName().toLowerCase() === g.label.toLowerCase()) {
+                                    joinBtn.textContent = "Here ✓";
+                                    window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                    return;
+                                }
+                                joinBtn.textContent = "→ …";
+                                joinRoom(g.label);
+                            });
+                            headRow.appendChild(joinBtn);
+                        }
+                        gWrap.appendChild(headRow);
+                        const namesRow = document.createElement("div");
+                        namesRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;padding:1px 0 0 20px;line-height:1.5;";
+                        namesRow.textContent = g.nums.map(n => `${resolveName(n)} #${n}`).join(" · ");
+                        gWrap.appendChild(namesRow);
+                        roomsContainer.appendChild(gWrap);
+                    }
+                    body.appendChild(roomsToggle);
+                    body.appendChild(roomsContainer);
+                }
+            }
             if (friendList.length > 0) {
                 const divF = document.createElement("div");
                 divF.className = "ebc-divider";
@@ -22569,9 +22854,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_a = localStorage.getItem("EBC_friendSort")) !== null && _a !== void 0 ? _a : "status";
+                    this.friendSort = (_b = localStorage.getItem("EBC_friendSort")) !== null && _b !== void 0 ? _b : "status";
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -23498,7 +23783,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_d) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -23516,7 +23801,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -33047,6 +33332,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const wireFocus = (el) => {
                 el.addEventListener("focus", () => { el.style.borderColor = "#cf6f98"; el.style.boxShadow = "0 0 0 3px rgba(207,111,152,0.16)"; });
                 el.addEventListener("blur", () => { el.style.borderColor = "#33283c"; el.style.boxShadow = "none"; });
+                // Stop keystrokes reaching BC's document-level key handler - on map rooms
+                // WASD/arrow keys would otherwise move the character and eat the letters.
+                el.addEventListener("keydown", (e) => e.stopPropagation());
             };
             const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
             // ── Type — segmented control (no emoji; value = exact Google Form string) ──
@@ -35443,8 +35731,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.3.1";
-    const SAL_VERSION = 153; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.3.2";
+    const SAL_VERSION = 154; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -35458,6 +35746,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.3.2",
+            changes: [
+                "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
+                "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
+                "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
+                "Friends: new collapsible 'Friend rooms' section in the Users tab - shows where every online friend is, grouped by room. Public rooms get a Join button; private rooms and the lobby are listed separately. Updates live with the friends list.",
+            ],
+        },
         {
             version: "8.3.1",
             changes: [
