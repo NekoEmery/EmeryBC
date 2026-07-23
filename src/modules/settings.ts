@@ -484,6 +484,31 @@ export function setFavoriteRooms(rooms: FavoriteRoomData[]): void {
     } catch { /* ignore */ }
 }
 
+// Auto-refresh: while the player is inside a favorited room, its saved snapshot
+// silently keeps itself up to date (description edits, admin changes, new
+// background...). Throttled, and only writes when something actually changed so
+// the server sync isn't spammed.
+let _lastFavSnapshotCheck = 0;
+
+export function autoUpdateFavoriteSnapshot(): void {
+    try {
+        const now = Date.now();
+        if (now - _lastFavSnapshotCheck < 30_000) return;
+        _lastFavSnapshotCheck = now;
+        const snap = captureCurrentRoomSnapshot();
+        if (!snap) return;
+        const favs = getFavoriteRooms();
+        const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
+        if (idx === -1) return;
+        // Compare without the volatile savedAt stamp - identical rooms mean no write.
+        const stored = JSON.stringify({ ...favs[idx], savedAt: 0 });
+        const fresh  = JSON.stringify({ ...snap,      savedAt: 0 });
+        if (stored === fresh) return;
+        favs[idx] = snap;
+        setFavoriteRooms(favs);
+    } catch { /* ignore */ }
+}
+
 /** Snapshots the current room's full settings for later rebuild.
  *  Returns null when not in a room (no ChatRoomData). */
 export function captureCurrentRoomSnapshot(): FavoriteRoomData | null {

@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, autoUpdateFavoriteSnapshot } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 159;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 160;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -55,6 +55,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
             "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
             "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
+            "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -7444,6 +7445,9 @@ function init(): void {
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
+        // Favorited room? Silently refresh its saved snapshot once BC has fully
+        // populated ChatRoomData for the new room.
+        window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(); } catch { /* ignore */ } }, 2000);
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
             if (getAutoApplyDefaultFace()) {
@@ -8273,6 +8277,13 @@ function init(): void {
     setInterval(() => {
         try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
     }, 30 * 1000);
+
+    // While inside a favorited room, keep its saved snapshot fresh (picks up
+    // description/admin/background edits made during the session). The helper
+    // itself throttles and only writes on real changes.
+    setInterval(() => {
+        try { autoUpdateFavoriteSnapshot(); } catch { /* ignore */ }
+    }, 60 * 1000);
 
     // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
     // Typing *text (or * text) in the chat box sends a BC Emote message so it

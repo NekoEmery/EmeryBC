@@ -2821,6 +2821,34 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Auto-refresh: while the player is inside a favorited room, its saved snapshot
+    // silently keeps itself up to date (description edits, admin changes, new
+    // background...). Throttled, and only writes when something actually changed so
+    // the server sync isn't spammed.
+    let _lastFavSnapshotCheck = 0;
+    function autoUpdateFavoriteSnapshot() {
+        try {
+            const now = Date.now();
+            if (now - _lastFavSnapshotCheck < 30000)
+                return;
+            _lastFavSnapshotCheck = now;
+            const snap = captureCurrentRoomSnapshot();
+            if (!snap)
+                return;
+            const favs = getFavoriteRooms();
+            const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
+            if (idx === -1)
+                return;
+            // Compare without the volatile savedAt stamp - identical rooms mean no write.
+            const stored = JSON.stringify(Object.assign(Object.assign({}, favs[idx]), { savedAt: 0 }));
+            const fresh = JSON.stringify(Object.assign(Object.assign({}, snap), { savedAt: 0 }));
+            if (stored === fresh)
+                return;
+            favs[idx] = snap;
+            setFavoriteRooms(favs);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     /** Snapshots the current room's full settings for later rebuild.
      *  Returns null when not in a room (no ChatRoomData). */
     function captureCurrentRoomSnapshot() {
@@ -36257,7 +36285,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 159; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 160; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36283,6 +36311,7 @@
                 "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
                 "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
                 "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
+                "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43716,6 +43745,12 @@
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
             catch ( /* ignore */_k) { /* ignore */ }
+            // Favorited room? Silently refresh its saved snapshot once BC has fully
+            // populated ChatRoomData for the new room.
+            window.setTimeout(() => { try {
+                autoUpdateFavoriteSnapshot();
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 2000);
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -44728,6 +44763,15 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }, 30 * 1000);
+        // While inside a favorited room, keep its saved snapshot fresh (picks up
+        // description/admin/background edits made during the session). The helper
+        // itself throttles and only writes on real changes.
+        setInterval(() => {
+            try {
+                autoUpdateFavoriteSnapshot();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 60 * 1000);
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
