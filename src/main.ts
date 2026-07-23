@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 155;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 156;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +51,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
             "Friends: new collapsible 'Friend rooms' section in the Users tab - shows where every online friend is, grouped by room. Public rooms get a Join button; private rooms and the lobby are listed separately. Updates live with the friends list.",
             "Fix: beep windows could open collapsed to just the input bar (header and chat hidden). Root cause: older EBC versions kept resize handles active on minimized windows, so a width-drag there persisted the 44px minimized height to localStorage - the saved size was then restored unclamped on every open. Fix: saved sizes are clamped to the resize minimums (220x200) on both load and save, so stale bad values self-heal on next open.",
+            "Friend rooms: redesigned as room cards - each room shows its name, member count, and a Join button, with each friend as a clickable chip that opens their chat window.",
+            "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▾ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
         ],
     },
     {

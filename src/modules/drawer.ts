@@ -2822,6 +2822,70 @@ const CSS = `
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
 
+/* Room bar dropdown hint - hidden when there is nothing to drop down */
+.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▾"; opacity: 0.55; }
+
+/* Friend Rooms section (Users tab) - room cards with member chips */
+.ebc-friend-rooms-card {
+    background: rgba(30,13,26,0.40);
+    border: 1px solid rgba(58,25,40,0.55);
+    border-radius: 8px;
+    padding: 5px 8px 6px;
+    margin-bottom: 5px;
+}
+.ebc-friend-rooms-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ebc-friend-rooms-icon { font-size: 11px; flex-shrink: 0; line-height: 1; }
+.ebc-friend-rooms-name {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0b0c8;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ebc-friend-rooms-cnt {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    color: #e8b4c4;
+    background: rgba(192,100,130,0.18);
+    border: 1px solid rgba(192,100,130,0.35);
+    border-radius: 9px;
+    padding: 0 6px;
+    line-height: 14px;
+    flex-shrink: 0;
+}
+.ebc-friend-rooms-join {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10.5px;
+    padding: 1px 9px;
+    border-radius: 9px;
+    border: 1px solid #cf6f98;
+    background: #1e0c18;
+    color: #cf6f98;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-friend-rooms-join:hover { background: #cf6f98; color: #fff; }
+.ebc-friend-rooms-chips { display: flex; flex-wrap: wrap; gap: 3px; padding-top: 4px; }
+.ebc-friend-rooms-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #c0a0b0;
+    background: rgba(38,14,26,0.65);
+    border: 1px solid rgba(80,30,50,0.55);
+    border-radius: 9px;
+    padding: 1px 7px;
+    cursor: pointer;
+    line-height: 15px;
+    transition: color 0.12s, border-color 0.12s;
+}
+.ebc-friend-rooms-chip:hover { color: #e8c0d4; border-color: #cf6f98; }
+
 /* Message wrap */
 .ebc-beep-msg-wrap { position: relative; }
 /* Copy button - shown inline beside the timestamp */
@@ -12552,16 +12616,18 @@ export class EBCDrawer {
                 roomBar.textContent = `📍 ${info.roomName}`;
                 roomBar.title = info.roomName;
                 roomBar.style.display = "";
+                roomBar.classList.remove("no-drawer");
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "";
                 roomDrawerCopy.style.display = "";
-            } else if (info && isInCurrentRoom(memberNumber)) {
+            } else if (isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name - use our tracked name.
                 const sameRoomName = getCurrentRoomName();
                 if (sameRoomName) {
                     roomBar.textContent = `📍 ${sameRoomName}`;
                     roomBar.title = sameRoomName;
                     roomBar.style.display = "";
+                    roomBar.classList.remove("no-drawer");
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
                     roomDrawerCopy.style.display = "";
@@ -12573,14 +12639,25 @@ export class EBCDrawer {
                 }
             } else if (info?.isPrivate) {
                 // BC sets Private: true when the friend is in a private/restricted room.
-                roomBar.textContent = "📍 Private room";
+                // No actions possible (can't join or copy an unknown name) - no drawer.
+                roomBar.textContent = "🔒 In a private room";
                 roomBar.title = "Friend is in a private room";
                 roomBar.style.display = "";
-                roomDrawer.style.display = "";
-                roomDrawerJoin.style.display = "none"; // can't join by name
+                roomBar.classList.add("no-drawer");
+                roomDrawer.classList.remove("open");
+                roomDrawer.style.display = "none";
+                roomDrawerCopy.style.display = "none";
+            } else if (s !== "away" && getFriendList().includes(memberNumber)) {
+                // Online friend with no room info = in the main hall / lobby.
+                roomBar.textContent = "🏛 In the lobby";
+                roomBar.title = "In the main hall (not in any room)";
+                roomBar.style.display = "";
+                roomBar.classList.add("no-drawer");
+                roomDrawer.classList.remove("open");
+                roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
             } else {
-                // Private is falsy and no room name = friend is in the lobby
+                // Offline or status unknown - nothing to show
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
@@ -14977,20 +15054,20 @@ export class EBCDrawer {
                 };
 
                 for (const g of groups) {
-                    const gWrap = document.createElement("div");
-                    gWrap.style.cssText = "padding:4px 4px 5px;border-bottom:1px solid rgba(58,25,40,0.45);";
+                    const gCard = document.createElement("div");
+                    gCard.className = "ebc-friend-rooms-card";
 
                     const headRow = document.createElement("div");
-                    headRow.style.cssText = "display:flex;align-items:center;gap:5px;min-width:0;";
+                    headRow.className = "ebc-friend-rooms-head";
                     const rIcon = document.createElement("span");
-                    rIcon.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                    rIcon.className = "ebc-friend-rooms-icon";
                     rIcon.textContent = g.icon;
                     const rName = document.createElement("span");
-                    rName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:600;color:#e0b0c8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    rName.className = "ebc-friend-rooms-name";
                     rName.textContent = g.label;
                     rName.title = g.label;
                     const rCnt = document.createElement("span");
-                    rCnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                    rCnt.className = "ebc-friend-rooms-cnt";
                     rCnt.textContent = `${g.nums.length}`;
                     headRow.appendChild(rIcon);
                     headRow.appendChild(rName);
@@ -14998,11 +15075,9 @@ export class EBCDrawer {
 
                     if (g.joinable) {
                         const joinBtn = document.createElement("button");
+                        joinBtn.className = "ebc-friend-rooms-join";
                         joinBtn.textContent = "Join →";
                         joinBtn.title = `Join "${g.label}"`;
-                        joinBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #cf6f98;background:#1e0c18;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
-                        joinBtn.addEventListener("mouseenter", () => { joinBtn.style.background = "#2e1424"; });
-                        joinBtn.addEventListener("mouseleave", () => { joinBtn.style.background = "#1e0c18"; });
                         joinBtn.addEventListener("click", (e) => {
                             e.stopPropagation();
                             if (getCurrentRoomName().toLowerCase() === g.label.toLowerCase()) {
@@ -15015,14 +15090,26 @@ export class EBCDrawer {
                         });
                         headRow.appendChild(joinBtn);
                     }
-                    gWrap.appendChild(headRow);
+                    gCard.appendChild(headRow);
 
-                    const namesRow = document.createElement("div");
-                    namesRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;padding:1px 0 0 20px;line-height:1.5;";
-                    namesRow.textContent = g.nums.map(n => `${resolveName(n)} #${n}`).join(" · ");
-                    gWrap.appendChild(namesRow);
+                    // Member chips - click to open that friend's chat window
+                    const chips = document.createElement("div");
+                    chips.className = "ebc-friend-rooms-chips";
+                    for (const n of g.nums) {
+                        const chip = document.createElement("button");
+                        chip.className = "ebc-friend-rooms-chip";
+                        chip.textContent = `${resolveName(n)} #${n}`;
+                        chip.title = "Open chat";
+                        chip.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            this.beepUnread.delete(n);
+                            this.openBeepWindow(n);
+                        });
+                        chips.appendChild(chip);
+                    }
+                    gCard.appendChild(chips);
 
-                    roomsContainer.appendChild(gWrap);
+                    roomsContainer.appendChild(gCard);
                 }
 
                 body.appendChild(roomsToggle);
