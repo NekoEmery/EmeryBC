@@ -439,59 +439,85 @@ export function setToastDurationSec(value: number): void {
 }
 
 // -- Favorite rooms ------------------------------------------------------------
-// Rooms the user saved for one-click joining from the Users tab.
+// Rooms the user saved for one-click joining from the Users tab. Each entry is a
+// full snapshot of the room's settings (description, admins, background, limits,
+// visibility, custom data...) so the room can be RECREATED when it is closed.
+// Old saves were plain name strings - normalized to { name } on read.
 
-export function getFavoriteRooms(): string[] {
+export interface FavoriteRoomData {
+    name: string;
+    description?: string;
+    background?: string;
+    limit?: number;
+    admin?: number[];
+    ban?: number[];
+    whitelist?: number[];
+    blockCategory?: string[];
+    game?: string;
+    language?: string;
+    space?: string;
+    visibility?: unknown;   // stored verbatim - shape differs across BC versions
+    access?: unknown;
+    custom?: unknown;       // custom background / theme data
+    mapData?: unknown;      // map-room tiles (only stored when reasonably small)
+    savedAt?: number;
+}
+
+export function getFavoriteRooms(): FavoriteRoomData[] {
     try {
         const v = getSettings()?.favoriteRooms;
-        return Array.isArray(v) ? (v as string[]).filter(r => typeof r === "string" && !!r.trim()) : [];
+        if (!Array.isArray(v)) return [];
+        return (v as unknown[]).map((e): FavoriteRoomData | null => {
+            if (typeof e === "string") return e.trim() ? { name: e.trim() } : null;
+            if (e && typeof e === "object" && typeof (e as { name?: unknown }).name === "string" && ((e as { name: string }).name).trim()) {
+                return e as FavoriteRoomData;
+            }
+            return null;
+        }).filter((x): x is FavoriteRoomData => x !== null);
     } catch { return []; }
 }
 
-export function setFavoriteRooms(rooms: string[]): void {
+export function setFavoriteRooms(rooms: FavoriteRoomData[]): void {
     try {
         getSettings().favoriteRooms = rooms.slice(0, 30);
         syncSettings();
     } catch { /* ignore */ }
 }
 
-// -- Do Not Disturb ------------------------------------------------------------
-// Temporarily silences EBC beep sounds and toast popups. Messages still arrive;
-// history and unread counters still update. Stored in localStorage (device-local,
-// survives reloads). Value: -1 = until manually turned off, else expiry timestamp.
-
-const DND_LS_KEY = "EBC_dndUntil";
-
-export function isDndActive(): boolean {
+/** Snapshots the current room's full settings for later rebuild.
+ *  Returns null when not in a room (no ChatRoomData). */
+export function captureCurrentRoomSnapshot(): FavoriteRoomData | null {
     try {
-        const raw = localStorage.getItem(DND_LS_KEY);
-        if (!raw) return false;
-        const until = Number(raw);
-        if (until === -1) return true;
-        if (!until || Date.now() >= until) { localStorage.removeItem(DND_LS_KEY); return false; }
-        return true;
-    } catch { return false; }
-}
+        const w = window as unknown as Record<string, unknown>;
+        const d = w.ChatRoomData as Record<string, unknown> | null | undefined;
+        if (!d || typeof d.Name !== "string" || !d.Name.trim()) return null;
+        const str    = (x: unknown): string | undefined => typeof x === "string" ? x : undefined;
+        const num    = (x: unknown): number | undefined => typeof x === "number" ? x : undefined;
+        const numArr = (x: unknown): number[] | undefined => Array.isArray(x) ? x.filter((n): n is number => typeof n === "number") : undefined;
+        const strArr = (x: unknown): string[] | undefined => Array.isArray(x) ? x.filter((v): v is string => typeof v === "string") : undefined;
 
-/** minutes > 0: DND for that long; minutes === -1: until turned off; 0: off. */
-export function setDndMinutes(minutes: number): void {
-    try {
-        if (minutes === 0) localStorage.removeItem(DND_LS_KEY);
-        else if (minutes === -1) localStorage.setItem(DND_LS_KEY, "-1");
-        else localStorage.setItem(DND_LS_KEY, String(Date.now() + minutes * 60_000));
-    } catch { /* ignore */ }
-}
-
-/** -1 = until turned off; 0 = inactive; otherwise ms remaining. */
-export function getDndRemainingMs(): number {
-    try {
-        const raw = localStorage.getItem(DND_LS_KEY);
-        if (!raw) return 0;
-        const until = Number(raw);
-        if (until === -1) return -1;
-        const rem = until - Date.now();
-        return rem > 0 ? rem : 0;
-    } catch { return 0; }
+        const out: FavoriteRoomData = { name: d.Name.trim() };
+        const desc = str(d.Description);  if (desc !== undefined) out.description = desc.slice(0, 300);
+        const bg   = str(d.Background);   if (bg   !== undefined) out.background = bg;
+        const lim  = num(d.Limit);        if (lim  !== undefined) out.limit = lim;
+        const adm  = numArr(d.Admin);     if (adm)                out.admin = adm.slice(0, 50);
+        const ban  = numArr(d.Ban);       if (ban)                out.ban = ban.slice(0, 100);
+        const wl   = numArr(d.Whitelist); if (wl)                 out.whitelist = wl.slice(0, 100);
+        const bc   = strArr(d.BlockCategory); if (bc)             out.blockCategory = bc;
+        const game = str(d.Game);         if (game !== undefined) out.game = game;
+        const lang = str(d.Language);     if (lang !== undefined) out.language = lang;
+        const spc  = str(d.Space);        if (spc  !== undefined) out.space = spc;
+        if (d.Visibility !== undefined) out.visibility = d.Visibility;
+        if (d.Access     !== undefined) out.access = d.Access;
+        if (d.Custom     !== undefined) out.custom = d.Custom;
+        // Map tile data can be huge - only keep it when it stays well under the
+        // ExtensionSettings size budget.
+        if (d.MapData !== undefined) {
+            try { if (JSON.stringify(d.MapData).length <= 20000) out.mapData = d.MapData; } catch { /* skip */ }
+        }
+        out.savedAt = Date.now();
+        return out;
+    } catch { return null; }
 }
 
 // -- Quick replies -------------------------------------------------------------
