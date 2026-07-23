@@ -14818,6 +14818,42 @@ export class EBCDrawer {
         }, 80);
     }
 
+    /** Smart join for a favorite room: joins it when it's open; when the
+     *  server says it doesn't exist, recreates it from the saved snapshot
+     *  (background, description, admins, size...) via rebuildFavoriteRoom. */
+    private joinOrRebuildFavorite(fav: FavoriteRoomData): void {
+        const w = window as unknown as Record<string, unknown>;
+        const sock = w.ServerSocket as {
+            on?:  (ev: string, cb: (d: unknown) => void) => void;
+            off?: (ev: string, cb: (d: unknown) => void) => void;
+        } | undefined;
+
+        let cleanupTimer: number | null = null;
+        const cleanup = (): void => {
+            if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
+            try { sock?.off?.("ChatRoomSearchResponse", onResp); } catch { /* ignore */ }
+        };
+        const onResp = (data: unknown): void => {
+            try { console.info("[EBC] Favorite join response =", data); } catch { /* ignore */ }
+            if (data === "CannotFindRoom") {
+                cleanup();
+                this._showToyToast(`"${fav.name}" is closed - rebuilding it with the saved settings`);
+                window.setTimeout(() => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } }, 400);
+            } else {
+                // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
+                cleanup();
+            }
+        };
+        try { sock?.on?.("ChatRoomSearchResponse", onResp); } catch { /* ignore */ }
+        cleanupTimer = window.setTimeout(cleanup, 10000);
+
+        try {
+            const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
+            if (typeof joinFn === "function") { try { joinFn(fav.name); return; } catch { /* fall through */ } }
+        } catch { /* ignore */ }
+        try { ServerSend("ChatRoomJoin", { Name: fav.name }); } catch { /* ignore */ }
+    }
+
     /** Recreates a favorited room from its saved snapshot.
      *  Mirrors BC's own LastChatRoom recreate flow: create the room with
      *  ourselves as the sole admin and PUBLIC access/visibility (entry always
@@ -15332,7 +15368,7 @@ export class EBCDrawer {
                 const jb = document.createElement("button");
                 jb.className = "ebc-friend-rooms-join";
                 jb.textContent = "Join →";
-                jb.title = `Join "${rn}"`;
+                jb.title = `Join "${rn}" - if the room is closed it gets recreated with the saved settings (background, description, admins...)`;
                 jb.addEventListener("click", (e) => {
                     e.stopPropagation();
                     if (getCurrentRoomName().toLowerCase() === rn.toLowerCase()) {
@@ -15341,33 +15377,10 @@ export class EBCDrawer {
                         return;
                     }
                     jb.textContent = "→ …";
-                    joinRoom(rn);
-                    // If the join goes nowhere (room closed), un-stick the label
+                    try { this.joinOrRebuildFavorite(fav); } catch { /* ignore */ }
+                    // Un-stick the label if we stay on this screen
                     window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
                 });
-                // Rebuild - recreate the room from its saved snapshot (for when it's closed)
-                const hasSnap = fav.background !== undefined || fav.admin !== undefined || fav.description !== undefined;
-                const rb = document.createElement("button");
-                rb.className = "ebc-friend-rooms-del";
-                rb.textContent = "🔨";
-                rb.style.fontSize = "10px";
-                if (hasSnap) {
-                    rb.title = "Rebuild this room from its saved settings - use when the room is closed";
-                    rb.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        const go = (): void => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } };
-                        if ((window as unknown as Record<string, unknown>).CurrentScreen === "ChatRoom") {
-                            showConfirmOverlay(`Leave your current room and rebuild "${rn}"?`, "Cancel", "Rebuild", go);
-                        } else {
-                            go();
-                        }
-                    });
-                } else {
-                    rb.title = "No saved room settings - open the room and press 'Update saved room settings' to capture them";
-                    rb.disabled = true;
-                    rb.style.opacity = "0.4";
-                    rb.style.cursor = "default";
-                }
                 const del = document.createElement("button");
                 del.className = "ebc-friend-rooms-del";
                 del.textContent = "×";
@@ -15378,7 +15391,6 @@ export class EBCDrawer {
                     try { this.renderFriendRows(body); } catch { /* ignore */ }
                 });
                 head.appendChild(jb);
-                head.appendChild(rb);
                 head.appendChild(del);
                 card.appendChild(head);
                 favContainer.appendChild(card);

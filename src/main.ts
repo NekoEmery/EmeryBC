@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 163;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 164;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -59,6 +59,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
             "Fix: 🔨 Rebuild now actually puts you in the rebuilt room with the correct settings. Root cause: the create payload could omit or malform Visibility/Access (BC R128 requires string arrays) - the room got created but BC's client-side room validation instantly ejected you, and saved admin lists were sent at create time where the server may not honor them. Fix: mirrors BC's own room-recreate flow exactly - create with yourself as sole admin and PUBLIC access/visibility (entry always succeeds), then push the full saved settings (real admins, whitelist, bans, access mode) as a room update one second after entering. Limit clamped to BC's real 2-10 range.",
             "Fix: 🔨 Rebuild could loop 'Room doesn't exist anymore'. Root cause: the server answered RoomAlreadyExist (the name is squatted by a ghost or private room), EBC fell back to joining, and the join failed with CannotFindRoom - a dead end. Fix: the join response is now watched - when the name turns out to be squatted, the rebuild retries with a numbered name ('Emy Dungeon 2'), the same trick BC's own recreate uses. Full-room and locked cases show their reason instead. A 'Rebuilding…' toast confirms the click, and every create/join response is logged to the browser console for diagnosis.",
+            "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
