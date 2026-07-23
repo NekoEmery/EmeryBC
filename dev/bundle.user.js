@@ -2881,8 +2881,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             favs[idx] = snap;
             setFavoriteRooms(favs);
+            try {
+                console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap)));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     /** Snapshots the current room's full settings for later rebuild.
      *  Returns null when not in a room (no ChatRoomData). */
@@ -22788,18 +22792,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_e) { /* ignore */ }
         }
         /** Recreates a favorited room from its saved snapshot.
-         *  Mirrors BC's own LastChatRoom recreate flow: create the room with
-         *  ourselves as the sole admin and PUBLIC access/visibility (entry always
-         *  succeeds and client-side validation passes), then - once inside - push
-         *  the full saved settings as a room update.
-         *  "RoomAlreadyExist" first tries joining; if the join then reports
-         *  CannotFindRoom the name is squatted by a ghost/private room, so we retry
-         *  the create with a numbered suffix ("Name 2"), exactly like BC does.
-         *  All server responses are logged to the console for diagnosis. */
+         *  The create carries ALL saved settings directly (description, background,
+         *  size, admin list, whitelist, bans, visibility, access/lock, custom
+         *  theme). Visibility/Access are guaranteed string arrays so BC R130's
+         *  client-side validation passes. 3s after entering, the actual room state
+         *  is compared against the snapshot and any field the server ignored is
+         *  corrected with a ChatRoomAdmin update (always carrying MapData - room
+         *  updates without it crash every client).
+         *  "RoomAlreadyExist" first tries joining; if that join then reports
+         *  CannotFindRoom the name is squatted by a ghost/private room, so the
+         *  create retries with a numbered suffix ("Name 2") like BC itself does.
+         *  Every step is logged to the console as [EBC] Rebuild. */
         rebuildFavoriteRoom(fav) {
             var _a, _b, _c, _d, _e;
             const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const strArr = (v) => Array.isArray(v) && v.every(x => typeof x === "string") ? v : null;
+            try {
+                console.info("[EBC] Rebuild: saved snapshot for", fav.name, JSON.parse(JSON.stringify(fav)));
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
             const baseName = fav.name.trim().slice(0, 20);
             let attempt = 0; // 0 = original name, 1+ = numbered suffix
             const currentName = () => {
@@ -22808,35 +22819,66 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const suffix = " " + (attempt + 1);
                 return baseName.slice(0, Math.min(baseName.length, 20 - suffix.length)) + suffix;
             };
+            const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
+            if (me && !fullAdmin.includes(me))
+                fullAdmin.unshift(me);
             // Server caps: Name 20 chars, Description 100, Limit 2-10.
-            const mkCreatePayload = (name) => {
-                var _a, _b, _c, _d, _e, _f;
+            const mkRoomSettings = (name) => {
+                var _a, _b, _c, _d, _e, _f, _g;
                 const p = {
                     Name: name,
                     Description: ((_a = fav.description) !== null && _a !== void 0 ? _a : "").trim().slice(0, 100),
                     Background: (_b = fav.background) !== null && _b !== void 0 ? _b : "BrickWall",
                     Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
-                    Admin: [me],
-                    Whitelist: [],
-                    Ban: [],
+                    Admin: fullAdmin,
+                    Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
+                    Ban: Array.isArray(fav.ban) ? fav.ban : [],
                     BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
                     Game: (_c = fav.game) !== null && _c !== void 0 ? _c : "",
                     Language: (_d = fav.language) !== null && _d !== void 0 ? _d : "EN",
                     Space: (_e = fav.space) !== null && _e !== void 0 ? _e : "X",
                     Visibility: (_f = strArr(fav.visibility)) !== null && _f !== void 0 ? _f : ["All"],
-                    Access: ["All"],
+                    Access: (_g = strArr(fav.access)) !== null && _g !== void 0 ? _g : ["All"],
                 };
                 if (fav.custom !== undefined)
                     p.Custom = fav.custom;
-                if (fav.mapData !== undefined)
-                    p.MapData = fav.mapData;
                 return p;
             };
-            const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-            if (me && !fullAdmin.includes(me))
-                fullAdmin.unshift(me);
             const w = window;
             const sock = w.ServerSocket;
+            // 3s after entering: compare the live room against the snapshot and push
+            // one corrective update if the server ignored anything from the create.
+            const verifyAndCorrect = (createdName) => {
+                var _a, _b, _c;
+                try {
+                    const d = w.ChatRoomData;
+                    if (!d || d.Name !== createdName)
+                        return;
+                    const want = mkRoomSettings(createdName);
+                    const differs = [];
+                    for (const key of ["Description", "Background", "Limit", "Admin", "Whitelist", "Ban", "BlockCategory", "Game", "Language", "Space", "Visibility", "Access"]) {
+                        const a = JSON.stringify((_a = want[key]) !== null && _a !== void 0 ? _a : null);
+                        const b = JSON.stringify((_b = d[key]) !== null && _b !== void 0 ? _b : null);
+                        if (a !== b)
+                            differs.push(`${key}: room=${b} saved=${a}`);
+                    }
+                    if (differs.length === 0) {
+                        console.info("[EBC] Rebuild: verify OK - room matches the snapshot");
+                        return;
+                    }
+                    console.info("[EBC] Rebuild: correcting fields the server ignored:", differs);
+                    const update = Object.assign(Object.assign({}, want), { 
+                        // Room UPDATES must always carry MapData - omitting it makes the
+                        // server null the room's map state, crashing every client.
+                        MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" } });
+                    ServerSend("ChatRoomAdmin", {
+                        MemberNumber: (_c = Player.ID) !== null && _c !== void 0 ? _c : 0,
+                        Room: update,
+                        Action: "Update",
+                    });
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+            };
             let joinPending = false;
             let cleanupTimer = null;
             const cleanup = () => {
@@ -22855,7 +22897,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_d) { /* ignore */ }
             };
             const doCreate = () => {
-                const p = mkCreatePayload(currentName());
+                const p = mkRoomSettings(currentName());
+                if (fav.mapData !== undefined)
+                    p.MapData = fav.mapData;
                 try {
                     console.info("[EBC] Rebuild: sending ChatRoomCreate", JSON.parse(JSON.stringify(p)));
                 }
@@ -22866,36 +22910,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_b) { /* ignore */ }
             };
             const onCreateResp = (data) => {
-                var _a;
                 try {
                     console.info("[EBC] Rebuild: ChatRoomCreateResponse =", data);
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
                 if (data === "ChatRoomCreated") {
                     cleanup();
                     this._showToyToast(`Rebuilt "${currentName()}" ✓`);
-                    // Restore the full saved settings once the room sync has settled -
-                    // same follow-up-update trick BC's own recreate uses for admins.
-                    const restorePayload = Object.assign(Object.assign({}, mkCreatePayload(currentName())), { Admin: fullAdmin, Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [], Ban: Array.isArray(fav.ban) ? fav.ban : [], Access: (_a = strArr(fav.access)) !== null && _a !== void 0 ? _a : ["All"], 
-                        // Room UPDATES must always carry MapData - omitting it makes the
-                        // server null the room's map state, which crashes every client in
-                        // ChatRoomSyncRoomProperties (reads MapData.Type). "Never" = no map.
-                        MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" } });
-                    window.setTimeout(() => {
-                        var _a;
-                        try {
-                            console.info("[EBC] Rebuild: restoring full settings", JSON.parse(JSON.stringify(restorePayload)));
-                        }
-                        catch ( /* ignore */_b) { /* ignore */ }
-                        try {
-                            ServerSend("ChatRoomAdmin", {
-                                MemberNumber: (_a = Player.ID) !== null && _a !== void 0 ? _a : 0,
-                                Room: restorePayload,
-                                Action: "Update",
-                            });
-                        }
-                        catch ( /* ignore */_c) { /* ignore */ }
-                    }, 1200);
+                    const createdName = currentName();
+                    window.setTimeout(() => verifyAndCorrect(createdName), 3000);
                 }
                 else if (data === "RoomAlreadyExist") {
                     // Maybe it is genuinely open - try joining. If the join comes back
@@ -22945,11 +22968,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 (_b = sock === null || sock === void 0 ? void 0 : sock.on) === null || _b === void 0 ? void 0 : _b.call(sock, "ChatRoomCreateResponse", onCreateResp);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             try {
                 (_c = sock === null || sock === void 0 ? void 0 : sock.on) === null || _c === void 0 ? void 0 : _c.call(sock, "ChatRoomSearchResponse", onSearchResp);
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             cleanupTimer = window.setTimeout(cleanup, 30000);
             this._showToyToast(`Rebuilding "${baseName}"…`);
             this.close();
@@ -22957,11 +22980,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     (_d = w.ChatRoomLeave) === null || _d === void 0 ? void 0 : _d.call(w);
                 }
-                catch ( /* ignore */_h) { /* ignore */ }
+                catch ( /* ignore */_j) { /* ignore */ }
                 try {
                     (_e = w.CommonSetScreen) === null || _e === void 0 ? void 0 : _e.call(w, "Online", "ChatSearch");
                 }
-                catch ( /* ignore */_j) { /* ignore */ }
+                catch ( /* ignore */_k) { /* ignore */ }
                 window.setTimeout(doCreate, 1200);
             }
             else {
@@ -36485,7 +36508,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 167; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 168; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36519,6 +36542,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
                 "Favorite rooms: joining a closed room now asks first - a confirm dialog offers to recreate it with the saved settings instead of rebuilding automatically.",
                 "Fix: favorite room snapshots could keep stale/default settings. Root cause: the auto-capture only ran on room join and on a throttled 60s poll - saving changes in the room admin screen and leaving shortly after never got captured, so rebuilds restored the old state. Fix: EBC now captures the favorited room's settings the moment a room-properties update arrives (admin Save, background/description change), and the on-join capture waits 5s so a rebuild's own settings-restore lands first. To fix an already-stale favorite: open the room, adjust it (or press Save once in the room admin screen), and the favorite updates instantly.",
+                "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
