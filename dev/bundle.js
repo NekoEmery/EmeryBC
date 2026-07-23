@@ -22694,6 +22694,64 @@
                 }
             }, 80);
         }
+        /** Smart join for a favorite room: joins it when it's open; when the
+         *  server says it doesn't exist, recreates it from the saved snapshot
+         *  (background, description, admins, size...) via rebuildFavoriteRoom. */
+        joinOrRebuildFavorite(fav) {
+            var _a;
+            const w = window;
+            const sock = w.ServerSocket;
+            let cleanupTimer = null;
+            const cleanup = () => {
+                var _a;
+                if (cleanupTimer !== null) {
+                    window.clearTimeout(cleanupTimer);
+                    cleanupTimer = null;
+                }
+                try {
+                    (_a = sock === null || sock === void 0 ? void 0 : sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResponse", onResp);
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            };
+            const onResp = (data) => {
+                try {
+                    console.info("[EBC] Favorite join response =", data);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                if (data === "CannotFindRoom") {
+                    cleanup();
+                    this._showToyToast(`"${fav.name}" is closed - rebuilding it with the saved settings`);
+                    window.setTimeout(() => { try {
+                        this.rebuildFavoriteRoom(fav);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, 400);
+                }
+                else {
+                    // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
+                    cleanup();
+                }
+            };
+            try {
+                (_a = sock === null || sock === void 0 ? void 0 : sock.on) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResponse", onResp);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            cleanupTimer = window.setTimeout(cleanup, 10000);
+            try {
+                const joinFn = w.ChatRoomJoin;
+                if (typeof joinFn === "function") {
+                    try {
+                        joinFn(fav.name);
+                        return;
+                    }
+                    catch ( /* fall through */_c) { /* fall through */ }
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            try {
+                ServerSend("ChatRoomJoin", { Name: fav.name });
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
+        }
         /** Recreates a favorited room from its saved snapshot.
          *  Mirrors BC's own LastChatRoom recreate flow: create the room with
          *  ourselves as the sole admin and PUBLIC access/visibility (entry always
@@ -23273,7 +23331,7 @@
                     const jb = document.createElement("button");
                     jb.className = "ebc-friend-rooms-join";
                     jb.textContent = "Join →";
-                    jb.title = `Join "${rn}"`;
+                    jb.title = `Join "${rn}" - if the room is closed it gets recreated with the saved settings (background, description, admins...)`;
                     jb.addEventListener("click", (e) => {
                         e.stopPropagation();
                         if (getCurrentRoomName().toLowerCase() === rn.toLowerCase()) {
@@ -23282,38 +23340,13 @@
                             return;
                         }
                         jb.textContent = "→ …";
-                        joinRoom(rn);
-                        // If the join goes nowhere (room closed), un-stick the label
+                        try {
+                            this.joinOrRebuildFavorite(fav);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        // Un-stick the label if we stay on this screen
                         window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
                     });
-                    // Rebuild - recreate the room from its saved snapshot (for when it's closed)
-                    const hasSnap = fav.background !== undefined || fav.admin !== undefined || fav.description !== undefined;
-                    const rb = document.createElement("button");
-                    rb.className = "ebc-friend-rooms-del";
-                    rb.textContent = "🔨";
-                    rb.style.fontSize = "10px";
-                    if (hasSnap) {
-                        rb.title = "Rebuild this room from its saved settings - use when the room is closed";
-                        rb.addEventListener("click", (e) => {
-                            e.stopPropagation();
-                            const go = () => { try {
-                                this.rebuildFavoriteRoom(fav);
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ } };
-                            if (window.CurrentScreen === "ChatRoom") {
-                                showConfirmOverlay(`Leave your current room and rebuild "${rn}"?`, "Cancel", "Rebuild", go);
-                            }
-                            else {
-                                go();
-                            }
-                        });
-                    }
-                    else {
-                        rb.title = "No saved room settings - open the room and press 'Update saved room settings' to capture them";
-                        rb.disabled = true;
-                        rb.style.opacity = "0.4";
-                        rb.style.cursor = "default";
-                    }
                     const del = document.createElement("button");
                     del.className = "ebc-friend-rooms-del";
                     del.textContent = "×";
@@ -23327,7 +23360,6 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                     });
                     head.appendChild(jb);
-                    head.appendChild(rb);
                     head.appendChild(del);
                     card.appendChild(head);
                     favContainer.appendChild(card);
@@ -36414,7 +36446,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 163; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 164; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36444,6 +36476,7 @@
                 "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
                 "Fix: 🔨 Rebuild now actually puts you in the rebuilt room with the correct settings. Root cause: the create payload could omit or malform Visibility/Access (BC R128 requires string arrays) - the room got created but BC's client-side room validation instantly ejected you, and saved admin lists were sent at create time where the server may not honor them. Fix: mirrors BC's own room-recreate flow exactly - create with yourself as sole admin and PUBLIC access/visibility (entry always succeeds), then push the full saved settings (real admins, whitelist, bans, access mode) as a room update one second after entering. Limit clamped to BC's real 2-10 range.",
                 "Fix: 🔨 Rebuild could loop 'Room doesn't exist anymore'. Root cause: the server answered RoomAlreadyExist (the name is squatted by a ghost or private room), EBC fell back to joining, and the join failed with CannotFindRoom - a dead end. Fix: the join response is now watched - when the name turns out to be squatted, the rebuild retries with a numbered name ('Emy Dungeon 2'), the same trick BC's own recreate uses. Full-room and locked cases show their reason instead. A 'Rebuilding…' toast confirms the click, and every create/join response is logged to the browser console for diagnosis.",
+                "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
