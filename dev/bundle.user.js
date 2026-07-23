@@ -2868,25 +2868,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             _lastFavSnapshotCheck = now;
             const snap = captureCurrentRoomSnapshot();
-            if (!snap)
+            if (!snap) {
+                if (force)
+                    try {
+                        console.info("[EBC] Snapshot check: no room data (not in a room?)");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                 return;
+            }
             const favs = getFavoriteRooms();
             const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
-            if (idx === -1)
+            if (idx === -1) {
+                if (force)
+                    try {
+                        console.info(`[EBC] Snapshot check: room "${snap.name}" is not in favorites`);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 return;
+            }
             // Compare without the volatile savedAt stamp - identical rooms mean no write.
             const stored = JSON.stringify(Object.assign(Object.assign({}, favs[idx]), { savedAt: 0 }));
             const fresh = JSON.stringify(Object.assign(Object.assign({}, snap), { savedAt: 0 }));
-            if (stored === fresh)
+            if (stored === fresh) {
+                if (force)
+                    try {
+                        console.info(`[EBC] Snapshot check: "${snap.name}" unchanged`);
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
                 return;
+            }
             favs[idx] = snap;
             setFavoriteRooms(favs);
             try {
                 console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap)));
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch (err) {
+            try {
+                console.warn("[EBC] Snapshot check failed:", err);
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
+        }
     }
     /** Snapshots the current room's full settings for later rebuild.
      *  Returns null when not in a room (no ChatRoomData). */
@@ -23342,6 +23365,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             // ── Favorite rooms - user-saved rooms with one-click join ─────────────
             {
+                // If we're standing in a favorited room, re-capture it right now so the
+                // list (and the Recreate dialog) can never show stale data.
+                try {
+                    autoUpdateFavoriteSnapshot(true);
+                }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const favs = getFavoriteRooms();
                 const curRoom = getCurrentRoomName();
                 const divFav = document.createElement("div");
@@ -23350,7 +23379,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     this.favRoomsCollapsed = localStorage.getItem("EBC_favRoomsCollapsed") === "1";
                 }
-                catch ( /* ignore */_e) { /* ignore */ }
+                catch ( /* ignore */_f) { /* ignore */ }
                 const favContainer = document.createElement("div");
                 const favToggle = document.createElement("div");
                 const updateFavToggle = () => {
@@ -23524,7 +23553,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    catch ( /* ignore */_g) { /* ignore */ }
                     const roomsContainer = document.createElement("div");
                     const roomsToggle = document.createElement("div");
                     const updateRoomsToggle = () => {
@@ -23646,7 +23675,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
                 }
-                catch ( /* ignore */_g) { /* ignore */ }
+                catch ( /* ignore */_h) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -24573,7 +24602,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -24591,7 +24620,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_j) { /* ignore */ }
+                        catch ( /* ignore */_k) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -36522,7 +36551,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 170; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 171; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36559,6 +36588,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
                 "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
                 "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
+                "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43950,6 +43980,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ } }, 500);
             return result;
         });
+        // Redundant socket-level listener for the same event - fires even if another
+        // addon breaks the ChatRoomSyncRoomProperties hook chain mid-way.
+        (function hookPropsSocket() {
+            try {
+                const sock = window.ServerSocket;
+                if (sock === null || sock === void 0 ? void 0 : sock.on) {
+                    sock.on("ChatRoomSyncRoomProperties", () => {
+                        window.setTimeout(() => { try {
+                            autoUpdateFavoriteSnapshot(true);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ } }, 600);
+                    });
+                    return;
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            window.setTimeout(hookPropsSocket, 2000);
+        })();
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
