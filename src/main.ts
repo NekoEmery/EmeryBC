@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, isDndActive } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 157;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 158;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -54,6 +54,11 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Friend rooms: redesigned as room cards - each room shows its name, member count, and a Join button, with each friend as a clickable chip that opens their chat window.",
             "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
             "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
+            "Favorite rooms: new collapsible section in the Users tab - save rooms with '+ Save current room' and rejoin them with one click. Synced to your BC account like other EBC settings.",
+            "Beep drafts: unsent text in a chat window (personal and group) is now kept if you close the window or reload - it comes back when you reopen the chat. Cleared on send.",
+            "Do Not Disturb: new dropdown next to the friends sort - silence all beep sounds and popups for 30 min / 1 h / 3 h / until turned off. Messages still arrive and count as unread; the control glows pink while active. Also silences online-friend toasts.",
+            "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions.",
+            "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
     },
     {
@@ -5801,6 +5806,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
 ];
 
 function showOnlineToast(memberNumber: number, fallbackName: string): void {
+    if (isDndActive()) return; // Do Not Disturb - no toast, no sound
     try {
         // Player.FriendNames is BC's authoritative name map, populated after our hook calls next().
         // The callback fires on next tick so this is already up-to-date.
@@ -8082,14 +8088,14 @@ function init(): void {
                 const grpTag = extractGroupTag(rawMsg);
                 if (grpTag) {
                     addGroupBeepEntry(grpTag.id, { from: fromNum, message: grpTag.body, ts: Date.now() });
-                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum) && !isDndActive()) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members); } catch { /* ignore */ }
                     return; // suppress BC native popup for group messages
                 }
                 const msg = stripBeepMetadata(rawMsg);
                 if (msg) {
                     addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) { try { playBeepSound(); } catch { /* ignore */ } }
+                    if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum) && !isDndActive()) { try { playBeepSound(); } catch { /* ignore */ } }
                     try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
                     // Room invite messages are handled entirely by EBC's invite card in the
                     // IM window — always suppress BC's native beep popup for these so the

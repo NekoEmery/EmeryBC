@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getFavoriteRooms, setFavoriteRooms, isDndActive, setDndMinutes, getDndRemainingMs } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -447,19 +447,36 @@ function savePanelOpacity(v: number): void {
 
 // -- Panel zoom (persisted to localStorage) ------------------------------------
 // Scales the entire EBC panel (text, buttons, spacing - everything).
-// Range: 0.6 – 2.0. Default 1.0 (matches native BC text density).
+// Range: 0.7 – 2.5. Default 1.0 (matches native BC text density).
 
 const PANEL_ZOOM_KEY = "EBC_panelZoom";
 
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
+        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.5, v));
     } catch { return 1; }
 }
 
 function savePanelZoom(v: number): void {
     try { localStorage.setItem(PANEL_ZOOM_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
+}
+
+// -- Recently used emoji (beep window picker) ----------------------------------
+const RECENT_EMOJI_KEY = "EBC_recentEmoji";
+
+function loadRecentEmoji(): string[] {
+    try {
+        const v = JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) ?? "[]") as unknown;
+        return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 16) : [];
+    } catch { return []; }
+}
+
+function pushRecentEmoji(em: string): void {
+    try {
+        const list = [em, ...loadRecentEmoji().filter(x => x !== em)].slice(0, 16);
+        localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify(list));
+    } catch { /* ignore */ }
 }
 
 // -- Panel size (width / height) persisted to localStorage ---------------------
@@ -2894,6 +2911,33 @@ const CSS = `
     transition: color 0.12s, border-color 0.12s;
 }
 .ebc-friend-rooms-chip:hover { color: #e8c0d4; border-color: #cf6f98; }
+.ebc-friend-rooms-del {
+    background: transparent;
+    border: 1px solid #4a2038;
+    border-radius: 9px;
+    color: #9a6080;
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 7px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.12s, border-color 0.12s;
+}
+.ebc-friend-rooms-del:hover { color: #cf6f98; border-color: #cf6f98; }
+.ebc-friend-rooms-add {
+    width: 100%;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10.5px;
+    padding: 3px 0;
+    border-radius: 9px;
+    border: 1px dashed #4a2038;
+    background: transparent;
+    color: #9a7080;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+    margin-bottom: 2px;
+}
+.ebc-friend-rooms-add:hover { color: #cf6f98; border-color: #cf6f98; }
 
 /* Message wrap */
 .ebc-beep-msg-wrap { position: relative; }
@@ -4083,6 +4127,7 @@ export class EBCDrawer {
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
     private friendRoomsCollapsed = false;
+    private favRoomsCollapsed = false;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -13314,8 +13359,34 @@ export class EBCDrawer {
         };
         input.addEventListener("input", updateCounter);
 
+        // Draft persistence - unsent text survives closing the window / page reloads.
+        const draftKey = `EBC_beepDraft_${memberNumber}`;
+        const saveDraft = (): void => {
+            try {
+                if (input.value) localStorage.setItem(draftKey, input.value);
+                else localStorage.removeItem(draftKey);
+            } catch { /* ignore */ }
+        };
+        input.addEventListener("input", saveDraft);
+        try {
+            const draft = localStorage.getItem(draftKey);
+            if (draft) {
+                input.value = draft;
+                updateCounter();
+                window.requestAnimationFrame(() => {
+                    input.style.height = "auto";
+                    input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
+                });
+            }
+        } catch { /* ignore */ }
+
         // ── Emoji picker ─────────────────────────────────────────────────────
         const EMOTE_CATS: Array<{ icon: string; label: string; items: string[]; text?: true }> = [
+            {
+                // items resolved live from localStorage at render time
+                icon: "🕒", label: "Recent",
+                items: [],
+            },
             {
                 icon: "🐱", label: "Cats",
                 items: ["🐱","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
@@ -13386,7 +13457,14 @@ export class EBCDrawer {
         const renderEmoteCat = (idx: number): void => {
             while (emojiBody.firstChild) emojiBody.removeChild(emojiBody.firstChild);
             const cat = EMOTE_CATS[idx];
-            for (const em of cat.items) {
+            const items = cat.label === "Recent" ? loadRecentEmoji() : cat.items;
+            if (items.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:10px;text-align:center;width:100%;";
+                hint.textContent = "Emoji you use will appear here";
+                emojiBody.appendChild(hint);
+            }
+            for (const em of items) {
                 const eb = document.createElement("button");
                 if (cat.text) eb.className = "ebc-text-emote";
                 eb.textContent = em;
@@ -13399,6 +13477,8 @@ export class EBCDrawer {
                     const pos = start + em.length;
                     input.setSelectionRange(pos, pos);
                     updateCounter();
+                    pushRecentEmoji(em);
+                    saveDraft();
                     input.focus();
                     emojiPicker.style.display = "none";
                 });
@@ -13454,6 +13534,7 @@ export class EBCDrawer {
             clearReply();
             sendBeep(memberNumber, full);
             input.value = "";
+            try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
             input.style.height = "auto";
             updateCounter();
             renderHistory();
@@ -13800,6 +13881,7 @@ export class EBCDrawer {
     }
 
     private showBeepToast(fromNum: number): void {
+        if (isDndActive()) return; // Do Not Disturb - suppress the popup (history/unread still update)
         try {
             const msgs = getConversation(fromNum);
             const last = msgs[msgs.length - 1];
@@ -14046,6 +14128,24 @@ export class EBCDrawer {
         input.className = "ebc-beep-win-input";
         input.placeholder = "Message group…";
         input.rows = 1;
+        // Draft persistence - unsent text survives closing the window / page reloads.
+        const gDraftKey = `EBC_beepDraftG_${group.id}`;
+        try {
+            const draft = localStorage.getItem(gDraftKey);
+            if (draft) {
+                input.value = draft;
+                window.requestAnimationFrame(() => {
+                    input.style.height = "auto";
+                    input.style.height = `${Math.min(input.scrollHeight, 80)}px`;
+                });
+            }
+        } catch { /* ignore */ }
+        input.addEventListener("input", () => {
+            try {
+                if (input.value) localStorage.setItem(gDraftKey, input.value);
+                else localStorage.removeItem(gDraftKey);
+            } catch { /* ignore */ }
+        });
         const sendBtn = document.createElement("button");
         sendBtn.className = "ebc-beep-win-send";
         sendBtn.textContent = "Send";
@@ -14054,6 +14154,7 @@ export class EBCDrawer {
             const text = input.value.trim();
             if (!text) return;
             input.value = "";
+            try { localStorage.removeItem(gDraftKey); } catch { /* ignore */ }
             input.style.height = "auto";
             addGroupBeepEntry(group.id, { from: myNum, message: text, ts: Date.now() });
             // Include all members (self + others) so any recipient can reconstruct the group
@@ -14717,6 +14818,21 @@ export class EBCDrawer {
 
         const friendList = getFriendList();
 
+        // Shared join helper (same path as the beep window's shortcut) - BC's own
+        // join function handles the implicit leave from the current room.
+        let joinTs = 0;
+        const joinRoom = (rName: string): void => {
+            const now = Date.now();
+            if (now - joinTs < 1500) return;
+            joinTs = now;
+            try {
+                const wj = window as unknown as Record<string, unknown>;
+                const joinFn = wj.ChatRoomJoin as ((n: string) => void) | undefined;
+                if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
+                try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
+            } catch { /* ignore */ }
+        };
+
         // ── People in Room ────────────────────────────────────────────────────
         {
             const w2 = window as unknown as Record<string, unknown>;
@@ -15008,6 +15124,111 @@ export class EBCDrawer {
             }
         }
 
+        // ── Favorite rooms - user-saved rooms with one-click join ─────────────
+        {
+            const favs = getFavoriteRooms();
+            const curRoom = getCurrentRoomName();
+            const divFav = document.createElement("div");
+            divFav.className = "ebc-divider";
+            body.appendChild(divFav);
+
+            try { this.favRoomsCollapsed = localStorage.getItem("EBC_favRoomsCollapsed") === "1"; } catch { /* ignore */ }
+
+            const favContainer = document.createElement("div");
+            const favToggle = document.createElement("div");
+            const updateFavToggle = (): void => {
+                const col = this.favRoomsCollapsed;
+                favToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
+                favToggle.innerHTML = "";
+                const arrow = document.createElement("span");
+                arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
+                arrow.textContent = col ? "▶" : "▼";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                lbl.textContent = "Favorite rooms";
+                const cnt = document.createElement("span");
+                cnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e8b4c4;background:rgba(192,100,130,0.18);border:1px solid rgba(192,100,130,0.35);border-radius:10px;padding:0 7px;line-height:16px;min-width:18px;text-align:center;flex-shrink:0;";
+                cnt.textContent = String(favs.length);
+                favToggle.appendChild(arrow);
+                favToggle.appendChild(lbl);
+                favToggle.appendChild(cnt);
+                favContainer.style.display = col ? "none" : "block";
+            };
+            updateFavToggle();
+            favToggle.addEventListener("click", () => {
+                this.favRoomsCollapsed = !this.favRoomsCollapsed;
+                try { localStorage.setItem("EBC_favRoomsCollapsed", this.favRoomsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateFavToggle();
+            });
+
+            for (const rn of favs) {
+                const card = document.createElement("div");
+                card.className = "ebc-friend-rooms-card";
+                const head = document.createElement("div");
+                head.className = "ebc-friend-rooms-head";
+                const ic = document.createElement("span");
+                ic.className = "ebc-friend-rooms-icon";
+                ic.textContent = "⭐";
+                const nm = document.createElement("span");
+                nm.className = "ebc-friend-rooms-name";
+                nm.textContent = rn;
+                nm.title = rn;
+                head.appendChild(ic);
+                head.appendChild(nm);
+                const jb = document.createElement("button");
+                jb.className = "ebc-friend-rooms-join";
+                jb.textContent = "Join →";
+                jb.title = `Join "${rn}"`;
+                jb.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (getCurrentRoomName().toLowerCase() === rn.toLowerCase()) {
+                        jb.textContent = "Here ✓";
+                        window.setTimeout(() => { jb.textContent = "Join →"; }, 1500);
+                        return;
+                    }
+                    jb.textContent = "→ …";
+                    joinRoom(rn);
+                });
+                const del = document.createElement("button");
+                del.className = "ebc-friend-rooms-del";
+                del.textContent = "×";
+                del.title = "Remove from favorites";
+                del.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    setFavoriteRooms(getFavoriteRooms().filter(r => r.toLowerCase() !== rn.toLowerCase()));
+                    try { this.renderFriendRows(body); } catch { /* ignore */ }
+                });
+                head.appendChild(jb);
+                head.appendChild(del);
+                card.appendChild(head);
+                favContainer.appendChild(card);
+            }
+
+            const canSave = !!curRoom && !favs.some(r => r.toLowerCase() === curRoom.toLowerCase());
+            const addBtn = document.createElement("button");
+            addBtn.className = "ebc-friend-rooms-add";
+            if (canSave) {
+                addBtn.textContent = `+ Save "${curRoom.length > 26 ? curRoom.slice(0, 24) + "…" : curRoom}"`;
+                addBtn.title = `Save "${curRoom}" to favorites`;
+                addBtn.addEventListener("click", () => {
+                    setFavoriteRooms([...getFavoriteRooms(), curRoom]);
+                    try { this.renderFriendRows(body); } catch { /* ignore */ }
+                });
+            } else if (curRoom) {
+                addBtn.textContent = "Current room is saved ✓";
+                addBtn.disabled = true;
+                addBtn.style.cursor = "default";
+            } else {
+                addBtn.textContent = "Join a room to save it here";
+                addBtn.disabled = true;
+                addBtn.style.cursor = "default";
+            }
+            favContainer.appendChild(addBtn);
+
+            body.appendChild(favToggle);
+            body.appendChild(favContainer);
+        }
+
         // ── Friend Rooms - where online friends are, with join buttons ────────
         {
             interface RoomGroup { label: string; nums: number[]; joinable: boolean; icon: string }
@@ -15086,21 +15307,6 @@ export class EBCDrawer {
                     try { localStorage.setItem("EBC_friendRoomsCollapsed", this.friendRoomsCollapsed ? "1" : "0"); } catch { /* ignore */ }
                     updateRoomsToggle();
                 });
-
-                // Same join path as the beep window's 📍 shortcut - BC handles the
-                // implicit leave from the current room.
-                let joinTs = 0;
-                const joinRoom = (rName: string): void => {
-                    const now = Date.now();
-                    if (now - joinTs < 1500) return;
-                    joinTs = now;
-                    try {
-                        const wj = window as unknown as Record<string, unknown>;
-                        const joinFn = wj.ChatRoomJoin as ((n: string) => void) | undefined;
-                        if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
-                        try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
-                    } catch { /* ignore */ }
-                };
 
                 for (const g of groups) {
                     const gCard = document.createElement("div");
@@ -15209,6 +15415,36 @@ export class EBCDrawer {
                 try { this.renderFriendRows(body); } catch { /* ignore */ }
             });
             lblF.appendChild(sortSel);
+
+            // ── Do Not Disturb dropdown ────────────────────────────────────────
+            // Silences beep sounds + popups (messages still arrive and count as unread).
+            const dndSel = document.createElement("select");
+            const dndOffOpt = document.createElement("option");
+            dndOffOpt.value = "0";
+            dndSel.appendChild(dndOffOpt);
+            for (const [val, lbl] of [["30", "🔕 30 min"], ["60", "🔕 1 hour"], ["180", "🔕 3 hours"], ["-1", "🔕 Until off"]] as Array<[string, string]>) {
+                const opt = document.createElement("option");
+                opt.value = val; opt.textContent = lbl;
+                dndSel.appendChild(opt);
+            }
+            const paintDnd = (): void => {
+                const rem = getDndRemainingMs();
+                const active = rem !== 0;
+                dndOffOpt.textContent = active
+                    ? (rem === -1 ? "🔕 On - turn off" : `🔕 On (${Math.ceil(rem / 60000)}m) - turn off`)
+                    : "🔔 DND off";
+                dndSel.value = "0";
+                dndSel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid ${active ? "#cf6f98" : "#3a1928"};background:#140a10;color:${active ? "#cf6f98" : "#b08090"};cursor:pointer;flex-shrink:0;outline:none;`;
+                dndSel.title = active
+                    ? "Do Not Disturb is ON - beep sounds and popups are silenced"
+                    : "Do Not Disturb - silence beep sounds and popups for a while";
+            };
+            paintDnd();
+            dndSel.addEventListener("change", () => {
+                setDndMinutes(Number(dndSel.value));
+                paintDnd();
+            });
+            lblF.appendChild(dndSel);
 
             if (this.beepUnread.size > 0) {
                 const markReadBtn = document.createElement("button");
@@ -16340,7 +16576,7 @@ export class EBCDrawer {
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
             zoomSlider.min = "0.7";
-            zoomSlider.max = "2.0";
+            zoomSlider.max = "2.5";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";

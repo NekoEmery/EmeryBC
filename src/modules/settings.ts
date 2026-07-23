@@ -438,6 +438,62 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Favorite rooms ------------------------------------------------------------
+// Rooms the user saved for one-click joining from the Users tab.
+
+export function getFavoriteRooms(): string[] {
+    try {
+        const v = getSettings()?.favoriteRooms;
+        return Array.isArray(v) ? (v as string[]).filter(r => typeof r === "string" && !!r.trim()) : [];
+    } catch { return []; }
+}
+
+export function setFavoriteRooms(rooms: string[]): void {
+    try {
+        getSettings().favoriteRooms = rooms.slice(0, 30);
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Do Not Disturb ------------------------------------------------------------
+// Temporarily silences EBC beep sounds and toast popups. Messages still arrive;
+// history and unread counters still update. Stored in localStorage (device-local,
+// survives reloads). Value: -1 = until manually turned off, else expiry timestamp.
+
+const DND_LS_KEY = "EBC_dndUntil";
+
+export function isDndActive(): boolean {
+    try {
+        const raw = localStorage.getItem(DND_LS_KEY);
+        if (!raw) return false;
+        const until = Number(raw);
+        if (until === -1) return true;
+        if (!until || Date.now() >= until) { localStorage.removeItem(DND_LS_KEY); return false; }
+        return true;
+    } catch { return false; }
+}
+
+/** minutes > 0: DND for that long; minutes === -1: until turned off; 0: off. */
+export function setDndMinutes(minutes: number): void {
+    try {
+        if (minutes === 0) localStorage.removeItem(DND_LS_KEY);
+        else if (minutes === -1) localStorage.setItem(DND_LS_KEY, "-1");
+        else localStorage.setItem(DND_LS_KEY, String(Date.now() + minutes * 60_000));
+    } catch { /* ignore */ }
+}
+
+/** -1 = until turned off; 0 = inactive; otherwise ms remaining. */
+export function getDndRemainingMs(): number {
+    try {
+        const raw = localStorage.getItem(DND_LS_KEY);
+        if (!raw) return 0;
+        const until = Number(raw);
+        if (until === -1) return -1;
+        const rem = until - Date.now();
+        return rem > 0 ? rem : 0;
+    } catch { return 0; }
+}
+
 // -- Quick replies -------------------------------------------------------------
 // Configurable one-click phrases shown as buttons inside beep windows.
 // Clicking inserts the text into the input so the user can review/edit before sending.
