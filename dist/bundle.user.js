@@ -22876,7 +22876,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this._showToyToast(`Rebuilt "${currentName()}" ✓`);
                     // Restore the full saved settings once the room sync has settled -
                     // same follow-up-update trick BC's own recreate uses for admins.
-                    const restorePayload = Object.assign(Object.assign({}, mkCreatePayload(currentName())), { Admin: fullAdmin, Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [], Ban: Array.isArray(fav.ban) ? fav.ban : [], Access: (_a = strArr(fav.access)) !== null && _a !== void 0 ? _a : ["All"] });
+                    const restorePayload = Object.assign(Object.assign({}, mkCreatePayload(currentName())), { Admin: fullAdmin, Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [], Ban: Array.isArray(fav.ban) ? fav.ban : [], Access: (_a = strArr(fav.access)) !== null && _a !== void 0 ? _a : ["All"], 
+                        // Room UPDATES must always carry MapData - omitting it makes the
+                        // server null the room's map state, which crashes every client in
+                        // ChatRoomSyncRoomProperties (reads MapData.Type). "Never" = no map.
+                        MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" } });
                     window.setTimeout(() => {
                         var _a;
                         try {
@@ -36481,7 +36485,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 164; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 165; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36512,6 +36516,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: 🔨 Rebuild now actually puts you in the rebuilt room with the correct settings. Root cause: the create payload could omit or malform Visibility/Access (BC R128 requires string arrays) - the room got created but BC's client-side room validation instantly ejected you, and saved admin lists were sent at create time where the server may not honor them. Fix: mirrors BC's own room-recreate flow exactly - create with yourself as sole admin and PUBLIC access/visibility (entry always succeeds), then push the full saved settings (real admins, whitelist, bans, access mode) as a room update one second after entering. Limit clamped to BC's real 2-10 range.",
                 "Fix: 🔨 Rebuild could loop 'Room doesn't exist anymore'. Root cause: the server answered RoomAlreadyExist (the name is squatted by a ghost or private room), EBC fell back to joining, and the join failed with CannotFindRoom - a dead end. Fix: the join response is now watched - when the name turns out to be squatted, the rebuild retries with a numbered name ('Emy Dungeon 2'), the same trick BC's own recreate uses. Full-room and locked cases show their reason instead. A 'Rebuilding…' toast confirms the click, and every create/join response is logged to the browser console for diagnosis.",
                 "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
+                "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

@@ -14934,6 +14934,10 @@ export class EBCDrawer {
                     Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
                     Ban: Array.isArray(fav.ban) ? fav.ban : [],
                     Access: strArr(fav.access) ?? ["All"],
+                    // Room UPDATES must always carry MapData - omitting it makes the
+                    // server null the room's map state, which crashes every client in
+                    // ChatRoomSyncRoomProperties (reads MapData.Type). "Never" = no map.
+                    MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" },
                 };
                 window.setTimeout(() => {
                     try { console.info("[EBC] Rebuild: restoring full settings", JSON.parse(JSON.stringify(restorePayload))); } catch { /* ignore */ }
