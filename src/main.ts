@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 170;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 171;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -66,6 +66,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
             "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
             "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
+            "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -7441,6 +7442,22 @@ function init(): void {
         window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(true); } catch { /* ignore */ } }, 500);
         return result;
     });
+
+    // Redundant socket-level listener for the same event - fires even if another
+    // addon breaks the ChatRoomSyncRoomProperties hook chain mid-way.
+    (function hookPropsSocket(): void {
+        try {
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on?: (ev: string, cb: (d: unknown) => void) => void } | null | undefined;
+            if (sock?.on) {
+                sock.on("ChatRoomSyncRoomProperties", () => {
+                    window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(true); } catch { /* ignore */ } }, 600);
+                });
+                return;
+            }
+        } catch { /* ignore */ }
+        window.setTimeout(hookPropsSocket, 2000);
+    })();
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);

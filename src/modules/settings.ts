@@ -496,18 +496,29 @@ export function autoUpdateFavoriteSnapshot(force = false): void {
         if (!force && now - _lastFavSnapshotCheck < 30_000) return;
         _lastFavSnapshotCheck = now;
         const snap = captureCurrentRoomSnapshot();
-        if (!snap) return;
+        if (!snap) {
+            if (force) try { console.info("[EBC] Snapshot check: no room data (not in a room?)"); } catch { /* ignore */ }
+            return;
+        }
         const favs = getFavoriteRooms();
         const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
-        if (idx === -1) return;
+        if (idx === -1) {
+            if (force) try { console.info(`[EBC] Snapshot check: room "${snap.name}" is not in favorites`); } catch { /* ignore */ }
+            return;
+        }
         // Compare without the volatile savedAt stamp - identical rooms mean no write.
         const stored = JSON.stringify({ ...favs[idx], savedAt: 0 });
         const fresh  = JSON.stringify({ ...snap,      savedAt: 0 });
-        if (stored === fresh) return;
+        if (stored === fresh) {
+            if (force) try { console.info(`[EBC] Snapshot check: "${snap.name}" unchanged`); } catch { /* ignore */ }
+            return;
+        }
         favs[idx] = snap;
         setFavoriteRooms(favs);
         try { console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap))); } catch { /* ignore */ }
-    } catch { /* ignore */ }
+    } catch (err) {
+        try { console.warn("[EBC] Snapshot check failed:", err); } catch { /* ignore */ }
+    }
 }
 
 /** Snapshots the current room's full settings for later rebuild.
