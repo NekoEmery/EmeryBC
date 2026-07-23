@@ -14821,16 +14821,22 @@ export class EBCDrawer {
     /** Recreates a favorited room from its saved snapshot via ChatRoomCreate.
      *  BC only accepts creates outside a room, so when in one we run BC's own
      *  leave first, switch to the search screen (whose handlers auto-enter the
-     *  new room on success), then send the create after the server settles. */
+     *  new room on success), then send the create after the server settles.
+     *  The server's ChatRoomCreateResponse is watched so failures are visible:
+     *  "RoomAlreadyExist" falls back to joining, "InvalidRoomData" retries once
+     *  with a minimal payload (drops version-sensitive fields), anything else
+     *  shows a toast with the reason. */
     private rebuildFavoriteRoom(fav: FavoriteRoomData): void {
         const me = Player?.MemberNumber ?? 0;
         const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
         if (me && !admin.includes(me)) admin.unshift(me); // always keep ourselves admin of the rebuilt room
-        const payload: Record<string, unknown> = {
-            Name: fav.name,
-            Description: fav.description ?? "",
+        // Server-side validation caps: Name 20 chars, Description 100, Limit 2-20.
+        // Anything over gets the whole create rejected as InvalidRoomData.
+        const fullPayload: Record<string, unknown> = {
+            Name: fav.name.slice(0, 20),
+            Description: (fav.description ?? "").slice(0, 100),
             Background: fav.background ?? "BrickWall",
-            Limit: typeof fav.limit === "number" ? fav.limit : 10,
+            Limit: Math.max(2, Math.min(20, typeof fav.limit === "number" ? fav.limit : 10)),
             Admin: admin,
             Ban: Array.isArray(fav.ban) ? fav.ban : [],
             Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
@@ -14839,18 +14845,64 @@ export class EBCDrawer {
             Language: fav.language ?? "EN",
             Space: fav.space ?? "X",
         };
-        if (fav.visibility !== undefined) payload.Visibility = fav.visibility;
-        if (fav.access     !== undefined) payload.Access = fav.access;
-        if (fav.custom     !== undefined) payload.Custom = fav.custom;
-        if (fav.mapData    !== undefined) payload.MapData = fav.mapData;
+        if (fav.visibility !== undefined) fullPayload.Visibility = fav.visibility;
+        if (fav.access     !== undefined) fullPayload.Access = fav.access;
+        if (fav.custom     !== undefined) fullPayload.Custom = fav.custom;
+        if (fav.mapData    !== undefined) fullPayload.MapData = fav.mapData;
+
+        // Fallback when the full payload is rejected - keeps the essentials and
+        // drops the fields whose shape changes between BC versions.
+        const minimalPayload: Record<string, unknown> = {
+            Name: fullPayload.Name,
+            Description: fullPayload.Description,
+            Background: fullPayload.Background,
+            Limit: fullPayload.Limit,
+            Admin: admin,
+            Ban: [],
+            Whitelist: [],
+            BlockCategory: [],
+            Game: "",
+            Language: fullPayload.Language,
+            Space: fullPayload.Space,
+        };
 
         const w = window as unknown as Record<string, unknown>;
-        const doCreate = (): void => { try { ServerSend("ChatRoomCreate", payload); } catch { /* ignore */ } };
+        const sock = w.ServerSocket as {
+            on?:  (ev: string, cb: (d: unknown) => void) => void;
+            off?: (ev: string, cb: (d: unknown) => void) => void;
+        } | undefined;
+
+        let usedMinimal = false;
+        let cleanupTimer: number | null = null;
+        const cleanup = (): void => {
+            if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
+            try { sock?.off?.("ChatRoomCreateResponse", onResp); } catch { /* ignore */ }
+        };
+        const onResp = (data: unknown): void => {
+            if (data === "ChatRoomCreated") {
+                cleanup();
+                this._showToyToast(`Rebuilt "${fav.name}" ✓`);
+            } else if (data === "RoomAlreadyExist") {
+                cleanup();
+                this._showToyToast(`"${fav.name}" is already open - joining it`);
+                window.setTimeout(() => { try { ServerSend("ChatRoomJoin", { Name: fav.name }); } catch { /* ignore */ } }, 400);
+            } else if (!usedMinimal) {
+                usedMinimal = true;
+                window.setTimeout(() => { try { ServerSend("ChatRoomCreate", minimalPayload); } catch { /* ignore */ } }, 600);
+            } else {
+                cleanup();
+                this._showToyToast(`Rebuild failed (${String(data)})`);
+            }
+        };
+        try { sock?.on?.("ChatRoomCreateResponse", onResp); } catch { /* ignore */ }
+        cleanupTimer = window.setTimeout(cleanup, 15000);
+
+        const doCreate = (): void => { try { ServerSend("ChatRoomCreate", fullPayload); } catch { /* ignore */ } };
         this.close();
         if (w.CurrentScreen === "ChatRoom") {
             try { (w.ChatRoomLeave as ((c?: boolean) => void) | undefined)?.(); } catch { /* ignore */ }
             try { (w.CommonSetScreen as ((m: string, s: string) => void) | undefined)?.("Online", "ChatSearch"); } catch { /* ignore */ }
-            window.setTimeout(doCreate, 700);
+            window.setTimeout(doCreate, 1200);
         } else {
             doCreate();
         }
@@ -15238,6 +15290,8 @@ export class EBCDrawer {
                     }
                     jb.textContent = "→ …";
                     joinRoom(rn);
+                    // If the join goes nowhere (room closed), un-stick the label
+                    window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
                 });
                 // Rebuild - recreate the room from its saved snapshot (for when it's closed)
                 const hasSnap = fav.background !== undefined || fav.admin !== undefined || fav.description !== undefined;
@@ -15423,6 +15477,8 @@ export class EBCDrawer {
                             }
                             joinBtn.textContent = "→ …";
                             joinRoom(g.label);
+                            // If the join goes nowhere (room closed), un-stick the label
+                            window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 2500);
                         });
                         headRow.appendChild(joinBtn);
                     }

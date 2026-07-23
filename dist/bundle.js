@@ -22697,18 +22697,24 @@
         /** Recreates a favorited room from its saved snapshot via ChatRoomCreate.
          *  BC only accepts creates outside a room, so when in one we run BC's own
          *  leave first, switch to the search screen (whose handlers auto-enter the
-         *  new room on success), then send the create after the server settles. */
+         *  new room on success), then send the create after the server settles.
+         *  The server's ChatRoomCreateResponse is watched so failures are visible:
+         *  "RoomAlreadyExist" falls back to joining, "InvalidRoomData" retries once
+         *  with a minimal payload (drops version-sensitive fields), anything else
+         *  shows a toast with the reason. */
         rebuildFavoriteRoom(fav) {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const admin = Array.isArray(fav.admin) ? [...fav.admin] : [];
             if (me && !admin.includes(me))
                 admin.unshift(me); // always keep ourselves admin of the rebuilt room
-            const payload = {
-                Name: fav.name,
-                Description: (_b = fav.description) !== null && _b !== void 0 ? _b : "",
+            // Server-side validation caps: Name 20 chars, Description 100, Limit 2-20.
+            // Anything over gets the whole create rejected as InvalidRoomData.
+            const fullPayload = {
+                Name: fav.name.slice(0, 20),
+                Description: ((_b = fav.description) !== null && _b !== void 0 ? _b : "").slice(0, 100),
                 Background: (_c = fav.background) !== null && _c !== void 0 ? _c : "BrickWall",
-                Limit: typeof fav.limit === "number" ? fav.limit : 10,
+                Limit: Math.max(2, Math.min(20, typeof fav.limit === "number" ? fav.limit : 10)),
                 Admin: admin,
                 Ban: Array.isArray(fav.ban) ? fav.ban : [],
                 Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
@@ -22718,29 +22724,88 @@
                 Space: (_f = fav.space) !== null && _f !== void 0 ? _f : "X",
             };
             if (fav.visibility !== undefined)
-                payload.Visibility = fav.visibility;
+                fullPayload.Visibility = fav.visibility;
             if (fav.access !== undefined)
-                payload.Access = fav.access;
+                fullPayload.Access = fav.access;
             if (fav.custom !== undefined)
-                payload.Custom = fav.custom;
+                fullPayload.Custom = fav.custom;
             if (fav.mapData !== undefined)
-                payload.MapData = fav.mapData;
+                fullPayload.MapData = fav.mapData;
+            // Fallback when the full payload is rejected - keeps the essentials and
+            // drops the fields whose shape changes between BC versions.
+            const minimalPayload = {
+                Name: fullPayload.Name,
+                Description: fullPayload.Description,
+                Background: fullPayload.Background,
+                Limit: fullPayload.Limit,
+                Admin: admin,
+                Ban: [],
+                Whitelist: [],
+                BlockCategory: [],
+                Game: "",
+                Language: fullPayload.Language,
+                Space: fullPayload.Space,
+            };
             const w = window;
+            const sock = w.ServerSocket;
+            let usedMinimal = false;
+            let cleanupTimer = null;
+            const cleanup = () => {
+                var _a;
+                if (cleanupTimer !== null) {
+                    window.clearTimeout(cleanupTimer);
+                    cleanupTimer = null;
+                }
+                try {
+                    (_a = sock === null || sock === void 0 ? void 0 : sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomCreateResponse", onResp);
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            };
+            const onResp = (data) => {
+                if (data === "ChatRoomCreated") {
+                    cleanup();
+                    this._showToyToast(`Rebuilt "${fav.name}" ✓`);
+                }
+                else if (data === "RoomAlreadyExist") {
+                    cleanup();
+                    this._showToyToast(`"${fav.name}" is already open - joining it`);
+                    window.setTimeout(() => { try {
+                        ServerSend("ChatRoomJoin", { Name: fav.name });
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, 400);
+                }
+                else if (!usedMinimal) {
+                    usedMinimal = true;
+                    window.setTimeout(() => { try {
+                        ServerSend("ChatRoomCreate", minimalPayload);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, 600);
+                }
+                else {
+                    cleanup();
+                    this._showToyToast(`Rebuild failed (${String(data)})`);
+                }
+            };
+            try {
+                (_g = sock === null || sock === void 0 ? void 0 : sock.on) === null || _g === void 0 ? void 0 : _g.call(sock, "ChatRoomCreateResponse", onResp);
+            }
+            catch ( /* ignore */_k) { /* ignore */ }
+            cleanupTimer = window.setTimeout(cleanup, 15000);
             const doCreate = () => { try {
-                ServerSend("ChatRoomCreate", payload);
+                ServerSend("ChatRoomCreate", fullPayload);
             }
             catch ( /* ignore */_a) { /* ignore */ } };
             this.close();
             if (w.CurrentScreen === "ChatRoom") {
                 try {
-                    (_g = w.ChatRoomLeave) === null || _g === void 0 ? void 0 : _g.call(w);
+                    (_h = w.ChatRoomLeave) === null || _h === void 0 ? void 0 : _h.call(w);
                 }
-                catch ( /* ignore */_j) { /* ignore */ }
+                catch ( /* ignore */_l) { /* ignore */ }
                 try {
-                    (_h = w.CommonSetScreen) === null || _h === void 0 ? void 0 : _h.call(w, "Online", "ChatSearch");
+                    (_j = w.CommonSetScreen) === null || _j === void 0 ? void 0 : _j.call(w, "Online", "ChatSearch");
                 }
-                catch ( /* ignore */_k) { /* ignore */ }
-                window.setTimeout(doCreate, 700);
+                catch ( /* ignore */_m) { /* ignore */ }
+                window.setTimeout(doCreate, 1200);
             }
             else {
                 doCreate();
@@ -23158,6 +23223,8 @@
                         }
                         jb.textContent = "→ …";
                         joinRoom(rn);
+                        // If the join goes nowhere (room closed), un-stick the label
+                        window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
                     });
                     // Rebuild - recreate the room from its saved snapshot (for when it's closed)
                     const hasSnap = fav.background !== undefined || fav.admin !== undefined || fav.description !== undefined;
@@ -23364,6 +23431,8 @@
                                 }
                                 joinBtn.textContent = "→ …";
                                 joinRoom(g.label);
+                                // If the join goes nowhere (room closed), un-stick the label
+                                window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 2500);
                             });
                             headRow.appendChild(joinBtn);
                         }
@@ -36285,7 +36354,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 160; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 161; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36312,6 +36381,7 @@
                 "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
                 "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
                 "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
+                "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

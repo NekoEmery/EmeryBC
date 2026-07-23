@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 160;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 161;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -56,6 +56,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
             "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
             "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
+            "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
