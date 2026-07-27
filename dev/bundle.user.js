@@ -6835,6 +6835,121 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
+    // ── Sharing ───────────────────────────────────────────────────────────────────
+    // An unlocked achievement can be posted to the room chat. The message carries a
+    // machine-readable Dictionary entry: EBC clients suppress the plain emote and
+    // render a big shiny plaque instead; everyone else sees a normal emote line.
+    /** Posts an unlocked achievement to the room chat. Returns false when not in a
+     *  room or the achievement isn't unlocked. */
+    function shareAchievement(id) {
+        var _a, _b;
+        try {
+            const a = ACHIEVEMENTS.find(x => x.id === id);
+            if (!a)
+                return false;
+            const st = getState();
+            const tier = Math.min((_a = st.u[a.id]) !== null && _a !== void 0 ? _a : 0, a.tiers.length);
+            if (tier <= 0)
+                return false;
+            if (window.CurrentScreen !== "ChatRoom")
+                return false;
+            const tierLabel = a.tiers.length > 1 ? ` ${(_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : tier}` : "";
+            const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+            ServerSend("ChatRoomChat", {
+                Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
+                Type: "Emote",
+                Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
+            });
+            return true;
+        }
+        catch (_c) {
+            return false;
+        }
+    }
+    /** Detects an incoming achievement share. Renders the plaque and returns true
+     *  so the caller suppresses the plain emote. Works for EVERY EBC user. */
+    function handleAchievementShareMessage(data) {
+        var _a;
+        try {
+            if (!data || (data.Type !== "Emote" && data.Type !== "Chat"))
+                return false;
+            const dict = Array.isArray(data.Dictionary) ? data.Dictionary : [];
+            const entry = dict.find(d => (d === null || d === void 0 ? void 0 : d.Tag) === "EBCACH");
+            if (!entry)
+                return false;
+            const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
+            if (!a)
+                return false;
+            const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
+            const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+            let senderName = `#${senderNum}`;
+            try {
+                const room = window.ChatRoomCharacter;
+                const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === senderNum);
+                if (c)
+                    senderName = ((_a = c.Nickname) !== null && _a !== void 0 ? _a : "").trim() || c.Name || senderName;
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return renderSharedPlaque(senderName, a, tier);
+        }
+        catch (_c) {
+            return false;
+        }
+    }
+    function ensureShineStyle() {
+        if (document.getElementById("ebc-ach-shine-style"))
+            return;
+        const st = document.createElement("style");
+        st.id = "ebc-ach-shine-style";
+        st.textContent = "@keyframes ebcAchShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }";
+        document.head.appendChild(st);
+    }
+    /** Big shiny plaque in the chat log - deliberately larger than normal messages,
+     *  like addon update notices, but in EBC's dark + metal style. */
+    function renderSharedPlaque(senderName, a, tier) {
+        var _a;
+        try {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            ensureShineStyle();
+            const maxed = tier >= a.tiers.length;
+            const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
+            const tierLabel = a.tiers.length > 1 ? ` ${(_a = ROMAN[tier - 1]) !== null && _a !== void 0 ? _a : tier}` : "";
+            const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+            const plaque = document.createElement("div");
+            plaque.style.cssText = [
+                "margin:8px 4px",
+                "padding:14px 16px",
+                "border-radius:10px",
+                `border:2px solid ${metal}`,
+                `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
+                "background-size:200% 100%",
+                "animation:ebcAchShine 3.4s linear infinite",
+                `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
+                "font-family:'Trebuchet MS',serif",
+                "text-align:center",
+            ].join(";");
+            const head = document.createElement("div");
+            head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
+            head.textContent = `🏆 Achievement · shared by ${senderName}`;
+            const nameEl = document.createElement("div");
+            nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
+            nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");
+            const descEl = document.createElement("div");
+            descEl.style.cssText = "font-size:12px;color:#d8c4d8;margin-top:3px;";
+            descEl.textContent = desc;
+            plaque.appendChild(head);
+            plaque.appendChild(nameEl);
+            plaque.appendChild(descEl);
+            log.appendChild(plaque);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
     function getAchievementProgress() {
         const st = getState();
         return ACHIEVEMENTS.map(a => {
@@ -24841,10 +24956,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return container;
         }
         // -- Developer Tools tab ---------------------------------------------------
-        /** Class-grouped achievement cards - tier plates, progress bars, no icons. */
+        /** Class-grouped achievement cards - category filter chips, tier plates,
+         *  progress bars, no icons. */
         buildAchievementCards() {
-            const wrap = document.createElement("div");
-            wrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+            var _a;
+            const outer = document.createElement("div");
+            outer.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+            let filter = "all";
+            try {
+                filter = (_a = localStorage.getItem("EBC_achFilter")) !== null && _a !== void 0 ? _a : "all";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const chipRow = document.createElement("div");
+            chipRow.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;";
+            const listWrap = document.createElement("div");
+            listWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
             // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
             const PLATE = [
                 "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.85;",
@@ -24854,69 +24980,128 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ];
             const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
             const METAL = ["#cd7f32", "#c8d0dc", "#ffd700"];
-            const progress = getAchievementProgress();
-            for (const clsDef of ACHIEVEMENT_CLASSES) {
-                const clsItems = progress.filter(x => x.cls === clsDef.id);
-                if (clsItems.length === 0)
-                    continue;
-                const clsHead = document.createElement("div");
-                clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
-                const clsLbl = document.createElement("span");
-                clsLbl.textContent = clsDef.label;
-                const clsCnt = document.createElement("span");
-                clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
-                clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
-                clsHead.appendChild(clsLbl);
-                clsHead.appendChild(clsCnt);
-                wrap.appendChild(clsHead);
-                for (const a of clsItems) {
-                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
-                    const card = document.createElement("div");
-                    card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
-                    const topRow = document.createElement("div");
-                    topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
-                    const nm = document.createElement("span");
-                    nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
-                    nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
-                    topRow.appendChild(nm);
-                    if (a.tiers.length > 1) {
-                        const pips = document.createElement("span");
-                        pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
-                        for (let ti = 0; ti < a.tiers.length; ti++) {
-                            const pip = document.createElement("span");
-                            const litCol = METAL[Math.min(ti, 2)];
-                            pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
-                                (ti < a.tier
-                                    ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
-                                    : "background:transparent;border:1px solid #4a3040;");
-                            pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
-                            pips.appendChild(pip);
+            const buildList = () => {
+                while (listWrap.firstChild)
+                    listWrap.removeChild(listWrap.firstChild);
+                const progress = getAchievementProgress();
+                for (const clsDef of ACHIEVEMENT_CLASSES) {
+                    if (filter !== "all" && clsDef.id !== filter)
+                        continue;
+                    const clsItems = progress.filter(x => x.cls === clsDef.id);
+                    if (clsItems.length === 0)
+                        continue;
+                    const clsHead = document.createElement("div");
+                    clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
+                    const clsLbl = document.createElement("span");
+                    clsLbl.textContent = clsDef.label;
+                    const clsCnt = document.createElement("span");
+                    clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
+                    clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
+                    clsHead.appendChild(clsLbl);
+                    clsHead.appendChild(clsCnt);
+                    listWrap.appendChild(clsHead);
+                    for (const a of clsItems) {
+                        const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
+                        const card = document.createElement("div");
+                        card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
+                        const topRow = document.createElement("div");
+                        topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
+                        const nm = document.createElement("span");
+                        nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                        nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
+                        topRow.appendChild(nm);
+                        if (a.tiers.length > 1) {
+                            const pips = document.createElement("span");
+                            pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
+                            for (let ti = 0; ti < a.tiers.length; ti++) {
+                                const pip = document.createElement("span");
+                                const litCol = METAL[Math.min(ti, 2)];
+                                pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
+                                    (ti < a.tier
+                                        ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
+                                        : "background:transparent;border:1px solid #4a3040;");
+                                pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
+                                pips.appendChild(pip);
+                            }
+                            topRow.appendChild(pips);
                         }
-                        topRow.appendChild(pips);
+                        const pr = document.createElement("span");
+                        pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                        pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                        topRow.appendChild(pr);
+                        card.appendChild(topRow);
+                        const ds = document.createElement("div");
+                        ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                        ds.textContent = a.descNow;
+                        card.appendChild(ds);
+                        // Progress bar toward the next tier - gold and full when maxed
+                        const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
+                        const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
+                        const trough = document.createElement("div");
+                        trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
+                        const fill = document.createElement("div");
+                        fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
+                            (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
+                        trough.appendChild(fill);
+                        card.appendChild(trough);
+                        // Share an unlocked achievement to the room chat as a shiny plaque
+                        if (a.tier > 0) {
+                            const shareBtn = document.createElement("button");
+                            shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
+                            shareBtn.textContent = "Share";
+                            shareBtn.title = "Show this achievement in the room chat as a shiny plaque";
+                            shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
+                            shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
+                            shareBtn.addEventListener("click", () => {
+                                if (shareAchievement(a.id)) {
+                                    shareBtn.textContent = "Shared ✓";
+                                    window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
+                                }
+                                else {
+                                    shareBtn.textContent = "Join a room first";
+                                    window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
+                                }
+                            });
+                            card.appendChild(shareBtn);
+                        }
+                        listWrap.appendChild(card);
                     }
-                    const pr = document.createElement("span");
-                    pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
-                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
-                    topRow.appendChild(pr);
-                    card.appendChild(topRow);
-                    const ds = document.createElement("div");
-                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
-                    ds.textContent = a.descNow;
-                    card.appendChild(ds);
-                    // Progress bar toward the next tier - gold and full when maxed
-                    const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
-                    const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
-                    const trough = document.createElement("div");
-                    trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
-                    const fill = document.createElement("div");
-                    fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
-                        (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
-                    trough.appendChild(fill);
-                    card.appendChild(trough);
-                    wrap.appendChild(card);
                 }
+            };
+            const CHOICES = [
+                { id: "all", label: "All" },
+                ...ACHIEVEMENT_CLASSES.map(c => ({ id: c.id, label: c.label })),
+            ];
+            const chips = [];
+            const paintChips = () => {
+                for (let ci = 0; ci < chips.length; ci++) {
+                    const on = CHOICES[ci].id === filter;
+                    chips[ci].style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 10px;border-radius:10px;cursor:pointer;transition:all 0.12s;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                }
+            };
+            for (const c of CHOICES) {
+                const chip = document.createElement("button");
+                chip.textContent = c.label;
+                chip.addEventListener("click", () => {
+                    filter = c.id;
+                    try {
+                        localStorage.setItem("EBC_achFilter", filter);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    paintChips();
+                    buildList();
+                });
+                chips.push(chip);
+                chipRow.appendChild(chip);
             }
-            return wrap;
+            paintChips();
+            buildList();
+            outer.appendChild(chipRow);
+            outer.appendChild(listWrap);
+            return outer;
         }
         /** Fun popup version of the achievement list, opened from the 🏆 header button. */
         showAchievementsOverlay() {
@@ -36765,7 +36950,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 180; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 181; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36821,6 +37006,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
                 "Achievements: organized into CLASSES - Received (things done to you), Given (things you do), Bondage, and Emery - each with its own header and unlocked count. New Given achievements: Kiss Bandit (kiss others 10/50/250), Heavy Hand (spank others 10/50/250), Tickle Monster (tickle others 10/50/250). New Bondage: Rigger (put restraints on others 10/50/250). New Emery rares: Boop the Dev (boop Emery 10x), Dev Cuddler (hug Emery 10x), Brave Soul (spank Emery 5x).",
                 "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
+                "Achievements: category filter chips (All / Received / Given / Bondage / Emery) above the list - click one to show just that class; the choice is remembered.",
+                "Achievements: unlocked cards have a Share button that posts the achievement to the room chat. Other EBC users (and you) see it as a big shiny animated plaque - metal-colored border and glow matching the tier, larger than normal chat messages like addon update notices. Non-EBC users see a plain '*shares an achievement: ...*' emote line instead.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -45382,8 +45569,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
         // Achievements feed (credits crew only): watch activities done to/by the
         // player and item applies. Independent of the XToys gates above.
+        // Shared achievement plaques render for EVERY EBC user - and suppress the
+        // plain emote fallback that non-EBC clients see.
         modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
             var _a, _b, _c;
+            try {
+                if (handleAchievementShareMessage(args[0]))
+                    return;
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             const _r = next(args);
             try {
                 if (!isAchievementUser(Player.MemberNumber))
@@ -45417,7 +45611,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return _r;
         });
         tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
