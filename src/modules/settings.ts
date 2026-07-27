@@ -441,6 +441,19 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Quick actions placement ---------------------------------------------------
+// false (default) = Release Restraints / Remove Locks / restraint picker stay
+// pinned above every tab. true = they move into the Buttons tab as their own
+// pill, freeing that vertical space everywhere else.
+
+export function getQuickActionsInButtons(): boolean {
+    try { return getSettings()?.quickActionsInButtons === true; } catch { return false; }
+}
+
+export function setQuickActionsInButtons(v: boolean): void {
+    try { getSettings().quickActionsInButtons = v; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Users tab layout ----------------------------------------------------------
 // "tabs"    = sections split behind pill sub-navigation (less clutter)
 // "classic" = every section stacked on one long page (the original layout)

@@ -97,7 +97,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4344,6 +4344,8 @@ export class EBCDrawer {
     private _hqScreenWatchTimer: ReturnType<typeof setInterval> | null = null;
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
+    private quickActionsEl: HTMLElement | null = null;
+    private selfPickPanelEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
     // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
@@ -4867,6 +4869,7 @@ export class EBCDrawer {
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
         quickActions.className = "ebc-quick-actions";
+        this.quickActionsEl = quickActions;
         quickActions.style.cssText = quickActions.style.cssText + ";flex-direction:column;gap:4px;";
 
         // Row 1: all-at-once danger buttons
@@ -4949,6 +4952,7 @@ export class EBCDrawer {
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
+        this.selfPickPanelEl = selfPickPanel;
         selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
 
         const selfPickStatus = document.createElement("div");
@@ -5456,8 +5460,11 @@ export class EBCDrawer {
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
-        panel.appendChild(quickActions);
-        panel.appendChild(selfPickPanel);
+        // Pinned above every tab unless the user moved them into Buttons.
+        if (!getQuickActionsInButtons()) {
+            panel.appendChild(quickActions);
+            panel.appendChild(selfPickPanel);
+        }
         // Safewords and EBC Tags are no longer pinned above every tab - they live
         // in the DEV tab as their own pill sections (see renderDev). They are kept
         // as detached elements here and re-appended on each DEV render, so all
@@ -15751,7 +15758,10 @@ export class EBCDrawer {
                     roomsContainer.appendChild(gCard);
                 }
 
-                roomsBody.appendChild(roomsToggle);
+                // In pill mode the Rooms pill IS the header - the collapsible
+                // toggle would just be a redundant dropdown inside it.
+                if (roomsTarget) roomsContainer.style.display = "block";
+                else roomsBody.appendChild(roomsToggle);
                 roomsBody.appendChild(roomsContainer);
             }
         }
@@ -16892,6 +16902,10 @@ export class EBCDrawer {
             }
         }
 
+        try {
+            console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]`).join(" | ") || "(none)");
+        } catch { /* ignore */ }
+
         // Assign sections to pills.
         const norm = (x: string): string => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
         const used = new Set<Section>();
@@ -17291,6 +17305,16 @@ export class EBCDrawer {
             const mkMoved = (labelText: string, el: HTMLElement | null): void => {
                 if (!el) return;
                 el.style.display = labelText === "SAFEWORDS" ? "flex" : "";
+                // These strips carry their own collapsible header. Inside a pill
+                // that is a redundant dropdown, so open the body and hide the
+                // header - the pill is the header now.
+                const kids2 = Array.from(el.children) as HTMLElement[];
+                const hdr2 = kids2.find(c => c.style.cursor === "pointer");
+                const bodyEl = kids2.find(c => c !== hdr2);
+                if (hdr2 && bodyEl && bodyEl.style.display === "none") {
+                    try { hdr2.click(); } catch { /* ignore */ }
+                }
+                if (hdr2) hdr2.style.display = "none";
                 if (devTabs) {
                     // Register as a pill section - the pill acts as the header.
                     const wrap = document.createElement("div");
@@ -17337,6 +17361,48 @@ export class EBCDrawer {
             layoutRow.appendChild(layoutLbl);
             layoutRow.appendChild(layoutBtn);
             body.appendChild(layoutRow);
+
+            // Where the Release / Remove locks / restraint picker strip lives.
+            const qaRow = document.createElement("div");
+            qaRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const qaLbl = document.createElement("span");
+            qaLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+            qaLbl.textContent = "Restraint buttons";
+            const qaBtn = document.createElement("button");
+            const paintQa = (): void => {
+                const inBtns = getQuickActionsInButtons();
+                qaBtn.textContent = inBtns ? "In Buttons tab" : "Always on top";
+                qaBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                    (inBtns
+                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                        : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                qaBtn.title = inBtns
+                    ? "Release Restraints / Remove Locks / picker live in the Buttons tab - click to pin them above every tab again"
+                    : "Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the Buttons tab";
+            };
+            paintQa();
+            qaBtn.addEventListener("click", () => {
+                const toButtons = !getQuickActionsInButtons();
+                setQuickActionsInButtons(toButtons);
+                paintQa();
+                // Apply immediately - the elements are kept as refs, so detaching
+                // and re-attaching them keeps every handler intact (no reload).
+                const bodyEl = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+                const host = bodyEl?.parentElement ?? null;
+                if (toButtons) {
+                    this.quickActionsEl?.remove();
+                    this.selfPickPanelEl?.remove();
+                } else if (host && bodyEl) {
+                    if (this.quickActionsEl) {
+                        this.quickActionsEl.style.display = "";
+                        host.insertBefore(this.quickActionsEl, bodyEl);
+                    }
+                    if (this.selfPickPanelEl) host.insertBefore(this.selfPickPanelEl, bodyEl);
+                }
+            });
+            qaRow.appendChild(qaLbl);
+            qaRow.appendChild(qaBtn);
+            body.appendChild(qaRow);
         }
 
 
@@ -20771,6 +20837,17 @@ export class EBCDrawer {
             try { localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0"); } catch { /* ignore */ }
         });
 
+        if (getQuickActionsInButtons() && this.quickActionsEl) {
+            // Moved out of the pinned strip - give them a real section header so
+            // the pill converter picks them up like any other section.
+            const qaHdr = document.createElement("div");
+            qaHdr.className = "ebc-section-label";
+            qaHdr.textContent = "RESTRAINTS";
+            body.insertBefore(qaHdr, body.firstChild);
+            this.quickActionsEl.style.display = "";
+            qaHdr.after(this.quickActionsEl);
+            if (this.selfPickPanelEl) this.quickActionsEl.after(this.selfPickPanelEl);
+        }
         this._pillifyTab(body, "EBC_buttonsView");
     }
 

@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 200;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 201;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
+            "New drawer option (DEV → Drawer → 'Restraint buttons'): move Release Restraints / Remove Locks / the restraint picker off the permanently-pinned strip and into the Buttons tab as their own pill, freeing that space on every other tab. Toggling applies instantly without a reload, and 'Always on top' restores the original behaviour.",
+            "Dev: the pill converter now logs the sections it finds per tab ('[EBC] pillify EBC_animsView: POSES[2] | ...') so an empty pill can be diagnosed from the console instead of guessed at.",
             "Safewords and EBC Tags moved out of the always-pinned strip above the tabs and into the DEV tab as their own pills - the panel gets that vertical space back on every other tab. They keep all their existing controls and handlers (the elements are moved, not rebuilt), and in Classic layout they appear as normal stacked sections.",
             "Outfits tab consolidated from eight pills to four: Outfits (saved outfits, schedule, tags), Restraints (active, protected, saved sets), Colours and Storage. Merged pills keep their sub-headers so the grouping stays readable; the grouping is matched on translated labels, and any section that doesn't match simply keeps its own pill rather than disappearing.",
             "Renamed 'special friend' to starred: you can star anyone you meet, friend or not, so calling it a friend marker was misleading. The star, golden highlight and 'Starred first' sorting are unchanged, and existing stars are kept (the stored data is untouched).",
