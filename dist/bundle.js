@@ -16526,6 +16526,7 @@
             body.appendChild(outfitsBody);
             this.buildRestraintSection(body);
             this.buildScheduleSection(body);
+            this._pillifyTab(body, "EBC_outfitsView");
         }
         // -- Outfit Schedule section ------------------------------------------------
         buildScheduleSection(body) {
@@ -20111,6 +20112,7 @@
             // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
             const exprCnt = makeCollapse(t("anims.expressions"), "EBC_animsExprsCollapsed", true);
             this.renderExpressions(exprCnt);
+            this._pillifyTab(body, "EBC_animsView");
         }
         renderScenes(body) {
             var _a, _b, _c, _d, _e;
@@ -23483,6 +23485,14 @@
                 userNotesBody.appendChild(empty);
             }
             secNotes.appendChild(userNotesBody);
+            {
+                // Notes are written from a person's row, not from here - say so, since
+                // an empty Notes pill otherwise looks broken.
+                const notesHint = document.createElement("div");
+                notesHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.55;padding:6px 4px;border:1px dashed #33283c;border-radius:7px;margin-top:6px;";
+                notesHint.textContent = "To write a note about someone: open the Friends pill (or People in Room), click a person's row to expand it, and type in the note box. Saved notes are listed here and only you can see them.";
+                secNotes.appendChild(notesHint);
+            }
             // ── Groups ───────────────────────────────────────────────────────────
             const grpSec = document.createElement("div");
             grpSec.style.cssText = "margin-top:10px;";
@@ -23676,7 +23686,7 @@
                 if (userNotesHeaderRow)
                     userNotesHeaderRow.style.display = "none";
                 const VIEWS = [
-                    { id: "people", label: "People", el: secPeople },
+                    { id: "people", label: "Friends", el: secPeople },
                     { id: "rooms", label: "Rooms", el: secRooms },
                     { id: "notes", label: "Notes", el: secNotes },
                     { id: "settings", label: "Settings", el: secSettings },
@@ -25281,6 +25291,97 @@
             return container;
         }
         // -- Developer Tools tab ---------------------------------------------------
+        /**
+         * Turns a rendered tab into pill sections. Walks the tab's direct children,
+         * treats every element carrying an .ebc-section-label as a section header,
+         * and groups the elements after it until the next header. The header itself
+         * is hidden (the pill replaces it) and the section's own content is forced
+         * open, so there is never a redundant dropdown inside a pill.
+         * Anything before the first header stays permanently visible.
+         * No-ops in classic layout, or when a tab has fewer than two sections.
+         */
+        _pillifyTab(body, lsKey) {
+            var _a, _b;
+            if (getUsersLayout() !== "tabs")
+                return;
+            const kids = Array.from(body.children);
+            const groups = [];
+            const preamble = [];
+            for (const el of kids) {
+                const isHeader = el.classList.contains("ebc-section-label")
+                    || !!el.querySelector(":scope > .ebc-section-label");
+                if (isHeader) {
+                    const raw = ((_a = el.textContent) !== null && _a !== void 0 ? _a : "")
+                        .replace(/[▶▼]/g, "")
+                        .replace(/\([^)]*\)/g, "") // drop counts like "(11 SAVED)"
+                        .trim();
+                    groups.push({ label: raw || `Section ${groups.length + 1}`, els: [el] });
+                }
+                else if (groups.length === 0) {
+                    preamble.push(el);
+                }
+                else {
+                    groups[groups.length - 1].els.push(el);
+                }
+            }
+            if (groups.length < 2)
+                return;
+            for (const g of groups) {
+                g.els.forEach((el, i) => {
+                    // Hide the header row; force the rest of the section open. Only
+                    // direct children are touched, so nested UI that is deliberately
+                    // hidden (edit panels, popovers) keeps its own state.
+                    if (i === 0)
+                        el.style.display = "none";
+                    else if (el.style.display === "none")
+                        el.style.display = "";
+                });
+            }
+            let active = "";
+            try {
+                active = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            if (!groups.some(g => g.label === active))
+                active = groups[0].label;
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+            const pills = [];
+            const paint = () => {
+                for (let i = 0; i < groups.length; i++) {
+                    const on = groups[i].label === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 12px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                    for (let j = 1; j < groups[i].els.length; j++) {
+                        groups[i].els[j].style.display = on ? "" : "none";
+                    }
+                }
+            };
+            for (const g of groups) {
+                const pill = document.createElement("button");
+                const short = g.label.length > 14 ? g.label.slice(0, 13) + "…" : g.label;
+                pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
+                pill.title = g.label;
+                pill.addEventListener("click", () => {
+                    active = g.label;
+                    try {
+                        localStorage.setItem(lsKey, active);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                nav.appendChild(pill);
+            }
+            // Nav sits directly after the always-visible preamble.
+            if (preamble.length > 0)
+                preamble[preamble.length - 1].after(nav);
+            else
+                body.insertBefore(nav, body.firstChild);
+            paint();
+        }
         /** Class-grouped achievement cards - category filter chips, medal coins,
          *  tier plates and progress bars. */
         buildAchievementCards() {
@@ -25609,18 +25710,18 @@
                 layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const layoutLbl = document.createElement("span");
                 layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-                layoutLbl.textContent = "Menu layout (Users + Dev)";
+                layoutLbl.textContent = "Menu layout";
                 const layoutBtn = document.createElement("button");
                 const paintLayout = () => {
                     const tabs = getUsersLayout() === "tabs";
-                    layoutBtn.textContent = tabs ? "New (tabs)" : "Classic";
+                    layoutBtn.textContent = tabs ? "New layout" : "Old layout";
                     layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
                         (tabs
                             ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                             : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                     layoutBtn.title = tabs
-                        ? "Users and Dev tabs are split into pill sections - click for the original single long pages"
-                        : "Users and Dev tabs show every section stacked (original) - click for the tidier pill layout";
+                        ? "New: tabs are split into pill sections (default) - click to use the old stacked layout"
+                        : "Old: every section stacked on one long page - click to use the new pill layout";
                 };
                 paintLayout();
                 layoutBtn.addEventListener("click", () => {
@@ -29104,6 +29205,7 @@
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             });
+            this._pillifyTab(body, "EBC_buttonsView");
         }
         renderKittyTab() {
             var _a;
@@ -37513,7 +37615,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 195; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 196; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37585,6 +37687,9 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Outfits, Buttons and Anims tabs decluttered too - their stacked sections are now pills, driven by one generic converter that finds each tab's section headers, hides the now-redundant header, opens the content, and builds the pill row. Each tab remembers its own pill. Nested UI that is deliberately hidden (outfit edit panels, popovers) is left alone.",
+                "Users tab: the 'People' pill is renamed 'Friends', and the Notes pill now explains how to actually write a note (expand a person's row in Friends or People in Room) instead of looking empty.",
+                "Menu layout toggle reworded to 'New layout' / 'Old layout' (DEV → Drawer), defaulting to New.",
                 "DEV tab decluttered the same way as Users: Drawer / Tools / Copy / Logs / Stats are now pills instead of five stacked collapsibles, with the chosen pill remembered. The layout toggle now controls both tabs (renamed 'Menu layout (Users + Dev)') and switching it redraws immediately - Classic still restores the original stacked pages.",
                 "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
                 "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",

@@ -7834,6 +7834,7 @@ export class EBCDrawer {
 
         this.buildRestraintSection(body);
         this.buildScheduleSection(body);
+        this._pillifyTab(body, "EBC_outfitsView");
     }
 
     // -- Outfit Schedule section ------------------------------------------------
@@ -11490,6 +11491,7 @@ export class EBCDrawer {
         // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
         const exprCnt = makeCollapse(t("anims.expressions"), "EBC_animsExprsCollapsed", true);
         this.renderExpressions(exprCnt);
+        this._pillifyTab(body, "EBC_animsView");
     }
 
     private renderScenes(body: HTMLElement): void {
@@ -15017,6 +15019,14 @@ export class EBCDrawer {
         }
 
         secNotes.appendChild(userNotesBody);
+        {
+            // Notes are written from a person's row, not from here - say so, since
+            // an empty Notes pill otherwise looks broken.
+            const notesHint = document.createElement("div");
+            notesHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.55;padding:6px 4px;border:1px dashed #33283c;border-radius:7px;margin-top:6px;";
+            notesHint.textContent = "To write a note about someone: open the Friends pill (or People in Room), click a person's row to expand it, and type in the note box. Saved notes are listed here and only you can see them.";
+            secNotes.appendChild(notesHint);
+        }
 
         // ── Groups ───────────────────────────────────────────────────────────
         const grpSec = document.createElement("div");
@@ -15213,7 +15223,7 @@ export class EBCDrawer {
             // pills hide their now-redundant collapsible header.
             if (userNotesHeaderRow) userNotesHeaderRow.style.display = "none";
             const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
-                { id: "people",   label: "People",   el: secPeople },
+                { id: "people",   label: "Friends",  el: secPeople },
                 { id: "rooms",    label: "Rooms",    el: secRooms },
                 { id: "notes",    label: "Notes",    el: secNotes },
                 { id: "settings", label: "Settings", el: secSettings },
@@ -16735,6 +16745,88 @@ export class EBCDrawer {
 
     // -- Developer Tools tab ---------------------------------------------------
 
+    /**
+     * Turns a rendered tab into pill sections. Walks the tab's direct children,
+     * treats every element carrying an .ebc-section-label as a section header,
+     * and groups the elements after it until the next header. The header itself
+     * is hidden (the pill replaces it) and the section's own content is forced
+     * open, so there is never a redundant dropdown inside a pill.
+     * Anything before the first header stays permanently visible.
+     * No-ops in classic layout, or when a tab has fewer than two sections.
+     */
+    private _pillifyTab(body: HTMLElement, lsKey: string): void {
+        if (getUsersLayout() !== "tabs") return;
+
+        const kids = Array.from(body.children) as HTMLElement[];
+        const groups: Array<{ label: string; els: HTMLElement[] }> = [];
+        const preamble: HTMLElement[] = [];
+
+        for (const el of kids) {
+            const isHeader = el.classList.contains("ebc-section-label")
+                || !!el.querySelector(":scope > .ebc-section-label");
+            if (isHeader) {
+                const raw = (el.textContent ?? "")
+                    .replace(/[▶▼]/g, "")
+                    .replace(/\([^)]*\)/g, "")   // drop counts like "(11 SAVED)"
+                    .trim();
+                groups.push({ label: raw || `Section ${groups.length + 1}`, els: [el] });
+            } else if (groups.length === 0) {
+                preamble.push(el);
+            } else {
+                groups[groups.length - 1].els.push(el);
+            }
+        }
+        if (groups.length < 2) return;
+
+        for (const g of groups) {
+            g.els.forEach((el, i) => {
+                // Hide the header row; force the rest of the section open. Only
+                // direct children are touched, so nested UI that is deliberately
+                // hidden (edit panels, popovers) keeps its own state.
+                if (i === 0) el.style.display = "none";
+                else if (el.style.display === "none") el.style.display = "";
+            });
+        }
+
+        let active = "";
+        try { active = localStorage.getItem(lsKey) ?? ""; } catch { /* ignore */ }
+        if (!groups.some(g => g.label === active)) active = groups[0].label;
+
+        const nav = document.createElement("div");
+        nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+        const pills: HTMLButtonElement[] = [];
+        const paint = (): void => {
+            for (let i = 0; i < groups.length; i++) {
+                const on = groups[i].label === active;
+                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 12px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                for (let j = 1; j < groups[i].els.length; j++) {
+                    groups[i].els[j].style.display = on ? "" : "none";
+                }
+            }
+        };
+        for (const g of groups) {
+            const pill = document.createElement("button");
+            const short = g.label.length > 14 ? g.label.slice(0, 13) + "…" : g.label;
+            pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
+            pill.title = g.label;
+            pill.addEventListener("click", () => {
+                active = g.label;
+                try { localStorage.setItem(lsKey, active); } catch { /* ignore */ }
+                paint();
+            });
+            pills.push(pill);
+            nav.appendChild(pill);
+        }
+
+        // Nav sits directly after the always-visible preamble.
+        if (preamble.length > 0) preamble[preamble.length - 1].after(nav);
+        else body.insertBefore(nav, body.firstChild);
+        paint();
+    }
+
     /** Class-grouped achievement cards - category filter chips, medal coins,
      *  tier plates and progress bars. */
     private buildAchievementCards(): HTMLElement {
@@ -17068,18 +17160,18 @@ export class EBCDrawer {
             layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
             const layoutLbl = document.createElement("span");
             layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-            layoutLbl.textContent = "Menu layout (Users + Dev)";
+            layoutLbl.textContent = "Menu layout";
             const layoutBtn = document.createElement("button");
             const paintLayout = (): void => {
                 const tabs = getUsersLayout() === "tabs";
-                layoutBtn.textContent = tabs ? "New (tabs)" : "Classic";
+                layoutBtn.textContent = tabs ? "New layout" : "Old layout";
                 layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
                     (tabs
                         ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                         : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                 layoutBtn.title = tabs
-                    ? "Users and Dev tabs are split into pill sections - click for the original single long pages"
-                    : "Users and Dev tabs show every section stacked (original) - click for the tidier pill layout";
+                    ? "New: tabs are split into pill sections (default) - click to use the old stacked layout"
+                    : "Old: every section stacked on one long page - click to use the new pill layout";
             };
             paintLayout();
             layoutBtn.addEventListener("click", () => {
@@ -20522,6 +20614,7 @@ export class EBCDrawer {
             try { localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0"); } catch { /* ignore */ }
         });
 
+        this._pillifyTab(body, "EBC_buttonsView");
     }
 
 
