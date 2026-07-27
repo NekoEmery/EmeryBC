@@ -97,7 +97,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, getDataCategorySize, clearDataCategory } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -7574,6 +7574,74 @@ export class EBCDrawer {
         if (manageOpen) buildManage();
         content.appendChild(manageBtn);
         content.appendChild(manageBody);
+
+        // ── All stored EBC data - every category, biggest first, clearable ───
+        let dataOpen = false;
+        try { dataOpen = localStorage.getItem("EBC_storageDataOpen") === "1"; } catch { /* ignore */ }
+        const dataBtn = document.createElement("button");
+        dataBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        const dataBody = document.createElement("div");
+        dataBody.style.cssText = "margin-top:5px;";
+        const paintDataBtn = (): void => {
+            dataBtn.textContent = (dataOpen ? "▼" : "▶") + " All stored EBC data";
+            dataBody.style.display = dataOpen ? "block" : "none";
+        };
+
+        const buildData = (): void => {
+            while (dataBody.firstChild) dataBody.removeChild(dataBody.firstChild);
+            const rows = EBC_DATA_CATEGORIES
+                .map(cat => ({ cat, size: getDataCategorySize(cat) }))
+                .filter(r => r.size > 0)
+                .sort((a, b) => b.size - a.size);
+            if (rows.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                none.textContent = "No stored data yet.";
+                dataBody.appendChild(none);
+                return;
+            }
+            const total = rows.reduce((n, r) => n + r.size, 0);
+            for (const { cat, size } of rows) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                nm.textContent = cat.label;
+                const sz = document.createElement("span");
+                sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;min-width:52px;text-align:right;";
+                sz.textContent = kb(size) + " KB";
+                sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
+                const del = document.createElement("button");
+                del.textContent = "Clear";
+                del.title = `Delete all ${cat.label.toLowerCase()} data`;
+                del.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #5a2838;background:transparent;color:#b07888;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;";
+                del.addEventListener("mouseenter", () => { del.style.background = "#a02838"; del.style.borderColor = "#d04858"; del.style.color = "#fff"; });
+                del.addEventListener("mouseleave", () => { del.style.background = "transparent"; del.style.borderColor = "#5a2838"; del.style.color = "#b07888"; });
+                del.addEventListener("click", () => {
+                    showConfirmOverlay(
+                        `Delete ALL "${cat.label}" data (${kb(size)} KB)?
+
+This cannot be undone.`,
+                        "Cancel", "Delete",
+                        () => { clearDataCategory(cat); this.rerender(); },
+                    );
+                });
+                row.appendChild(nm);
+                row.appendChild(sz);
+                row.appendChild(del);
+                dataBody.appendChild(row);
+            }
+        };
+        dataBtn.addEventListener("click", () => {
+            dataOpen = !dataOpen;
+            try { localStorage.setItem("EBC_storageDataOpen", dataOpen ? "1" : "0"); } catch { /* ignore */ }
+            if (dataOpen) buildData();
+            paintDataBtn();
+        });
+        paintDataBtn();
+        if (dataOpen) buildData();
+        content.appendChild(dataBtn);
+        content.appendChild(dataBody);
 
         toggleBtn.addEventListener("click", () => {
             open = !open;

@@ -441,6 +441,65 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Stored-data manager -------------------------------------------------------
+// Every category of data EBC keeps on the account, so the Storage panel can show
+// what is taking up space and let the user clear any of it.
+
+export interface DataCategory { label: string; keys: string[] }
+
+export const EBC_DATA_CATEGORIES: DataCategory[] = [
+    { label: "Outfits",              keys: ["outfits"] },
+    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"] },
+    { label: "Action buttons",       keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"] },
+    { label: "Pose combos",          keys: ["poseCombos"] },
+    { label: "Scenes",               keys: ["scenes"] },
+    { label: "Expression presets",   keys: ["expressionPresets", "defaultExprPresetId"] },
+    { label: "Expression sequences", keys: ["expressionSequences"] },
+    { label: "Expression triggers",  keys: ["expressionTriggers"] },
+    { label: "Outfit tags",          keys: ["outfitTags"] },
+    { label: "Outfit schedules",     keys: ["outfitSchedules"] },
+    { label: "Colour palettes",      keys: ["palettes", "customColors"] },
+    { label: "User notes",           keys: ["characterNotes"] },
+    { label: "Friend tags",          keys: ["friendTags"] },
+    { label: "Name cache",           keys: ["friendNames", "friendAccountNames"] },
+    { label: "Beep history",         keys: ["beepHistory"] },
+    { label: "Beep groups",          keys: ["groups"] },
+    { label: "Quick replies",        keys: ["quickReplies"] },
+    { label: "People met",           keys: ["peopleMet"] },
+    { label: "Last seen / since",    keys: ["lastSeen", "friendSince", "lastSeenMigrated"] },
+    { label: "Stars & watchlist",    keys: ["specialFriends", "pinnedFriends", "onlineWatchList"] },
+    { label: "Achievements",         keys: ["achievements"] },
+    { label: "Barks",                keys: ["barks"] },
+    { label: "Favorite rooms",       keys: ["favoriteRooms"] },
+    { label: "Restraint timers",     keys: ["restraintTimers"] },
+    { label: "Dom config",           keys: ["domConfig"] },
+];
+
+/** Serialized size (chars ~ bytes) of one category's data. */
+export function getDataCategorySize(cat: DataCategory): number {
+    try {
+        const store = getSettings() as Record<string, unknown>;
+        let n = 0;
+        for (const k of cat.keys) {
+            const v = store[k];
+            if (v === undefined || v === null) continue;
+            n += JSON.stringify(v).length + k.length + 4;
+        }
+        return n;
+    } catch { return 0; }
+}
+
+/** Clears a category. Values are set to null rather than deleted: the settings
+ *  flush only COPIES keys to the server and never removes them, so a deleted key
+ *  would keep its old (large) server value. */
+export function clearDataCategory(cat: DataCategory): void {
+    try {
+        const store = getSettings() as Record<string, unknown>;
+        for (const k of cat.keys) store[k] = null;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Quick actions placement ---------------------------------------------------
 // false (default) = Release Restraints / Remove Locks / restraint picker stay
 // pinned above every tab. true = they move into the Buttons tab as their own

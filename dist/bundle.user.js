@@ -2987,6 +2987,62 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    const EBC_DATA_CATEGORIES = [
+        { label: "Outfits", keys: ["outfits"] },
+        { label: "Restraint sets", keys: ["restraints", "restraintPresets"] },
+        { label: "Action buttons", keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"] },
+        { label: "Pose combos", keys: ["poseCombos"] },
+        { label: "Scenes", keys: ["scenes"] },
+        { label: "Expression presets", keys: ["expressionPresets", "defaultExprPresetId"] },
+        { label: "Expression sequences", keys: ["expressionSequences"] },
+        { label: "Expression triggers", keys: ["expressionTriggers"] },
+        { label: "Outfit tags", keys: ["outfitTags"] },
+        { label: "Outfit schedules", keys: ["outfitSchedules"] },
+        { label: "Colour palettes", keys: ["palettes", "customColors"] },
+        { label: "User notes", keys: ["characterNotes"] },
+        { label: "Friend tags", keys: ["friendTags"] },
+        { label: "Name cache", keys: ["friendNames", "friendAccountNames"] },
+        { label: "Beep history", keys: ["beepHistory"] },
+        { label: "Beep groups", keys: ["groups"] },
+        { label: "Quick replies", keys: ["quickReplies"] },
+        { label: "People met", keys: ["peopleMet"] },
+        { label: "Last seen / since", keys: ["lastSeen", "friendSince", "lastSeenMigrated"] },
+        { label: "Stars & watchlist", keys: ["specialFriends", "pinnedFriends", "onlineWatchList"] },
+        { label: "Achievements", keys: ["achievements"] },
+        { label: "Barks", keys: ["barks"] },
+        { label: "Favorite rooms", keys: ["favoriteRooms"] },
+        { label: "Restraint timers", keys: ["restraintTimers"] },
+        { label: "Dom config", keys: ["domConfig"] },
+    ];
+    /** Serialized size (chars ~ bytes) of one category's data. */
+    function getDataCategorySize(cat) {
+        try {
+            const store = getSettings();
+            let n = 0;
+            for (const k of cat.keys) {
+                const v = store[k];
+                if (v === undefined || v === null)
+                    continue;
+                n += JSON.stringify(v).length + k.length + 4;
+            }
+            return n;
+        }
+        catch (_a) {
+            return 0;
+        }
+    }
+    /** Clears a category. Values are set to null rather than deleted: the settings
+     *  flush only COPIES keys to the server and never removes them, so a deleted key
+     *  would keep its old (large) server value. */
+    function clearDataCategory(cat) {
+        try {
+            const store = getSettings();
+            for (const k of cat.keys)
+                store[k] = null;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Quick actions placement ---------------------------------------------------
     // false (default) = Release Restraints / Remove Locks / restraint picker stay
     // pinned above every tab. true = they move into the Buttons tab as their own
@@ -16331,6 +16387,77 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 buildManage();
             content.appendChild(manageBtn);
             content.appendChild(manageBody);
+            // ── All stored EBC data - every category, biggest first, clearable ───
+            let dataOpen = false;
+            try {
+                dataOpen = localStorage.getItem("EBC_storageDataOpen") === "1";
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            const dataBtn = document.createElement("button");
+            dataBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+            const dataBody = document.createElement("div");
+            dataBody.style.cssText = "margin-top:5px;";
+            const paintDataBtn = () => {
+                dataBtn.textContent = (dataOpen ? "▼" : "▶") + " All stored EBC data";
+                dataBody.style.display = dataOpen ? "block" : "none";
+            };
+            const buildData = () => {
+                while (dataBody.firstChild)
+                    dataBody.removeChild(dataBody.firstChild);
+                const rows = EBC_DATA_CATEGORIES
+                    .map(cat => ({ cat, size: getDataCategorySize(cat) }))
+                    .filter(r => r.size > 0)
+                    .sort((a, b) => b.size - a.size);
+                if (rows.length === 0) {
+                    const none = document.createElement("div");
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                    none.textContent = "No stored data yet.";
+                    dataBody.appendChild(none);
+                    return;
+                }
+                const total = rows.reduce((n, r) => n + r.size, 0);
+                for (const { cat, size } of rows) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                    nm.textContent = cat.label;
+                    const sz = document.createElement("span");
+                    sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;min-width:52px;text-align:right;";
+                    sz.textContent = kb(size) + " KB";
+                    sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
+                    const del = document.createElement("button");
+                    del.textContent = "Clear";
+                    del.title = `Delete all ${cat.label.toLowerCase()} data`;
+                    del.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #5a2838;background:transparent;color:#b07888;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;";
+                    del.addEventListener("mouseenter", () => { del.style.background = "#a02838"; del.style.borderColor = "#d04858"; del.style.color = "#fff"; });
+                    del.addEventListener("mouseleave", () => { del.style.background = "transparent"; del.style.borderColor = "#5a2838"; del.style.color = "#b07888"; });
+                    del.addEventListener("click", () => {
+                        showConfirmOverlay(`Delete ALL "${cat.label}" data (${kb(size)} KB)?
+
+This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); this.rerender(); });
+                    });
+                    row.appendChild(nm);
+                    row.appendChild(sz);
+                    row.appendChild(del);
+                    dataBody.appendChild(row);
+                }
+            };
+            dataBtn.addEventListener("click", () => {
+                dataOpen = !dataOpen;
+                try {
+                    localStorage.setItem("EBC_storageDataOpen", dataOpen ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                if (dataOpen)
+                    buildData();
+                paintDataBtn();
+            });
+            paintDataBtn();
+            if (dataOpen)
+                buildData();
+            content.appendChild(dataBtn);
+            content.appendChild(dataBody);
             toggleBtn.addEventListener("click", () => {
                 open = !open;
                 try {
@@ -37948,7 +38075,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 202; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 203; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38020,6 +38147,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
                 "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
                 "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
                 "New drawer option (DEV → Drawer → 'Restraint buttons'): move Release Restraints / Remove Locks / the restraint picker off the permanently-pinned strip and into the Buttons tab as their own pill, freeing that space on every other tab. Toggling applies instantly without a reload, and 'Always on top' restores the original behaviour.",
