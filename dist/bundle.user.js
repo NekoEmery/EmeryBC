@@ -6595,32 +6595,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         let actGroup;
         let actName;
         for (const item of dict) {
-            // Target
-            if ("TargetCharacter" in item && typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
+            // ── Target ────────────────────────────────────────────────────────────
+            // BC R128+ sends a PLAIN NUMBER property: { TargetCharacter: 114395 }.
+            // Older/alternate shapes: an object with .MemberNumber, or a Tag entry.
+            if (typeof item.TargetCharacter === "number") {
+                targetNum = item.TargetCharacter;
+            }
+            else if (typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
                 targetNum = item.TargetCharacter.MemberNumber;
+            }
+            if (typeof item.DestinationCharacter === "number") {
+                targetNum = item.DestinationCharacter;
+            }
+            else if (typeof item.DestinationCharacter === "object" && item.DestinationCharacter !== null) {
+                targetNum = item.DestinationCharacter.MemberNumber;
             }
             if (item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") {
                 if (typeof item.MemberNumber === "number")
                     targetNum = item.MemberNumber;
             }
-            // Source
-            if ("SourceCharacter" in item && typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
+            // ── Source ────────────────────────────────────────────────────────────
+            if (typeof item.SourceCharacter === "number") {
+                sourceNum = item.SourceCharacter;
+            }
+            else if (typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
                 sourceNum = item.SourceCharacter.MemberNumber;
             }
             if (item.Tag === "SourceCharacter") {
                 if (typeof item.MemberNumber === "number")
                     sourceNum = item.MemberNumber;
             }
-            // Asset group
+            // ── Asset group ───────────────────────────────────────────────────────
+            // BC R128+ uses { Tag: "FocusAssetGroup", FocusGroupName: "ItemButt" }.
+            if (typeof item.FocusGroupName === "string")
+                actGroup = item.FocusGroupName;
             if (typeof item.ActivityAssetGroup === "string")
                 actGroup = item.ActivityAssetGroup;
             if (item.Tag === "AssetGroupName" && typeof item.AssetGroupName === "string")
                 actGroup = item.AssetGroupName;
-            // Activity name
+            // ── Activity name ─────────────────────────────────────────────────────
+            // BC R128+ sends { ActivityName: "Spank" } with NO Tag.
+            if (typeof item.ActivityName === "string")
+                actName = item.ActivityName;
             if (typeof item.ActivityAsset === "string")
                 actName = item.ActivityAsset;
-            if (item.Tag === "ActivityName" && typeof item.ActivityName === "string")
-                actName = item.ActivityName;
         }
         return { targetNum, sourceNum, actGroup, actName };
     }
@@ -6650,10 +6668,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function setAchievementsOptedOut(off) {
         try {
             const s = getSettings();
-            if (off)
-                s.achievementsOff = true;
-            else
-                delete s.achievementsOff;
+            // Write false rather than deleting: the settings flush only COPIES keys
+            // to the server object, it never removes them - so a deleted key keeps
+            // its old server value and comes back as "opted out" on the next login.
+            s.achievementsOff = off;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -6786,6 +6804,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const act = actName.toLowerCase();
+            // Diagnostic: shows the exact activity name BC/addons send, so an
+            // achievement that never moves can be traced in one step.
+            try {
+                console.debug(`[EBC] activity "${actName}" src=${sourceNum} tgt=${targetNum}`);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 // Done TO you
                 if (act.includes("pet"))
@@ -6838,7 +6862,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     bump("tickle_give");
             }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     /** Feed an item-apply action: source put an item (in group) on target. */
     function achievementOnItemApply(sourceNum, targetNum, group) {
@@ -37217,7 +37241,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 189; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 190; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37290,6 +37314,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
                 "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
+                "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
+                "Fix: turning achievements back ON didn't stick - after a relog you were opted out again, which also froze all tracking. Root cause: opting back in DELETED the setting key, but the settings flush only copies keys to the server and never removes them, so the old 'opted out' value survived and was reloaded at login. Fix: the flag is now written as an explicit true/false.",
                 "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
@@ -45855,12 +45881,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Shared achievement plaques render for EVERY EBC user - and suppress the
         // plain emote fallback that non-EBC clients see.
         modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
-            var _a, _b, _c;
+            var _a;
             try {
                 if (handleAchievementShareMessage(args[0]))
                     return;
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             const _r = next(args);
             try {
                 if (!isAchievementUser(Player.MemberNumber))
@@ -45871,30 +45897,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const dict = Array.isArray(data.Dictionary)
                     ? data.Dictionary
                     : [];
-                const { targetNum, sourceNum, actName } = parseXToysActivity(dict);
+                // One parser for both paths - it understands every dictionary shape
+                // BC has used (plain-number SourceCharacter, Tag entries, objects).
+                const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                const content = String((_a = data.Content) !== null && _a !== void 0 ? _a : "");
                 if (actName) {
                     achievementOnActivity(sourceNum, targetNum, actName);
                 }
-                else {
-                    const content = String((_a = data.Content) !== null && _a !== void 0 ? _a : "");
-                    if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
-                        let src, tgt, grp;
-                        for (const item of dict) {
-                            if (item.Tag === "SourceCharacter" && typeof item.MemberNumber === "number")
-                                src = item.MemberNumber;
-                            if ((item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") && typeof item.MemberNumber === "number")
-                                tgt = item.MemberNumber;
-                            if (item.Tag === "FocusAssetGroup") {
-                                const g = (_c = (_b = item.FocusGroupName) !== null && _b !== void 0 ? _b : item.GroupName) !== null && _c !== void 0 ? _c : item.AssetGroupName;
-                                if (typeof g === "string")
-                                    grp = g;
-                            }
-                        }
-                        achievementOnItemApply(src, tgt, grp);
-                    }
+                else if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
+                    achievementOnItemApply(sourceNum, targetNum, actGroup);
                 }
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return _r;
         });
         tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {

@@ -25,7 +25,10 @@ export function isAchievementsOptedOut(): boolean {
 export function setAchievementsOptedOut(off: boolean): void {
     try {
         const s = getSettings() as Record<string, unknown>;
-        if (off) s.achievementsOff = true; else delete s.achievementsOff;
+        // Write false rather than deleting: the settings flush only COPIES keys
+        // to the server object, it never removes them - so a deleted key keeps
+        // its old server value and comes back as "opted out" on the next login.
+        s.achievementsOff = off;
         syncSettings();
     } catch { /* ignore */ }
 }
@@ -177,6 +180,9 @@ export function achievementOnActivity(
         if (!isAchievementUser(Player?.MemberNumber) || !actName) return;
         const me = Player.MemberNumber ?? 0;
         const act = actName.toLowerCase();
+        // Diagnostic: shows the exact activity name BC/addons send, so an
+        // achievement that never moves can be traced in one step.
+        try { console.debug(`[EBC] activity "${actName}" src=${sourceNum} tgt=${targetNum}`); } catch { /* ignore */ }
 
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             // Done TO you

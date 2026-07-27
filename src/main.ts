@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 189;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 190;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -103,6 +103,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
             "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
+            "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
+            "Fix: turning achievements back ON didn't stick - after a relog you were opted out again, which also froze all tracking. Root cause: opting back in DELETED the setting key, but the settings flush only copies keys to the server and never removes them, so the old 'opted out' value survived and was reloaded at login. Fix: the flag is now written as an explicit true/false.",
             "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
@@ -8446,25 +8448,14 @@ function init(): void {
             const dict = Array.isArray(data.Dictionary)
                 ? data.Dictionary as Record<string, unknown>[]
                 : [];
-            const { targetNum, sourceNum, actName } = parseXToysActivity(dict);
+            // One parser for both paths - it understands every dictionary shape
+            // BC has used (plain-number SourceCharacter, Tag entries, objects).
+            const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+            const content = String(data.Content ?? "");
             if (actName) {
                 achievementOnActivity(sourceNum, targetNum, actName);
-            } else {
-                const content = String(data.Content ?? "");
-                if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
-                    let src: number | undefined, tgt: number | undefined, grp: string | undefined;
-                    for (const item of dict) {
-                        if (item.Tag === "SourceCharacter" && typeof item.MemberNumber === "number") src = item.MemberNumber;
-                        if ((item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") && typeof item.MemberNumber === "number") tgt = item.MemberNumber;
-                        if (item.Tag === "FocusAssetGroup") {
-                            const g = (item as Record<string, unknown>).FocusGroupName
-                                ?? (item as Record<string, unknown>).GroupName
-                                ?? (item as Record<string, unknown>).AssetGroupName;
-                            if (typeof g === "string") grp = g;
-                        }
-                    }
-                    achievementOnItemApply(src, tgt, grp);
-                }
+            } else if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
+                achievementOnItemApply(sourceNum, targetNum, actGroup);
             }
         } catch { /* ignore */ }
         return _r;
