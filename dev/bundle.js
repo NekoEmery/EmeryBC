@@ -751,7 +751,8 @@
         "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
         "ItemMouth", "ItemMouth2", "ItemMouth3", "ItemMouthAccessory", "ItemHead", "ItemHood",
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
-        "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
+        "ItemPelvis", "ItemVulva", "ItemVulvaPiercings", "ItemButt", "ItemBreast",
+        "ItemNipples", "ItemNipplesPiercings", "ItemHandheld",
         "ItemTorso", "ItemTorso2", "ItemBody",
         "ItemDevices", // cages, kennels, lockers, X-crosses, wooden boxes
         "ItemAddon", // ceiling ropes, ceiling chains
@@ -803,9 +804,40 @@
     let outfitApplyPending = false;
     let refreshScheduled = false;
     let cachedOutfits = null;
+    // -- Local (device) storage ---------------------------------------------------
+    // Outfits/restraint sets flagged local:true live in localStorage instead of the
+    // BC account: they use no account storage (so no server budget / relog risk)
+    // and are visible to EVERY account logged in from this browser.
+    const LOCAL_OUTFITS_KEY = "EBC_localOutfits";
+    const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+    function readLocalList(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw)
+                return [];
+            const v = JSON.parse(raw);
+            return Array.isArray(v)
+                ? v.map(o => sanitizeOutfit(Object.assign(Object.assign({}, o), { local: true })))
+                : [];
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function writeLocalList(key, list) {
+        try {
+            localStorage.setItem(key, JSON.stringify(list.map(sanitizeOutfit)));
+            return true;
+        }
+        catch (_a) {
+            localNotice$2("This device's outfit storage is full (browser quota) - not saved.", "#ff8a8a");
+            return false;
+        }
+    }
     function loadOutfitsFromSettings() {
         const list = getSettings().outfits;
-        const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        const account = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        const outfits = [...account, ...readLocalList(LOCAL_OUTFITS_KEY)];
         cachedOutfits = outfits;
         return outfits;
     }
@@ -833,21 +865,26 @@
     // unbounded growth eventually blows BC's ~180 KB account cap and the server
     // starts dropping the connection on every sync (infinite relog loop).
     const OUTFITS_BUDGET = 60000;
-    /** Persists the outfit list. Returns false (and keeps the previous list) when
-     *  the serialized outfits would exceed the storage budget. */
+    /** Persists the outfit list. Account-stored outfits go to the BC account (60 KB
+     *  budget); local:true outfits go to this device's localStorage. Returns false
+     *  (keeping the previous list) when the account part would exceed the budget. */
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
+        const account = sanitized.filter(o => !o.local);
+        const localList = sanitized.filter(o => o.local === true);
         try {
-            const size = JSON.stringify(sanitized).length;
+            const size = JSON.stringify(account).length;
             if (size > OUTFITS_BUDGET) {
-                localNotice$2(`Outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
-                    "Not saved - delete some outfits first. Outfits with many crafted items are the biggest.", "#ff8a8a");
+                localNotice$2(`Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                    "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).", "#ff8a8a");
                 return false;
             }
         }
         catch ( /* size check best-effort */_a) { /* size check best-effort */ }
+        if (!writeLocalList(LOCAL_OUTFITS_KEY, localList))
+            return false;
         cachedOutfits = sanitized;
-        getSettings().outfits = sanitized;
+        getSettings().outfits = account;
         syncSettings();
         return true;
     }
@@ -935,6 +972,7 @@
             // null = no expression change; string = preset ID to apply when worn
             expressionPresetId: typeof outfit.expressionPresetId === "string" && outfit.expressionPresetId ? outfit.expressionPresetId : null,
             items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
+            local: outfit.local === true ? true : undefined,
         };
     }
     function sanitizeLiveAppearance() {
@@ -1380,9 +1418,14 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
-        if (!saveOutfits([...existing, outfit]))
-            throw new Error("Outfit storage is full - delete some outfits first.");
+        let outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
+        if (!saveOutfits([...existing, outfit])) {
+            // Account storage full - fall back to this-device storage automatically.
+            outfit = sanitizeOutfit(Object.assign(Object.assign({}, outfit), { local: true }));
+            if (!saveOutfits([...existing, outfit]))
+                throw new Error("Outfit storage is full - delete some outfits first.");
+            localNotice$2(`Account storage full - "${outfit.displayName}" saved to THIS DEVICE instead (💾).`, "#e8c04a");
+        }
         localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
@@ -1441,7 +1484,8 @@
     let cachedRestraints = null;
     function loadRestraintsFromSettings() {
         const list = getSettings().restraints;
-        const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        const account = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        const restraints = [...account, ...readLocalList(LOCAL_RESTRAINTS_KEY)];
         cachedRestraints = restraints;
         return restraints;
     }
@@ -1450,9 +1494,23 @@
     }
     function saveRestraints(list) {
         const sanitized = list.map(sanitizeOutfit);
+        const account = sanitized.filter(o => !o.local);
+        const localList = sanitized.filter(o => o.local === true);
+        try {
+            const size = JSON.stringify(account).length;
+            if (size > OUTFITS_BUDGET) {
+                localNotice$2(`Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                    "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).", "#ff8a8a");
+                return false;
+            }
+        }
+        catch ( /* size check best-effort */_a) { /* size check best-effort */ }
+        if (!writeLocalList(LOCAL_RESTRAINTS_KEY, localList))
+            return false;
         cachedRestraints = sanitized;
-        getSettings().restraints = sanitized;
+        getSettings().restraints = account;
         syncSettings();
+        return true;
     }
     function captureRestraints() {
         return Player.Appearance
@@ -1743,10 +1801,16 @@
             expressionPresetId: null,
             items,
         });
-        if (!saveOutfits([...existing, outfit]))
-            throw new Error("Outfit storage is full - delete some outfits first.");
-        localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
-        return outfit;
+        let saved = outfit;
+        if (!saveOutfits([...existing, saved])) {
+            // Account storage full - fall back to this-device storage automatically.
+            saved = sanitizeOutfit(Object.assign(Object.assign({}, outfit), { local: true }));
+            if (!saveOutfits([...existing, saved]))
+                throw new Error("Outfit storage is full - delete some outfits first.");
+            localNotice$2(`Account storage full - "${saved.displayName}" saved to THIS DEVICE instead (💾).`, "#e8c04a");
+        }
+        localNotice$2(`Imported "${saved.displayName}" (/${saved.command}) — ${items.length} item(s).`);
+        return saved;
     }
 
     // Color palette manager — capture the full color map of your current
@@ -2833,152 +2897,6 @@
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function getFavoriteRooms() {
-        var _a;
-        try {
-            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.favoriteRooms;
-            if (!Array.isArray(v))
-                return [];
-            return v.map((e) => {
-                if (typeof e === "string")
-                    return e.trim() ? { name: e.trim() } : null;
-                if (e && typeof e === "object" && typeof e.name === "string" && (e.name).trim()) {
-                    return e;
-                }
-                return null;
-            }).filter((x) => x !== null);
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function setFavoriteRooms(rooms) {
-        try {
-            getSettings().favoriteRooms = rooms.slice(0, 30);
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // Auto-refresh: while the player is inside a favorited room, its saved snapshot
-    // silently keeps itself up to date (description edits, admin changes, new
-    // background...). Throttled, and only writes when something actually changed so
-    // the server sync isn't spammed.
-    let _lastFavSnapshotCheck = 0;
-    function autoUpdateFavoriteSnapshot(force = false) {
-        try {
-            const now = Date.now();
-            if (!force && now - _lastFavSnapshotCheck < 30000)
-                return;
-            _lastFavSnapshotCheck = now;
-            const snap = captureCurrentRoomSnapshot();
-            if (!snap) {
-                if (force)
-                    try {
-                        console.info("[EBC] Snapshot check: no room data (not in a room?)");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                return;
-            }
-            const favs = getFavoriteRooms();
-            const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
-            if (idx === -1) {
-                if (force)
-                    try {
-                        console.info(`[EBC] Snapshot check: room "${snap.name}" is not in favorites`);
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                return;
-            }
-            // Compare without the volatile savedAt stamp - identical rooms mean no write.
-            const stored = JSON.stringify(Object.assign(Object.assign({}, favs[idx]), { savedAt: 0 }));
-            const fresh = JSON.stringify(Object.assign(Object.assign({}, snap), { savedAt: 0 }));
-            if (stored === fresh) {
-                if (force)
-                    try {
-                        console.info(`[EBC] Snapshot check: "${snap.name}" unchanged`);
-                    }
-                    catch ( /* ignore */_c) { /* ignore */ }
-                return;
-            }
-            favs[idx] = snap;
-            setFavoriteRooms(favs);
-            try {
-                console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap)));
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-        }
-        catch (err) {
-            try {
-                console.warn("[EBC] Snapshot check failed:", err);
-            }
-            catch ( /* ignore */_e) { /* ignore */ }
-        }
-    }
-    /** Snapshots the current room's full settings for later rebuild.
-     *  Returns null when not in a room (no ChatRoomData). */
-    function captureCurrentRoomSnapshot() {
-        try {
-            const w = window;
-            const d = w.ChatRoomData;
-            if (!d || typeof d.Name !== "string" || !d.Name.trim())
-                return null;
-            const str = (x) => typeof x === "string" ? x : undefined;
-            const num = (x) => typeof x === "number" ? x : undefined;
-            const numArr = (x) => Array.isArray(x) ? x.filter((n) => typeof n === "number") : undefined;
-            const strArr = (x) => Array.isArray(x) ? x.filter((v) => typeof v === "string") : undefined;
-            const out = { name: d.Name.trim() };
-            const desc = str(d.Description);
-            if (desc !== undefined)
-                out.description = desc.slice(0, 300);
-            const bg = str(d.Background);
-            if (bg !== undefined)
-                out.background = bg;
-            const lim = num(d.Limit);
-            if (lim !== undefined)
-                out.limit = lim;
-            const adm = numArr(d.Admin);
-            if (adm)
-                out.admin = adm.slice(0, 50);
-            const ban = numArr(d.Ban);
-            if (ban)
-                out.ban = ban.slice(0, 100);
-            const wl = numArr(d.Whitelist);
-            if (wl)
-                out.whitelist = wl.slice(0, 100);
-            const bc = strArr(d.BlockCategory);
-            if (bc)
-                out.blockCategory = bc;
-            const game = str(d.Game);
-            if (game !== undefined)
-                out.game = game;
-            const lang = str(d.Language);
-            if (lang !== undefined)
-                out.language = lang;
-            const spc = str(d.Space);
-            if (spc !== undefined)
-                out.space = spc;
-            if (d.Visibility !== undefined)
-                out.visibility = d.Visibility;
-            if (d.Access !== undefined)
-                out.access = d.Access;
-            if (d.Custom !== undefined)
-                out.custom = d.Custom;
-            // Map tile data can be huge - only keep it when it stays well under the
-            // ExtensionSettings size budget.
-            if (d.MapData !== undefined) {
-                try {
-                    if (JSON.stringify(d.MapData).length <= 20000)
-                        out.mapData = d.MapData;
-                }
-                catch ( /* skip */_a) { /* skip */ }
-            }
-            out.savedAt = Date.now();
-            return out;
-        }
-        catch (_b) {
-            return null;
-        }
     }
     // -- Quick replies -------------------------------------------------------------
     // Configurable one-click phrases shown as buttons inside beep windows.
@@ -5623,28 +5541,57 @@
     // The queue is persisted to localStorage so it survives page reloads (48h TTL).
     const pendingOfflineMessages = new Map();
     const pendingOfflineQueuedAt = new Map(); // first-queued timestamp per member
-    const OFFLINE_QUEUE_LS_KEY = "EBC_offlineQueue";
+    // The queue key is scoped per account: localStorage is shared by every BC
+    // account in this browser, and a shared queue made a SECOND account re-deliver
+    // the first account's messages under its own name (wrong sender shown).
+    const OFFLINE_QUEUE_LS_BASE = "EBC_offlineQueue";
     const OFFLINE_QUEUE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+    function offlineQueueKey() {
+        try {
+            const num = typeof Player !== "undefined" ? Player === null || Player === void 0 ? void 0 : Player.MemberNumber : undefined;
+            return typeof num === "number" && num > 0 ? `${OFFLINE_QUEUE_LS_BASE}_${num}` : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
     function persistOfflineQueue() {
         var _a;
         try {
+            const key = offlineQueueKey();
+            if (!key)
+                return; // not logged in yet - nothing to persist
             const obj = {};
             for (const [num, msgs] of pendingOfflineMessages) {
                 obj[String(num)] = { messages: msgs, ts: (_a = pendingOfflineQueuedAt.get(num)) !== null && _a !== void 0 ? _a : Date.now() };
             }
             if (Object.keys(obj).length === 0) {
-                localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+                localStorage.removeItem(key);
             }
             else {
-                localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+                localStorage.setItem(key, JSON.stringify(obj));
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // Restore persisted offline queue on module load — discard entries older than 48h.
+    // Restore the persisted offline queue - retries until the player is logged in
+    // (the per-account key needs Player.MemberNumber). Entries older than 48h are
+    // discarded. The old shared key is migrated once, to whichever account logs in
+    // first, then deleted so a second account can never re-deliver it.
     void (function restoreOfflineQueue() {
         try {
-            const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+            const key = offlineQueueKey();
+            if (!key) {
+                setTimeout(restoreOfflineQueue, 2000);
+                return;
+            }
+            const legacy = localStorage.getItem(OFFLINE_QUEUE_LS_BASE);
+            if (legacy) {
+                if (!localStorage.getItem(key))
+                    localStorage.setItem(key, legacy);
+                localStorage.removeItem(OFFLINE_QUEUE_LS_BASE);
+            }
+            const raw = localStorage.getItem(key);
             if (!raw)
                 return;
             const parsed = JSON.parse(raw);
@@ -12419,7 +12366,6 @@
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
             this.friendRoomsCollapsed = false;
-            this.favRoomsCollapsed = false;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
             this.friendSearch = ""; // live search query - not persisted
             // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -16884,9 +16830,17 @@
             const nameInAnnounceBtn = document.createElement("button");
             nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
             nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
+            const isLocalStore = o.local === true;
+            const storageBtn = document.createElement("button");
+            storageBtn.className = "ebc-flag-chip" + (isLocalStore ? " on" : "");
+            storageBtn.textContent = isLocalStore ? "💾 This device" : "☁ Account";
+            storageBtn.title = isLocalStore
+                ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+                : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
             flagsRow.appendChild(preserveBtn);
             flagsRow.appendChild(preserveClothingBtn);
             flagsRow.appendChild(nameInAnnounceBtn);
+            flagsRow.appendChild(storageBtn);
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
             info.appendChild(flagsRow);
@@ -17116,6 +17070,11 @@
                 nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
                 nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
                 setOutfitNameInAnnounce(o.id, next);
+            });
+            storageBtn.addEventListener("click", () => {
+                const next = !storageBtn.classList.contains("on");
+                if (setOutfitStorage(o.id, next))
+                    this.rerender();
             });
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
@@ -17909,6 +17868,19 @@
                 setOutfitNameInAnnounce(r.id, next);
             });
             rFlagsRow.appendChild(rNameInAnnounceBtn);
+            const rIsLocalStore = r.local === true;
+            const rStorageBtn = document.createElement("button");
+            rStorageBtn.className = "ebc-flag-chip" + (rIsLocalStore ? " on" : "");
+            rStorageBtn.textContent = rIsLocalStore ? "💾 This device" : "☁ Account";
+            rStorageBtn.title = rIsLocalStore
+                ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+                : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
+            rStorageBtn.addEventListener("click", () => {
+                const next = !rStorageBtn.classList.contains("on");
+                if (setRestraintStorage(r.id, next))
+                    rerender();
+            });
+            rFlagsRow.appendChild(rStorageBtn);
             info.appendChild(rFlagsRow);
             if (r.items.length === 0) {
                 const emptyHint = document.createElement("span");
@@ -22761,280 +22733,8 @@
                 }
             }, 80);
         }
-        /** Smart join for a favorite room: joins it when it's open; when the
-         *  server says it doesn't exist, recreates it from the saved snapshot
-         *  (background, description, admins, size...) via rebuildFavoriteRoom. */
-        joinOrRebuildFavorite(fav) {
-            var _a;
-            const w = window;
-            const sock = w.ServerSocket;
-            let cleanupTimer = null;
-            const cleanup = () => {
-                var _a;
-                if (cleanupTimer !== null) {
-                    window.clearTimeout(cleanupTimer);
-                    cleanupTimer = null;
-                }
-                try {
-                    (_a = sock === null || sock === void 0 ? void 0 : sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResponse", onResp);
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-            };
-            const onResp = (data) => {
-                var _a, _b, _c, _d;
-                try {
-                    console.info("[EBC] Favorite join response =", data);
-                }
-                catch ( /* ignore */_e) { /* ignore */ }
-                if (data === "CannotFindRoom") {
-                    cleanup();
-                    // Ask before recreating - and SHOW what the snapshot holds, so a
-                    // stale/default snapshot is obvious before the room gets created.
-                    const accessArr = Array.isArray(fav.access) && fav.access.every(x => typeof x === "string")
-                        ? fav.access : ["All"];
-                    const visArr = Array.isArray(fav.visibility) && fav.visibility.every(x => typeof x === "string")
-                        ? fav.visibility : ["All"];
-                    const desc = ((_a = fav.description) !== null && _a !== void 0 ? _a : "").trim();
-                    const summary = [
-                        `Background: ${(_b = fav.background) !== null && _b !== void 0 ? _b : "BrickWall (default)"}`,
-                        `Size: ${typeof fav.limit === "number" ? fav.limit : 10}`,
-                        `Admins: ${((_d = (_c = fav.admin) === null || _c === void 0 ? void 0 : _c.length) !== null && _d !== void 0 ? _d : 0) > 0 ? fav.admin.join(", ") : "(just you)"}`,
-                        `Visibility: ${visArr.length ? visArr.join("/") : "Unlisted"} · Access: ${accessArr.join("/")}`,
-                        desc ? `Description: "${desc.slice(0, 60)}${desc.length > 60 ? "…" : ""}"` : "Description: (empty)",
-                    ].join("\n");
-                    showConfirmOverlay(`"${fav.name}" is closed. Recreate it with the saved settings?\n\n${summary}\n\nIf this looks wrong, open the room, set it up, and press Save in the room admin - the favorite updates instantly.`, "Cancel", "Recreate", () => { try {
-                        this.rebuildFavoriteRoom(fav);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                }
-                else {
-                    // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
-                    cleanup();
-                }
-            };
-            try {
-                (_a = sock === null || sock === void 0 ? void 0 : sock.on) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomSearchResponse", onResp);
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-            cleanupTimer = window.setTimeout(cleanup, 10000);
-            try {
-                const joinFn = w.ChatRoomJoin;
-                if (typeof joinFn === "function") {
-                    try {
-                        joinFn(fav.name);
-                        return;
-                    }
-                    catch ( /* fall through */_c) { /* fall through */ }
-                }
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-            try {
-                ServerSend("ChatRoomJoin", { Name: fav.name });
-            }
-            catch ( /* ignore */_e) { /* ignore */ }
-        }
-        /** Recreates a favorited room from its saved snapshot.
-         *  The create carries ALL saved settings directly (description, background,
-         *  size, admin list, whitelist, bans, visibility, access/lock, custom
-         *  theme). Visibility/Access are guaranteed string arrays so BC R130's
-         *  client-side validation passes. 3s after entering, the actual room state
-         *  is compared against the snapshot and any field the server ignored is
-         *  corrected with a ChatRoomAdmin update (always carrying MapData - room
-         *  updates without it crash every client).
-         *  "RoomAlreadyExist" first tries joining; if that join then reports
-         *  CannotFindRoom the name is squatted by a ghost/private room, so the
-         *  create retries with a numbered suffix ("Name 2") like BC itself does.
-         *  Every step is logged to the console as [EBC] Rebuild. */
-        rebuildFavoriteRoom(fav) {
-            var _a, _b, _c, _d, _e;
-            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-            const strArr = (v) => Array.isArray(v) && v.every(x => typeof x === "string") ? v : null;
-            try {
-                console.info("[EBC] Rebuild: saved snapshot for", fav.name, JSON.parse(JSON.stringify(fav)));
-            }
-            catch ( /* ignore */_f) { /* ignore */ }
-            const baseName = fav.name.trim().slice(0, 20);
-            let attempt = 0; // 0 = original name, 1+ = numbered suffix
-            const currentName = () => {
-                if (attempt === 0)
-                    return baseName;
-                const suffix = " " + (attempt + 1);
-                return baseName.slice(0, Math.min(baseName.length, 20 - suffix.length)) + suffix;
-            };
-            const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-            if (me && !fullAdmin.includes(me))
-                fullAdmin.unshift(me);
-            // Server caps: Name 20 chars, Description 100, Limit 2-10.
-            const mkRoomSettings = (name) => {
-                var _a, _b, _c, _d, _e, _f, _g;
-                const p = {
-                    Name: name,
-                    Description: ((_a = fav.description) !== null && _a !== void 0 ? _a : "").trim().slice(0, 100),
-                    Background: (_b = fav.background) !== null && _b !== void 0 ? _b : "BrickWall",
-                    Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
-                    Admin: fullAdmin,
-                    Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
-                    Ban: Array.isArray(fav.ban) ? fav.ban : [],
-                    BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
-                    Game: (_c = fav.game) !== null && _c !== void 0 ? _c : "",
-                    Language: (_d = fav.language) !== null && _d !== void 0 ? _d : "EN",
-                    Space: (_e = fav.space) !== null && _e !== void 0 ? _e : "X",
-                    Visibility: (_f = strArr(fav.visibility)) !== null && _f !== void 0 ? _f : ["All"],
-                    Access: (_g = strArr(fav.access)) !== null && _g !== void 0 ? _g : ["All"],
-                };
-                if (fav.custom !== undefined)
-                    p.Custom = fav.custom;
-                return p;
-            };
-            const w = window;
-            const sock = w.ServerSocket;
-            // 3s after entering: compare the live room against the snapshot and push
-            // one corrective update if the server ignored anything from the create.
-            const verifyAndCorrect = (createdName) => {
-                var _a, _b, _c;
-                try {
-                    const d = w.ChatRoomData;
-                    if (!d || d.Name !== createdName)
-                        return;
-                    const want = mkRoomSettings(createdName);
-                    const differs = [];
-                    for (const key of ["Description", "Background", "Limit", "Admin", "Whitelist", "Ban", "BlockCategory", "Game", "Language", "Space", "Visibility", "Access"]) {
-                        const a = JSON.stringify((_a = want[key]) !== null && _a !== void 0 ? _a : null);
-                        const b = JSON.stringify((_b = d[key]) !== null && _b !== void 0 ? _b : null);
-                        if (a !== b)
-                            differs.push(`${key}: room=${b} saved=${a}`);
-                    }
-                    if (differs.length === 0) {
-                        console.info("[EBC] Rebuild: verify OK - room matches the snapshot");
-                        return;
-                    }
-                    console.info("[EBC] Rebuild: correcting fields the server ignored:", differs);
-                    const update = Object.assign(Object.assign({}, want), { 
-                        // Room UPDATES must always carry MapData - omitting it makes the
-                        // server null the room's map state, crashing every client.
-                        MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" } });
-                    ServerSend("ChatRoomAdmin", {
-                        MemberNumber: (_c = Player.ID) !== null && _c !== void 0 ? _c : 0,
-                        Room: update,
-                        Action: "Update",
-                    });
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-            };
-            let joinPending = false;
-            let cleanupTimer = null;
-            const cleanup = () => {
-                var _a, _b;
-                if (cleanupTimer !== null) {
-                    window.clearTimeout(cleanupTimer);
-                    cleanupTimer = null;
-                }
-                try {
-                    (_a = sock === null || sock === void 0 ? void 0 : sock.off) === null || _a === void 0 ? void 0 : _a.call(sock, "ChatRoomCreateResponse", onCreateResp);
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-                try {
-                    (_b = sock === null || sock === void 0 ? void 0 : sock.off) === null || _b === void 0 ? void 0 : _b.call(sock, "ChatRoomSearchResponse", onSearchResp);
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-            };
-            const doCreate = () => {
-                const p = mkRoomSettings(currentName());
-                if (fav.mapData !== undefined)
-                    p.MapData = fav.mapData;
-                try {
-                    console.info("[EBC] Rebuild: sending ChatRoomCreate", JSON.parse(JSON.stringify(p)));
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                try {
-                    ServerSend("ChatRoomCreate", p);
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-            };
-            const onCreateResp = (data) => {
-                try {
-                    console.info("[EBC] Rebuild: ChatRoomCreateResponse =", data);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                if (data === "ChatRoomCreated") {
-                    cleanup();
-                    this._showToyToast(`Rebuilt "${currentName()}" ✓`);
-                    const createdName = currentName();
-                    window.setTimeout(() => verifyAndCorrect(createdName), 3000);
-                }
-                else if (data === "RoomAlreadyExist") {
-                    // Maybe it is genuinely open - try joining. If the join comes back
-                    // CannotFindRoom the name is squatted by a ghost/private room.
-                    joinPending = true;
-                    this._showToyToast(`"${currentName()}" name is taken - trying to join it`);
-                    window.setTimeout(() => { try {
-                        ServerSend("ChatRoomJoin", { Name: currentName() });
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } }, 400);
-                }
-                else {
-                    cleanup();
-                    this._showToyToast(`Rebuild failed (${String(data)})`);
-                }
-            };
-            const onSearchResp = (data) => {
-                if (!joinPending)
-                    return;
-                try {
-                    console.info("[EBC] Rebuild: join response =", data);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                if (data === "CannotFindRoom") {
-                    joinPending = false;
-                    attempt++;
-                    if (attempt <= 5) {
-                        this._showToyToast(`Name blocked by a hidden room - rebuilding as "${currentName()}"`);
-                        window.setTimeout(doCreate, 600);
-                    }
-                    else {
-                        cleanup();
-                        this._showToyToast("Rebuild failed - the room name is stuck on the server");
-                    }
-                }
-                else if (data === "RoomFull" || data === "RoomLocked" || data === "RoomBanned" || data === "RoomKicked") {
-                    joinPending = false;
-                    cleanup();
-                    this._showToyToast(`Room exists but can't be joined (${String(data)})`);
-                }
-                else {
-                    // JoinedRoom (or anything else) - we're entering, all done.
-                    joinPending = false;
-                    cleanup();
-                }
-            };
-            try {
-                (_b = sock === null || sock === void 0 ? void 0 : sock.on) === null || _b === void 0 ? void 0 : _b.call(sock, "ChatRoomCreateResponse", onCreateResp);
-            }
-            catch ( /* ignore */_g) { /* ignore */ }
-            try {
-                (_c = sock === null || sock === void 0 ? void 0 : sock.on) === null || _c === void 0 ? void 0 : _c.call(sock, "ChatRoomSearchResponse", onSearchResp);
-            }
-            catch ( /* ignore */_h) { /* ignore */ }
-            cleanupTimer = window.setTimeout(cleanup, 30000);
-            this._showToyToast(`Rebuilding "${baseName}"…`);
-            this.close();
-            if (w.CurrentScreen === "ChatRoom") {
-                try {
-                    (_d = w.ChatRoomLeave) === null || _d === void 0 ? void 0 : _d.call(w);
-                }
-                catch ( /* ignore */_j) { /* ignore */ }
-                try {
-                    (_e = w.CommonSetScreen) === null || _e === void 0 ? void 0 : _e.call(w, "Online", "ChatSearch");
-                }
-                catch ( /* ignore */_k) { /* ignore */ }
-                window.setTimeout(doCreate, 1200);
-            }
-            else {
-                doCreate();
-            }
-        }
         renderFriendRows(body) {
-            var _a, _b, _c;
+            var _a, _b;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -23077,7 +22777,7 @@
                     try {
                         this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
                     }
-                    catch ( /* ignore */_d) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
@@ -23368,152 +23068,6 @@
                     }
                 }
             }
-            // ── Favorite rooms - user-saved rooms with one-click join ─────────────
-            {
-                // If we're standing in a favorited room, re-capture it right now so the
-                // list (and the Recreate dialog) can never show stale data.
-                try {
-                    autoUpdateFavoriteSnapshot(true);
-                }
-                catch ( /* ignore */_e) { /* ignore */ }
-                const favs = getFavoriteRooms();
-                const curRoom = getCurrentRoomName();
-                const divFav = document.createElement("div");
-                divFav.className = "ebc-divider";
-                body.appendChild(divFav);
-                try {
-                    this.favRoomsCollapsed = localStorage.getItem("EBC_favRoomsCollapsed") === "1";
-                }
-                catch ( /* ignore */_f) { /* ignore */ }
-                const favContainer = document.createElement("div");
-                const favToggle = document.createElement("div");
-                const updateFavToggle = () => {
-                    const col = this.favRoomsCollapsed;
-                    favToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
-                    favToggle.innerHTML = "";
-                    const arrow = document.createElement("span");
-                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
-                    arrow.textContent = col ? "▶" : "▼";
-                    const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                    lbl.textContent = "Favorite rooms";
-                    const cnt = document.createElement("span");
-                    cnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e8b4c4;background:rgba(192,100,130,0.18);border:1px solid rgba(192,100,130,0.35);border-radius:10px;padding:0 7px;line-height:16px;min-width:18px;text-align:center;flex-shrink:0;";
-                    cnt.textContent = String(favs.length);
-                    favToggle.appendChild(arrow);
-                    favToggle.appendChild(lbl);
-                    favToggle.appendChild(cnt);
-                    favContainer.style.display = col ? "none" : "block";
-                };
-                updateFavToggle();
-                favToggle.addEventListener("click", () => {
-                    this.favRoomsCollapsed = !this.favRoomsCollapsed;
-                    try {
-                        localStorage.setItem("EBC_favRoomsCollapsed", this.favRoomsCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateFavToggle();
-                });
-                for (const fav of favs) {
-                    const rn = fav.name;
-                    const card = document.createElement("div");
-                    card.className = "ebc-friend-rooms-card";
-                    const head = document.createElement("div");
-                    head.className = "ebc-friend-rooms-head";
-                    const ic = document.createElement("span");
-                    ic.className = "ebc-friend-rooms-icon";
-                    ic.textContent = "⭐";
-                    const nm = document.createElement("span");
-                    nm.className = "ebc-friend-rooms-name";
-                    nm.textContent = rn;
-                    {
-                        const bits = [rn];
-                        if (fav.description)
-                            bits.push(fav.description);
-                        if (typeof fav.limit === "number")
-                            bits.push(`Limit: ${fav.limit}`);
-                        if ((_a = fav.admin) === null || _a === void 0 ? void 0 : _a.length)
-                            bits.push(`Admins: ${fav.admin.join(", ")}`);
-                        nm.title = bits.join("\n");
-                    }
-                    head.appendChild(ic);
-                    head.appendChild(nm);
-                    const jb = document.createElement("button");
-                    jb.className = "ebc-friend-rooms-join";
-                    jb.textContent = "Join →";
-                    jb.title = `Join "${rn}" - if the room is closed it gets recreated with the saved settings (background, description, admins...)`;
-                    jb.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        if (getCurrentRoomName().toLowerCase() === rn.toLowerCase()) {
-                            jb.textContent = "Here ✓";
-                            window.setTimeout(() => { jb.textContent = "Join →"; }, 1500);
-                            return;
-                        }
-                        jb.textContent = "→ …";
-                        try {
-                            this.joinOrRebuildFavorite(fav);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                        // Un-stick the label if we stay on this screen
-                        window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
-                    });
-                    const del = document.createElement("button");
-                    del.className = "ebc-friend-rooms-del";
-                    del.textContent = "×";
-                    del.title = "Remove from favorites";
-                    del.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        setFavoriteRooms(getFavoriteRooms().filter(r => r.name.toLowerCase() !== rn.toLowerCase()));
-                        try {
-                            this.renderFriendRows(body);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    });
-                    head.appendChild(jb);
-                    head.appendChild(del);
-                    card.appendChild(head);
-                    favContainer.appendChild(card);
-                }
-                const canSave = !!curRoom && !favs.some(r => r.name.toLowerCase() === curRoom.toLowerCase());
-                const addBtn = document.createElement("button");
-                addBtn.className = "ebc-friend-rooms-add";
-                if (canSave) {
-                    addBtn.textContent = `+ Save "${curRoom.length > 26 ? curRoom.slice(0, 24) + "…" : curRoom}"`;
-                    addBtn.title = `Save "${curRoom}" and its settings (description, admins, background...) to favorites`;
-                    addBtn.addEventListener("click", () => {
-                        var _a;
-                        const snap = (_a = captureCurrentRoomSnapshot()) !== null && _a !== void 0 ? _a : { name: curRoom };
-                        setFavoriteRooms([...getFavoriteRooms(), snap]);
-                        try {
-                            this.renderFriendRows(body);
-                        }
-                        catch ( /* ignore */_b) { /* ignore */ }
-                    });
-                }
-                else if (curRoom) {
-                    addBtn.textContent = "Update saved room settings ↻";
-                    addBtn.title = "Re-capture this room's settings (description, admins, background...) into the favorite";
-                    addBtn.addEventListener("click", () => {
-                        const snap = captureCurrentRoomSnapshot();
-                        if (!snap)
-                            return;
-                        setFavoriteRooms(getFavoriteRooms().map(r => r.name.toLowerCase() === curRoom.toLowerCase() ? snap : r));
-                        addBtn.textContent = "Updated ✓";
-                        window.setTimeout(() => { try {
-                            this.renderFriendRows(body);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ } }, 900);
-                    });
-                }
-                else {
-                    addBtn.textContent = "Join a room to save it here";
-                    addBtn.disabled = true;
-                    addBtn.style.cursor = "default";
-                }
-                favContainer.appendChild(addBtn);
-                body.appendChild(favToggle);
-                body.appendChild(favContainer);
-            }
             // ── Friend Rooms - where online friends are, with join buttons ────────
             {
                 const myRoomNums = [];
@@ -23530,7 +23084,7 @@
                     }
                     const info = getFriendOnlineInfo(num);
                     if (info === null || info === void 0 ? void 0 : info.roomName) {
-                        const arr = (_b = publicRooms.get(info.roomName)) !== null && _b !== void 0 ? _b : [];
+                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
                         arr.push(num);
                         publicRooms.set(info.roomName, arr);
                     }
@@ -23558,7 +23112,7 @@
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_d) { /* ignore */ }
                     const roomsContainer = document.createElement("div");
                     const roomsToggle = document.createElement("div");
                     const updateRoomsToggle = () => {
@@ -23678,9 +23232,9 @@
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
+                    this.friendSort = (_b = localStorage.getItem("EBC_friendSort")) !== null && _b !== void 0 ? _b : "status";
                 }
-                catch ( /* ignore */_h) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -24607,7 +24161,7 @@
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_j) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -24625,7 +24179,7 @@
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_k) { /* ignore */ }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -36556,7 +36110,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 172; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 173; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36596,6 +36150,10 @@
                 "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
                 "Fix: importing/saving outfits with many crafted restraints could trap the account in an infinite relog loop. Root cause: each crafted item carries its full Craft + Property data, so a full crafted set pushed EBC's settings blob past BC's ~180 KB account budget - the server dropped the connection on every sync, and the data re-flushed after each reconnect. Fix: two guards - the outfit list refuses to save past a 60 KB budget (clear in-chat error instead of a false success), and the settings flush skips the server push entirely if EBC's whole blob ever exceeds 150 KB (console error, previous server copy kept). Escaping an existing loop: the oversized data now simply stops syncing, so the account recovers on next login and the offending outfit can be deleted.",
                 "Fix: restraints locked with an Exclusive Padlock were invisible to the removal picker and skipped by Release Restraints / Remove Locks. Root cause: exclusive locks were unconditionally on the protected-locks list (they are DOGS's base lock). Fix: exclusive locks are only protected while the DOGS addon is actually loaded - without DOGS they list and remove like any other lock. Owner/Lover/Family locks stay protected.",
+                "Outfits & restraint sets: new per-item storage choice - each outfit/set now has a ☁ Account / 💾 This device chip. Account = synced across devices (uses the 60 KB account budget). This device = stored in the browser's localStorage: uses NO account storage (no relog risk), effectively unlimited, and visible to EVERY account you log in from this browser. Click the chip to move an item between stores. Imports automatically fall back to device storage when the account budget is full.",
+                "Fix: running two accounts in two windows could deliver one account's queued offline beeps from the OTHER account (recipient saw the wrong sender). Root cause: the offline re-delivery queue lived under one shared localStorage key for the whole browser. Fix: the queue is now keyed per account; the old shared queue migrates to whichever account logs in first.",
+                "Fix: vibes and piercings could not be removed by Release Restraints or the removal picker. Root cause: the ItemVulvaPiercings, ItemNipplesPiercings, and ItemHandheld groups were missing from EBC's restraint-group list, so items in those slots (e.g. the Vibrating Heart Clitoris Piercing) were invisible to every removal feature. All three groups added.",
+                "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43976,35 +43534,6 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
-        // Room property updates (admin saves, background/description changes...) -
-        // capture the favorited room's new state immediately, so a quick
-        // edit-then-leave doesn't lose the changes to the 60s poll window.
-        tryHookFunction(modAPI, "ChatRoomSyncRoomProperties", 1, (args, next) => {
-            const result = next(args);
-            window.setTimeout(() => { try {
-                autoUpdateFavoriteSnapshot(true);
-            }
-            catch ( /* ignore */_a) { /* ignore */ } }, 500);
-            return result;
-        });
-        // Redundant socket-level listener for the same event - fires even if another
-        // addon breaks the ChatRoomSyncRoomProperties hook chain mid-way.
-        (function hookPropsSocket() {
-            try {
-                const sock = window.ServerSocket;
-                if (sock === null || sock === void 0 ? void 0 : sock.on) {
-                    sock.on("ChatRoomSyncRoomProperties", () => {
-                        window.setTimeout(() => { try {
-                            autoUpdateFavoriteSnapshot(true);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ } }, 600);
-                    });
-                    return;
-                }
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            window.setTimeout(hookPropsSocket, 2000);
-        })();
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             var _a, _b;
             const result = next(args);
@@ -44058,13 +43587,6 @@
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
             catch ( /* ignore */_k) { /* ignore */ }
-            // Favorited room? Silently refresh its saved snapshot once BC has fully
-            // populated ChatRoomData - delayed 5s so a rebuild's settings-restore
-            // update (1.2s after entry) has landed before we capture.
-            window.setTimeout(() => { try {
-                autoUpdateFavoriteSnapshot();
-            }
-            catch ( /* ignore */_a) { /* ignore */ } }, 5000);
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -45077,15 +44599,6 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }, 30 * 1000);
-        // While inside a favorited room, keep its saved snapshot fresh (picks up
-        // description/admin/background edits made during the session). The helper
-        // itself throttles and only writes on real changes.
-        setInterval(() => {
-            try {
-                autoUpdateFavoriteSnapshot();
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }, 60 * 1000);
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
