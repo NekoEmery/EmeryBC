@@ -6695,6 +6695,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    /** Whether shared achievement plaques from others are rendered. Anyone who opted
+     *  out of achievements never sees them; everyone else can toggle it. */
+    function getShowSharedPlaques() {
+        try {
+            if (isAchievementsOptedOut())
+                return false;
+            return getSettings().hideAchPlaques !== true;
+        }
+        catch (_a) {
+            return true;
+        }
+    }
+    function setShowSharedPlaques(show) {
+        try {
+            const s = getSettings();
+            s.hideAchPlaques = !show;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     /** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
     function isAchievementUser(memberNumber) {
         return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
@@ -6725,12 +6745,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
         // ⭐ Emery - rare single golden unlocks
-        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
-        { id: "boop_the_dev", icon: "⭐", name: "Boop the Dev", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
-        { id: "hug_the_dev", icon: "⭐", name: "Dev Cuddler", desc: "Hug Emery {n} times", counter: "hug_emery", tiers: [10], cls: "emery", rare: true },
+        { id: "pat_the_dev", icon: "⭐", name: "Pat the Kitty", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
+        { id: "boop_the_dev", icon: "⭐", name: "Boop the Kitty", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
+        { id: "hug_the_dev", icon: "⭐", name: "Kitty Cuddler", desc: "Hug Emery {n} times", counter: "hug_emery", tiers: [10], cls: "emery", rare: true },
         { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
-        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
-        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
+        { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -6935,9 +6955,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getShareCooldownMs() {
         return Math.max(0, SHARE_COOLDOWN_MS - (Date.now() - _lastShareTs));
     }
-    /** Whispers an unlocked achievement to one person in the room. */
-    function shareAchievement(id, targetNum, targetName) {
-        var _a;
+    /** Shares an unlocked achievement - publicly to the room, privately to every
+     *  friend present, or privately to one person. */
+    function shareAchievement(id, mode) {
+        var _a, _b, _c;
         try {
             const a = ACHIEVEMENTS.find(x => x.id === id);
             if (!a)
@@ -6948,24 +6969,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const tier = tiersReached(a, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0);
             if (tier <= 0)
                 return "locked";
-            if (window.CurrentScreen !== "ChatRoom")
+            const w = window;
+            if (w.CurrentScreen !== "ChatRoom")
                 return "noRoom";
             if (getShareCooldownMs() > 0)
                 return "cooldown";
             const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
-            ServerSend("ChatRoomChat", {
-                Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
-                Type: "Whisper",
-                Target: targetNum,
-                Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
-            });
+            const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
+            const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
+            if (mode.kind === "public") {
+                ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict });
+                _lastShareTs = Date.now();
+                renderSharedPlaque("you shared with the room", a, tier);
+                return "ok";
+            }
+            if (mode.kind === "friends") {
+                // One whisper per friend in the room, staggered so the server's rate
+                // limiter never sees a burst.
+                const me = (_b = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _b !== void 0 ? _b : 0;
+                const room = w.ChatRoomCharacter;
+                const friends = ((_c = Player === null || Player === void 0 ? void 0 : Player.FriendList) !== null && _c !== void 0 ? _c : []);
+                const targets = (room !== null && room !== void 0 ? room : [])
+                    .map(c => c.MemberNumber)
+                    .filter((n) => typeof n === "number" && n !== me && friends.includes(n));
+                if (targets.length === 0)
+                    return "noTargets";
+                targets.forEach((n, i) => {
+                    window.setTimeout(() => {
+                        try {
+                            ServerSend("ChatRoomChat", { Content: content, Type: "Whisper", Target: n, Dictionary: dict });
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, i * 350);
+                });
+                _lastShareTs = Date.now();
+                renderSharedPlaque(`you shared with ${targets.length} friend${targets.length === 1 ? "" : "s"}`, a, tier);
+                return "ok";
+            }
+            ServerSend("ChatRoomChat", { Content: content, Type: "Whisper", Target: mode.num, Dictionary: dict });
             _lastShareTs = Date.now();
             // Local confirmation plaque for the sender (whispers aren't echoed back).
-            renderSharedPlaque(`you shared with ${targetName}`, a, tier);
+            renderSharedPlaque(`you shared with ${mode.name}`, a, tier);
             return "ok";
         }
-        catch (_b) {
+        catch (_d) {
             return "error";
         }
     }
@@ -6981,6 +7029,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const dict = Array.isArray(data.Dictionary) ? data.Dictionary : [];
             const entry = dict.find(d => (d === null || d === void 0 ? void 0 : d.Tag) === "EBCACH");
             if (!entry)
+                return false;
+            // Respect the viewer: opted out, or plaques switched off = show nothing
+            // special, let BC render the plain message instead.
+            if (!getShowSharedPlaques())
                 return false;
             const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
             if (!a)
@@ -7028,25 +7080,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
             const plaque = document.createElement("div");
             plaque.style.cssText = [
-                "margin:8px 4px",
-                "padding:14px 16px",
-                "border-radius:10px",
-                `border:2px solid ${metal}`,
-                `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
+                "margin:4px 4px",
+                "padding:7px 12px",
+                "border-radius:8px",
+                `border:1px solid ${metal}99`,
+                `background:linear-gradient(120deg, rgba(22,10,20,0.96) 35%, ${metal}14 50%, rgba(22,10,20,0.96) 65%)`,
                 "background-size:200% 100%",
-                "animation:ebcAchShine 9s linear infinite",
-                `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
+                "animation:ebcAchShine 14s linear infinite",
+                `box-shadow:inset 0 1px 0 rgba(255,255,255,0.06)`,
                 "font-family:'Trebuchet MS',serif",
                 "text-align:center",
             ].join(";");
             const head = document.createElement("div");
-            head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
-            head.textContent = `🏆 Achievement · ${byline}`;
+            head.style.cssText = `font-size:8.5px;letter-spacing:0.14em;color:${metal}bb;text-transform:uppercase;`;
+            head.textContent = `Achievement · ${byline}`;
             const nameEl = document.createElement("div");
-            nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
+            nameEl.style.cssText = `font-size:13px;font-weight:bold;color:${metal};margin-top:1px;`;
             nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");
             const descEl = document.createElement("div");
-            descEl.style.cssText = "font-size:12px;color:#d8c4d8;margin-top:3px;";
+            descEl.style.cssText = "font-size:10.5px;color:#c0aec4;margin-top:1px;";
             descEl.textContent = desc;
             plaque.appendChild(head);
             plaque.appendChild(nameEl);
@@ -25383,12 +25435,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     flashShare(`Wait ${Math.ceil(cd / 1000)}s`);
                                     return;
                                 }
-                                this.pickAchievementShareTarget((num, name) => {
-                                    const res = shareAchievement(a.id, num, name);
+                                this.pickAchievementShareTarget((mode) => {
+                                    const res = shareAchievement(a.id, mode);
                                     flashShare(res === "ok" ? "Shared ✓" :
                                         res === "noRoom" ? "Join a room first" :
                                             res === "locked" ? "Not unlocked yet" :
-                                                res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
+                                                res === "noTargets" ? "No friends here" :
+                                                    res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
                                 });
                             });
                             main.appendChild(shareBtn);
@@ -25455,6 +25508,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#cf6f98;";
             title.textContent = "Share with…";
             panel.appendChild(title);
+            // Broad options first: the whole room, or just friends who are present.
+            const mkBroad = (label, sub, onPick) => {
+                const b = document.createElement("button");
+                b.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #4c2537;background:#1e0c18;color:#e0b0c8;cursor:pointer;transition:all 0.12s;";
+                b.innerHTML = `<span style="font-weight:bold">${label}</span><span style="color:#9b8fa6;font-size:10px"> - ${sub}</span>`;
+                b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2e1424"; });
+                b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "#1e0c18"; });
+                b.addEventListener("click", () => { overlay.remove(); onPick(); });
+                return b;
+            };
+            panel.appendChild(mkBroad("Everyone", "posts to the room", () => onPick({ kind: "public" })));
+            panel.appendChild(mkBroad("Friends here", "private to friends in the room", () => onPick({ kind: "friends" })));
+            const orLbl = document.createElement("div");
+            orLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#7a6a86;letter-spacing:0.1em;text-transform:uppercase;";
+            orLbl.textContent = "or one person";
+            panel.appendChild(orLbl);
             const list = document.createElement("div");
             list.className = "ebc-ach-scroll";
             list.style.cssText = "overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:4px;";
@@ -25472,7 +25541,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 btn.textContent = `${name} #${num}`;
                 btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; btn.style.background = "#2a1421"; });
                 btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#33283c"; btn.style.background = "transparent"; });
-                btn.addEventListener("click", () => { overlay.remove(); onPick(num, name); });
+                btn.addEventListener("click", () => { overlay.remove(); onPick({ kind: "person", num, name }); });
                 list.appendChild(btn);
             }
             panel.appendChild(list);
@@ -25530,6 +25599,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 scroll.appendChild(this.buildAchievementCards());
                 panel.appendChild(scroll);
                 // Opt-out lives here, in the achievements popup itself.
+                const plaqueBtn = document.createElement("button");
+                const paintPlaque = () => {
+                    const on = getShowSharedPlaques();
+                    plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                    plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
+                        (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
+                            : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
+                    plaqueBtn.title = on
+                        ? "Plaques other people share are shown in your chat - click to hide them (you'll see a plain message instead)"
+                        : "Shared achievement plaques are hidden - click to show them again";
+                };
+                paintPlaque();
+                plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+                panel.appendChild(plaqueBtn);
                 const optOutBtn = document.createElement("button");
                 optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
                 optOutBtn.textContent = "Opt out of achievements";
@@ -37402,7 +37485,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 193; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 194; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37474,6 +37557,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
+                "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",
+                "Achievement plaques can be switched off: anyone who opted out of achievements never sees shared plaques at all, and everyone else gets a 'Shared achievements: shown/hidden' toggle in the trophy popup. When hidden, the plain chat line shows instead so nothing is lost.",
+                "Achievements renamed from dev-speak to kitty: Pat the Kitty, Boop the Kitty, Kitty Cuddler, Kitty Rigger and Kitty's Favorite (Brave Soul kept). Progress carries over - only the labels changed.",
                 "Fix: the 'Live support' badge stopped appearing when EBC HQ was open. Root cause: the scanner sent a partial ChatRoomSearch ({ Query, Language }) while BC's server expects the full request shape (Space, Game, FullRooms, ShowLocked, MapTypes, SearchDescs) - partial requests get filtered out, so the room was never found. Fix: the scan now mirrors BC's own request with permissive filters (a full or locked HQ still matches). It also no longer scans while you're on the room-search screen, where its query could hijack BC's pending search and replace your room list - the passive listener still reads BC's own results there, so the badge keeps updating.",
                 "Users tab: Rooms is now its own pill (People / Rooms / Notes / Settings), and the collapsible dropdowns inside each pill are opened automatically - the pill is the section header, so the extra dropdown was redundant. The User Notes header is hidden entirely in pill mode.",
                 "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
