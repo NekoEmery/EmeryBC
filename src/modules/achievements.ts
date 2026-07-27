@@ -95,6 +95,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
     { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
+    { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room",     counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
     // ⭐ Emery - rare single golden unlocks
     { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
     { id: "boop_the_dev",  icon: "⭐", name: "Boop the Kitty",  desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
@@ -102,6 +103,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",      desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
     { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
     { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
+    { id: "hq_visitor",    icon: "⭐", name: "HQ Regular",       desc: "Spend {n} hours in EBC HQ",    counter: "hq_h",       tiers: [1], cls: "emery", rare: true },
 ];
 
 interface AchState {
@@ -471,17 +473,40 @@ export function getAchievementProgress(): AchievementProgress[] {
     });
 }
 
-// Continuous bound-streak check - the counter keeps the LONGEST streak seen.
-// No-op for non-achievement users; cheap enough to just run.
+// Periodic tick: bound streak, bound-in-one-room streak, and time spent in EBC
+// HQ. No-op for non-achievement users; cheap enough to just run.
+const TICK_MS = 5 * 60 * 1000;
+const HQ_ROOM = "emerybc (ebc) hq";
+let _lastRoom = "";
+let _roomBoundMs = 0;   // time bound without leaving the current room
+let _hqMs = 0;          // accumulated time spent in HQ
+
 setInterval(() => {
     try {
         if (!isAchievementUser(Player?.MemberNumber)) return;
-        const hours = Math.floor(getRestraintMs() / 3_600_000);
+        const w = window as unknown as Record<string, unknown>;
+        const room = String((w.ChatRoomData as { Name?: string } | null | undefined)?.Name ?? "");
         const st = getState();
-        if (hours > (st.c["bound_h"] ?? 0)) {
-            st.c["bound_h"] = hours;
-            checkUnlocks();
-            save();
+
+        // Longest continuous bound streak (any room).
+        const hours = Math.floor(getRestraintMs() / 3_600_000);
+        if (hours > (st.c["bound_h"] ?? 0)) st.c["bound_h"] = hours;
+
+        // Bound AND staying put - resets when the room changes or you get free.
+        if (room && room === _lastRoom && getRestraintMs() > 0) _roomBoundMs += TICK_MS;
+        else _roomBoundMs = 0;
+        _lastRoom = room;
+        const roomBoundH = Math.floor(_roomBoundMs / 3_600_000);
+        if (roomBoundH > (st.c["room_bound_h"] ?? 0)) st.c["room_bound_h"] = roomBoundH;
+
+        // Time spent in the EBC HQ support room (accumulates across visits).
+        if (room.trim().toLowerCase() === HQ_ROOM) {
+            _hqMs += TICK_MS;
+            const hqH = Math.floor(_hqMs / 3_600_000);
+            if (hqH > (st.c["hq_h"] ?? 0)) st.c["hq_h"] = hqH;
         }
+
+        checkUnlocks();
+        save();
     } catch { /* ignore */ }
-}, 5 * 60 * 1000);
+}, TICK_MS);

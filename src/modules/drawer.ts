@@ -16970,9 +16970,23 @@ This cannot be undone.`,
             }
         }
 
+        // Drop sections that render nothing - an empty pill is worse than no pill.
+        // "Nothing" means every content element is devoid of text and children.
+        const hasContent = (sec: Section): boolean => sec.els.some(el => {
+            if (el.classList.contains("ebc-divider")) return false;
+            return (el.textContent ?? "").trim().length > 0 || el.children.length > 0;
+        });
+        const dropped = sections.filter(sec => !hasContent(sec));
+        for (const sec of dropped) {
+            if (sec.headerEl) sec.headerEl.style.display = "none";
+            for (const el of sec.els) el.style.display = "none";
+        }
         try {
-            console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]`).join(" | ") || "(none)");
+            console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]${hasContent(x) ? "" : " EMPTY"}`).join(" | ") || "(none)");
         } catch { /* ignore */ }
+        const kept = sections.filter(hasContent);
+        sections.length = 0;
+        sections.push(...kept);
 
         // Assign sections to pills.
         const norm = (x: string): string => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();

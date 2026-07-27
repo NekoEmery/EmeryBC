@@ -6788,6 +6788,7 @@
         { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100], cls: "bondage" },
         { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
+        { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room", counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
         // ⭐ Emery - rare single golden unlocks
         { id: "pat_the_dev", icon: "⭐", name: "Pat the Kitty", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
         { id: "boop_the_dev", icon: "⭐", name: "Boop the Kitty", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
@@ -6795,6 +6796,7 @@
         { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
         { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
         { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
+        { id: "hq_visitor", icon: "⭐", name: "HQ Regular", desc: "Spend {n} hours in EBC HQ", counter: "hq_h", tiers: [1], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -7170,23 +7172,46 @@
                 nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "", descNow: a.desc.replace("{n}", String(descN)) });
         });
     }
-    // Continuous bound-streak check - the counter keeps the LONGEST streak seen.
-    // No-op for non-achievement users; cheap enough to just run.
+    // Periodic tick: bound streak, bound-in-one-room streak, and time spent in EBC
+    // HQ. No-op for non-achievement users; cheap enough to just run.
+    const TICK_MS = 5 * 60 * 1000;
+    const HQ_ROOM = "emerybc (ebc) hq";
+    let _lastRoom = "";
+    let _roomBoundMs = 0; // time bound without leaving the current room
+    let _hqMs = 0; // accumulated time spent in HQ
     setInterval(() => {
-        var _a;
+        var _a, _b, _c, _d, _e;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
-            const hours = Math.floor(getRestraintMs() / 3600000);
+            const w = window;
+            const room = String((_b = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Name) !== null && _b !== void 0 ? _b : "");
             const st = getState();
-            if (hours > ((_a = st.c["bound_h"]) !== null && _a !== void 0 ? _a : 0)) {
+            // Longest continuous bound streak (any room).
+            const hours = Math.floor(getRestraintMs() / 3600000);
+            if (hours > ((_c = st.c["bound_h"]) !== null && _c !== void 0 ? _c : 0))
                 st.c["bound_h"] = hours;
-                checkUnlocks();
-                save();
+            // Bound AND staying put - resets when the room changes or you get free.
+            if (room && room === _lastRoom && getRestraintMs() > 0)
+                _roomBoundMs += TICK_MS;
+            else
+                _roomBoundMs = 0;
+            _lastRoom = room;
+            const roomBoundH = Math.floor(_roomBoundMs / 3600000);
+            if (roomBoundH > ((_d = st.c["room_bound_h"]) !== null && _d !== void 0 ? _d : 0))
+                st.c["room_bound_h"] = roomBoundH;
+            // Time spent in the EBC HQ support room (accumulates across visits).
+            if (room.trim().toLowerCase() === HQ_ROOM) {
+                _hqMs += TICK_MS;
+                const hqH = Math.floor(_hqMs / 3600000);
+                if (hqH > ((_e = st.c["hq_h"]) !== null && _e !== void 0 ? _e : 0))
+                    st.c["hq_h"] = hqH;
             }
+            checkUnlocks();
+            save();
         }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }, 5 * 60 * 1000);
+        catch ( /* ignore */_f) { /* ignore */ }
+    }, TICK_MS);
 
     // Safeword system — two-word safety protocol.
     // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
@@ -8759,7 +8784,7 @@
         "expr.howToTitle": { en: "How to make a face:", de: "Gesichtsausdruck erstellen:", zh: "如何设置表情：", fr: "Comment créer une expression :", es: "Cómo crear una expresión:", ru: "Как создать выражение лица:", ja: "表情の作り方：" },
         "expr.howToBody1": { en: "Use BC's own expression controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click 💾 Save face to capture it as a named preset.", de: "Nutze BCs Ausdruckssteuerung (Gesicht-Symbol oben) zum Einstellen von Röte, Augen, Mund usw., dann klicke 💾 Gesicht speichern, um es als Preset zu sichern.", zh: "使用BC自带的表情控制（顶部菜单的脸部图标）设置脸红、眼睛、嘴巴等，然后点击 💾 保存面部 将其保存为命名预设。", fr: "Utilise les contrôles d'expression de BC (icône de visage dans le menu supérieur) pour régler teint, yeux, bouche etc., puis clique 💾 Sauvegarder le visage pour le capturer comme preset.", es: "Usa los controles de expresión de BC (icono de cara en el menú superior) para ajustar rubor, ojos, boca etc., luego haz clic en 💾 Guardar cara para guardarlo como preset.", ru: "Используй элементы управления выражением (значок лица в верхнем меню), чтобы настроить румянец, глаза, рот и т.д., затем нажми 💾 Сохранить лицо для сохранения пресета.", ja: "BC表情コントロール（上部メニューの顔アイコン）で頬・目・口などを設定し、💾 表情を保存 をクリックして名前付きプリセットとして保存します。" },
         "expr.howToBody2": { en: "Presets can be applied manually, fired from action buttons or scenes, or triggered automatically when your outgoing chat message contains a match phrase (see Chat Triggers below).", de: "Presets können manuell angewendet, über Aktions-Tasten oder Szenen ausgelöst oder automatisch aktiviert werden, wenn die Chatnachricht eine Phrase enthält (siehe Chat-Auslöser).", zh: "预设可以手动应用、通过动作按钮或场景触发，或在发送消息包含匹配短语时自动触发（见下方聊天触发器）。", fr: "Les presets peuvent être appliqués manuellement, déclenchés via des boutons d'action ou des scènes, ou activés automatiquement quand ton message sortant contient une phrase correspondante (voir Déclencheurs ci-dessous).", es: "Los presets pueden aplicarse manualmente, activarse desde botones de acción o escenas, o dispararse automáticamente cuando tu mensaje contiene una frase de coincidencia (ver Disparadores abajo).", ru: "Пресеты можно применять вручную, запускать из кнопок действий или сцен, или активировать автоматически, когда исходящее сообщение содержит фразу-триггер (см. Триггеры ниже).", ja: "プリセットは手動で適用したり、アクションボタンやシーンから発動したり、送信メッセージにマッチフレーズが含まれると自動発動します（下のチャットトリガーを参照）。" },
-        "expr.presetsHeader": { en: "PRESETS", de: "PRESETS", zh: "预设", fr: "PRÉSETS", es: "PRESETS", ru: "ПРЕСЕТЫ", ja: "プリセット" },
+        "expr.presetsHeader": { en: "EXPRESSIONS", de: "AUSDRÜCKE", zh: "表情", fr: "EXPRESSIONS", es: "EXPRESIONES", ru: "ВЫРАЖЕНИЯ", ja: "表情" },
         "expr.resetFace": { en: "↺  Reset face", de: "↺  Gesicht zurücksetzen", zh: "↺  重置表情", fr: "↺  Réinitialiser le visage", es: "↺  Restablecer cara", ru: "↺  Сбросить лицо", ja: "↺  表情リセット" },
         "expr.resetFaceTitle": { en: "Apply your default face preset, or clear all expressions if none is set", de: "Standard-Gesichts-Preset anwenden oder alle Ausdrücke löschen, falls keins gesetzt ist", zh: "应用默认面部预设，如果没有设置则清除所有表情", fr: "Applique ton preset de visage par défaut, ou efface toutes les expressions si aucun n'est défini", es: "Aplica tu preset de cara por defecto, o borra todas las expresiones si ninguno está definido", ru: "Применить пресет лица по умолчанию или очистить все выражения, если ничего не задано", ja: "デフォルトの表情プリセットを適用するか、未設定の場合はすべての表情をクリアします" },
         "expr.autoApply": { en: "Auto-apply default face on room join", de: "Standard-Gesicht beim Raumbetreten automatisch anwenden", zh: "进入房间时自动应用默认表情", fr: "Appliquer auto le visage par défaut à l'entrée dans un salon", es: "Aplicar cara por defecto automáticamente al entrar en sala", ru: "Авто-применять лицо по умолчанию при входе в комнату", ja: "ルーム参加時にデフォルト表情を自動適用" },
@@ -25604,10 +25629,28 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         el.style.display = "";
                 }
             }
+            // Drop sections that render nothing - an empty pill is worse than no pill.
+            // "Nothing" means every content element is devoid of text and children.
+            const hasContent = (sec) => sec.els.some(el => {
+                var _a;
+                if (el.classList.contains("ebc-divider"))
+                    return false;
+                return ((_a = el.textContent) !== null && _a !== void 0 ? _a : "").trim().length > 0 || el.children.length > 0;
+            });
+            const dropped = sections.filter(sec => !hasContent(sec));
+            for (const sec of dropped) {
+                if (sec.headerEl)
+                    sec.headerEl.style.display = "none";
+                for (const el of sec.els)
+                    el.style.display = "none";
+            }
             try {
-                console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]`).join(" | ") || "(none)");
+                console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]${hasContent(x) ? "" : " EMPTY"}`).join(" | ") || "(none)");
             }
             catch ( /* ignore */_d) { /* ignore */ }
+            const kept = sections.filter(hasContent);
+            sections.length = 0;
+            sections.push(...kept);
             // Assign sections to pills.
             const norm = (x) => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
             const used = new Set();
@@ -38040,7 +38083,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 203; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 204; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38112,6 +38155,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Fix: empty pills (Poses, Expressions) no longer appear at all - the converter now drops any section that renders nothing, so a pill only exists when there is something behind it. The console line also marks which sections came back empty.",
+                "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
+                "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
                 "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
                 "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
                 "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
