@@ -8579,6 +8579,22 @@
         "tabs.domTitle": { en: "DOM Tools", de: "DOM-Tools", zh: "DOM 工具", fr: "Outils DOM", es: "Herramientas DOM", ru: "DOM-инструменты", ja: "DOMツール" },
         "tabs.puppy": { en: "Puppy", de: "Welpe", zh: "小狗", fr: "Chiot", es: "Cachorro", ru: "Щенок", ja: "パピー" },
         "tabs.kitty": { en: "Kitty", de: "Kätzchen", zh: "小猫", fr: "Chaton", es: "Gatita", ru: "Киска", ja: "キティ" },
+        // ─── TABS (grouped layout) ─────────────────────────────────────────────
+        "tabs.me": { en: "ME", de: "ICH", zh: "我", fr: "MOI", es: "YO", ru: "Я", ja: "自分" },
+        "tabs.safety": { en: "SAFETY", de: "SICHERHEIT", zh: "安全", fr: "SÉCURITÉ", es: "SEGURIDAD", ru: "БЕЗОПАСНОСТЬ", ja: "安全" },
+        "tabs.social": { en: "SOCIAL", de: "SOZIAL", zh: "社交", fr: "SOCIAL", es: "SOCIAL", ru: "ОБЩЕНИЕ", ja: "ソーシャル" },
+        "tabs.settings": { en: "SETTINGS", de: "EINSTELLUNGEN", zh: "设置", fr: "PARAMÈTRES", es: "AJUSTES", ru: "НАСТРОЙКИ", ja: "設定" },
+        "tabs.meTitle": { en: "Outfits, restraint sets, poses, scenes, expressions and colours", de: "Outfits, Fessel-Sets, Posen, Szenen, Ausdrücke und Farben", zh: "服装、束缚套装、姿势、场景、表情与颜色", fr: "Tenues, sets de liens, poses, scènes, expressions et couleurs", es: "Atuendos, sets de ataduras, poses, escenas, expresiones y colores", ru: "Наряды, наборы фиксации, позы, сцены, выражения и цвета", ja: "衣装・拘束セット・ポーズ・シーン・表情・カラー" },
+        "tabs.safetyTitle": { en: "Release, active restraints, protected items, safewords and auto-escape", de: "Befreien, aktive Fesseln, geschützte Gegenstände, Safewords und Auto-Befreiung", zh: "解除、当前束缚、受保护物品、安全词与自动逃脱", fr: "Libération, liens actifs, objets protégés, mots de sécurité et auto-évasion", es: "Liberar, ataduras activas, objetos protegidos, palabras seguras y auto-escape", ru: "Освобождение, активная фиксация, защищённые предметы, стоп-слова и авто-побег", ja: "解除・現在の拘束・保護アイテム・セーフワード・自動脱出" },
+        "tabs.socialTitle": { en: "Friends, rooms, notes, chat and notifications", de: "Freunde, Räume, Notizen, Chat und Benachrichtigungen", zh: "好友、房间、笔记、聊天与通知", fr: "Amis, salles, notes, chat et notifications", es: "Amigos, salas, notas, chat y notificaciones", ru: "Друзья, комнаты, заметки, чат и уведомления", ja: "フレンド・ルーム・メモ・チャット・通知" },
+        "tabs.settingsTitle": { en: "Drawer preferences, EBC tags, storage, language, dev tools and credits", de: "Fenster-Einstellungen, EBC-Tags, Speicher, Sprache, Dev-Tools und Credits", zh: "面板偏好、EBC 标签、存储、语言、开发工具与致谢", fr: "Préférences du panneau, tags EBC, stockage, langue, outils dev et crédits", es: "Preferencias del panel, etiquetas EBC, almacenamiento, idioma, herramientas dev y créditos", ru: "Настройки панели, EBC-теги, хранилище, язык, инструменты разработчика и авторы", ja: "パネル設定・EBCタグ・ストレージ・言語・開発者ツール・クレジット" },
+        // ─── GROUPED LAYOUT SECTION LABELS ─────────────────────────────────────
+        "grouped.nicknameTitle": { en: "NICKNAME & TITLE", de: "SPITZNAME & TITEL", zh: "昵称与头衔", fr: "SURNOM & TITRE", es: "APODO Y TÍTULO", ru: "ПРОЗВИЩЕ И ТИТУЛ", ja: "ニックネームと称号" },
+        "grouped.releaseUnlock": { en: "RELEASE & UNLOCK", de: "BEFREIEN & ÖFFNEN", zh: "解除与解锁", fr: "LIBÉRER & DÉVERROUILLER", es: "LIBERAR Y DESBLOQUEAR", ru: "ОСВОБОДИТЬ И ОТКРЫТЬ", ja: "解除とロック解除" },
+        "grouped.safewords": { en: "SAFEWORDS", de: "SAFEWORDS", zh: "安全词", fr: "MOTS DE SÉCURITÉ", es: "PALABRAS SEGURAS", ru: "СТОП-СЛОВА", ja: "セーフワード" },
+        "grouped.autoEscape": { en: "ANTI-RESTRAINT & AUTO-ESCAPE", de: "ANTI-FESSEL & AUTO-BEFREIUNG", zh: "反束缚与自动逃脱", fr: "ANTI-LIENS & AUTO-ÉVASION", es: "ANTI-ATADURAS Y AUTO-ESCAPE", ru: "АНТИ-ФИКСАЦИЯ И АВТО-ПОБЕГ", ja: "拘束防止と自動脱出" },
+        "grouped.storageData": { en: "STORAGE & DATA", de: "SPEICHER & DATEN", zh: "存储与数据", fr: "STOCKAGE & DONNÉES", es: "ALMACENAMIENTO Y DATOS", ru: "ХРАНИЛИЩЕ И ДАННЫЕ", ja: "ストレージとデータ" },
+        "grouped.domTools": { en: "DOM TOOLS", de: "DOM-TOOLS", zh: "DOM 工具", fr: "OUTILS DOM", es: "HERRAMIENTAS DOM", ru: "DOM-ИНСТРУМЕНТЫ", ja: "DOMツール" },
         // ─── QUICK ACTIONS ─────────────────────────────────────────────────────
         "qa.releaseRestraints": { en: "Release Restraints", de: "Fesseln lösen", zh: "解除束缚", fr: "Libérer les liens", es: "Soltar ataduras", ru: "Снять путы", ja: "拘束解除" },
         "qa.removeLocks": { en: "Remove Locks", de: "Schlösser entfernen", zh: "移除锁具", fr: "Retirer les serrures", es: "Quitar candados", ru: "Убрать замки", ja: "錠前を外す" },
@@ -8964,6 +8980,9 @@
         "guide.fast.s4.text": { en: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", de: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", zh: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", fr: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", es: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ru: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ja: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room." },
         "guide.fast.s5.text": { en: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", de: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", zh: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", fr: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", es: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ru: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ja: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))" },
         "guide.fast.s6.text": { en: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", de: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", zh: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", fr: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", es: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ru: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ja: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))" },
+        // Guide step shared by both tours - how to get the old menu layout back
+        "guide.layout.label": { en: "Menu Layout", de: "Menü-Layout", zh: "菜单布局", fr: "Disposition du menu", es: "Diseño del menú", ru: "Макет меню", ja: "メニューレイアウト" },
+        "guide.layout.text": { en: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", de: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", zh: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", fr: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", es: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", ru: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", ja: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way." },
         // Guide indepth step labels (translated)
         "guide.deep.s1.label": { en: "Welcome to EBC", de: "Willkommen bei EBC", zh: "欢迎来到 EBC", fr: "Bienvenue dans EBC", es: "Bienvenido a EBC", ru: "Добро пожаловать в EBC", ja: "EBC へようこそ" },
         "guide.deep.s2.label": { en: "Moving & Resizing", de: "Bewegen & Skalieren", zh: "移动与调整大小", fr: "Déplacer & Redimensionner", es: "Mover y Redimensionar", ru: "Перемещение и изменение размера", ja: "移動 & リサイズ" },
@@ -12949,6 +12968,15 @@
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
     };
+    // ── Grouped ("new") layout ───────────────────────────────────────────────
+    // The same features, regrouped behind six broader tabs. Nothing is removed:
+    // every old renderX() still exists and the classic 8-tab set is restored the
+    // moment the user flips "Menu layout" back to the old layout in DEV -> Drawer.
+    const EBC_GROUPED_TABS = ["me", "safety", "social", "buttons", "toys", "settings"];
+    const EBC_GROUPED_TAB_LABELS = {
+        me: "ME", safety: "SAFETY", social: "SOCIAL",
+        buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS",
+    };
     const DEFAULT_COLORS = {
         bg: "#1b0d17", // main panel + most element backgrounds
         card: "#2a1421", // card / hover / section backgrounds
@@ -13128,6 +13156,22 @@
         document.addEventListener("touchend", endH, { capture: true });
         return cleanup;
     }
+    /** true when the user is on the new grouped 6-tab layout ("tabs"), false for
+     *  the original 8-tab stacked layout ("classic"). Same setting that already
+     *  drives pill sub-navigation, so one toggle switches the whole menu. */
+    function isGroupedLayout() {
+        return getUsersLayout() === "tabs";
+    }
+    /** Nearest grouped-layout tab for a classic tab id, and vice versa. Used when
+     *  the layout is switched while sitting on a tab the other layout lacks. */
+    const EBC_TAB_TO_GROUPED = {
+        outfits: "me", anims: "me", notes: "social", thanks: "settings",
+        dev: "settings", dom: "toys", buttons: "buttons", toys: "toys",
+    };
+    const EBC_TAB_TO_CLASSIC = {
+        me: "outfits", safety: "outfits", social: "notes", settings: "dev",
+        buttons: "buttons", toys: "toys",
+    };
     // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
     // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
     // appear on.  null / absent key = "all tabs" (default).  Written to localStorage
@@ -13284,6 +13328,20 @@
             this.quickActionsEl = null;
             this.selfPickPanelEl = null;
             this.ebcTagsStripEl = null;
+            this.langRowEl = null;
+            this.tabBarEl = null;
+            this.notesBadgeEl = null;
+            /** While set, every tab renderer builds into this element instead of
+             *  #ebc-body. The grouped layout uses it to run several existing renderX()
+             *  methods one after another without them wiping each other's output. */
+            this.bodyOverride = null;
+            /** Suppresses a tab's own _pillifyTab() call while it is being composed into
+             *  a grouped tab - the grouped tab pillifies the combined result once. */
+            this.noPillify = false;
+            /** Pill sub-navigation of the tab currently on screen: which button owns
+             *  which elements. Lets the guide open the right pill before spotlighting.
+             *  Rebuilt on every renderCurrentTab(). */
+            this.pillGroups = [];
             // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
             this._langUnsubscribe = null;
             this._langPillsRefresh = null;
@@ -13631,6 +13689,8 @@
             notesBadgeEl.id = "ebc-notes-tab-badge";
             notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
             notesTabBtn.appendChild(notesBadgeEl);
+            // Moved onto whichever tab button hosts the friends list (USERS or SOCIAL).
+            this.notesBadgeEl = notesBadgeEl;
             const toysTabBtn = document.createElement("button");
             toysTabBtn.className = "ebc-tab-btn";
             toysTabBtn.id = "ebc-tab-toys";
@@ -13668,7 +13728,33 @@
             kittyTabBtn.textContent = "🐱";
             kittyTabBtn.title = t("tabs.kitty");
             kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+            // ── Grouped-layout tabs ──────────────────────────────────────────────
+            // Created alongside the classic ones and shown/hidden by applyLayoutMode().
+            // BUTTONS and TOYS are shared, so only four extra buttons are needed.
+            const mkGroupedTab = (id, labelKey, titleKey) => {
+                const b = document.createElement("button");
+                b.className = "ebc-tab-btn";
+                b.id = `ebc-tab-${id}`;
+                b.style.position = "relative"; // SOCIAL hosts the unread badge
+                // The label lives in its own span so re-translating a tab never wipes
+                // a badge that has been appended to the button.
+                const lbl = document.createElement("span");
+                lbl.className = "ebc-tab-label";
+                lbl.textContent = t(labelKey);
+                b.appendChild(lbl);
+                b.title = t(titleKey);
+                b.style.display = "none"; // applyLayoutMode() decides
+                return b;
+            };
+            const meTabBtn = mkGroupedTab("me", "tabs.me", "tabs.meTitle");
+            const safetyTabBtn = mkGroupedTab("safety", "tabs.safety", "tabs.safetyTitle");
+            const socialTabBtn = mkGroupedTab("social", "tabs.social", "tabs.socialTitle");
+            const settingsTabBtn = mkGroupedTab("settings", "tabs.settings", "tabs.settingsTitle");
             // Store tab refs for language updates
+            this._i18nRefs.tabMe = meTabBtn;
+            this._i18nRefs.tabSafety = safetyTabBtn;
+            this._i18nRefs.tabSocial = socialTabBtn;
+            this._i18nRefs.tabSettings = settingsTabBtn;
             this._i18nRefs.tabOutfits = outfitTabBtn;
             this._i18nRefs.tabButtons = btnsTabBtn;
             this._i18nRefs.tabAnims = posesTabBtn;
@@ -13689,6 +13775,11 @@
             tabBar.appendChild(domTabBtn);
             tabBar.appendChild(puppyTabBtn);
             tabBar.appendChild(kittyTabBtn);
+            tabBar.appendChild(meTabBtn);
+            tabBar.appendChild(safetyTabBtn);
+            tabBar.appendChild(socialTabBtn);
+            tabBar.appendChild(settingsTabBtn);
+            this.tabBarEl = tabBar;
             // ── Language picker row - sits between tab bar and quick-actions ─────
             const langRow = document.createElement("div");
             langRow.className = "ebc-lang-row";
@@ -13726,6 +13817,9 @@
             }
             refreshLangPills();
             this._langPillsRefresh = refreshLangPills;
+            // Kept as a ref so applyLayoutMode() can move it: pinned under the tab
+            // bar in the classic layout, inside the SETTINGS tab when grouped.
+            this.langRowEl = langRow;
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -14413,6 +14507,10 @@
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
             kittyTabBtn.addEventListener("click", () => this.switchTab("kitty"));
+            meTabBtn.addEventListener("click", () => this.switchTab("me"));
+            safetyTabBtn.addEventListener("click", () => this.switchTab("safety"));
+            socialTabBtn.addEventListener("click", () => this.switchTab("social"));
+            settingsTabBtn.addEventListener("click", () => this.switchTab("settings"));
             document.addEventListener("keydown", (e) => {
                 var _a, _b;
                 if (e.key === "Escape" && this.isOpen) {
@@ -14429,27 +14527,95 @@
                 }
             });
         }
+        /** The tab ids that exist in the layout the user is currently on. */
+        activeTabSet() {
+            return isGroupedLayout() ? EBC_GROUPED_TABS : EBC_USER_TABS;
+        }
+        /** The one tab that can never be hidden - it holds the layout toggle. */
+        lockedTabId() {
+            return isGroupedLayout() ? "settings" : "dev";
+        }
         applyTabVisibility() {
             var _a;
             if (!this.rootEl)
                 return;
+            const grouped = isGroupedLayout();
+            const activeSet = this.activeTabSet();
+            const locked = this.lockedTabId();
             const hidden = getHiddenTabs();
-            // dev tab can never be hidden - repair if it somehow got stored as hidden
-            if (hidden.includes("dev")) {
-                setHiddenTabs(hidden.filter(t => t !== "dev"));
+            // The locked tab can never be hidden - repair if it got stored as hidden
+            if (hidden.includes(locked)) {
+                setHiddenTabs(hidden.filter(t => t !== locked));
                 return this.applyTabVisibility();
             }
-            for (const tabId of EBC_USER_TABS) {
+            // Walk BOTH tab sets so the tabs belonging to the other layout are always
+            // hidden - "buttons"/"toys" appear in both and are handled once via the Set.
+            for (const tabId of new Set([...EBC_USER_TABS, ...EBC_GROUPED_TABS])) {
                 const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`);
                 if (!btn)
                     continue;
-                btn.style.display = (tabId === "dev" || !hidden.includes(tabId)) ? "" : "none";
+                const inLayout = activeSet.includes(tabId);
+                btn.style.display = (inLayout && (tabId === locked || !hidden.includes(tabId))) ? "" : "none";
             }
-            // If the active tab was hidden, fall back to the first visible tab
-            if (hidden.includes(this.currentTab)) {
-                const first = (_a = EBC_USER_TABS.find(id => !hidden.includes(id))) !== null && _a !== void 0 ? _a : "outfits";
+            // DOM tools are merged into the TOYS tab in the grouped layout, so the
+            // separate creator-only DOM tab only exists in the classic layout.
+            const domBtn = this.rootEl.querySelector("#ebc-tab-dom");
+            if (domBtn)
+                domBtn.style.display = (!grouped && isDomEnabled()) ? "" : "none";
+            // Fall back to another tab only when the current one is hidden, belongs
+            // exclusively to the other layout, or is the DOM tab in the grouped
+            // layout. The puppy/kitty tabs exist in both layouts and are left alone.
+            const otherSet = grouped ? EBC_USER_TABS : EBC_GROUPED_TABS;
+            const stranded = (!activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab))
+                || (grouped && this.currentTab === "dom");
+            if (stranded || hidden.includes(this.currentTab)) {
+                const mapped = (grouped ? EBC_TAB_TO_GROUPED : EBC_TAB_TO_CLASSIC)[this.currentTab];
+                const usable = (id) => !!id && activeSet.includes(id) && (id === locked || !hidden.includes(id));
+                const first = usable(mapped)
+                    ? mapped
+                    : ((_a = activeSet.find(id => id === locked || !hidden.includes(id))) !== null && _a !== void 0 ? _a : (grouped ? "me" : "outfits"));
                 this.switchTab(first);
             }
+        }
+        /**
+         * Show the tab bar for the layout the user picked and put the shared
+         * singleton elements where that layout expects them. Called on open, after
+         * setup, and whenever the "Menu layout" toggle in DEV -> Drawer is flipped.
+         */
+        applyLayoutMode() {
+            var _a, _b;
+            const grouped = isGroupedLayout();
+            const bar = this.tabBarEl;
+            // Re-order the tab bar. appendChild moves existing nodes, so no button is
+            // ever recreated and every click handler stays attached.
+            const order = grouped
+                ? ["me", "safety", "social", "buttons", "toys", "settings", "dom", "puppy", "kitty"]
+                : ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev", "dom", "puppy", "kitty",
+                    "me", "safety", "social", "settings"];
+            if (bar) {
+                for (const id of order) {
+                    const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`#ebc-tab-${id}`);
+                    if (el)
+                        bar.appendChild(el);
+                }
+            }
+            // Language pills: pinned under the tab bar in classic, moved into the
+            // SETTINGS tab when grouped (renderSettingsTab re-attaches them).
+            const lang = this.langRowEl;
+            if (lang) {
+                if (grouped)
+                    lang.remove();
+                else if (bar)
+                    bar.after(lang);
+            }
+            // The unread-beeps badge follows the tab that hosts the friends list.
+            const badge = this.notesBadgeEl;
+            const badgeHost = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector(grouped ? "#ebc-tab-social" : "#ebc-tab-notes");
+            if (badge && badgeHost && badge.parentElement !== badgeHost) {
+                badgeHost.style.position = "relative";
+                badgeHost.appendChild(badge);
+            }
+            this.applyTabVisibility();
         }
         injectStyles() {
             let s = document.getElementById("emerybc-drawer-css");
@@ -14846,6 +15012,32 @@
                 (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
             }
             catch ( /* ignore */_f) { /* ignore */ }
+            // Build the tab bar for the layout the user chose (classic 8 tabs vs the
+            // grouped 6). Done last so every button already has its click handler.
+            try {
+                this.applyLayoutMode();
+            }
+            catch ( /* ignore */_g) { /* ignore */ }
+        }
+        // -- Interactive guide ─────────────────────────────────────────────────────
+        /**
+         * Guide steps are written against the classic tab ids. Translate one to the
+         * tab that actually holds that content in the layout the user is on, so the
+         * guide never tries to open a tab the current layout does not have.
+         *
+         * A step may set `groupedTab` when the grouped layout moved that content to
+         * a tab the generic old-tab -> new-tab map would not predict (storage went
+         * to SETTINGS, safewords to SAFETY).
+         */
+        static guideTab(step) {
+            var _a, _b;
+            if (!isGroupedLayout())
+                return (_a = step.tab) !== null && _a !== void 0 ? _a : null;
+            if (step.groupedTab)
+                return step.groupedTab;
+            if (!step.tab)
+                return null;
+            return (_b = EBC_TAB_TO_GROUPED[step.tab]) !== null && _b !== void 0 ? _b : step.tab;
         }
         static get FAST_STEPS() {
             return [
@@ -14858,6 +15050,7 @@
                 },
                 {
                     tab: "outfits",
+                    groupedTab: "settings", // storage lives in SETTINGS in the grouped layout
                     label: t("guide.fast.sStor.label"),
                     text: t("guide.fast.sStor.text"),
                     spotlight: ["[data-guide-target='section-storage']"],
@@ -14887,7 +15080,15 @@
                     autoExpand: ["section-dev-prefs"],
                 },
                 {
+                    tab: "dev",
+                    label: t("guide.layout.label"),
+                    text: t("guide.layout.text"),
+                    spotlight: ["[data-guide-target='section-dev-prefs']"],
+                    autoExpand: ["section-dev-prefs"],
+                },
+                {
                     tab: null,
+                    groupedTab: "safety", // safewords live on the SAFETY tab when grouped
                     label: t("guide.fast.s6.label"),
                     text: t("guide.fast.s6.text"),
                     spotlight: ["[data-guide-target='strip-safewords']"],
@@ -14972,7 +15173,15 @@
                     autoExpand: ["section-dev-logs"],
                 },
                 {
+                    tab: "dev",
+                    label: t("guide.layout.label"),
+                    text: t("guide.layout.text"),
+                    spotlight: ["[data-guide-target='section-dev-prefs']"],
+                    autoExpand: ["section-dev-prefs"],
+                },
+                {
                     tab: null,
+                    groupedTab: "safety", // safewords live on the SAFETY tab when grouped
                     label: t("guide.deep.s13.label"),
                     text: t("guide.deep.s13.text"),
                     spotlight: ["[data-guide-target='strip-safewords']"],
@@ -15099,7 +15308,7 @@
             }
         }
         renderGuideStep() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c;
             // Clear spotlights from the previous step before building the new one
             this.clearGuideSpotlights();
             const card = this.guideEl;
@@ -15114,9 +15323,12 @@
             if (this.guideSpotlightIndex >= spotCount)
                 this.guideSpotlightIndex = 0;
             const spotIdx = this.guideSpotlightIndex;
-            // Switch to the relevant tab (only on first spotlight of the step)
-            if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
-                this.switchTab(step.tab);
+            // Switch to the relevant tab (only on first spotlight of the step).
+            // guideTab() maps the classic tab id onto whichever tab holds that
+            // content in the layout the user is currently using.
+            const stepTab = EBCDrawer.guideTab(step);
+            if (spotIdx === 0 && stepTab && stepTab !== this.currentTab) {
+                this.switchTab(stepTab);
             }
             card.innerHTML = "";
             card.style.display = "";
@@ -15215,20 +15427,23 @@
             nav.appendChild(nextBtn);
             card.appendChild(nav);
             // ── Spotlight UI elements this step is describing ─────────────────────
-            // Tab button: whenever the guide is on a tab-specific step, glow the tab
-            if (step.tab) {
-                const tabIdMap = { anims: "poses" };
-                const tabBtnId = (_c = tabIdMap[step.tab]) !== null && _c !== void 0 ? _c : step.tab;
-                window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
+            // Tab button: whenever the guide is on a tab-specific step, glow the tab.
+            // The button id always matches the tab id (the old "anims" -> "poses"
+            // remap pointed at #ebc-tab-poses, which does not exist).
+            if (stepTab) {
+                window.setTimeout(() => this.spotlightEl(`#ebc-tab-${stepTab}`), 60);
             }
-            // Spotlight only the current sub-step element (one at a time)
+            // Spotlight only the current sub-step element (one at a time). Both tab
+            // layouts split their content behind pills, so open the pill that owns
+            // the target first - otherwise the spotlight lands on a hidden element.
             if (spotCount > 0) {
                 window.setTimeout(() => {
+                    this.revealGuideTarget(step.spotlight[spotIdx]);
                     this.spotlightEl(step.spotlight[spotIdx]);
                 }, 80);
             }
             // Auto-expand only on first entry to the step (spotIdx === 0)
-            if (spotIdx === 0 && ((_d = step.autoExpand) === null || _d === void 0 ? void 0 : _d.length)) {
+            if (spotIdx === 0 && ((_c = step.autoExpand) === null || _c === void 0 ? void 0 : _c.length)) {
                 window.setTimeout(() => {
                     for (const sel of step.autoExpand)
                         this.expandGuideTarget(sel);
@@ -15281,6 +15496,32 @@
             var _a;
             (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelectorAll(".ebc-guide-spotlight").forEach(el => el.classList.remove("ebc-guide-spotlight"));
         }
+        /**
+         * Bring a guide target on screen. Tab bodies are split into pill sections,
+         * and only the active pill's elements are displayed - so if the target sits
+         * behind another pill, click that pill before the spotlight is applied.
+         */
+        revealGuideTarget(selector) {
+            var _a;
+            try {
+                const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(selector);
+                if (!el)
+                    return;
+                for (const g of this.pillGroups) {
+                    if (!g.els.some(x => x === el || x.contains(el)))
+                        continue;
+                    // Hidden group -> its pill is not the active one.
+                    if (g.els.some(x => x.style.display === "none")) {
+                        try {
+                            g.btn.click();
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                    }
+                    return;
+                }
+            }
+            catch ( /* ignore invalid selectors or detached nodes */_c) { /* ignore invalid selectors or detached nodes */ }
+        }
         spotlightEl(selector) {
             var _a;
             try {
@@ -15297,6 +15538,60 @@
                 this.devLogPoller = null;
             }
         }
+        /** The element a tab renderer should build into. Normally the real
+         *  #ebc-body; a detached container while a grouped tab is composing. */
+        tabBody() {
+            var _a, _b;
+            return (_a = this.bodyOverride) !== null && _a !== void 0 ? _a : (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-body");
+        }
+        /**
+         * Run an existing tab renderer into a detached container and move whatever
+         * it produced into `dest`. This is the whole trick behind the grouped
+         * layout: no renderX() is rewritten, they are just re-hosted.
+         *
+         * The children are moved individually (not the wrapper) so `dest` keeps a
+         * flat list of sections and _pillifyTab() can still classify them.
+         */
+        composeInto(dest, fn) {
+            const tmp = document.createElement("div");
+            const prevBody = this.bodyOverride;
+            const prevNoPill = this.noPillify;
+            this.bodyOverride = tmp;
+            this.noPillify = true;
+            try {
+                fn();
+            }
+            catch (err) {
+                // A single broken section must not blank the whole grouped tab.
+                try {
+                    console.error("[EBC] grouped layout: section build failed", err);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            finally {
+                this.bodyOverride = prevBody;
+                this.noPillify = prevNoPill;
+            }
+            while (tmp.firstChild)
+                dest.appendChild(tmp.firstChild);
+        }
+        /** Wrap an element that carries no section header of its own (the safeword
+         *  strip, the language pills...) so _pillifyTab() sees it as a section. */
+        addLabelledSection(dest, label, el) {
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-section-label";
+            hdr.textContent = label;
+            dest.appendChild(hdr);
+            const wrap = document.createElement("div");
+            wrap.style.marginBottom = "6px";
+            wrap.appendChild(el);
+            dest.appendChild(wrap);
+        }
+        /** True for the tab that hosts the friends/rooms list - "notes" in the
+         *  classic layout, "social" in the grouped one. */
+        static isSocialTab(tab) {
+            return tab === "notes" || tab === "social";
+        }
         switchTab(tab) {
             var _a;
             this.stopDevLogPoller();
@@ -15304,10 +15599,10 @@
                 window.clearInterval(this._syncStatusPoller);
                 this._syncStatusPoller = null;
             }
-            if (tab !== "notes")
+            if (!EBCDrawer.isSocialTab(tab))
                 this.friendsSectionEl = null;
             this.currentTab = tab;
-            if (tab === "notes") {
+            if (EBCDrawer.isSocialTab(tab)) {
                 this.friendPollTick = 0;
                 try {
                     ServerSend("AccountQuery", { Query: "OnlineFriends" });
@@ -15325,6 +15620,10 @@
                 ["ebc-tab-dom", "dom"],
                 ["ebc-tab-puppy", "puppy"],
                 ["ebc-tab-kitty", "kitty"],
+                ["ebc-tab-me", "me"],
+                ["ebc-tab-safety", "safety"],
+                ["ebc-tab-social", "social"],
+                ["ebc-tab-settings", "settings"],
             ]) {
                 const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`#${id}`);
                 if (el)
@@ -15337,6 +15636,7 @@
             catch ( /* ignore */_c) { /* ignore */ }
         }
         renderCurrentTab() {
+            this.pillGroups = []; // repopulated by whichever tab builds pill nav
             if (this.currentTab === "outfits")
                 this.renderOutfits();
             else if (this.currentTab === "anims")
@@ -15346,7 +15646,7 @@
             else if (this.currentTab === "notes")
                 this.renderNotes();
             else if (this.currentTab === "toys")
-                this.renderToys();
+                this.renderToysTab();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
             else if (this.currentTab === "dev")
@@ -15357,8 +15657,152 @@
                 this.renderPuppy();
             else if (this.currentTab === "kitty")
                 this.renderKittyTab();
+            // Grouped layout - each of these composes existing renderX() methods.
+            else if (this.currentTab === "me")
+                this.renderMeTab();
+            else if (this.currentTab === "safety")
+                this.renderSafetyTab();
+            else if (this.currentTab === "social")
+                this.renderNotes();
+            else if (this.currentTab === "settings")
+                this.renderSettingsTab();
             // Fix inline styles that bypass CSS class rules by hardcoding the default palette
             this.repaintTheme();
+        }
+        // -- Grouped layout tabs ---------------------------------------------------
+        // Composition only: every section below is built by a method that the classic
+        // layout also uses, so there is exactly one implementation of each feature.
+        /**
+         * Build a section into its own container and drop its collapsible header,
+         * so a grouped pill never turns into a dropdown inside a dropdown.
+         * Mirrors what _pillifyTab() does for "wrapper"-shaped sections.
+         */
+        buildFlatSection(build) {
+            var _a, _b;
+            const c = document.createElement("div");
+            build(c);
+            for (const wrap of Array.from(c.children)) {
+                const lbl = wrap.classList.contains("ebc-section-label")
+                    ? wrap
+                    : wrap.querySelector(":scope > .ebc-section-label");
+                if (!lbl)
+                    continue;
+                // Some sections only build their content once expanded, so run their
+                // own toggle rather than forcing display.
+                if (((_a = wrap.textContent) !== null && _a !== void 0 ? _a : "").includes("▶")) {
+                    try {
+                        lbl.click();
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
+                const host = (_b = lbl.parentElement) !== null && _b !== void 0 ? _b : wrap;
+                for (const sub of Array.from(host.children)) {
+                    if (sub !== lbl && sub.style.display === "none")
+                        sub.style.display = "";
+                }
+                lbl.style.display = "none";
+            }
+            return c;
+        }
+        /** Re-host one of the pinned singleton strips (safewords, EBC tags) inside a
+         *  grouped tab as a pill section - the pill becomes its header. */
+        attachStripSection(dest, label, el, flex = false) {
+            if (!el)
+                return;
+            el.style.display = flex ? "flex" : "";
+            const kids = Array.from(el.children);
+            const hdr = kids.find(c => c.style.cursor === "pointer");
+            const inner = kids.find(c => c !== hdr);
+            if (hdr && inner && inner.style.display === "none") {
+                try {
+                    hdr.click();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            if (hdr)
+                hdr.style.display = "none";
+            this.addLabelledSection(dest, label, el);
+        }
+        /** ME - everything that is about the player's own look and animation:
+         *  outfits, restraint sets, poses, scenes, expressions, colours, identity. */
+        renderMeTab() {
+            const body = this.tabBody();
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            this.buildIdentitySection(body, true);
+            this.buildSavedOutfitsSection(body);
+            this.buildOutfitTagsSection(body);
+            this.buildScheduleSection(body);
+            this.buildRestraintSection(body);
+            this.renderPalettes(body);
+            // The whole classic ANIMS tab: poses, combos, scenes, expression
+            // sequences and expressions - composed in unchanged.
+            this.composeInto(body, () => this.renderPoses());
+            this._pillifyTab(body, "EBC_meView", [
+                { pill: "Outfits", match: [t("grouped.nicknameTitle"), t("outfits.savedOutfits"),
+                        "TAGS", t("outfits.tagsN", { n: 0 }), t("outfits.outfitSchedule")] },
+                { pill: "Restraints", match: [t("outfits.savedRestraints")] },
+                { pill: "Poses", match: [t("anims.poses"), t("anims.poseCombos")] },
+                { pill: "Scenes", match: [t("anims.scenes")] },
+                { pill: "Expressions", match: [t("expr.sequences"), t("anims.expressions")] },
+                { pill: "Colours", match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+            ]);
+        }
+        /** SAFETY - getting out of things: release buttons, what is on you right
+         *  now, protected items, safewords and auto-escape. */
+        renderSafetyTab() {
+            const body = this.tabBody();
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            // Release Restraints / Remove Locks / picker. When they are pinned above
+            // every tab (the default) they are already on screen, so they are only
+            // re-hosted here if the user moved them off the pinned strip.
+            if (getQuickActionsInButtons() && this.quickActionsEl) {
+                const qaWrap = document.createElement("div");
+                this.quickActionsEl.style.display = "";
+                qaWrap.appendChild(this.quickActionsEl);
+                if (this.selfPickPanelEl)
+                    qaWrap.appendChild(this.selfPickPanelEl);
+                this.addLabelledSection(body, t("grouped.releaseUnlock"), qaWrap);
+            }
+            this.renderRestraintInfo(body); // ACTIVE RESTRAINTS (+ timers)
+            this.renderOutfitWhitelist(body); // PROTECTED ITEMS
+            this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
+            this.addLabelledSection(body, t("grouped.autoEscape"), this.buildFlatSection(c => this.buildAutoEscapeSection(c)));
+            this._pillifyTab(body, "EBC_safetyView", [
+                { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
+                { pill: "Protected", match: [t("outfits.protectedItems")] },
+                { pill: "Safewords", match: [t("grouped.safewords")] },
+                { pill: "Escape", match: [t("grouped.autoEscape")] },
+            ]);
+        }
+        /** TOYS - Lovense / PiShock / XToys, plus the creator-only Dom tools that
+         *  had their own tab in the classic layout. Still called "Toys". */
+        renderToysTab() {
+            this.renderToys();
+            if (!isGroupedLayout() || !isDomEnabled())
+                return;
+            const body = this.tabBody();
+            if (!body)
+                return;
+            const div = document.createElement("div");
+            div.className = "ebc-divider";
+            body.appendChild(div);
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.textContent = t("grouped.domTools");
+            body.appendChild(lbl);
+            // Auto-escape is skipped here - it lives on the SAFETY tab now.
+            this.composeInto(body, () => this.renderDomTools(false));
+        }
+        /** SETTINGS - drawer prefs, EBC tags, storage, language, dev tools, credits.
+         *  renderDev() builds all of it; the grouped flag adds the extra sections. */
+        renderSettingsTab() {
+            this.renderDev(true);
         }
         /** Show or hide each pinned strip based on the active tab and the stored filter. */
         updatePinnedStrips() {
@@ -15658,6 +16102,20 @@
                 r.tabPuppy.title = t("tabs.puppy");
             if (r.tabKitty)
                 r.tabKitty.title = t("tabs.kitty");
+            // Grouped tabs keep their label in a .ebc-tab-label span so the unread
+            // badge on SOCIAL survives a language change.
+            const setGroupedTab = (btn, labelKey, titleKey) => {
+                if (!btn)
+                    return;
+                const lbl = btn.querySelector(".ebc-tab-label");
+                if (lbl)
+                    lbl.textContent = t(labelKey);
+                btn.title = t(titleKey);
+            };
+            setGroupedTab(r.tabMe, "tabs.me", "tabs.meTitle");
+            setGroupedTab(r.tabSafety, "tabs.safety", "tabs.safetyTitle");
+            setGroupedTab(r.tabSocial, "tabs.social", "tabs.socialTitle");
+            setGroupedTab(r.tabSettings, "tabs.settings", "tabs.settingsTitle");
             // Quick actions
             if (r.releaseBtn) {
                 r.releaseBtn.textContent = t("qa.releaseRestraints");
@@ -16486,13 +16944,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             wrap.appendChild(content);
             body.appendChild(wrap);
         }
-        renderOutfits() {
-            var _a;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
-            if (!body)
-                return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
+        // -- Sections shared by the classic OUTFITS tab and the grouped ME tab -----
+        // These were inline inside renderOutfits(); they are pure moves so the
+        // classic tab renders exactly as before, and the grouped layout can place
+        // each one on a different tab.
+        /** Default nickname + default title rows. `withHeader` adds a section
+         *  label so the grouped layout can turn it into its own pill. */
+        buildIdentitySection(body, withHeader = false) {
+            if (withHeader) {
+                const hdr = document.createElement("div");
+                hdr.className = "ebc-section-label";
+                hdr.textContent = t("grouped.nicknameTitle");
+                body.appendChild(hdr);
+            }
             // ── Default nickname (top of page) ───────────────────────────────────────
             const nickRow = document.createElement("div");
             nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
@@ -16531,9 +16995,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             defTitleRow.appendChild(defTitleLbl);
             defTitleRow.appendChild(defTitleSel);
             body.appendChild(defTitleRow);
-            this.renderRestraintInfo(body);
-            this.renderOutfitWhitelist(body);
-            this.renderPalettes(body);
+        }
+        /** Outfit tag management - chips plus the add-tag row. */
+        buildOutfitTagsSection(body) {
             // ── Tag management ───────────────────────────────────────────────────────────
             const tagMgmtDiv = document.createElement("div");
             tagMgmtDiv.style.marginBottom = "8px";
@@ -16541,7 +17005,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 tagMgmtOpen = localStorage.getItem("EBC_tagsOpen") === "1";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
             const tagToggleBtn = document.createElement("button");
             tagToggleBtn.className = "ebc-section-label";
             tagToggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
@@ -16661,14 +17125,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             tagMgmtDiv.appendChild(tagToggleBtn);
             tagMgmtDiv.appendChild(tagMgmtBody);
             body.appendChild(tagMgmtDiv);
+        }
+        /** Saved outfits: collapsible header, filter box, rows, new-outfit form. */
+        buildSavedOutfitsSection(body) {
             const outfits = getOutfits();
             // ── Collapsible "Saved Outfits" header ───────────────────────────────────
             let outfitsCollapsed = false;
             try {
                 outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
-            this.renderStorageUsage(body);
+            catch ( /* ignore */_a) { /* ignore */ }
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
             outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
@@ -16743,6 +17209,20 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             rebuildOutfitList();
             this.buildNewOutfitSection(outfitsBody);
             body.appendChild(outfitsBody);
+        }
+        renderOutfits() {
+            const body = this.tabBody();
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            this.buildIdentitySection(body);
+            this.renderRestraintInfo(body);
+            this.renderOutfitWhitelist(body);
+            this.renderPalettes(body);
+            this.buildOutfitTagsSection(body);
+            this.renderStorageUsage(body);
+            this.buildSavedOutfitsSection(body);
             this.buildRestraintSection(body);
             this.buildScheduleSection(body);
             // Fewer, broader pills - eight sections was too many to scan.
@@ -19429,8 +19909,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d, _e, _f, _g;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            var _a, _b, _c, _d, _e, _f;
+            const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
@@ -19684,7 +20164,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 posesCnt.appendChild(grid);
                 for (const preset of group.poses) {
                     const btn = document.createElement("button");
-                    const armKeys = (_c = (_b = KNOWN_POSES.find(g => g.group === "Arms")) === null || _b === void 0 ? void 0 : _b.poses.map(p => p.key).filter(Boolean)) !== null && _c !== void 0 ? _c : [];
+                    const armKeys = (_b = (_a = KNOWN_POSES.find(g => g.group === "Arms")) === null || _a === void 0 ? void 0 : _a.poses.map(p => p.key).filter(Boolean)) !== null && _b !== void 0 ? _b : [];
                     const isActive = preset.key === "" && group.group === "Arms"
                         ? !currentPoses.some(p => armKeys.includes(p))
                         : preset.key === ""
@@ -19854,9 +20334,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 poseSectionLbl.className = "ebc-import-hint";
                 poseSectionLbl.textContent = "Sequence:";
                 editor.appendChild(poseSectionLbl);
-                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_d = combo.stepDelayMs) !== null && _d !== void 0 ? _d : 420);
+                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_c = combo.stepDelayMs) !== null && _c !== void 0 ? _c : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_e = combo.command) !== null && _e !== void 0 ? _e : "", (_f = combo.announceText) !== null && _f !== void 0 ? _f : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_d = combo.command) !== null && _d !== void 0 ? _d : "", (_e = combo.announceText) !== null && _e !== void 0 ? _e : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 const doSaveCombo = () => {
                     showConfirmOverlay(`Save changes to "${combo.name}"?`, "Cancel", "Save", () => {
@@ -20238,7 +20718,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const seqCmdInp = document.createElement("input");
                 seqCmdInp.type = "text";
                 seqCmdInp.maxLength = 30;
-                seqCmdInp.value = (_g = seq.command) !== null && _g !== void 0 ? _g : "";
+                seqCmdInp.value = (_f = seq.command) !== null && _f !== void 0 ? _f : "";
                 seqCmdInp.className = "ebc-form-input";
                 seqCmdInp.style.cssText = "flex:1;font-size:11px;";
                 seqCmdInp.placeholder = "command (optional)";
@@ -21606,10 +22086,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 dot.style.cursor = "pointer";
                 dot.addEventListener("click", (e) => {
                     e.stopPropagation();
-                    // Open panel on the USERS tab so the messages dropdown is visible
+                    // Open panel on the USERS / SOCIAL tab so the messages dropdown is visible
                     if (!this.isOpen)
                         this.open();
-                    this.switchTab("notes");
+                    this.switchTab(isGroupedLayout() ? "social" : "notes");
                 });
                 tab.appendChild(dot);
             }
@@ -23013,7 +23493,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // No window open at all
                 this.beepUnread.set(fromNum, ((_b = this.beepUnread.get(fromNum)) !== null && _b !== void 0 ? _b : 0) + 1);
                 this.refreshTabDot();
-                if (this.currentTab === "notes") {
+                if (EBCDrawer.isSocialTab(this.currentTab)) {
                     try {
                         this.rerender();
                     }
@@ -23400,8 +23880,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             body.appendChild(divider);
         }
         renderNotes() {
-            var _a, _b;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            var _a;
+            const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
@@ -23423,7 +23903,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     localStorage.setItem("EBC_userNotesCollapsed", "0");
                     localStorage.setItem("EBC_friendRoomsCollapsed", "0");
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
             // ── Messages dropdown ─────────────────────────────────────────────────
             this.renderMessagesDropdown(secPeople);
@@ -23432,7 +23912,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 chatSettingsCollapsed = localStorage.getItem("EBC_chatSettingsCollapsed") !== "0";
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             const chatSettingsHeader = document.createElement("div");
             chatSettingsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const chatSettingsLbl = document.createElement("div");
@@ -23534,7 +24014,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const afkSubHeader = document.createElement("div");
             afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const afkSubLbl = document.createElement("div");
@@ -23670,7 +24150,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -23917,9 +24397,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 ];
                 let active = "people";
                 try {
-                    active = (_b = localStorage.getItem("EBC_usersView")) !== null && _b !== void 0 ? _b : "people";
+                    active = (_a = localStorage.getItem("EBC_usersView")) !== null && _a !== void 0 ? _a : "people";
                 }
-                catch ( /* ignore */_g) { /* ignore */ }
+                catch ( /* ignore */_f) { /* ignore */ }
                 if (!VIEWS.some(v => v.id === active))
                     active = "people";
                 const nav = document.createElement("div");
@@ -23962,7 +24442,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             });
         }
         refreshFriendList() {
-            if (this.currentTab !== "notes" || !this.friendsSectionEl)
+            if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl)
                 return;
             if (this.friendRefreshDebounce !== null)
                 window.clearTimeout(this.friendRefreshDebounce);
@@ -23970,7 +24450,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             this.friendRefreshDebounce = window.setTimeout(() => {
                 var _a;
                 this.friendRefreshDebounce = null;
-                if (this.currentTab === "notes" && this.friendsSectionEl === target) {
+                if (EBCDrawer.isSocialTab(this.currentTab) && this.friendsSectionEl === target) {
                     this.renderFriendRows(target, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
                 }
             }, 80);
@@ -25369,7 +25849,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                 noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
                                 window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
                                 try {
-                                    if (this.currentTab === "notes")
+                                    if (EBCDrawer.isSocialTab(this.currentTab))
                                         this.rerender();
                                 }
                                 catch ( /* ignore */_a) { /* ignore */ }
@@ -25569,7 +26049,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          */
         _pillifyTab(body, lsKey, merge) {
             var _a, _b;
-            if (getUsersLayout() !== "tabs")
+            if (this.noPillify)
+                return; // composing into a grouped tab - it pillifies once at the end
+            if (!isGroupedLayout())
                 return;
             // Classify a direct child of the tab body:
             //   "label"   - the element IS the section label (content = later siblings)
@@ -25758,6 +26240,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     paint();
                 });
                 pills.push(pill);
+                this.pillGroups.push({ btn: pill, els: g.els });
                 nav.appendChild(pill);
             }
             // Nav sits directly after the always-visible preamble.
@@ -26080,9 +26563,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
         }
-        renderDev() {
-            var _a, _b, _c;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+        renderDev(grouped = false) {
+            var _a, _b;
+            const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
@@ -26125,7 +26608,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         body.appendChild(el);
                     }
                 };
-                mkMoved("SAFEWORDS", this.safewordRowEl);
+                // In the grouped layout the safeword strip belongs to the SAFETY tab,
+                // so it is not pulled in here - it would end up on two tabs at once.
+                if (!grouped)
+                    mkMoved("SAFEWORDS", this.safewordRowEl);
                 mkMoved("EBC TAGS", this.ebcTagsStripEl);
             }
             // ── Menu layout (pill sections vs the original long page) ─────────────
@@ -26151,6 +26637,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 layoutBtn.addEventListener("click", () => {
                     setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
                     paintLayout();
+                    // Swap the whole tab bar, re-place the language pills, and jump
+                    // to the equivalent tab in the layout we just switched to.
+                    // applyLayoutMode only switches tab when the current one does not
+                    // exist in the new layout, so re-render explicitly as well.
+                    this.applyLayoutMode();
                     this.rerender();
                 });
                 layoutRow.appendChild(layoutLbl);
@@ -26165,14 +26656,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const qaBtn = document.createElement("button");
                 const paintQa = () => {
                     const inBtns = getQuickActionsInButtons();
-                    qaBtn.textContent = inBtns ? "In Buttons tab" : "Always on top";
+                    // The tab they move into differs per layout: BUTTONS in classic,
+                    // SAFETY in the grouped layout.
+                    const hostTab = grouped ? "Safety" : "Buttons";
+                    qaBtn.textContent = inBtns ? `In ${hostTab} tab` : "Always on top";
                     qaBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
                         (inBtns
                             ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                             : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                     qaBtn.title = inBtns
-                        ? "Release Restraints / Remove Locks / picker live in the Buttons tab - click to pin them above every tab again"
-                        : "Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the Buttons tab";
+                        ? `Release Restraints / Remove Locks / picker live in the ${hostTab} tab - click to pin them above every tab again`
+                        : `Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the ${hostTab} tab`;
                 };
                 paintQa();
                 qaBtn.addEventListener("click", () => {
@@ -26454,11 +26948,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const tabVisGrid = document.createElement("div");
                 tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
                 const hiddenTabs = getHiddenTabs();
-                for (const tabId of EBC_USER_TABS) {
-                    if (tabId === "dev") {
+                // Only the tabs of the layout the user is actually on can be toggled.
+                const visTabSet = this.activeTabSet();
+                const visLabels = grouped ? EBC_GROUPED_TAB_LABELS : EBC_TAB_LABELS;
+                const visLockedId = this.lockedTabId();
+                for (const tabId of visTabSet) {
+                    if (tabId === visLockedId) {
                         const chip = document.createElement("button");
                         chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                        chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
+                        chip.textContent = ((_a = visLabels[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
                         chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
                         tabVisGrid.appendChild(chip);
@@ -26467,12 +26965,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const isVisible = !hiddenTabs.includes(tabId);
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
-                    chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
+                    chip.textContent = (_b = visLabels[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
                     chip.dataset["tabId"] = tabId;
                     chip.addEventListener("click", () => {
                         const cur = getHiddenTabs();
                         const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
-                        const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
+                        const visible = visTabSet.filter(t => !nowHidden.includes(t));
                         if (visible.length === 0)
                             return;
                         setHiddenTabs(nowHidden);
@@ -26569,6 +27067,20 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 cnt.appendChild(hotkeyWrap);
             }, "section-dev-prefs");
             // ── Developer Tools ────────────────────────────────────────────────────
+            // ── Grouped layout only ───────────────────────────────────────────────
+            // Storage and the language pills move into SETTINGS. Both are built by
+            // the same code the classic layout uses, just re-hosted here.
+            if (grouped) {
+                makeSection(t("grouped.storageData"), "EBC_settingsStorageCollapsed", false, (cnt) => {
+                    cnt.appendChild(this.buildFlatSection(c => this.renderStorageUsage(c)));
+                });
+                makeSection(t("header.language"), "EBC_settingsLangCollapsed", false, (cnt) => {
+                    if (this.langRowEl) {
+                        this.langRowEl.style.display = "";
+                        cnt.appendChild(this.langRowEl);
+                    }
+                });
+            }
             makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
                 // Character Inspector
                 const charLbl = document.createElement("div");
@@ -28167,11 +28679,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     cnt.appendChild(applyBtn);
                 });
             }
-            // Auto-refresh every 1.5 s while the DEV tab is open.
+            // Credits close out the grouped SETTINGS tab - the classic layout keeps
+            // its own CREDITS tab, so this only runs in the grouped layout.
+            if (grouped) {
+                makeSection(t("tabs.credits"), "EBC_settingsCreditsCollapsed", false, (cnt) => {
+                    this.composeInto(cnt, () => this.renderThanks());
+                });
+            }
+            // Auto-refresh every 1.5 s while the DEV / SETTINGS tab is open.
             // Room History always refreshes (cheap read). Message log only if logging is on.
             this.stopDevLogPoller();
             this.devLogPoller = window.setInterval(() => {
-                if (this.currentTab !== "dev")
+                if (this.currentTab !== "dev" && this.currentTab !== "settings")
                     return;
                 renderRoom();
                 renderRlog();
@@ -28187,14 +28706,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     [t("dev.copyRestraintsFromMember")]: "Copy",
                     [t("dev.logs")]: "Logs",
                     [t("dev.statEditor")]: "Stats",
+                    [t("grouped.storageData")]: "Storage",
+                    [t("header.language")]: "Language",
+                    [t("tabs.credits")]: "Credits",
                     "SAFEWORDS": "Safewords",
                     "EBC TAGS": "EBC tags",
                 };
+                // The two layouts have different section sets, so they remember their
+                // active pill separately - switching layout must not land on a pill
+                // the other layout does not have.
+                const viewKey = grouped ? "EBC_settingsView" : "EBC_devView";
                 let active = "";
                 try {
-                    active = (_b = localStorage.getItem("EBC_devView")) !== null && _b !== void 0 ? _b : "";
+                    active = (_a = localStorage.getItem(viewKey)) !== null && _a !== void 0 ? _a : "";
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
                 if (!devSections.some(s => s.label === active))
                     active = devSections[0].label;
                 const nav = document.createElement("div");
@@ -28212,17 +28738,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 };
                 for (const sec of devSections) {
                     const pill = document.createElement("button");
-                    pill.textContent = (_c = SHORT[sec.label]) !== null && _c !== void 0 ? _c : sec.label;
+                    pill.textContent = (_b = SHORT[sec.label]) !== null && _b !== void 0 ? _b : sec.label;
                     pill.title = sec.label;
                     pill.addEventListener("click", () => {
                         active = sec.label;
                         try {
-                            localStorage.setItem("EBC_devView", active);
+                            localStorage.setItem(viewKey, active);
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                         paint();
                     });
                     pills.push(pill);
+                    this.pillGroups.push({ btn: pill, els: [sec.el] });
                     nav.appendChild(pill);
                 }
                 body.appendChild(nav);
@@ -28599,8 +29126,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b, _c, _d, _e;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            var _a, _b, _c, _d;
+            const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
@@ -29581,7 +30108,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
             // Preset selector
             const slPresets = getSlowLeavePresets();
-            const slSavedIdx = Math.min(Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _b !== void 0 ? _b : "0", 10)), slPresets.length - 1);
+            const slSavedIdx = Math.min(Math.max(0, parseInt((_a = localStorage.getItem("EBC_slowLeavePresetIdx")) !== null && _a !== void 0 ? _a : "0", 10)), slPresets.length - 1);
             const slPresetRow = document.createElement("div");
             slPresetRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
             const slPresetLbl = document.createElement("span");
@@ -29612,7 +30139,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             slIntroInput.type = "text";
             slIntroInput.style.cssText = "flex:1;background:#150a10;color:#e0b8c8;border:1px solid #3a1828;border-radius:4px;padding:3px 5px;font-size:11px;min-width:0;";
             slIntroInput.placeholder = "intro emote (optional)";
-            slIntroInput.value = (_d = (_c = slPresets[slSavedIdx]) === null || _c === void 0 ? void 0 : _c.intro) !== null && _d !== void 0 ? _d : "";
+            slIntroInput.value = (_c = (_b = slPresets[slSavedIdx]) === null || _b === void 0 ? void 0 : _b.intro) !== null && _c !== void 0 ? _c : "";
             slIntroRow.appendChild(slIntroLbl);
             slIntroRow.appendChild(slIntroInput);
             slEditorBody.appendChild(slIntroRow);
@@ -29646,7 +30173,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             slDurSlider.min = "2";
             slDurSlider.max = "30";
             slDurSlider.step = "1";
-            slDurSlider.value = (_e = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _e !== void 0 ? _e : "5";
+            slDurSlider.value = (_d = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _d !== void 0 ? _d : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
             slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
@@ -29675,7 +30202,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             });
-            if (getQuickActionsInButtons() && this.quickActionsEl) {
+            // The grouped layout hosts these on the SAFETY tab instead, so they are
+            // only pulled into BUTTONS in the classic layout.
+            if (getQuickActionsInButtons() && !isGroupedLayout() && this.quickActionsEl) {
                 // Moved out of the pinned strip - give them a real section header so
                 // the pill converter picks them up like any other section.
                 const qaHdr = document.createElement("div");
@@ -32340,8 +32869,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             catch ( /* ignore */_a) { /* ignore */ }
         }
         renderToys() {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+            const body = this.tabBody();
             if (!body)
                 return;
             // Stop any sync-status poller from a previous render. Without this, each
@@ -33337,7 +33866,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const irlFriendChs = window.ChatRoomCharacter;
                 const irlPW = window.Player;
                 const irlMyMN2 = irlPW === null || irlPW === void 0 ? void 0 : irlPW.MemberNumber;
-                const irlFnums = (_b = irlPW === null || irlPW === void 0 ? void 0 : irlPW.FriendList) !== null && _b !== void 0 ? _b : [];
+                const irlFnums = (_a = irlPW === null || irlPW === void 0 ? void 0 : irlPW.FriendList) !== null && _a !== void 0 ? _a : [];
                 const irlFriends = (irlFriendChs !== null && irlFriendChs !== void 0 ? irlFriendChs : []).filter(c => c.MemberNumber && c.MemberNumber !== irlMyMN2 && irlFnums.includes(c.MemberNumber));
                 const s2Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;");
                 if (irlFriends.length === 0) {
@@ -33352,7 +33881,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     for (const c of irlFriends) {
                         const opt = document.createElement("option");
                         opt.value = String(c.MemberNumber);
-                        opt.textContent = `${((_c = c.Nickname) !== null && _c !== void 0 ? _c : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                        opt.textContent = `${((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                         irlFriendSel.appendChild(opt);
                     }
                     const irlReqBtn = document.createElement("button");
@@ -33658,7 +34187,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const gtRoomChars = window.ChatRoomCharacter;
             const gtPlayerW = window.Player;
             const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
-            const gtFriendNums = (_d = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _d !== void 0 ? _d : [];
+            const gtFriendNums = (_c = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _c !== void 0 ? _c : [];
             const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
             const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
             if (gtFriendsInRoom.length === 0) {
@@ -33673,7 +34202,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 for (const c of gtFriendsInRoom) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_e = c.Nickname) !== null && _e !== void 0 ? _e : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     friendSel.appendChild(opt);
                 }
                 const charHasVibs = (memberNum) => {
@@ -33908,7 +34437,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     warnBox.appendChild(warnText);
                     psContent.appendChild(warnBox);
                     // ── Connection (collapsible) ───────────────────────────────────────
-                    const connHasCreds = !!(((_f = localStorage.getItem("EBC_ps_user")) === null || _f === void 0 ? void 0 : _f.trim()) && ((_g = localStorage.getItem("EBC_ps_key")) === null || _g === void 0 ? void 0 : _g.trim()));
+                    const connHasCreds = !!(((_e = localStorage.getItem("EBC_ps_user")) === null || _e === void 0 ? void 0 : _e.trim()) && ((_f = localStorage.getItem("EBC_ps_key")) === null || _f === void 0 ? void 0 : _f.trim()));
                     const connBox = mk("div", "border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:8px;overflow:hidden;");
                     const connHdr = mk("div", `${FONT}display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;user-select:none;background:var(--ebc-bg-darker);`);
                     const connHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;text-transform:uppercase;color:${connHasCreds ? "#70c080" : "#e07070"};`);
@@ -33934,7 +34463,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
                     connBody.appendChild(proxyOptNote);
                     const proxyRow = psRow();
-                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_h = localStorage.getItem("EBC_ps_proxy")) !== null && _h !== void 0 ? _h : "");
+                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_g = localStorage.getItem("EBC_ps_proxy")) !== null && _g !== void 0 ? _g : "");
                     proxyInp.style.flex = "1";
                     proxyInp.addEventListener("input", () => { try {
                         localStorage.setItem("EBC_ps_proxy", proxyInp.value.trim());
@@ -33964,7 +34493,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const userSubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
                     userSubLbl.textContent = "Username";
                     connBody.appendChild(userSubLbl);
-                    const userInp = psInp("PiShock username (pishock.com login name)", (_j = localStorage.getItem("EBC_ps_user")) !== null && _j !== void 0 ? _j : "");
+                    const userInp = psInp("PiShock username (pishock.com login name)", (_h = localStorage.getItem("EBC_ps_user")) !== null && _h !== void 0 ? _h : "");
                     userInp.style.marginBottom = "2px";
                     userInp.addEventListener("input", () => {
                         var _a;
@@ -33985,7 +34514,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     keySubLbl.textContent = "API Key";
                     connBody.appendChild(keySubLbl);
                     const keyRow = psRow();
-                    const keyInp = psInp("API key", (_k = localStorage.getItem("EBC_ps_key")) !== null && _k !== void 0 ? _k : "", true);
+                    const keyInp = psInp("API key", (_j = localStorage.getItem("EBC_ps_key")) !== null && _j !== void 0 ? _j : "", true);
                     keyInp.style.flex = "1";
                     keyInp.addEventListener("input", () => {
                         var _a;
@@ -35195,7 +35724,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             var _a;
             if (!((_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-toys-card")))
                 return;
-            this.renderToys();
+            // renderToysTab keeps the merged Dom tools in the grouped layout.
+            this.renderToysTab();
         }
         sendGameToyMsg(targetNum, type, intensity, duration) {
             try {
@@ -35980,8 +36510,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
-            var _a;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
@@ -36125,13 +36654,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
         }
         // -- DOM Tools tab (creator-only) ------------------------------------------
-        renderDomTools() {
-            var _a;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
-            if (!body)
-                return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
+        /** Auto-escape card: the anti-restraint toggle plus its room emote.
+         *  Extracted from renderDomTools() (pure move) so the grouped SAFETY tab
+         *  can show it while the creator-only DOM tools live on the TOYS tab. */
+        buildAutoEscapeSection(body) {
             // ── Auto-Escape card ─────────────────────────────────────────────────
             const aeCard = document.createElement("div");
             aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
@@ -36218,6 +36744,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             aeEmoteHint.textContent = "Leave blank for default · tokens: {item} · {restrainer}";
             aeCard.appendChild(aeEmoteHint);
             body.appendChild(aeCard);
+        }
+        /** @param includeAutoEscape false when the grouped layout has already put the
+         *  auto-escape card on the SAFETY tab. */
+        renderDomTools(includeAutoEscape = true) {
+            const body = this.tabBody();
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            if (includeAutoEscape)
+                this.buildAutoEscapeSection(body);
             // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
@@ -37953,10 +38490,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
             catch ( /* ignore */_g) { /* ignore */ }
-            // Show the DOM tab only for the creator
+            // Show the DOM tab only for the creator, and only in the classic layout
+            // (the grouped layout merges the Dom tools into the TOYS tab).
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
-                domTabEl.style.display = isDomEnabled() ? "" : "none";
+                domTabEl.style.display = (isDomEnabled() && !isGroupedLayout()) ? "" : "none";
             // Show the Puppy tab only for Lucy (#230466)
             const puppyTabEl = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector("#ebc-tab-puppy");
             if (puppyTabEl)
@@ -37970,7 +38508,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 toysTabEl.style.display = "";
             this.updateTimer();
             try {
-                this.applyTabVisibility();
+                this.applyLayoutMode();
             }
             catch ( /* ignore */_h) { /* ignore */ }
             this.renderCurrentTab();
@@ -38039,7 +38577,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     EBCDrawer._instance = null;
     /** Gold paw data URI - set from main.ts after EBC_PAW_DATA is defined. */
     EBCDrawer.pawDataUri = "";
-    // -- Interactive guide ─────────────────────────────────────────────────────
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.SVG_CHEV_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     EBCDrawer.SVG_CHEV_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,3 5,7 8,3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -38108,7 +38645,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 205; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 206; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38214,6 +38751,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
+                "Menu restructured into six broader tabs: ME (outfits, restraint sets, poses, combos, scenes, expressions, colours, nickname & title), SAFETY (release & unlock, active restraints, protected items, safewords, anti-restraint & auto-escape), SOCIAL (friends, rooms, notes, chat & notifications, AFK), BUTTONS (categories, fun actions, useful buttons), TOYS (Lovense, PiShock, XToys, plus the Dom tools that used to have their own tab) and SETTINGS (drawer preferences, EBC tags, storage & data, language, dev tools, logs, stats, credits). Nothing was removed or rewritten - each new tab simply calls the same section builders the old tabs used, so every feature behaves exactly as before.",
+                "The original eight tabs are still there: DEV -> Drawer -> 'Menu layout' -> 'Old layout' restores OUTFITS / BUTTONS / ANIMS / USERS / TOYS / CREDITS / DEV / DOM with their original content placement and stacked sections. The setting switches the whole menu live, without a reload, and each layout remembers its own active pill so switching back never lands on a section the other layout does not have.",
+                "The language pills moved out of the permanently pinned row and into SETTINGS -> Language, freeing a row of vertical space on every other tab. In the old layout they stay pinned under the tabs exactly where they were.",
+                "Tutorial: both the quick tour and the full guide now follow whichever layout you are on - every step opens the tab that actually holds the content it describes (storage points at SETTINGS, safewords at SAFETY when grouped). A new 'Menu Layout' step explains the six tabs and shows how to get the old eight back.",
+                "Fix: guide steps could spotlight an element hidden behind a different pill, so the highlight landed on nothing. Root cause: tab bodies are split into pill sections that hide everything except the active pill, and the guide only looked the element up without checking whether it was displayed. Fix: the guide now opens the pill that owns the target before highlighting it.",
+                "Fix: the guide never highlighted the ANIMS tab button. Root cause: a leftover id remap pointed the spotlight at '#ebc-tab-poses', which does not exist - the button's id is '#ebc-tab-anims'.",
             ],
         },
         {
