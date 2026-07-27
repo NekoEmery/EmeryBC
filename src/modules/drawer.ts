@@ -16917,8 +16917,23 @@ export class EBCDrawer {
             const els: HTMLElement[] = [];
             for (const sec of picked) {
                 // Several sections share this pill - keep their headers as labels.
-                if (picked.length > 1 && sec.headerEl) els.push(sec.headerEl);
-                else if (sec.headerEl) sec.headerEl.style.display = "none";
+                if (picked.length > 1 && sec.headerEl) {
+                    // Some headers are <button> elements (Tags, Storage) which
+                    // otherwise render inset with button padding and sit visibly
+                    // offset from the plain <div> headers next to them.
+                    const h = sec.headerEl;
+                    h.style.display = "block";
+                    h.style.width = "100%";
+                    h.style.boxSizing = "border-box";
+                    h.style.textAlign = "left";
+                    h.style.margin = "0";
+                    h.style.padding = "4px 0 5px";
+                    h.style.background = "transparent";
+                    h.style.border = "none";
+                    els.push(h);
+                } else if (sec.headerEl) {
+                    sec.headerEl.style.display = "none";
+                }
                 els.push(...sec.els);
             }
             groups.push({ label: m.pill, els });
