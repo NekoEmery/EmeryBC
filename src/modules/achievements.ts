@@ -33,6 +33,23 @@ export function setAchievementsOptedOut(off: boolean): void {
     } catch { /* ignore */ }
 }
 
+/** Whether shared achievement plaques from others are rendered. Anyone who opted
+ *  out of achievements never sees them; everyone else can toggle it. */
+export function getShowSharedPlaques(): boolean {
+    try {
+        if (isAchievementsOptedOut()) return false;
+        return (getSettings() as Record<string, unknown>).hideAchPlaques !== true;
+    } catch { return true; }
+}
+
+export function setShowSharedPlaques(show: boolean): void {
+    try {
+        const s = getSettings() as Record<string, unknown>;
+        s.hideAchPlaques = !show;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 /** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
 export function isAchievementUser(memberNumber: number | null | undefined): boolean {
     return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
@@ -79,12 +96,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
     // ⭐ Emery - rare single golden unlocks
-    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Dev",    desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
-    { id: "boop_the_dev",  icon: "⭐", name: "Boop the Dev",   desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
-    { id: "hug_the_dev",   icon: "⭐", name: "Dev Cuddler",    desc: "Hug Emery {n} times",          counter: "hug_emery",   tiers: [10], cls: "emery", rare: true },
-    { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",     desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
-    { id: "dev_wrangler",  icon: "⭐", name: "Dev Wrangler",   desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
-    { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery",  tiers: [25], cls: "emery", rare: true },
+    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
+    { id: "boop_the_dev",  icon: "⭐", name: "Boop the Kitty",  desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
+    { id: "hug_the_dev",   icon: "⭐", name: "Kitty Cuddler",   desc: "Hug Emery {n} times",          counter: "hug_emery",   tiers: [10], cls: "emery", rare: true },
+    { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",      desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
+    { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
+    { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
 ];
 
 interface AchState {
@@ -279,12 +296,14 @@ export function getShareCooldownMs(): number {
     return Math.max(0, SHARE_COOLDOWN_MS - (Date.now() - _lastShareTs));
 }
 
-/** Whispers an unlocked achievement to one person in the room. */
+export type ShareMode = { kind: "public" } | { kind: "friends" } | { kind: "person"; num: number; name: string };
+
+/** Shares an unlocked achievement - publicly to the room, privately to every
+ *  friend present, or privately to one person. */
 export function shareAchievement(
     id: string,
-    targetNum: number,
-    targetName: string,
-): "ok" | "noRoom" | "locked" | "cooldown" | "error" {
+    mode: ShareMode,
+): "ok" | "noRoom" | "locked" | "cooldown" | "noTargets" | "error" {
     try {
         const a = ACHIEVEMENTS.find(x => x.id === id);
         if (!a) return "error";
@@ -293,19 +312,45 @@ export function shareAchievement(
         // announced-unlocks map can lag until the next bump/tick runs checkUnlocks.
         const tier = tiersReached(a, st.c[a.counter] ?? 0);
         if (tier <= 0) return "locked";
-        if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return "noRoom";
+        const w = window as unknown as Record<string, unknown>;
+        if (w.CurrentScreen !== "ChatRoom") return "noRoom";
         if (getShareCooldownMs() > 0) return "cooldown";
         const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
-        ServerSend("ChatRoomChat", {
-            Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
-            Type: "Whisper",
-            Target: targetNum,
-            Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
-        } as never);
+        const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
+        const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
+
+        if (mode.kind === "public") {
+            ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict } as never);
+            _lastShareTs = Date.now();
+            renderSharedPlaque("you shared with the room", a, tier);
+            return "ok";
+        }
+
+        if (mode.kind === "friends") {
+            // One whisper per friend in the room, staggered so the server's rate
+            // limiter never sees a burst.
+            const me = Player?.MemberNumber ?? 0;
+            const room = w.ChatRoomCharacter as Array<{ MemberNumber?: number }> | undefined;
+            const friends = (Player?.FriendList ?? []) as number[];
+            const targets = (room ?? [])
+                .map(c => c.MemberNumber)
+                .filter((n): n is number => typeof n === "number" && n !== me && friends.includes(n));
+            if (targets.length === 0) return "noTargets";
+            targets.forEach((n, i) => {
+                window.setTimeout(() => {
+                    try { ServerSend("ChatRoomChat", { Content: content, Type: "Whisper", Target: n, Dictionary: dict } as never); } catch { /* ignore */ }
+                }, i * 350);
+            });
+            _lastShareTs = Date.now();
+            renderSharedPlaque(`you shared with ${targets.length} friend${targets.length === 1 ? "" : "s"}`, a, tier);
+            return "ok";
+        }
+
+        ServerSend("ChatRoomChat", { Content: content, Type: "Whisper", Target: mode.num, Dictionary: dict } as never);
         _lastShareTs = Date.now();
         // Local confirmation plaque for the sender (whispers aren't echoed back).
-        renderSharedPlaque(`you shared with ${targetName}`, a, tier);
+        renderSharedPlaque(`you shared with ${mode.name}`, a, tier);
         return "ok";
     } catch { return "error"; }
 }
@@ -321,6 +366,9 @@ export function handleAchievementShareMessage(data: Record<string, unknown> | nu
         const dict = Array.isArray(data.Dictionary) ? data.Dictionary as Array<Record<string, unknown>> : [];
         const entry = dict.find(d => d?.Tag === "EBCACH");
         if (!entry) return false;
+        // Respect the viewer: opted out, or plaques switched off = show nothing
+        // special, let BC render the plain message instead.
+        if (!getShowSharedPlaques()) return false;
         const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
         if (!a) return false;
         const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
@@ -362,26 +410,26 @@ function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): bo
 
         const plaque = document.createElement("div");
         plaque.style.cssText = [
-            "margin:8px 4px",
-            "padding:14px 16px",
-            "border-radius:10px",
-            `border:2px solid ${metal}`,
-            `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
+            "margin:4px 4px",
+            "padding:7px 12px",
+            "border-radius:8px",
+            `border:1px solid ${metal}99`,
+            `background:linear-gradient(120deg, rgba(22,10,20,0.96) 35%, ${metal}14 50%, rgba(22,10,20,0.96) 65%)`,
             "background-size:200% 100%",
-            "animation:ebcAchShine 9s linear infinite",
-            `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
+            "animation:ebcAchShine 14s linear infinite",
+            `box-shadow:inset 0 1px 0 rgba(255,255,255,0.06)`,
             "font-family:'Trebuchet MS',serif",
             "text-align:center",
         ].join(";");
 
         const head = document.createElement("div");
-        head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
-        head.textContent = `🏆 Achievement · ${byline}`;
+        head.style.cssText = `font-size:8.5px;letter-spacing:0.14em;color:${metal}bb;text-transform:uppercase;`;
+        head.textContent = `Achievement · ${byline}`;
         const nameEl = document.createElement("div");
-        nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
+        nameEl.style.cssText = `font-size:13px;font-weight:bold;color:${metal};margin-top:1px;`;
         nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");
         const descEl = document.createElement("div");
-        descEl.style.cssText = "font-size:12px;color:#d8c4d8;margin-top:3px;";
+        descEl.style.cssText = "font-size:10.5px;color:#c0aec4;margin-top:1px;";
         descEl.textContent = desc;
 
         plaque.appendChild(head);

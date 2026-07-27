@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent } from "./achievements";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -16857,13 +16857,14 @@ export class EBCDrawer {
                         shareBtn.addEventListener("click", () => {
                             const cd = getShareCooldownMs();
                             if (cd > 0) { flashShare(`Wait ${Math.ceil(cd / 1000)}s`); return; }
-                            this.pickAchievementShareTarget((num, name) => {
-                                const res = shareAchievement(a.id, num, name);
+                            this.pickAchievementShareTarget((mode) => {
+                                const res = shareAchievement(a.id, mode);
                                 flashShare(
-                                    res === "ok"       ? "Shared ✓" :
-                                    res === "noRoom"   ? "Join a room first" :
-                                    res === "locked"   ? "Not unlocked yet" :
-                                    res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
+                                    res === "ok"        ? "Shared ✓" :
+                                    res === "noRoom"    ? "Join a room first" :
+                                    res === "locked"    ? "Not unlocked yet" :
+                                    res === "noTargets" ? "No friends here" :
+                                    res === "cooldown"  ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
                             });
                         });
                         main.appendChild(shareBtn);
@@ -16913,7 +16914,7 @@ export class EBCDrawer {
 
     /** Small picker listing everyone else in the room - used by achievement
      *  sharing so the plaque goes to ONE person as a whisper, not the room. */
-    private pickAchievementShareTarget(onPick: (memberNumber: number, name: string) => void): void {
+    private pickAchievementShareTarget(onPick: (mode: ShareMode) => void): void {
         if (document.getElementById("ebc-ach-share-pick")) return;
         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
             Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
@@ -16930,6 +16931,24 @@ export class EBCDrawer {
         title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#cf6f98;";
         title.textContent = "Share with…";
         panel.appendChild(title);
+
+        // Broad options first: the whole room, or just friends who are present.
+        const mkBroad = (label: string, sub: string, onPick: () => void): HTMLElement => {
+            const b = document.createElement("button");
+            b.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #4c2537;background:#1e0c18;color:#e0b0c8;cursor:pointer;transition:all 0.12s;";
+            b.innerHTML = `<span style="font-weight:bold">${label}</span><span style="color:#9b8fa6;font-size:10px"> - ${sub}</span>`;
+            b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2e1424"; });
+            b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "#1e0c18"; });
+            b.addEventListener("click", () => { overlay.remove(); onPick(); });
+            return b;
+        };
+        panel.appendChild(mkBroad("Everyone", "posts to the room", () => onPick({ kind: "public" })));
+        panel.appendChild(mkBroad("Friends here", "private to friends in the room", () => onPick({ kind: "friends" })));
+
+        const orLbl = document.createElement("div");
+        orLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#7a6a86;letter-spacing:0.1em;text-transform:uppercase;";
+        orLbl.textContent = "or one person";
+        panel.appendChild(orLbl);
         const list = document.createElement("div");
         list.className = "ebc-ach-scroll";
         list.style.cssText = "overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:4px;";
@@ -16947,7 +16966,7 @@ export class EBCDrawer {
             btn.textContent = `${name} #${num}`;
             btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; btn.style.background = "#2a1421"; });
             btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#33283c"; btn.style.background = "transparent"; });
-            btn.addEventListener("click", () => { overlay.remove(); onPick(num, name); });
+            btn.addEventListener("click", () => { overlay.remove(); onPick({ kind: "person", num, name }); });
             list.appendChild(btn);
         }
         panel.appendChild(list);
@@ -17003,6 +17022,21 @@ export class EBCDrawer {
             scroll.appendChild(this.buildAchievementCards());
             panel.appendChild(scroll);
             // Opt-out lives here, in the achievements popup itself.
+            const plaqueBtn = document.createElement("button");
+            const paintPlaque = (): void => {
+                const on = getShowSharedPlaques();
+                plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
+                    (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
+                        : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
+                plaqueBtn.title = on
+                    ? "Plaques other people share are shown in your chat - click to hide them (you'll see a plain message instead)"
+                    : "Shared achievement plaques are hidden - click to show them again";
+            };
+            paintPlaque();
+            plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+            panel.appendChild(plaqueBtn);
+
             const optOutBtn = document.createElement("button");
             optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
             optOutBtn.textContent = "Opt out of achievements";

@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 193;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 194;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
+            "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",
+            "Achievement plaques can be switched off: anyone who opted out of achievements never sees shared plaques at all, and everyone else gets a 'Shared achievements: shown/hidden' toggle in the trophy popup. When hidden, the plain chat line shows instead so nothing is lost.",
+            "Achievements renamed from dev-speak to kitty: Pat the Kitty, Boop the Kitty, Kitty Cuddler, Kitty Rigger and Kitty's Favorite (Brave Soul kept). Progress carries over - only the labels changed.",
             "Fix: the 'Live support' badge stopped appearing when EBC HQ was open. Root cause: the scanner sent a partial ChatRoomSearch ({ Query, Language }) while BC's server expects the full request shape (Space, Game, FullRooms, ShowLocked, MapTypes, SearchDescs) - partial requests get filtered out, so the room was never found. Fix: the scan now mirrors BC's own request with permissive filters (a full or locked HQ still matches). It also no longer scans while you're on the room-search screen, where its query could hijack BC's pending search and replace your room list - the passive listener still reads BC's own results there, so the badge keeps updating.",
             "Users tab: Rooms is now its own pill (People / Rooms / Notes / Settings), and the collapsible dropdowns inside each pill are opened automatically - the pill is the section header, so the extra dropdown was redundant. The User Notes header is hidden entirely in pill mode.",
             "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
