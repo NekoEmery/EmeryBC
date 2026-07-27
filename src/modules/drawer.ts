@@ -6959,10 +6959,8 @@ export class EBCDrawer {
     private _pillifyToys(host: HTMLElement): void {
         if (!isGroupedLayout()) return;
         const GROUPS: Array<{ id: string; label: string }> = [
-            { id: "irl",      label: "IRL toy" },
-            { id: "game",     label: "In-game" },
-            { id: "triggers", label: "Triggers" },
-            { id: "share",    label: "Sharing" },
+            { id: "game", label: "Game toys" },
+            { id: "irl",  label: "IRL toys" },
         ];
         const kids = Array.from(host.children) as HTMLElement[];
         if (kids.length === 0) return;
@@ -24668,10 +24666,6 @@ This cannot be undone.`,
             s2Body.appendChild(s2Card);
             lovContent.appendChild(s2Wrap);
 
-            // Group the Toys page: real hardware setup, in-game toys, triggers,
-            // and sharing. Anything not explicitly tagged is connection/setup for
-            // the physical toy, so it defaults to "irl".
-            this._pillifyToys(lovContent);
         }
 
         // ── GAME TOYS ────────────────────────────────────────────────────────────
@@ -25013,6 +25007,8 @@ This cannot be undone.`,
         }
 
         // GAME TOYS on top, IRL TOYS below
+        gtWrap.dataset.toyGroup  = "game";
+        lovWrap.dataset.toyGroup = "irl";
         card.appendChild(gtWrap);
         card.appendChild(lovWrap);
 
@@ -25505,6 +25501,7 @@ This cannot be undone.`,
 
             }
 
+            psWrap.dataset.toyGroup = "irl";
             card.appendChild(psWrap);
         }
 
@@ -25612,9 +25609,12 @@ This cannot be undone.`,
                 xtContent.appendChild(logEl);
             }
 
+            xtWrap.dataset.toyGroup = "irl";
             card.appendChild(xtWrap);
         }
 
+        // In-game vs real hardware, as pills over the top-level toy sections.
+        this._pillifyToys(card);
         body.appendChild(card);
     }
 

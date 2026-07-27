@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 209;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 210;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -106,6 +106,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
             "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
             "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+            "Fix: the Toys pills did not appear - the converter was pointed at the Lovense section's inner content instead of the tab's top-level sections. It now runs over the card holding Game toys / IRL toys (Lovense) / PiShock / XToys, giving two pills: Game toys and IRL toys.",
             "Toys tab split into pills: IRL toy (Bluetooth/Lovense Connect setup and vibrate defaults), In-game (BC toy sync), Triggers (chat phrases and body touch) and Sharing (let others control your toy / control a friend's). Sections declare their own group, and anything untagged counts as physical-toy setup - so a section added later still lands somewhere sensible rather than disappearing. Classic layout keeps the original single scrolling page.",
             "Dom keeps its own tab in the new layout instead of being folded into Toys, matching the classic layout - it is still creator-only in both. Auto-escape is not duplicated: it shows on the Dom tab in classic, and on Safety in the new layout.",
             "Fix: section headers kept as sub-labels inside a shared pill (Tags, Storage) were still live collapse buttons, so they could be clicked shut inside a pill that no longer had a working chevron. They are now replaced with a listener-free clone - a plain label with the arrow stripped.",
