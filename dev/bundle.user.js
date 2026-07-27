@@ -6846,11 +6846,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     // ── Sharing ───────────────────────────────────────────────────────────────────
-    // An unlocked achievement can be posted to the room chat. The message carries a
-    // machine-readable Dictionary entry: EBC clients suppress the plain emote and
-    // render a big shiny plaque instead; everyone else sees a normal emote line.
-    /** Posts an unlocked achievement to the room chat. */
-    function shareAchievement(id) {
+    // An unlocked achievement is shared as a WHISPER to one chosen person - never
+    // broadcast to the whole room - with a cooldown so chat can't be spammed. The
+    // whisper carries a machine-readable Dictionary entry: the recipient's EBC
+    // suppresses the plain whisper text and renders a big shiny plaque instead;
+    // recipients without EBC just see a normal whispered emote line.
+    const SHARE_COOLDOWN_MS = 60000;
+    let _lastShareTs = 0;
+    /** Milliseconds until the next share is allowed (0 = ready). */
+    function getShareCooldownMs() {
+        return Math.max(0, SHARE_COOLDOWN_MS - (Date.now() - _lastShareTs));
+    }
+    /** Whispers an unlocked achievement to one person in the room. */
+    function shareAchievement(id, targetNum, targetName) {
         var _a, _b;
         try {
             const a = ACHIEVEMENTS.find(x => x.id === id);
@@ -6858,32 +6866,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return "error";
             const st = getState();
             // Derive the tier from the live counter (exactly like the UI does) - the
-            // announced-unlocks map can lag until the next bump/tick runs checkUnlocks,
-            // which made sharing fail right after login even on maxed achievements.
+            // announced-unlocks map can lag until the next bump/tick runs checkUnlocks.
             const tier = tiersReached(a, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0);
             if (tier <= 0)
                 return "locked";
             if (window.CurrentScreen !== "ChatRoom")
                 return "noRoom";
+            if (getShareCooldownMs() > 0)
+                return "cooldown";
             const tierLabel = a.tiers.length > 1 ? ` ${(_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : tier}` : "";
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
             ServerSend("ChatRoomChat", {
                 Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
-                Type: "Emote",
+                Type: "Whisper",
+                Target: targetNum,
                 Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
             });
+            _lastShareTs = Date.now();
+            // Local confirmation plaque for the sender (whispers aren't echoed back).
+            renderSharedPlaque(`you shared with ${targetName}`, a, tier);
             return "ok";
         }
         catch (_c) {
             return "error";
         }
     }
+    // One plaque per sender per 30s - a hand-crafted whisper flood can't fill the log.
+    const _plaqueLastBySender = new Map();
     /** Detects an incoming achievement share. Renders the plaque and returns true
-     *  so the caller suppresses the plain emote. Works for EVERY EBC user. */
+     *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
     function handleAchievementShareMessage(data) {
-        var _a;
+        var _a, _b;
         try {
-            if (!data || (data.Type !== "Emote" && data.Type !== "Chat"))
+            if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper"))
                 return false;
             const dict = Array.isArray(data.Dictionary) ? data.Dictionary : [];
             const entry = dict.find(d => (d === null || d === void 0 ? void 0 : d.Tag) === "EBCACH");
@@ -6892,19 +6907,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
             if (!a)
                 return false;
-            const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
             const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+            const last = (_a = _plaqueLastBySender.get(senderNum)) !== null && _a !== void 0 ? _a : 0;
+            if (Date.now() - last < 30000)
+                return true; // swallow the spam silently
+            _plaqueLastBySender.set(senderNum, Date.now());
+            const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
             let senderName = `#${senderNum}`;
             try {
                 const room = window.ChatRoomCharacter;
                 const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === senderNum);
                 if (c)
-                    senderName = ((_a = c.Nickname) !== null && _a !== void 0 ? _a : "").trim() || c.Name || senderName;
+                    senderName = ((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || senderName;
             }
-            catch ( /* ignore */_b) { /* ignore */ }
-            return renderSharedPlaque(senderName, a, tier);
+            catch ( /* ignore */_c) { /* ignore */ }
+            return renderSharedPlaque(`shared by ${senderName}`, a, tier);
         }
-        catch (_c) {
+        catch (_d) {
             return false;
         }
     }
@@ -6914,11 +6933,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const st = document.createElement("style");
         st.id = "ebc-ach-shine-style";
         st.textContent = "@keyframes ebcAchShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }";
+        // (The sweep speed is set per-plaque below - keep it slow and subtle.)
         document.head.appendChild(st);
     }
     /** Big shiny plaque in the chat log - deliberately larger than normal messages,
      *  like addon update notices, but in EBC's dark + metal style. */
-    function renderSharedPlaque(senderName, a, tier) {
+    function renderSharedPlaque(byline, a, tier) {
         var _a;
         try {
             const log = document.getElementById("TextAreaChatLog");
@@ -6937,14 +6957,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 `border:2px solid ${metal}`,
                 `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
                 "background-size:200% 100%",
-                "animation:ebcAchShine 3.4s linear infinite",
+                "animation:ebcAchShine 9s linear infinite",
                 `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
                 "font-family:'Trebuchet MS',serif",
                 "text-align:center",
             ].join(";");
             const head = document.createElement("div");
             head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
-            head.textContent = `🏆 Achievement · shared by ${senderName}`;
+            head.textContent = `🏆 Achievement · ${byline}`;
             const nameEl = document.createElement("div");
             nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
             nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");
@@ -9612,6 +9632,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
+
+/* Achievements popup - same slim pink scrollbar as the panel body */
+.ebc-ach-scroll::-webkit-scrollbar { width: 5px; }
+.ebc-ach-scroll::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb:hover { background: #e890b8; }
+.ebc-ach-scroll { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -25080,16 +25107,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const shareBtn = document.createElement("button");
                             shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
                             shareBtn.textContent = "Share";
-                            shareBtn.title = "Show this achievement in the room chat as a shiny plaque";
+                            shareBtn.title = "Whisper this achievement to someone in the room - they see it as a shiny plaque";
                             shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
                             shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
+                            const flashShare = (label) => {
+                                shareBtn.textContent = label;
+                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1800);
+                            };
                             shareBtn.addEventListener("click", () => {
-                                const res = shareAchievement(a.id);
-                                shareBtn.textContent =
-                                    res === "ok" ? "Shared ✓" :
+                                const cd = getShareCooldownMs();
+                                if (cd > 0) {
+                                    flashShare(`Wait ${Math.ceil(cd / 1000)}s`);
+                                    return;
+                                }
+                                this.pickAchievementShareTarget((num, name) => {
+                                    const res = shareAchievement(a.id, num, name);
+                                    flashShare(res === "ok" ? "Shared ✓" :
                                         res === "noRoom" ? "Join a room first" :
-                                            res === "locked" ? "Not unlocked yet" : "Failed";
-                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1600);
+                                            res === "locked" ? "Not unlocked yet" :
+                                                res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
+                                });
                             });
                             card.appendChild(shareBtn);
                         }
@@ -25132,6 +25169,55 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             outer.appendChild(listWrap);
             return outer;
         }
+        /** Small picker listing everyone else in the room - used by achievement
+         *  sharing so the plaque goes to ONE person as a whisper, not the room. */
+        pickAchievementShareTarget(onPick) {
+            var _a;
+            if (document.getElementById("ebc-ach-share-pick"))
+                return;
+            const room = window.ChatRoomCharacter;
+            const me = Player === null || Player === void 0 ? void 0 : Player.MemberNumber;
+            const people = (room !== null && room !== void 0 ? room : []).filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== me);
+            const overlay = document.createElement("div");
+            overlay.id = "ebc-ach-share-pick";
+            overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000000;display:flex;align-items:center;justify-content:center;";
+            overlay.addEventListener("click", (e) => { if (e.target === overlay)
+                overlay.remove(); });
+            const panel = document.createElement("div");
+            panel.style.cssText = "background:#130810;border:2px solid #cf6f98;border-radius:11px;padding:12px 14px;width:min(280px, 90vw);max-height:60vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.85);";
+            const title = document.createElement("div");
+            title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#cf6f98;";
+            title.textContent = "Share with…";
+            panel.appendChild(title);
+            const list = document.createElement("div");
+            list.className = "ebc-ach-scroll";
+            list.style.cssText = "overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:4px;";
+            if (people.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px;";
+                none.textContent = "Nobody else is in the room.";
+                list.appendChild(none);
+            }
+            for (const c of people) {
+                const num = c.MemberNumber;
+                const name = ((_a = c.Nickname) !== null && _a !== void 0 ? _a : "").trim() || c.Name || `#${num}`;
+                const btn = document.createElement("button");
+                btn.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #33283c;background:transparent;color:#c8a0b4;cursor:pointer;transition:all 0.12s;";
+                btn.textContent = `${name} #${num}`;
+                btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; btn.style.background = "#2a1421"; });
+                btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#33283c"; btn.style.background = "transparent"; });
+                btn.addEventListener("click", () => { overlay.remove(); onPick(num, name); });
+                list.appendChild(btn);
+            }
+            panel.appendChild(list);
+            const cancel = document.createElement("button");
+            cancel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 0;border-radius:7px;border:1px solid #33283c;background:transparent;color:#9b8fa6;cursor:pointer;";
+            cancel.textContent = "Cancel";
+            cancel.addEventListener("click", () => overlay.remove());
+            panel.appendChild(cancel);
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+        }
         /** Fun popup version of the achievement list, opened from the 🏆 header button. */
         showAchievementsOverlay() {
             if (document.getElementById("ebc-ach-overlay"))
@@ -25155,6 +25241,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             head.appendChild(title);
             head.appendChild(closeBtn);
             const scroll = document.createElement("div");
+            scroll.className = "ebc-ach-scroll";
             scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
             scroll.appendChild(this.buildAchievementCards());
             panel.appendChild(head);
@@ -36973,7 +37060,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 184; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 185; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37036,6 +37123,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
                 "Fix: the 🏆 trophy button never appeared in the panel header. Root cause: its crew-only visibility was decided once while the panel was being built - before login finished, when Player.MemberNumber didn't exist yet - so it stayed hidden forever. Fix: the visibility re-checks every 2 s until the player data exists.",
                 "Fix: dragging the panel out of the drawer (free-float mode) crushed the header - the DEV pill clipped mid-letter and the title overlapped the buttons on narrow widths. Fix: the version text and DEV pill no longer shrink, the 'EmeryBC' subtitle hides in float mode, and the header buttons compact slightly so everything always fits.",
+                "Achievements popup: the fat default browser scrollbar replaced with EBC's slim pink one (same style as the panel body).",
+                "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
