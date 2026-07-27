@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress } from "./achievements";
+import { isAchievementUser, getAchievementProgress, getWornBadgeId, setWornBadge, sanitizeBadgeIcon } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -15094,13 +15094,15 @@ export class EBCDrawer {
                         } catch { return ""; }
                     })();
 
-                    // EBC version badge
+                    // EBC version badge + worn achievement badge (both from presence)
+                    let achBadge: string | null = null;
                     const ebcVer = (() => {
                         try {
                             const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
+                                    achBadge = sanitizeBadgeIcon((p as Record<string, unknown>).badge);
                                     const v = (p as Record<string, unknown>).version;
                                     const m = (p as Record<string, unknown>).marker;
                                     if (m === "EBC" && typeof v === "string") { cacheEBCVersion(num, v); return v; }
@@ -15128,6 +15130,13 @@ export class EBCDrawer {
                     }
 
                     nameRow.appendChild(numEl);
+                    if (achBadge) {
+                        const ab = document.createElement("span");
+                        ab.textContent = achBadge;
+                        ab.title = "Achievement badge";
+                        ab.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;filter:drop-shadow(0 0 3px rgba(255,215,0,0.5));";
+                        nameRow.appendChild(ab);
+                    }
                     if (relBadge) {
                         const badge = document.createElement("span");
                         badge.textContent = relBadge;
@@ -25212,6 +25221,21 @@ export class EBCDrawer {
                 row.appendChild(ic);
                 row.appendChild(col);
                 row.appendChild(pr);
+                if (done) {
+                    const worn = getWornBadgeId() === a.id;
+                    const wearBtn = document.createElement("button");
+                    wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
+                    wearBtn.style.flexShrink = "0";
+                    wearBtn.textContent = worn ? "Worn ✓" : "Wear";
+                    wearBtn.title = worn
+                        ? "This badge shows next to your name for other EBC users - click to take it off"
+                        : "Wear this badge - its icon shows next to your name for other EBC users";
+                    wearBtn.addEventListener("click", () => {
+                        setWornBadge(worn ? null : a.id);
+                        this.rerender();
+                    });
+                    row.appendChild(wearBtn);
+                }
                 achWrap.appendChild(row);
             }
             body.appendChild(achWrap);

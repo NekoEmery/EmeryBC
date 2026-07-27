@@ -162,6 +162,49 @@ export function achievementOnItemApply(
     } catch { /* ignore */ }
 }
 
+// ── Worn badge ────────────────────────────────────────────────────────────────
+// One unlocked achievement can be "worn" - its icon travels in EBC's presence
+// broadcast and other EBC users see it next to the name in People-in-Room.
+
+let _presenceRefresh: (() => void) | null = null;
+/** main.ts registers its presence broadcaster here so badge changes push out. */
+export function setPresenceRefreshCallback(cb: () => void): void {
+    _presenceRefresh = cb;
+}
+
+export function getWornBadgeId(): string | null {
+    try {
+        const st = getState() as AchState & { w?: string };
+        return typeof st.w === "string" && st.w ? st.w : null;
+    } catch { return null; }
+}
+
+/** The worn badge's icon, for the presence payload. Null when nothing worn. */
+export function getWornBadgeIcon(): string | null {
+    const id = getWornBadgeId();
+    if (!id) return null;
+    const st = getState();
+    if (!st.u[id]) return null; // must actually be unlocked
+    return ACHIEVEMENTS.find(a => a.id === id)?.icon ?? null;
+}
+
+/** Wear an unlocked achievement's badge (null = wear nothing). */
+export function setWornBadge(id: string | null): boolean {
+    try {
+        const st = getState() as AchState & { w?: string };
+        if (id !== null && !st.u[id]) return false; // not unlocked
+        if (id === null) delete st.w; else st.w = id;
+        syncSettings();
+        try { _presenceRefresh?.(); } catch { /* ignore */ }
+        return true;
+    } catch { return false; }
+}
+
+/** Cap incoming badge strings from other clients - emoji only, no essays. */
+export function sanitizeBadgeIcon(v: unknown): string | null {
+    return typeof v === "string" && v.length > 0 && v.length <= 8 ? v : null;
+}
+
 /** Progress rows for the credits-tab UI. */
 export function getAchievementProgress(): Array<AchievementDef & { value: number; unlockedAt: number | null }> {
     const st = getState();
