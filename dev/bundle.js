@@ -25304,18 +25304,58 @@
             var _a, _b;
             if (getUsersLayout() !== "tabs")
                 return;
+            // Pass 1 - expand every collapsed section by clicking its header. Several
+            // sections (Colours, Tags, Storage...) build their content lazily and skip
+            // building entirely while collapsed, so merely forcing display would leave
+            // an empty panel. Clicking runs their own toggle, which builds the content
+            // and persists the expanded state. "▶" is the collapsed marker everywhere.
+            for (const el of Array.from(body.children)) {
+                const lbl = el.classList.contains("ebc-section-label")
+                    ? el
+                    : el.querySelector(":scope > .ebc-section-label");
+                if (lbl && ((_a = lbl.textContent) !== null && _a !== void 0 ? _a : "").includes("▶")) {
+                    try {
+                        lbl.click();
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
+            }
             const kids = Array.from(body.children);
             const groups = [];
             const preamble = [];
+            // Section label text -> pill label: drop arrows, parenthetical counts and
+            // any trailing stats ("STORAGE 82.2 / 150.0 KB ACCOUNT" -> "STORAGE").
+            const pillLabel = (el) => {
+                var _a;
+                let raw = ((_a = el.textContent) !== null && _a !== void 0 ? _a : "").replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "");
+                const digit = raw.search(/\d/);
+                if (digit > 0)
+                    raw = raw.slice(0, digit);
+                return raw.trim();
+            };
             for (const el of kids) {
-                const isHeader = el.classList.contains("ebc-section-label")
-                    || !!el.querySelector(":scope > .ebc-section-label");
-                if (isHeader) {
-                    const raw = ((_a = el.textContent) !== null && _a !== void 0 ? _a : "")
-                        .replace(/[▶▼]/g, "")
-                        .replace(/\([^)]*\)/g, "") // drop counts like "(11 SAVED)"
-                        .trim();
-                    groups.push({ label: raw || `Section ${groups.length + 1}`, els: [el] });
+                const self = el.classList.contains("ebc-section-label") ? el : null;
+                const inner = self ? null : el.querySelector(":scope > .ebc-section-label");
+                const labelEl = self !== null && self !== void 0 ? self : inner;
+                if (labelEl) {
+                    const label = pillLabel(labelEl) || `Section ${groups.length + 1}`;
+                    if (self) {
+                        // Header is its own child - hide it, the following siblings
+                        // are this section's content.
+                        el.style.display = "none";
+                        groups.push({ label, els: [] });
+                    }
+                    else {
+                        // One wrapper holds header AND content - hide only the inner
+                        // header and keep the wrapper as the section's content, or the
+                        // whole section would vanish.
+                        labelEl.style.display = "none";
+                        for (const sub of Array.from(el.children)) {
+                            if (sub !== labelEl && sub.style.display === "none")
+                                sub.style.display = "";
+                        }
+                        groups.push({ label, els: [el] });
+                    }
                 }
                 else if (groups.length === 0) {
                     preamble.push(el);
@@ -25326,22 +25366,20 @@
             }
             if (groups.length < 2)
                 return;
+            // Force each section's own content open - the pill is the header now, so a
+            // collapsed body inside would just look empty. Only direct children are
+            // touched, so nested UI that is deliberately hidden keeps its own state.
             for (const g of groups) {
-                g.els.forEach((el, i) => {
-                    // Hide the header row; force the rest of the section open. Only
-                    // direct children are touched, so nested UI that is deliberately
-                    // hidden (edit panels, popovers) keeps its own state.
-                    if (i === 0)
-                        el.style.display = "none";
-                    else if (el.style.display === "none")
+                for (const el of g.els) {
+                    if (el.style.display === "none")
                         el.style.display = "";
-                });
+                }
             }
             let active = "";
             try {
                 active = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             if (!groups.some(g => g.label === active))
                 active = groups[0].label;
             const nav = document.createElement("div");
@@ -25354,14 +25392,16 @@
                         (on
                             ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
                             : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
-                    for (let j = 1; j < groups[i].els.length; j++) {
-                        groups[i].els[j].style.display = on ? "" : "none";
+                    for (const el of groups[i].els) {
+                        el.style.display = on ? "" : "none";
                     }
                 }
             };
             for (const g of groups) {
                 const pill = document.createElement("button");
-                const short = g.label.length > 14 ? g.label.slice(0, 13) + "…" : g.label;
+                // Labels are short enough to show in full once stats are stripped;
+                // the row wraps rather than truncating mid-word.
+                const short = g.label.length > 22 ? g.label.slice(0, 21) + "…" : g.label;
                 pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
                 pill.title = g.label;
                 pill.addEventListener("click", () => {
@@ -37615,7 +37655,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 196; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 197; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37687,6 +37727,7 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Fix (pill sections): Colours, Tags and Storage opened empty, and pill labels were cut off mid-word. Two root causes: those sections wrap their header AND content in one element, so hiding the 'header' hid the whole section - the converter now hides just the inner header and keeps the wrapper as content; and several sections build their content lazily, skipping the build entirely while collapsed, so forcing them visible showed an empty panel - the converter now clicks each collapsed header first, running the section's own expand-and-build. Labels also strip trailing stats ('STORAGE 82.2 / 150.0 KB ACCOUNT' -> 'Storage') and the row wraps instead of truncating.",
                 "Outfits, Buttons and Anims tabs decluttered too - their stacked sections are now pills, driven by one generic converter that finds each tab's section headers, hides the now-redundant header, opens the content, and builds the pill row. Each tab remembers its own pill. Nested UI that is deliberately hidden (outfit edit panels, popovers) is left alone.",
                 "Users tab: the 'People' pill is renamed 'Friends', and the Notes pill now explains how to actually write a note (expand a person's row in Friends or People in Room) instead of looking empty.",
                 "Menu layout toggle reworded to 'New layout' / 'Old layout' (DEV → Drawer), defaulting to New.",
