@@ -9,7 +9,7 @@ import { getSettings, syncSettings } from "./bcUtils";
 import { getRestraintMs } from "./timer";
 
 // Crew whitelist - only these members track or see achievements.
-export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395];
+export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
 const EMERY = 130267;
 
 /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle

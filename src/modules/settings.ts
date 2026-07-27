@@ -438,6 +438,18 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Users tab layout ----------------------------------------------------------
+// "tabs"    = sections split behind pill sub-navigation (less clutter)
+// "classic" = every section stacked on one long page (the original layout)
+
+export function getUsersLayout(): "tabs" | "classic" {
+    try { return getSettings()?.usersLayout === "classic" ? "classic" : "tabs"; } catch { return "tabs"; }
+}
+
+export function setUsersLayout(v: "tabs" | "classic"): void {
+    try { getSettings().usersLayout = v; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Favorite rooms ------------------------------------------------------------
 // Rooms the user saved for one-click joining from the Users tab. Each entry is a
 // full snapshot of the room's settings (description, admins, background, limits,

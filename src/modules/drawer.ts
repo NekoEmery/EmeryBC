@@ -97,7 +97,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -14679,8 +14679,14 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // Sections are built into their own containers so the layout can either
+        // stack them all (classic) or split them behind pills (tabs).
+        const secPeople   = document.createElement("div");
+        const secNotes    = document.createElement("div");
+        const secSettings = document.createElement("div");
+
         // ── Messages dropdown ─────────────────────────────────────────────────
-        this.renderMessagesDropdown(body);
+        this.renderMessagesDropdown(secPeople);
 
         // ── Chat & Notifications ──────────────────────────────────────────────
         let chatSettingsCollapsed = true;
@@ -14696,7 +14702,7 @@ export class EBCDrawer {
         chatSettingsChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         chatSettingsHeader.appendChild(chatSettingsLbl);
         chatSettingsHeader.appendChild(chatSettingsChevron);
-        body.appendChild(chatSettingsHeader);
+        secSettings.appendChild(chatSettingsHeader);
 
         const chatSettingsBody = document.createElement("div");
         chatSettingsBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
@@ -14935,20 +14941,20 @@ export class EBCDrawer {
         chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
         chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
         chatSettingsHeader.addEventListener("click", toggleChatSettings);
-        body.appendChild(chatSettingsBody);
+        secSettings.appendChild(chatSettingsBody);
 
         // ── Divider ───────────────────────────────────────────────────────────
         const chatSettingsDiv = document.createElement("div");
         chatSettingsDiv.className = "ebc-divider";
-        body.appendChild(chatSettingsDiv);
+        secSettings.appendChild(chatSettingsDiv);
 
         // ── AFK Auto-Reply (top-level section) ───────────────────────────────
-        body.appendChild(afkSubHeader);
-        body.appendChild(afkBody);
+        secSettings.appendChild(afkSubHeader);
+        secSettings.appendChild(afkBody);
 
         const afkTopDiv = document.createElement("div");
         afkTopDiv.className = "ebc-divider";
-        body.appendChild(afkTopDiv);
+        secSettings.appendChild(afkTopDiv);
 
         const notes = getNotes();
 
@@ -14970,7 +14976,7 @@ export class EBCDrawer {
 
         userNotesHeaderRow.appendChild(userNotesLbl);
         userNotesHeaderRow.appendChild(userNotesChevron);
-        body.appendChild(userNotesHeaderRow);
+        secNotes.appendChild(userNotesHeaderRow);
 
         const userNotesBody = document.createElement("div");
         userNotesBody.style.display = userNotesCollapsed ? "none" : "block";
@@ -14996,7 +15002,7 @@ export class EBCDrawer {
             userNotesBody.appendChild(empty);
         }
 
-        body.appendChild(userNotesBody);
+        secNotes.appendChild(userNotesBody);
 
         // ── Groups ───────────────────────────────────────────────────────────
         const grpSec = document.createElement("div");
@@ -15180,7 +15186,53 @@ export class EBCDrawer {
         // ── Friends ──────────────────────────────────────────────────────────
         const friendsSection = document.createElement("div");
         this.friendsSectionEl = friendsSection;
-        body.appendChild(friendsSection);
+        secPeople.appendChild(friendsSection);
+
+        // ── Layout ───────────────────────────────────────────────────────────
+        if (getUsersLayout() === "classic") {
+            // Original: everything stacked on one page.
+            body.appendChild(secPeople);
+            body.appendChild(secNotes);
+            body.appendChild(secSettings);
+        } else {
+            // Tabs: one pill row, one section visible at a time.
+            const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
+                { id: "people",   label: "People",   el: secPeople },
+                { id: "notes",    label: "Notes",    el: secNotes },
+                { id: "settings", label: "Settings", el: secSettings },
+            ];
+            let active = "people";
+            try { active = localStorage.getItem("EBC_usersView") ?? "people"; } catch { /* ignore */ }
+            if (!VIEWS.some(v => v.id === active)) active = "people";
+
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+            const pills: HTMLButtonElement[] = [];
+            const paint = (): void => {
+                for (let i = 0; i < VIEWS.length; i++) {
+                    const on = VIEWS[i].id === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                    VIEWS[i].el.style.display = on ? "" : "none";
+                }
+            };
+            for (const v of VIEWS) {
+                const pill = document.createElement("button");
+                pill.textContent = v.label;
+                pill.addEventListener("click", () => {
+                    active = v.id;
+                    try { localStorage.setItem("EBC_usersView", active); } catch { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                nav.appendChild(pill);
+            }
+            body.appendChild(nav);
+            for (const v of VIEWS) body.appendChild(v.el);
+            paint();
+        }
         // Defer heavy list build to next animation frame so the tab paints first.
         window.requestAnimationFrame(() => {
             if (this.friendsSectionEl === friendsSection) this.renderFriendRows(friendsSection);
@@ -16949,6 +17001,35 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Users tab layout (new pill sections vs the original long page) ────
+        {
+            const layoutRow = document.createElement("div");
+            layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const layoutLbl = document.createElement("span");
+            layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+            layoutLbl.textContent = "Users tab layout";
+            const layoutBtn = document.createElement("button");
+            const paintLayout = (): void => {
+                const tabs = getUsersLayout() === "tabs";
+                layoutBtn.textContent = tabs ? "New (tabs)" : "Classic";
+                layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                    (tabs
+                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                        : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                layoutBtn.title = tabs
+                    ? "Users tab is split into People / Notes / Settings pills - click for the original single long page"
+                    : "Users tab shows every section stacked (original) - click for the tidier pill layout";
+            };
+            paintLayout();
+            layoutBtn.addEventListener("click", () => {
+                setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
+                paintLayout();
+            });
+            layoutRow.appendChild(layoutLbl);
+            layoutRow.appendChild(layoutBtn);
+            body.appendChild(layoutRow);
+        }
 
 
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).

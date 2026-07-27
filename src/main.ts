@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 191;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 192;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -101,7 +101,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
-            "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
+            "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
             "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
             "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
             "Fix: the Boop achievements could never unlock, and booping wrongly counted as a headpat. Root cause: BC's 'Boop Nose' is not its own activity - it is the Pet activity performed on the ItemNose group, so the only way to tell a boop from a headpat is the group, which the achievement code ignored. Fix: the activity group is now passed through and used - Pet on ItemNose = boop, Pet anywhere else = headpat. Added a matching 'Boop Target' achievement (get your nose booped 5/25/100 times), and nose-nuzzles now count toward hugs.",
