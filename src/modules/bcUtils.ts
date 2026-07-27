@@ -19,6 +19,9 @@ export function initSettings(): void {
     for (const [k, v] of Object.entries(src)) {
         if (k !== "_d") _mem[k] = v;
     }
+    // Device-stored keys override the account copy for whatever the user moved
+    // off the account on this browser.
+    loadDeviceKeysIntoMem();
     // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
     // Player.OnlineSettings before settings were moved to ExtensionSettings.
     // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
@@ -129,7 +132,58 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
                 _mem[k] = v;
             }
         }
+        // Device-stored keys override whatever the account had for them.
+        loadDeviceKeysIntoMem();
         _initialized = true;
+    } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// Device-stored keys
+// ---------------------------------------------------------------------------
+// Any settings key listed here is persisted to this browser's localStorage
+// instead of the BC account. Every getter/setter in the addon still reads and
+// writes _mem exactly as before - only where the data lands changes. Keeping the
+// split at the persistence layer means no feature code needs to know about it.
+
+const DEVICE_KEYS_LS = "EBC_deviceKeys";
+const DEVICE_VAL_PREFIX = "EBC_dev_";
+
+export function getDeviceKeys(): Set<string> {
+    try {
+        const raw = localStorage.getItem(DEVICE_KEYS_LS);
+        const v = raw ? JSON.parse(raw) as unknown : null;
+        return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+    } catch { return new Set(); }
+}
+
+export function setDeviceKeys(keys: Set<string>): void {
+    try { localStorage.setItem(DEVICE_KEYS_LS, JSON.stringify([...keys])); } catch { /* ignore */ }
+}
+
+/** Reads one device-stored key straight from localStorage (null when absent). */
+export function readDeviceValue(key: string): unknown {
+    try {
+        const raw = localStorage.getItem(DEVICE_VAL_PREFIX + key);
+        return raw === null ? null : JSON.parse(raw) as unknown;
+    } catch { return null; }
+}
+
+export function writeDeviceValue(key: string, value: unknown): void {
+    try {
+        if (value === undefined || value === null) localStorage.removeItem(DEVICE_VAL_PREFIX + key);
+        else localStorage.setItem(DEVICE_VAL_PREFIX + key, JSON.stringify(value));
+    } catch { /* ignore */ }
+}
+
+/** Pulls every device-stored key into _mem. Called after the account settings
+ *  load so the device copy wins for keys the user moved off the account. */
+export function loadDeviceKeysIntoMem(): void {
+    try {
+        for (const k of getDeviceKeys()) {
+            const v = readDeviceValue(k);
+            if (v !== null) _mem[k] = v;
+        }
     } catch { /* ignore */ }
 }
 
@@ -142,7 +196,13 @@ export const SETTINGS_FLUSH_CAP = 150_000;
 
 /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
 export function getSettingsBlobSize(): number {
-    try { return JSON.stringify(_mem).length; } catch { return 0; }
+    try {
+        const dev = getDeviceKeys();
+        if (dev.size === 0) return JSON.stringify(_mem).length;
+        const acct: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(_mem)) if (!dev.has(k)) acct[k] = v;
+        return JSON.stringify(acct).length;
+    } catch { return 0; }
 }
 
 export function flushToExtensionSettings(): boolean {
@@ -161,9 +221,18 @@ export function flushToExtensionSettings(): boolean {
             Player.ExtensionSettings.EmeryBC = {} as typeof Player.ExtensionSettings.EmeryBC;
         }
         const target = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+        const deviceKeys = getDeviceKeys();
         // Remove stale _d blob if it somehow survived.
         delete target["_d"];
         for (const [k, v] of Object.entries(_mem)) {
+            // Device-stored: persist locally and null the account copy, otherwise
+            // the old (large) server value would linger - the flush only ever
+            // copies keys to the server, it never removes them.
+            if (deviceKeys.has(k)) {
+                writeDeviceValue(k, v);
+                target[k] = null;
+                continue;
+            }
             // Name caches are MERGED with the server copy rather than overwritten.
             // Without this, a secondary device (tablet) that has only seen a handful
             // of friends pushes its tiny cache over the desktop's full one the moment

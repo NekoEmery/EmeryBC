@@ -48,6 +48,9 @@
             if (k !== "_d")
                 _mem[k] = v;
         }
+        // Device-stored keys override the account copy for whatever the user moved
+        // off the account on this browser.
+        loadDeviceKeysIntoMem();
         // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
         // Player.OnlineSettings before settings were moved to ExtensionSettings.
         // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
@@ -165,9 +168,67 @@
                     _mem[k] = v;
                 }
             }
+            // Device-stored keys override whatever the account had for them.
+            loadDeviceKeysIntoMem();
             _initialized = true;
         }
         catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // ---------------------------------------------------------------------------
+    // Device-stored keys
+    // ---------------------------------------------------------------------------
+    // Any settings key listed here is persisted to this browser's localStorage
+    // instead of the BC account. Every getter/setter in the addon still reads and
+    // writes _mem exactly as before - only where the data lands changes. Keeping the
+    // split at the persistence layer means no feature code needs to know about it.
+    const DEVICE_KEYS_LS = "EBC_deviceKeys";
+    const DEVICE_VAL_PREFIX = "EBC_dev_";
+    function getDeviceKeys() {
+        try {
+            const raw = localStorage.getItem(DEVICE_KEYS_LS);
+            const v = raw ? JSON.parse(raw) : null;
+            return new Set(Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+        }
+        catch (_a) {
+            return new Set();
+        }
+    }
+    function setDeviceKeys(keys) {
+        try {
+            localStorage.setItem(DEVICE_KEYS_LS, JSON.stringify([...keys]));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Reads one device-stored key straight from localStorage (null when absent). */
+    function readDeviceValue(key) {
+        try {
+            const raw = localStorage.getItem(DEVICE_VAL_PREFIX + key);
+            return raw === null ? null : JSON.parse(raw);
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    function writeDeviceValue(key, value) {
+        try {
+            if (value === undefined || value === null)
+                localStorage.removeItem(DEVICE_VAL_PREFIX + key);
+            else
+                localStorage.setItem(DEVICE_VAL_PREFIX + key, JSON.stringify(value));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Pulls every device-stored key into _mem. Called after the account settings
+     *  load so the device copy wins for keys the user moved off the account. */
+    function loadDeviceKeysIntoMem() {
+        try {
+            for (const k of getDeviceKeys()) {
+                const v = readDeviceValue(k);
+                if (v !== null)
+                    _mem[k] = v;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
     // Hard ceiling for EBC's ExtensionSettings blob. BC accounts share a ~180 KB
@@ -178,7 +239,14 @@
     /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
     function getSettingsBlobSize() {
         try {
-            return JSON.stringify(_mem).length;
+            const dev = getDeviceKeys();
+            if (dev.size === 0)
+                return JSON.stringify(_mem).length;
+            const acct = {};
+            for (const [k, v] of Object.entries(_mem))
+                if (!dev.has(k))
+                    acct[k] = v;
+            return JSON.stringify(acct).length;
         }
         catch (_a) {
             return 0;
@@ -202,9 +270,18 @@
                 Player.ExtensionSettings.EmeryBC = {};
             }
             const target = Player.ExtensionSettings.EmeryBC;
+            const deviceKeys = getDeviceKeys();
             // Remove stale _d blob if it somehow survived.
             delete target["_d"];
             for (const [k, v] of Object.entries(_mem)) {
+                // Device-stored: persist locally and null the account copy, otherwise
+                // the old (large) server value would linger - the flush only ever
+                // copies keys to the server, it never removes them.
+                if (deviceKeys.has(k)) {
+                    writeDeviceValue(k, v);
+                    target[k] = null;
+                    continue;
+                }
                 // Name caches are MERGED with the server copy rather than overwritten.
                 // Without this, a secondary device (tablet) that has only seen a handful
                 // of friends pushes its tiny cache over the desktop's full one the moment
@@ -2996,14 +3073,77 @@
             return 0;
         }
     }
+    /** Categories that usually make more sense kept on this device only - big,
+     *  browser-local value with little benefit from syncing. Purely a suggestion
+     *  shown in the UI; nothing is moved automatically. */
+    const DEVICE_SUGGESTED = new Set([
+        "Beep history", "Name cache", "People met", "Last seen / since", "Barks",
+    ]);
+    /** "account" when every key of the category syncs, "device" when they are all
+     *  local, "mixed" if the category was split by hand. */
+    function getDataCategoryLocation(cat) {
+        const dev = getDeviceKeys();
+        const on = cat.keys.filter(k => dev.has(k)).length;
+        if (on === 0)
+            return "account";
+        if (on === cat.keys.length)
+            return "device";
+        return "mixed";
+    }
+    /** Size of this category's data as currently held in memory. */
+    function getDataCategoryDeviceSize(cat) {
+        let n = 0;
+        for (const k of cat.keys) {
+            const v = readDeviceValue(k);
+            if (v === null || v === undefined)
+                continue;
+            try {
+                n += JSON.stringify(v).length + k.length + 4;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        return n;
+    }
+    /** Moves a whole category between the BC account and this browser.
+     *  The in-memory values are kept, so whichever device performs the switch is the
+     *  copy that becomes authoritative - the UI warns about this before calling. */
+    function setDataCategoryLocation(cat, loc) {
+        var _a;
+        try {
+            const dev = getDeviceKeys();
+            const store = getSettings();
+            for (const k of cat.keys) {
+                if (loc === "device") {
+                    dev.add(k);
+                    writeDeviceValue(k, (_a = store[k]) !== null && _a !== void 0 ? _a : null);
+                }
+                else {
+                    dev.delete(k);
+                    // Pull the device copy into memory so it is what gets uploaded,
+                    // then drop the local copy.
+                    const local = readDeviceValue(k);
+                    if (local !== null)
+                        store[k] = local;
+                    writeDeviceValue(k, null);
+                }
+            }
+            setDeviceKeys(dev);
+            syncSettings();
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     /** Clears a category. Values are set to null rather than deleted: the settings
      *  flush only COPIES keys to the server and never removes them, so a deleted key
      *  would keep its old (large) server value. */
     function clearDataCategory(cat) {
         try {
             const store = getSettings();
-            for (const k of cat.keys)
+            const dev = getDeviceKeys();
+            for (const k of cat.keys) {
                 store[k] = null;
+                if (dev.has(k))
+                    writeDeviceValue(k, null);
+            }
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -16899,6 +17039,41 @@
                     sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;min-width:52px;text-align:right;";
                     sz.textContent = kb(size) + " KB";
                     sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
+                    // Account <-> device switch. Moving is destructive on one side,
+                    // so the confirm names which copy is about to become the only one.
+                    const loc = getDataCategoryLocation(cat);
+                    const onDevice = loc === "device";
+                    const locBtn = document.createElement("button");
+                    locBtn.textContent = loc === "mixed" ? "Mixed" : onDevice ? "Device" : "Account";
+                    locBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 9px;border-radius:10px;cursor:pointer;transition:filter 0.12s;" +
+                        (onDevice
+                            ? "background:rgba(80,150,100,0.18);border:1px solid #79a885;color:#98d0a8;"
+                            : loc === "mixed"
+                                ? "background:rgba(150,130,80,0.18);border:1px solid #a8925a;color:#d8c890;"
+                                : "background:rgba(90,130,170,0.18);border:1px solid #5a82aa;color:#8ab0d0;");
+                    locBtn.title = onDevice
+                        ? "Saved on this browser only - uses no account space, and other devices cannot see it. Click to move it back to your account."
+                        : "Synced with your BC account across devices. Click to keep it on this browser only."
+                            + (DEVICE_SUGGESTED.has(cat.label) ? "\n\nSuggested: this one is usually better kept on the device." : "");
+                    locBtn.addEventListener("mouseenter", () => { locBtn.style.filter = "brightness(1.35)"; });
+                    locBtn.addEventListener("mouseleave", () => { locBtn.style.filter = ""; });
+                    locBtn.addEventListener("click", () => {
+                        const toDevice = !onDevice;
+                        const devSize = getDataCategoryDeviceSize(cat);
+                        const msg = toDevice
+                            ? `Move "${cat.label}" to this device?\n\nYour account copy (${kb(size)} KB) will be cleared and this browser\'s copy becomes the only one. Your other devices will no longer see it.`
+                            : `Move "${cat.label}" to your account?\n\nThis browser\'s copy (${kb(devSize || size)} KB) will be uploaded and becomes the version all your devices see, replacing anything currently stored on the account.`;
+                        // Nothing to lose when the category is empty - just switch.
+                        if (size === 0 && devSize === 0) {
+                            setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                            this.rerender();
+                            return;
+                        }
+                        showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", () => {
+                            setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                            this.rerender();
+                        });
+                    });
                     const del = document.createElement("button");
                     del.textContent = "Clear";
                     del.title = `Delete all ${cat.label.toLowerCase()} data`;
@@ -16912,6 +17087,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     });
                     row.appendChild(nm);
                     row.appendChild(sz);
+                    row.appendChild(locBtn);
                     row.appendChild(del);
                     dataBody.appendChild(row);
                 }
@@ -38645,7 +38821,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 206; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 207; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38721,6 +38897,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
                 "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
                 "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+                "Storage: every data category can now live on your BC account (synced across devices) or on this device only (browser storage, no account space used). Each row in 'All stored EBC data' has an Account/Device pill; switching shows a confirm naming which copy is about to become the only one, with both sizes, since the other side gets replaced - empty categories switch without nagging. Categories that are usually better kept local (beep history, name cache, people met, last seen, barks) say so in their tooltip, but nothing is moved for you. Implemented purely in the persistence layer: device keys are written to localStorage and nulled on the account, and loaded back into memory at startup, so every existing getter and setter works unchanged. The account size bar now excludes device-stored data.",
                 "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
                 "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
                 "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",

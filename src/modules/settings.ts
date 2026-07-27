@@ -1,6 +1,6 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, getSettings, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue } from "./bcUtils";
 
 
 // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -489,13 +489,70 @@ export function getDataCategorySize(cat: DataCategory): number {
     } catch { return 0; }
 }
 
+/** Categories that usually make more sense kept on this device only - big,
+ *  browser-local value with little benefit from syncing. Purely a suggestion
+ *  shown in the UI; nothing is moved automatically. */
+export const DEVICE_SUGGESTED = new Set([
+    "Beep history", "Name cache", "People met", "Last seen / since", "Barks",
+]);
+
+/** "account" when every key of the category syncs, "device" when they are all
+ *  local, "mixed" if the category was split by hand. */
+export function getDataCategoryLocation(cat: DataCategory): "account" | "device" | "mixed" {
+    const dev = getDeviceKeys();
+    const on = cat.keys.filter(k => dev.has(k)).length;
+    if (on === 0) return "account";
+    if (on === cat.keys.length) return "device";
+    return "mixed";
+}
+
+/** Size of this category's data as currently held in memory. */
+export function getDataCategoryDeviceSize(cat: DataCategory): number {
+    let n = 0;
+    for (const k of cat.keys) {
+        const v = readDeviceValue(k);
+        if (v === null || v === undefined) continue;
+        try { n += JSON.stringify(v).length + k.length + 4; } catch { /* ignore */ }
+    }
+    return n;
+}
+
+/** Moves a whole category between the BC account and this browser.
+ *  The in-memory values are kept, so whichever device performs the switch is the
+ *  copy that becomes authoritative - the UI warns about this before calling. */
+export function setDataCategoryLocation(cat: DataCategory, loc: "account" | "device"): void {
+    try {
+        const dev = getDeviceKeys();
+        const store = getSettings() as Record<string, unknown>;
+        for (const k of cat.keys) {
+            if (loc === "device") {
+                dev.add(k);
+                writeDeviceValue(k, store[k] ?? null);
+            } else {
+                dev.delete(k);
+                // Pull the device copy into memory so it is what gets uploaded,
+                // then drop the local copy.
+                const local = readDeviceValue(k);
+                if (local !== null) store[k] = local;
+                writeDeviceValue(k, null);
+            }
+        }
+        setDeviceKeys(dev);
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 /** Clears a category. Values are set to null rather than deleted: the settings
  *  flush only COPIES keys to the server and never removes them, so a deleted key
  *  would keep its old (large) server value. */
 export function clearDataCategory(cat: DataCategory): void {
     try {
         const store = getSettings() as Record<string, unknown>;
-        for (const k of cat.keys) store[k] = null;
+        const dev = getDeviceKeys();
+        for (const k of cat.keys) {
+            store[k] = null;
+            if (dev.has(k)) writeDeviceValue(k, null);
+        }
         syncSettings();
     } catch { /* ignore */ }
 }

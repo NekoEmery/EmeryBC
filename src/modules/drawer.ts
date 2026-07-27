@@ -97,7 +97,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, getDataCategorySize, clearDataCategory } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -8035,6 +8035,42 @@ export class EBCDrawer {
                 sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;min-width:52px;text-align:right;";
                 sz.textContent = kb(size) + " KB";
                 sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
+                // Account <-> device switch. Moving is destructive on one side,
+                // so the confirm names which copy is about to become the only one.
+                const loc = getDataCategoryLocation(cat);
+                const onDevice = loc === "device";
+                const locBtn = document.createElement("button");
+                locBtn.textContent = loc === "mixed" ? "Mixed" : onDevice ? "Device" : "Account";
+                locBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 9px;border-radius:10px;cursor:pointer;transition:filter 0.12s;" +
+                    (onDevice
+                        ? "background:rgba(80,150,100,0.18);border:1px solid #79a885;color:#98d0a8;"
+                        : loc === "mixed"
+                            ? "background:rgba(150,130,80,0.18);border:1px solid #a8925a;color:#d8c890;"
+                            : "background:rgba(90,130,170,0.18);border:1px solid #5a82aa;color:#8ab0d0;");
+                locBtn.title = onDevice
+                    ? "Saved on this browser only - uses no account space, and other devices cannot see it. Click to move it back to your account."
+                    : "Synced with your BC account across devices. Click to keep it on this browser only."
+                        + (DEVICE_SUGGESTED.has(cat.label) ? "\n\nSuggested: this one is usually better kept on the device." : "");
+                locBtn.addEventListener("mouseenter", () => { locBtn.style.filter = "brightness(1.35)"; });
+                locBtn.addEventListener("mouseleave", () => { locBtn.style.filter = ""; });
+                locBtn.addEventListener("click", () => {
+                    const toDevice = !onDevice;
+                    const devSize = getDataCategoryDeviceSize(cat);
+                    const msg = toDevice
+                        ? `Move "${cat.label}" to this device?\n\nYour account copy (${kb(size)} KB) will be cleared and this browser\'s copy becomes the only one. Your other devices will no longer see it.`
+                        : `Move "${cat.label}" to your account?\n\nThis browser\'s copy (${kb(devSize || size)} KB) will be uploaded and becomes the version all your devices see, replacing anything currently stored on the account.`;
+                    // Nothing to lose when the category is empty - just switch.
+                    if (size === 0 && devSize === 0) {
+                        setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                        this.rerender();
+                        return;
+                    }
+                    showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", () => {
+                        setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                        this.rerender();
+                    });
+                });
+
                 const del = document.createElement("button");
                 del.textContent = "Clear";
                 del.title = `Delete all ${cat.label.toLowerCase()} data`;
@@ -8052,6 +8088,7 @@ This cannot be undone.`,
                 });
                 row.appendChild(nm);
                 row.appendChild(sz);
+                row.appendChild(locBtn);
                 row.appendChild(del);
                 dataBody.appendChild(row);
             }
