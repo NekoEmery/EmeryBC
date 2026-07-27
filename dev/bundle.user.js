@@ -1908,7 +1908,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
-    function save(list) {
+    function save$1(list) {
         getSettings().palettes = list;
         syncSettings();
     }
@@ -1927,7 +1927,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         const palette = { id: uid$5(), name: name.trim() || "Palette", type: "outfit", colorMap };
-        save([...load$2(), palette]);
+        save$1([...load$2(), palette]);
         return palette;
     }
     // Snapshot only the colors of active restraint items as a named palette.
@@ -1939,7 +1939,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         const palette = { id: uid$5(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
-        save([...load$2(), palette]);
+        save$1([...load$2(), palette]);
         return palette;
     }
     // Locks that block color edits — owner/exclusive/high-security tiers.
@@ -1982,14 +1982,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return true;
     }
     function deletePalette(id) {
-        save(load$2().filter(p => p.id !== id));
+        save$1(load$2().filter(p => p.id !== id));
     }
     function renamePalette(id, name) {
         const list = load$2();
         const p = list.find(x => x.id === id);
         if (p && name.trim()) {
             p.name = name.trim();
-            save(list);
+            save$1(list);
         }
     }
     // -- Custom color swatches --------------------------------------------------
@@ -3939,6 +3939,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getRestraintTime() {
         return restraintStartTime !== null ? fmt(Date.now() - restraintStartTime) : null;
+    }
+    /** Raw milliseconds of the current continuous bound streak (0 = not bound). */
+    function getRestraintMs() {
+        return restraintStartTime !== null ? Date.now() - restraintStartTime : 0;
     }
     // How long a specific restraint group has been worn (survives offline).
     function getRestraintItemDuration(group) {
@@ -6621,6 +6625,184 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return { targetNum, sourceNum, actGroup, actName };
     }
 
+    // Achievement system - currently limited to the credits crew (devs & friends).
+    // Counts things done TO the player (pats, hugs, kisses, being tied...) plus a
+    // few rare Emery-targeted ones. Progress lives in EBC settings (synced, tiny);
+    // unlocks pop a golden toast. Fed from main.ts's ChatRoomMessage hook.
+    // Same crew as the credits tab. Only these members track or see achievements.
+    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
+    const EMERY = 130267;
+    function isAchievementUser(memberNumber) {
+        return typeof memberNumber === "number" && ACHIEVEMENT_MEMBERS.includes(memberNumber);
+    }
+    const ACHIEVEMENTS = [
+        // Things done TO you
+        { id: "pat_magnet", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted 25 times", counter: "pet_recv", target: 25 },
+        { id: "pat_addict", icon: "💖", name: "Pat Addict", desc: "Get headpatted 250 times", counter: "pet_recv", target: 250 },
+        { id: "hug_collector", icon: "🤗", name: "Hug Collector", desc: "Receive 50 hugs", counter: "hug_recv", target: 50 },
+        { id: "cherished", icon: "💋", name: "Cherished", desc: "Receive 100 kisses", counter: "kiss_recv", target: 100 },
+        { id: "popular", icon: "🌟", name: "Popular", desc: "25 different people do things to you", counter: "people", target: 25 },
+        { id: "tied_down", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you 50 times", counter: "tied_recv", target: 50 },
+        { id: "iron_streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound for 24 hours straight", counter: "bound_h", target: 24 },
+        // Rare - Emery-targeted
+        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery 5 times", counter: "pet_emery", target: 5, rare: true },
+        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", target: 1, rare: true },
+        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does 25 things to you", counter: "from_emery", target: 25, rare: true },
+    ];
+    function getState() {
+        try {
+            const store = getSettings();
+            const v = store.achievements;
+            if (v && typeof v === "object") {
+                if (!v.c || typeof v.c !== "object")
+                    v.c = {};
+                if (!v.u || typeof v.u !== "object")
+                    v.u = {};
+                return v;
+            }
+            const fresh = { c: {}, u: {} };
+            store.achievements = fresh;
+            return fresh;
+        }
+        catch (_a) {
+            return { c: {}, u: {} };
+        }
+    }
+    // Debounced settings sync - counters can bump rapidly during play.
+    let _saveTimer = null;
+    function save() {
+        if (_saveTimer !== null)
+            return;
+        _saveTimer = setTimeout(() => {
+            _saveTimer = null;
+            try {
+                syncSettings();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 3000);
+    }
+    function showUnlockToast(a) {
+        try {
+            const col = a.rare ? "#ffd700" : "#cf6f98";
+            const el = document.createElement("div");
+            el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
+            const head = document.createElement("div");
+            head.style.cssText = `font-size:10.5px;color:${col};letter-spacing:0.15em;margin-bottom:3px;`;
+            head.textContent = "🏆 ACHIEVEMENT UNLOCKED";
+            const name = document.createElement("div");
+            name.style.cssText = "font-weight:bold;font-size:14px;";
+            name.textContent = `${a.icon} ${a.name}`;
+            const desc = document.createElement("div");
+            desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
+            desc.textContent = a.desc;
+            el.appendChild(head);
+            el.appendChild(name);
+            el.appendChild(desc);
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 6000);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function checkUnlocks() {
+        var _a;
+        const st = getState();
+        for (const a of ACHIEVEMENTS) {
+            if (st.u[a.id])
+                continue;
+            if (((_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0) >= a.target) {
+                st.u[a.id] = Date.now();
+                showUnlockToast(a);
+            }
+        }
+    }
+    function bump(counter, by = 1) {
+        var _a;
+        const st = getState();
+        st.c[counter] = ((_a = st.c[counter]) !== null && _a !== void 0 ? _a : 0) + by;
+        checkUnlocks();
+        save();
+    }
+    /** Feed an activity message: source did actName to target. */
+    function achievementOnActivity(sourceNum, targetNum, actName) {
+        var _a;
+        try {
+            if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) || !actName)
+                return;
+            const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const act = actName.toLowerCase();
+            if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
+                if (act.includes("pet"))
+                    bump("pet_recv");
+                if (act.includes("hug") || act.includes("cuddle"))
+                    bump("hug_recv");
+                if (act.includes("kiss"))
+                    bump("kiss_recv");
+                if (sourceNum === EMERY)
+                    bump("from_emery");
+                // Distinct people who have done anything to you
+                const st = getState();
+                if (!Array.isArray(st.p))
+                    st.p = [];
+                if (!st.p.includes(sourceNum)) {
+                    st.p.push(sourceNum);
+                    if (st.p.length > 100)
+                        st.p.splice(0, st.p.length - 100);
+                    st.c["people"] = st.p.length;
+                    checkUnlocks();
+                    save();
+                }
+            }
+            else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
+                if (act.includes("pet"))
+                    bump("pet_emery");
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    /** Feed an item-apply action: source put an item (in group) on target. */
+    function achievementOnItemApply(sourceNum, targetNum, group) {
+        var _a;
+        try {
+            if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
+                return;
+            if (!group || !group.startsWith("Item"))
+                return; // restraint/item slots only
+            const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
+                bump("tied_recv");
+            }
+            else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
+                bump("bind_emery");
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    /** Progress rows for the credits-tab UI. */
+    function getAchievementProgress() {
+        const st = getState();
+        return ACHIEVEMENTS.map(a => {
+            var _a, _b;
+            return (Object.assign(Object.assign({}, a), { value: Math.min(a.target, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0), unlockedAt: (_b = st.u[a.id]) !== null && _b !== void 0 ? _b : null }));
+        });
+    }
+    // Continuous bound-streak check - the counter keeps the LONGEST streak seen.
+    // No-op for non-achievement users; cheap enough to just run.
+    setInterval(() => {
+        var _a;
+        try {
+            if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
+                return;
+            const hours = Math.floor(getRestraintMs() / 3600000);
+            const st = getState();
+            if (hours > ((_a = st.c["bound_h"]) !== null && _a !== void 0 ? _a : 0)) {
+                st.c["bound_h"] = hours;
+                checkUnlocks();
+                save();
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }, 5 * 60 * 1000);
+
     // Safeword system — two-word safety protocol.
     // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
     // Red:    same as yellow + announces departure + leaves the room after 800 ms.
@@ -8332,6 +8514,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "guide.done": { en: "Done ✓", de: "Fertig ✓", zh: "完成 ✓", fr: "Terminé ✓", es: "Listo ✓", ru: "Готово ✓", ja: "完了 ✓" },
         "guide.ofN": { en: "{mode} · {step} of {total}", de: "{mode} · {step} von {total}", zh: "{mode} · {step}/{total}", fr: "{mode} · {step} sur {total}", es: "{mode} · {step} de {total}", ru: "{mode} · {step} из {total}", ja: "{mode} · {step}/{total}" },
         // Guide fast step labels (translated)
+        "guide.fast.sStor.label": { en: "Storage", de: "Speicher", zh: "存储", fr: "Stockage", es: "Almacenamiento", ru: "Хранилище", ja: "ストレージ" },
+        "guide.fast.sStor.text": { en: "Outfits use limited [[account storage]] - these bars show how full it is. Any outfit can instead live on [[💾 this device]]: unlimited, browser-only, shared across your accounts here. ((Open 'Manage saved items' to move or delete things and free up space.))", de: "Outfits nutzen begrenzten [[Konto-Speicher]] - die Balken zeigen die Auslastung. Jedes Outfit kann stattdessen auf [[💾 diesem Gerät]] liegen: unbegrenzt, nur dieser Browser, für alle deine Konten hier. ((Über 'Manage saved items' kannst du verschieben oder löschen, um Platz zu schaffen.))", zh: "服装占用有限的[[账号存储]]——进度条显示已用空间。任何服装都可以改存到[[💾 本设备]]：无限制、仅此浏览器、此处所有账号共享。((打开'Manage saved items'可移动或删除以释放空间。))", fr: "Les tenues utilisent un [[stockage de compte]] limité - les barres montrent le remplissage. Chaque tenue peut vivre sur [[💾 cet appareil]] : illimité, ce navigateur seulement, partagé entre vos comptes ici. ((Ouvrez 'Manage saved items' pour déplacer ou supprimer et libérer de l'espace.))", es: "Los atuendos usan [[almacenamiento de cuenta]] limitado - las barras muestran cuán lleno está. Cualquier atuendo puede vivir en [[💾 este dispositivo]]: ilimitado, solo este navegador, compartido entre tus cuentas aquí. ((Abre 'Manage saved items' para mover o borrar y liberar espacio.))", ru: "Наряды занимают ограниченное [[хранилище аккаунта]] - полосы показывают заполнение. Любой наряд можно хранить на [[💾 этом устройстве]]: без лимита, только этот браузер, общий для ваших аккаунтов здесь. ((Откройте 'Manage saved items', чтобы переместить или удалить и освободить место.))", ja: "衣装は限られた[[アカウント保存]]を使います。バーは使用量を示します。衣装は[[💾 この端末]]にも保存できます：無制限・このブラウザのみ・ここの全アカウント共有。(('Manage saved items'で移動や削除をしてスペースを確保できます。))" },
         "guide.fast.s1.label": { en: "Outfits", de: "Outfits", zh: "服装", fr: "Tenues", es: "Atuendos", ru: "Наряды", ja: "衣装" },
         "guide.fast.s2.label": { en: "Action Buttons", de: "Aktionsschaltflächen", zh: "动作按钮", fr: "Boutons d'action", es: "Botones de acción", ru: "Кнопки действий", ja: "アクションボタン" },
         "guide.fast.s3.label": { en: "Poses & Animations", de: "Posen & Animationen", zh: "姿势与动画", fr: "Poses & Animations", es: "Poses y Animaciones", ru: "Позы и анимации", ja: "ポーズ & アニメーション" },
@@ -14059,6 +14243,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     autoExpand: ["btn-new-outfit"],
                 },
                 {
+                    tab: "outfits",
+                    label: t("guide.fast.sStor.label"),
+                    text: t("guide.fast.sStor.text"),
+                    spotlight: ["[data-guide-target='section-storage']"],
+                },
+                {
                     tab: "buttons",
                     label: t("guide.fast.s2.label"),
                     text: t("guide.fast.s2.text"),
@@ -15442,6 +15632,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const toggleBtn = document.createElement("button");
             toggleBtn.className = "ebc-section-label";
             toggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+            toggleBtn.setAttribute("data-guide-target", "section-storage");
             const paintToggle = () => {
                 toggleBtn.innerHTML = "";
                 const arrow = document.createTextNode((open ? "▼" : "▶") + " STORAGE ");
@@ -15488,6 +15679,89 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#6a4a58;margin-top:4px;line-height:1.4;";
             hint.textContent = "Full bars? Switch outfits to 💾 This device storage or delete unused ones. Crafted items take the most space.";
             content.appendChild(hint);
+            // ── Manage saved items - biggest first, move between stores or delete ─
+            let manageOpen = false;
+            const manageBtn = document.createElement("button");
+            manageBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+            manageBtn.textContent = "▶ Manage saved items";
+            const manageBody = document.createElement("div");
+            manageBody.style.cssText = "display:none;margin-top:5px;";
+            const buildManage = () => {
+                while (manageBody.firstChild)
+                    manageBody.removeChild(manageBody.firstChild);
+                const jsize = (v) => { try {
+                    return JSON.stringify(v).length;
+                }
+                catch (_a) {
+                    return 0;
+                } };
+                const entries = [
+                    ...getOutfits().map(o => ({ kind: "outfit", id: o.id, name: o.displayName, isLocal: o.local === true, bytes: jsize(o) })),
+                    ...getRestraints().map(r => ({ kind: "set", id: r.id, name: r.displayName, isLocal: r.local === true, bytes: jsize(r) })),
+                ].sort((a, b) => b.bytes - a.bytes);
+                if (entries.length === 0) {
+                    const none = document.createElement("div");
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                    none.textContent = "Nothing saved yet.";
+                    manageBody.appendChild(none);
+                    return;
+                }
+                for (const e of entries) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                    const kindIc = document.createElement("span");
+                    kindIc.style.cssText = "font-size:11px;flex-shrink:0;";
+                    kindIc.textContent = e.kind === "outfit" ? "👗" : "⛓";
+                    kindIc.title = e.kind === "outfit" ? "Outfit" : "Restraint set";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                    nm.textContent = e.name;
+                    const sz = document.createElement("span");
+                    sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                    sz.textContent = kb(e.bytes) + " KB";
+                    const store = document.createElement("button");
+                    store.className = "ebc-flag-chip" + (e.isLocal ? " on" : "");
+                    store.style.flexShrink = "0";
+                    store.textContent = e.isLocal ? "💾" : "☁";
+                    store.title = e.isLocal
+                        ? "On this device - click to move to your BC account (uses account storage)"
+                        : "On your BC account - click to move to this device (frees account storage)";
+                    store.addEventListener("click", () => {
+                        const ok = e.kind === "outfit" ? setOutfitStorage(e.id, !e.isLocal) : setRestraintStorage(e.id, !e.isLocal);
+                        if (ok)
+                            this.rerender();
+                    });
+                    const del = document.createElement("button");
+                    del.className = "ebc-friend-rooms-del";
+                    del.style.flexShrink = "0";
+                    del.textContent = "🗑";
+                    del.title = "Delete";
+                    del.addEventListener("click", () => {
+                        showConfirmOverlay(`Delete "${e.name}"? This cannot be undone.`, "Cancel", "Delete", () => {
+                            if (e.kind === "outfit")
+                                deleteOutfit(e.id);
+                            else
+                                deleteRestraint(e.id);
+                            this.rerender();
+                        });
+                    });
+                    row.appendChild(kindIc);
+                    row.appendChild(nm);
+                    row.appendChild(sz);
+                    row.appendChild(store);
+                    row.appendChild(del);
+                    manageBody.appendChild(row);
+                }
+            };
+            manageBtn.addEventListener("click", () => {
+                manageOpen = !manageOpen;
+                manageBtn.textContent = (manageOpen ? "▼" : "▶") + " Manage saved items";
+                if (manageOpen)
+                    buildManage();
+                manageBody.style.display = manageOpen ? "block" : "none";
+            });
+            content.appendChild(manageBtn);
+            content.appendChild(manageBody);
             toggleBtn.addEventListener("click", () => {
                 open = !open;
                 try {
@@ -15549,7 +15823,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.renderRestraintInfo(body);
             this.renderOutfitWhitelist(body);
             this.renderPalettes(body);
-            this.renderStorageUsage(body);
             // ── Tag management ───────────────────────────────────────────────────────────
             const tagMgmtDiv = document.createElement("div");
             tagMgmtDiv.style.marginBottom = "8px";
@@ -15684,6 +15957,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1";
             }
             catch ( /* ignore */_c) { /* ignore */ }
+            this.renderStorageUsage(body);
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
             outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
@@ -34152,6 +34426,45 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Achievements (credits crew only) ─────────────────────────────────
+            if (isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
+                const achLbl = document.createElement("div");
+                achLbl.className = "ebc-section-label";
+                achLbl.textContent = "🏆 ACHIEVEMENTS";
+                body.appendChild(achLbl);
+                const achWrap = document.createElement("div");
+                achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+                for (const a of getAchievementProgress()) {
+                    const done = a.unlockedAt !== null;
+                    const row = document.createElement("div");
+                    row.style.cssText =
+                        `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
+                            `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
+                            `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
+                            (done ? "" : "opacity:0.78;");
+                    const ic = document.createElement("span");
+                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                    ic.textContent = a.icon;
+                    const col = document.createElement("div");
+                    col.style.cssText = "flex:1;min-width:0;";
+                    const nm = document.createElement("div");
+                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
+                    nm.textContent = a.name + (a.rare ? " ★" : "");
+                    const ds = document.createElement("div");
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
+                    ds.textContent = a.desc;
+                    col.appendChild(nm);
+                    col.appendChild(ds);
+                    const pr = document.createElement("span");
+                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
+                    pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                    row.appendChild(ic);
+                    row.appendChild(col);
+                    row.appendChild(pr);
+                    achWrap.appendChild(row);
+                }
+                body.appendChild(achWrap);
+            }
             // ── Creator card (above "Special Thanks") ─────────────────────────────
             const madeLbl = document.createElement("div");
             madeLbl.className = "ebc-section-label";
@@ -36274,7 +36587,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 174; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 175; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36320,6 +36633,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
                 "Outfits tab: new collapsible STORAGE meter - progress bars for account outfits (vs 60 KB), account restraint sets (vs 60 KB), and all EBC settings (vs the 150 KB sync cap), plus this-device usage. Bars turn amber at 70% and red at 90%; the header shows the account total even when collapsed.",
                 "Fix: the ☁/💾 storage chips from the previous build crashed when clicked - the two mover functions were referenced in the UI but never imported. Now imported (and the build-warning check that let this slip is being watched more carefully).",
+                "Storage: the meter now sits directly above Saved Outfits, and has a 'Manage saved items' list - every outfit and restraint set sorted biggest-first with its size in KB, a ☁/💾 chip to move it between account and device storage, and a 🗑 delete (with confirm). The fastest way to free account space.",
+                "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
+                "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -44877,6 +45193,46 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
+            return _r;
+        });
+        // Achievements feed (credits crew only): watch activities done to/by the
+        // player and item applies. Independent of the XToys gates above.
+        modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+            var _a, _b, _c;
+            const _r = next(args);
+            try {
+                if (!isAchievementUser(Player.MemberNumber))
+                    return _r;
+                const data = args[0];
+                if ((data === null || data === void 0 ? void 0 : data.Type) !== "Activity" && (data === null || data === void 0 ? void 0 : data.Type) !== "Action")
+                    return _r;
+                const dict = Array.isArray(data.Dictionary)
+                    ? data.Dictionary
+                    : [];
+                const { targetNum, sourceNum, actName } = parseXToysActivity(dict);
+                if (actName) {
+                    achievementOnActivity(sourceNum, targetNum, actName);
+                }
+                else {
+                    const content = String((_a = data.Content) !== null && _a !== void 0 ? _a : "");
+                    if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
+                        let src, tgt, grp;
+                        for (const item of dict) {
+                            if (item.Tag === "SourceCharacter" && typeof item.MemberNumber === "number")
+                                src = item.MemberNumber;
+                            if ((item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") && typeof item.MemberNumber === "number")
+                                tgt = item.MemberNumber;
+                            if (item.Tag === "FocusAssetGroup") {
+                                const g = (_c = (_b = item.FocusGroupName) !== null && _b !== void 0 ? _b : item.GroupName) !== null && _c !== void 0 ? _c : item.AssetGroupName;
+                                if (typeof g === "string")
+                                    grp = g;
+                            }
+                        }
+                        achievementOnItemApply(src, tgt, grp);
+                    }
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             return _r;
         });
         tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
