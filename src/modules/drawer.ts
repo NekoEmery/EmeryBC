@@ -4490,8 +4490,18 @@ export class EBCDrawer {
         trophyBtn.className = "ebc-icon-btn";
         trophyBtn.title = "Achievements";
         trophyBtn.textContent = "🏆";
-        trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
         trophyBtn.addEventListener("click", () => this.showAchievementsOverlay());
+        // The header is built before login completes, so Player.MemberNumber may
+        // not exist yet - re-check visibility until it does (or give up quietly).
+        const refreshTrophyVis = (): void => {
+            trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
+        };
+        refreshTrophyVis();
+        let trophyTries = 0;
+        const trophyTimer = window.setInterval(() => {
+            refreshTrophyVis();
+            if (trophyBtn.style.display === "" || ++trophyTries > 40) window.clearInterval(trophyTimer);
+        }, 2000);
 
         headerBtns.appendChild(trophyBtn);
         headerBtns.appendChild(refreshBtn);

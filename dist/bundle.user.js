@@ -13126,8 +13126,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             trophyBtn.className = "ebc-icon-btn";
             trophyBtn.title = "Achievements";
             trophyBtn.textContent = "🏆";
-            trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
             trophyBtn.addEventListener("click", () => this.showAchievementsOverlay());
+            // The header is built before login completes, so Player.MemberNumber may
+            // not exist yet - re-check visibility until it does (or give up quietly).
+            const refreshTrophyVis = () => {
+                trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
+            };
+            refreshTrophyVis();
+            let trophyTries = 0;
+            const trophyTimer = window.setInterval(() => {
+                refreshTrophyVis();
+                if (trophyBtn.style.display === "" || ++trophyTries > 40)
+                    window.clearInterval(trophyTimer);
+            }, 2000);
             headerBtns.appendChild(trophyBtn);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
@@ -36954,7 +36965,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 182; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 183; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37015,6 +37026,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: removed from the DEV tab - the 🏆 trophy button beside the reload button (panel header, crew only) is now the one home for the whole list.",
                 "Fix: Share said 'Join a room first' while standing in a room. Root cause: the share checked the announced-unlocks map, which lags behind the live counters until the next event or 5-minute tick - so a freshly loaded session considered even maxed achievements locked, and the button showed the wrong error label for every failure. Fix: the share derives the tier from the live counter exactly like the cards do, and the button now reports the real reason (Shared ✓ / Join a room first / Not unlocked yet).",
                 "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
+                "Fix: the 🏆 trophy button never appeared in the panel header. Root cause: its crew-only visibility was decided once while the panel was being built - before login finished, when Player.MemberNumber didn't exist yet - so it stayed hidden forever. Fix: the visibility re-checks every 2 s until the player data exists.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
