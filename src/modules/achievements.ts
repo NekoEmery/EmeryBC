@@ -12,8 +12,27 @@ import { getRestraintMs } from "./timer";
 export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
 const EMERY = 130267;
 
-export function isAchievementUser(memberNumber: number | null | undefined): boolean {
+/** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
+ *  itself, so someone who opted out can find their way back). */
+export function isAchievementCrewMember(memberNumber: number | null | undefined): boolean {
     return typeof memberNumber === "number" && ACHIEVEMENT_MEMBERS.includes(memberNumber);
+}
+
+export function isAchievementsOptedOut(): boolean {
+    try { return (getSettings() as Record<string, unknown>).achievementsOff === true; } catch { return false; }
+}
+
+export function setAchievementsOptedOut(off: boolean): void {
+    try {
+        const s = getSettings() as Record<string, unknown>;
+        if (off) s.achievementsOff = true; else delete s.achievementsOff;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+/** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
+export function isAchievementUser(memberNumber: number | null | undefined): boolean {
+    return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
 }
 
 export interface AchievementDef {

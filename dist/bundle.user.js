@@ -6634,8 +6634,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Same crew as the credits tab. Only these members track or see achievements.
     const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
     const EMERY = 130267;
-    function isAchievementUser(memberNumber) {
+    /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
+     *  itself, so someone who opted out can find their way back). */
+    function isAchievementCrewMember(memberNumber) {
         return typeof memberNumber === "number" && ACHIEVEMENT_MEMBERS.includes(memberNumber);
+    }
+    function isAchievementsOptedOut() {
+        try {
+            return getSettings().achievementsOff === true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    function setAchievementsOptedOut(off) {
+        try {
+            const s = getSettings();
+            if (off)
+                s.achievementsOff = true;
+            else
+                delete s.achievementsOff;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
+    function isAchievementUser(memberNumber) {
+        return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
     }
     const ACHIEVEMENT_CLASSES = [
         { id: "received", label: "Received", icon: "💝" },
@@ -12980,6 +13005,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
             this.friendRoomsCollapsed = false;
+            this._refreshTrophyVis = null;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
             this.friendSearch = ""; // live search query - not persisted
             // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -13287,6 +13313,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
             };
             refreshTrophyVis();
+            this._refreshTrophyVis = refreshTrophyVis;
             let trophyTries = 0;
             const trophyTimer = window.setInterval(() => {
                 refreshTrophyVis();
@@ -23634,24 +23661,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const numEl = document.createElement("span");
                         numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                         numEl.textContent = "#" + num;
-                        // Relationship badge
-                        const relBadge = (() => {
+                        // Relationship pills - clear labels instead of emoji, with the
+                        // actual lovership stage (Dating / Engaged / Married).
+                        const relPills = (() => {
+                            const pills = [];
                             try {
-                                const icons = [];
                                 const own = Player.Ownership;
                                 if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num)
-                                    icons.push("👑");
+                                    pills.push({ t: "Owner", c: "#ffd700", title: "This person owns you" });
                                 const loves = Player.Lovership;
-                                if (loves === null || loves === void 0 ? void 0 : loves.some(l => l.MemberNumber === num))
-                                    icons.push("❤️");
+                                const love = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
+                                if (love) {
+                                    const stage = typeof love.Stage === "number" ? love.Stage : 0;
+                                    const t = stage >= 2 ? "Married" : stage === 1 ? "Engaged" : "Dating";
+                                    pills.push({ t, c: "#f078a8", title: `You are ${t.toLowerCase()}` });
+                                }
                                 const charOwn = char.Ownership;
                                 if ((charOwn === null || charOwn === void 0 ? void 0 : charOwn.MemberNumber) === Player.MemberNumber)
-                                    icons.push("🔒");
-                                return icons.join("");
+                                    pills.push({ t: "Yours", c: "#b088d0", title: "You own this person" });
                             }
-                            catch (_a) {
-                                return "";
-                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                            return pills;
                         })();
                         // EBC version badge
                         const ebcVer = (() => {
@@ -23689,10 +23719,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
-                        if (relBadge) {
+                        for (const pill of relPills) {
                             const badge = document.createElement("span");
-                            badge.textContent = relBadge;
-                            badge.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                            badge.textContent = pill.t;
+                            badge.title = pill.title;
+                            badge.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pill.c}22;border:1px solid ${pill.c}66;color:${pill.c};`;
                             nameRow.appendChild(badge);
                         }
                         // Build metaRow
@@ -25414,6 +25445,40 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Achievements opt-out (crew only; uses raw membership so an opted-out
+            // user can still find the toggle to come back) ────────────────────────
+            if (isAchievementCrewMember(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
+                const achRow = document.createElement("div");
+                achRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const achLbl = document.createElement("span");
+                achLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+                achLbl.textContent = "Achievements (🏆 trophy + tracking)";
+                const achToggle = document.createElement("button");
+                const paintAchToggle = () => {
+                    const on = !isAchievementsOptedOut();
+                    achToggle.textContent = on ? "ON" : "OFF";
+                    achToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                        (on
+                            ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                            : "background:transparent;border:1px solid #4a3040;color:#7a5a6a;");
+                    achToggle.title = on
+                        ? "Achievements are on - click to opt out (hides the trophy and stops all tracking)"
+                        : "Achievements are off - click to opt back in";
+                };
+                paintAchToggle();
+                achToggle.addEventListener("click", () => {
+                    var _a;
+                    setAchievementsOptedOut(!isAchievementsOptedOut());
+                    paintAchToggle();
+                    try {
+                        (_a = this._refreshTrophyVis) === null || _a === void 0 ? void 0 : _a.call(this);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                });
+                achRow.appendChild(achLbl);
+                achRow.appendChild(achToggle);
+                body.appendChild(achRow);
+            }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
@@ -37218,7 +37283,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 186; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 187; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37285,6 +37350,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
                 "Achievements visual overhaul: every card now has a metallic medal coin (empty when locked, bronze/silver/gold with the tier numeral, ★ for rares), gradient tier plates with depth and a hover lift, inset progress bars with metal-gradient fills, class headers with fading divider lines, an 'Unlocked X / Y' summary bar at the top, and a soft glow on the popup background. No more flat look.",
                 "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
+                "People in Room: the relationship emoji (👑 ❤️ 🔒) replaced with clear labeled pills - gold 'Owner' (they own you), pink 'Dating' / 'Engaged' / 'Married' (the actual lovership stage instead of one generic heart), and purple 'Yours' (you own them). Each has a tooltip.",
+                "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

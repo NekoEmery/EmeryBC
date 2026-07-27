@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 186;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 187;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -97,6 +97,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
             "Achievements visual overhaul: every card now has a metallic medal coin (empty when locked, bronze/silver/gold with the tier numeral, ★ for rares), gradient tier plates with depth and a hover lift, inset progress bars with metal-gradient fills, class headers with fading divider lines, an 'Unlocked X / Y' summary bar at the top, and a soft glow on the popup background. No more flat look.",
             "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
+            "People in Room: the relationship emoji (👑 ❤️ 🔒) replaced with clear labeled pills - gold 'Owner' (they own you), pink 'Dating' / 'Engaged' / 'Married' (the actual lovership stage instead of one generic heart), and purple 'Yours' (you own them). Each has a tooltip.",
+            "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

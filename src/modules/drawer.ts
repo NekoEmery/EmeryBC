@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent } from "./achievements";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -4264,6 +4264,7 @@ export class EBCDrawer {
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
     private friendRoomsCollapsed = false;
+    private _refreshTrophyVis: (() => void) | null = null;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -4631,6 +4632,7 @@ export class EBCDrawer {
             trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
         };
         refreshTrophyVis();
+        this._refreshTrophyVis = refreshTrophyVis;
         let trophyTries = 0;
         const trophyTimer = window.setInterval(() => {
             refreshTrophyVis();
@@ -15259,18 +15261,24 @@ export class EBCDrawer {
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
 
-                    // Relationship badge
-                    const relBadge = (() => {
+                    // Relationship pills - clear labels instead of emoji, with the
+                    // actual lovership stage (Dating / Engaged / Married).
+                    const relPills = (() => {
+                        const pills: Array<{ t: string; c: string; title: string }> = [];
                         try {
-                            const icons: string[] = [];
                             const own = (Player as unknown as Record<string, unknown>).Ownership as { MemberNumber?: number } | undefined;
-                            if (own?.MemberNumber === num) icons.push("👑");
-                            const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number }> | undefined;
-                            if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
+                            if (own?.MemberNumber === num) pills.push({ t: "Owner", c: "#ffd700", title: "This person owns you" });
+                            const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number; Stage?: number }> | undefined;
+                            const love = loves?.find(l => l.MemberNumber === num);
+                            if (love) {
+                                const stage = typeof love.Stage === "number" ? love.Stage : 0;
+                                const t = stage >= 2 ? "Married" : stage === 1 ? "Engaged" : "Dating";
+                                pills.push({ t, c: "#f078a8", title: `You are ${t.toLowerCase()}` });
+                            }
                             const charOwn = char.Ownership as { MemberNumber?: number } | undefined;
-                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("🔒");
-                            return icons.join("");
-                        } catch { return ""; }
+                            if (charOwn?.MemberNumber === Player.MemberNumber) pills.push({ t: "Yours", c: "#b088d0", title: "You own this person" });
+                        } catch { /* ignore */ }
+                        return pills;
                     })();
 
                     // EBC version badge
@@ -15307,10 +15315,11 @@ export class EBCDrawer {
                     }
 
                     nameRow.appendChild(numEl);
-                    if (relBadge) {
+                    for (const pill of relPills) {
                         const badge = document.createElement("span");
-                        badge.textContent = relBadge;
-                        badge.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                        badge.textContent = pill.t;
+                        badge.title = pill.title;
+                        badge.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pill.c}22;border:1px solid ${pill.c}66;color:${pill.c};`;
                         nameRow.appendChild(badge);
                     }
 
@@ -16965,6 +16974,37 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Achievements opt-out (crew only; uses raw membership so an opted-out
+        // user can still find the toggle to come back) ────────────────────────
+        if (isAchievementCrewMember((Player as { MemberNumber?: number })?.MemberNumber)) {
+            const achRow = document.createElement("div");
+            achRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const achLbl = document.createElement("span");
+            achLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+            achLbl.textContent = "Achievements (🏆 trophy + tracking)";
+            const achToggle = document.createElement("button");
+            const paintAchToggle = (): void => {
+                const on = !isAchievementsOptedOut();
+                achToggle.textContent = on ? "ON" : "OFF";
+                achToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                    (on
+                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                        : "background:transparent;border:1px solid #4a3040;color:#7a5a6a;");
+                achToggle.title = on
+                    ? "Achievements are on - click to opt out (hides the trophy and stops all tracking)"
+                    : "Achievements are off - click to opt back in";
+            };
+            paintAchToggle();
+            achToggle.addEventListener("click", () => {
+                setAchievementsOptedOut(!isAchievementsOptedOut());
+                paintAchToggle();
+                try { this._refreshTrophyVis?.(); } catch { /* ignore */ }
+            });
+            achRow.appendChild(achLbl);
+            achRow.appendChild(achToggle);
+            body.appendChild(achRow);
+        }
 
 
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).
