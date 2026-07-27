@@ -25493,10 +25493,24 @@
                 const els = [];
                 for (const sec of picked) {
                     // Several sections share this pill - keep their headers as labels.
-                    if (picked.length > 1 && sec.headerEl)
-                        els.push(sec.headerEl);
-                    else if (sec.headerEl)
+                    if (picked.length > 1 && sec.headerEl) {
+                        // Some headers are <button> elements (Tags, Storage) which
+                        // otherwise render inset with button padding and sit visibly
+                        // offset from the plain <div> headers next to them.
+                        const h = sec.headerEl;
+                        h.style.display = "block";
+                        h.style.width = "100%";
+                        h.style.boxSizing = "border-box";
+                        h.style.textAlign = "left";
+                        h.style.margin = "0";
+                        h.style.padding = "4px 0 5px";
+                        h.style.background = "transparent";
+                        h.style.border = "none";
+                        els.push(h);
+                    }
+                    else if (sec.headerEl) {
                         sec.headerEl.style.display = "none";
+                    }
                     els.push(...sec.els);
                 }
                 groups.push({ label: m.pill, els });
@@ -37899,7 +37913,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 201; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 202; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37971,6 +37985,7 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
                 "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
                 "New drawer option (DEV → Drawer → 'Restraint buttons'): move Release Restraints / Remove Locks / the restraint picker off the permanently-pinned strip and into the Buttons tab as their own pill, freeing that space on every other tab. Toggling applies instantly without a reload, and 'Always on top' restores the original behaviour.",
                 "Dev: the pill converter now logs the sections it finds per tab ('[EBC] pillify EBC_animsView: POSES[2] | ...') so an empty pill can be diagnosed from the console instead of guessed at.",
