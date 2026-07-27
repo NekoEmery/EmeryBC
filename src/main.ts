@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, getWo
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 176;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 177;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -80,6 +80,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
             "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
             "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
+            "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

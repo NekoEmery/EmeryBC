@@ -15690,20 +15690,29 @@
             content.appendChild(mkBar("Restraint sets (account)", usage.accountRestraints, OUTFITS_BUDGET));
             content.appendChild(mkBar("All EBC settings (account sync cap)", total, SETTINGS_FLUSH_CAP));
             const devRow = document.createElement("div");
-            devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-top:6px;";
-            devRow.textContent = `💾 This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
+            devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#d0aec0;margin-top:7px;";
+            devRow.textContent = `This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
             content.appendChild(devRow);
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#6a4a58;margin-top:4px;line-height:1.4;";
-            hint.textContent = "Full bars? Switch outfits to 💾 This device storage or delete unused ones. Crafted items take the most space.";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a88898;margin-top:4px;line-height:1.45;";
+            hint.textContent = "Full bars? Switch items to Local (this device) storage or delete unused ones. Crafted items take the most space.";
             content.appendChild(hint);
             // ── Manage saved items - biggest first, move between stores or delete ─
+            // Open state persists so moving/deleting (which re-renders the tab)
+            // doesn't snap the list shut.
             let manageOpen = false;
+            try {
+                manageOpen = localStorage.getItem("EBC_storageManageOpen") === "1";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
             const manageBtn = document.createElement("button");
             manageBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
-            manageBtn.textContent = "▶ Manage saved items";
             const manageBody = document.createElement("div");
-            manageBody.style.cssText = "display:none;margin-top:5px;";
+            manageBody.style.cssText = "margin-top:5px;";
+            const paintManageBtn = () => {
+                manageBtn.textContent = (manageOpen ? "▼" : "▶") + " Manage saved items";
+                manageBody.style.display = manageOpen ? "block" : "none";
+            };
             const buildManage = () => {
                 while (manageBody.firstChild)
                     manageBody.removeChild(manageBody.firstChild);
@@ -15725,35 +15734,48 @@
                     return;
                 }
                 for (const e of entries) {
+                    const isOutfit = e.kind === "outfit";
                     const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
-                    const kindIc = document.createElement("span");
-                    kindIc.style.cssText = "font-size:11px;flex-shrink:0;";
-                    kindIc.textContent = e.kind === "outfit" ? "👗" : "⛓";
-                    kindIc.title = e.kind === "outfit" ? "Outfit" : "Restraint set";
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                    // Kind pill - Clothing / Restraint
+                    const kindPill = document.createElement("span");
+                    kindPill.textContent = isOutfit ? "Clothing" : "Restraint";
+                    kindPill.style.cssText =
+                        "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.04em;padding:1px 7px;border-radius:9px;line-height:14px;" +
+                            (isOutfit
+                                ? "background:rgba(207,111,152,0.16);border:1px solid rgba(207,111,152,0.45);color:#e0a0c0;"
+                                : "background:rgba(150,150,170,0.14);border:1px solid rgba(150,150,170,0.4);color:#b8b8cc;");
                     const nm = document.createElement("span");
                     nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
                     nm.textContent = e.name;
                     const sz = document.createElement("span");
                     sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
                     sz.textContent = kb(e.bytes) + " KB";
+                    // Storage pill - toggles between Account (blue) and Local (green)
                     const store = document.createElement("button");
-                    store.className = "ebc-flag-chip" + (e.isLocal ? " on" : "");
-                    store.style.flexShrink = "0";
-                    store.textContent = e.isLocal ? "💾" : "☁";
+                    store.textContent = e.isLocal ? "Local" : "Account";
                     store.title = e.isLocal
-                        ? "On this device - click to move to your BC account (uses account storage)"
-                        : "On your BC account - click to move to this device (frees account storage)";
+                        ? "Saved on this device only (shared by your accounts in this browser). Click to move to your BC account."
+                        : "Saved on your BC account (synced across devices, uses account storage). Click to move to this device.";
+                    store.style.cssText =
+                        "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 9px;border-radius:10px;cursor:pointer;transition:filter 0.12s;" +
+                            (e.isLocal
+                                ? "background:rgba(80,150,100,0.18);border:1px solid #79a885;color:#98d0a8;"
+                                : "background:rgba(90,130,170,0.18);border:1px solid #5a82aa;color:#8ab0d0;");
+                    store.addEventListener("mouseenter", () => { store.style.filter = "brightness(1.35)"; });
+                    store.addEventListener("mouseleave", () => { store.style.filter = ""; });
                     store.addEventListener("click", () => {
                         const ok = e.kind === "outfit" ? setOutfitStorage(e.id, !e.isLocal) : setRestraintStorage(e.id, !e.isLocal);
                         if (ok)
                             this.rerender();
                     });
+                    // Delete - explicit label, red on hover, confirm before removing
                     const del = document.createElement("button");
-                    del.className = "ebc-friend-rooms-del";
-                    del.style.flexShrink = "0";
-                    del.textContent = "🗑";
-                    del.title = "Delete";
+                    del.textContent = "Delete";
+                    del.title = "Delete this " + (isOutfit ? "outfit" : "restraint set");
+                    del.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #5a2838;background:transparent;color:#b07888;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;";
+                    del.addEventListener("mouseenter", () => { del.style.background = "#a02838"; del.style.borderColor = "#d04858"; del.style.color = "#fff"; });
+                    del.addEventListener("mouseleave", () => { del.style.background = "transparent"; del.style.borderColor = "#5a2838"; del.style.color = "#b07888"; });
                     del.addEventListener("click", () => {
                         showConfirmOverlay(`Delete "${e.name}"? This cannot be undone.`, "Cancel", "Delete", () => {
                             if (e.kind === "outfit")
@@ -15763,7 +15785,7 @@
                             this.rerender();
                         });
                     });
-                    row.appendChild(kindIc);
+                    row.appendChild(kindPill);
                     row.appendChild(nm);
                     row.appendChild(sz);
                     row.appendChild(store);
@@ -15773,11 +15795,17 @@
             };
             manageBtn.addEventListener("click", () => {
                 manageOpen = !manageOpen;
-                manageBtn.textContent = (manageOpen ? "▼" : "▶") + " Manage saved items";
+                try {
+                    localStorage.setItem("EBC_storageManageOpen", manageOpen ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
                 if (manageOpen)
                     buildManage();
-                manageBody.style.display = manageOpen ? "block" : "none";
+                paintManageBtn();
             });
+            paintManageBtn();
+            if (manageOpen)
+                buildManage();
             content.appendChild(manageBtn);
             content.appendChild(manageBody);
             toggleBtn.addEventListener("click", () => {
@@ -36629,7 +36657,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 176; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 177; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36679,6 +36707,7 @@
                 "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
                 "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
                 "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
+                "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
