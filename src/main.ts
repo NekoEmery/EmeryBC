@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 188;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 189;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -101,6 +101,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
+            "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
+            "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
+            "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

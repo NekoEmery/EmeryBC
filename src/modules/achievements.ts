@@ -8,8 +8,8 @@
 import { getSettings, syncSettings } from "./bcUtils";
 import { getRestraintMs } from "./timer";
 
-// Same crew as the credits tab. Only these members track or see achievements.
-export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
+// Crew whitelist - only these members track or see achievements.
+export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395];
 const EMERY = 130267;
 
 /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
@@ -116,7 +116,6 @@ function save(): void {
     }, 3000);
 }
 
-const ROMAN = ["I", "II", "III", "IV", "V"];
 const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
 
 function tiersReached(def: AchievementDef, count: number): number {
@@ -129,7 +128,7 @@ function showTierToast(a: AchievementDef, tier: number): void {
     try {
         const maxed = tier >= a.tiers.length;
         const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
-        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
+        const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const el = document.createElement("div");
         el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
         const head = document.createElement("div");
@@ -278,7 +277,7 @@ export function shareAchievement(
         if (tier <= 0) return "locked";
         if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return "noRoom";
         if (getShareCooldownMs() > 0) return "cooldown";
-        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
+        const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
         ServerSend("ChatRoomChat", {
             Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
@@ -340,7 +339,7 @@ function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): bo
         ensureShineStyle();
         const maxed = tier >= a.tiers.length;
         const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
-        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
+        const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
 
         const plaque = document.createElement("div");
@@ -400,7 +399,7 @@ export function getAchievementProgress(): AchievementProgress[] {
             tier,
             maxed,
             nextTarget,
-            tierLabel: a.tiers.length > 1 && tier > 0 ? (ROMAN[tier - 1] ?? String(tier)) : "",
+            tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "",
             descNow: a.desc.replace("{n}", String(descN)),
         };
     });
