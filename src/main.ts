@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply } from
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 179;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 180;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -84,6 +84,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
             "Achievements reworked to TIERS: most achievements now level up through three thresholds (e.g. pats 5 → 25 → 250) and their card upgrades bronze → silver → gold plate, with tier pips and I/II/III labels. New doer achievements: Boop! (boop someone 10/50/250 times), Pat Dispenser (headpat others 10/50/250), Hug Dealer (give 10/50/250 hugs). Tier-ups pop a toast in the tier's metal color. Existing counters carry over.",
             "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
+            "Achievements: organized into CLASSES - Received (things done to you), Given (things you do), Bondage, and Emery - each with its own header and unlocked count. New Given achievements: Kiss Bandit (kiss others 10/50/250), Heavy Hand (spank others 10/50/250), Tickle Monster (tickle others 10/50/250). New Bondage: Rigger (put restraints on others 10/50/250). New Emery rares: Boop the Dev (boop Emery 10x), Dev Cuddler (hug Emery 10x), Brave Soul (spank Emery 5x).",
+            "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

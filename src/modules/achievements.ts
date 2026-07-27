@@ -25,25 +25,42 @@ export interface AchievementDef {
     counter: string;
     /** Ascending thresholds. One entry = single unlock; three = bronze/silver/gold. */
     tiers: number[];
+    /** Achievement class - groups the list (see ACHIEVEMENT_CLASSES). */
+    cls: string;
     rare?: boolean;
 }
 
+export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: string }> = [
+    { id: "received", label: "Received", icon: "💝" },
+    { id: "given",    label: "Given",    icon: "🖐" },
+    { id: "bondage",  label: "Bondage",  icon: "⛓" },
+    { id: "emery",    label: "Emery",    icon: "⭐" },
+];
+
 export const ACHIEVEMENTS: AchievementDef[] = [
-    // Things done TO you
-    { id: "pats",    icon: "🐾", name: "Pat Magnet",     desc: "Get headpatted {n} times",              counter: "pet_recv",  tiers: [5, 25, 250] },
-    { id: "hugs",    icon: "🤗", name: "Hug Collector",  desc: "Receive {n} hugs",                      counter: "hug_recv",  tiers: [5, 25, 100] },
-    { id: "kisses",  icon: "💋", name: "Cherished",      desc: "Receive {n} kisses",                    counter: "kiss_recv", tiers: [5, 25, 100] },
-    { id: "popular", icon: "🌟", name: "Popular",        desc: "{n} different people do things to you", counter: "people",    tiers: [5, 25, 100] },
-    { id: "tied",    icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times",  counter: "tied_recv", tiers: [5, 25, 100] },
-    { id: "streak",  icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",         counter: "bound_h",   tiers: [24, 100, 500] },
-    // Things YOU do
-    { id: "boops",    icon: "👉", name: "Boop!",         desc: "Boop someone {n} times",                counter: "boop_give", tiers: [10, 50, 250] },
-    { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times",              counter: "pet_give",  tiers: [10, 50, 250] },
-    { id: "huggiver", icon: "💞", name: "Hug Dealer",    desc: "Give {n} hugs",                         counter: "hug_give",  tiers: [10, 50, 250] },
-    // Rare - Emery-targeted (single golden unlock)
-    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Dev",    desc: "Headpat Emery {n} times",       counter: "pet_emery",  tiers: [5],  rare: true },
-    { id: "dev_wrangler",  icon: "⭐", name: "Dev Wrangler",   desc: "Tie Emery up",                  counter: "bind_emery", tiers: [1],  rare: true },
-    { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you",  counter: "from_emery", tiers: [25], rare: true },
+    // 💝 Received - things done TO you
+    { id: "pats",    icon: "🐾", name: "Pat Magnet",    desc: "Get headpatted {n} times",              counter: "pet_recv",  tiers: [5, 25, 250], cls: "received" },
+    { id: "hugs",    icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs",                      counter: "hug_recv",  tiers: [5, 25, 100], cls: "received" },
+    { id: "kisses",  icon: "💋", name: "Cherished",     desc: "Receive {n} kisses",                    counter: "kiss_recv", tiers: [5, 25, 100], cls: "received" },
+    { id: "popular", icon: "🌟", name: "Popular",       desc: "{n} different people do things to you", counter: "people",    tiers: [5, 25, 100], cls: "received" },
+    // 🖐 Given - things YOU do to others
+    { id: "boops",     icon: "👉", name: "Boop!",          desc: "Boop someone {n} times",    counter: "boop_give",   tiers: [10, 50, 250], cls: "given" },
+    { id: "patgiver",  icon: "🖐", name: "Pat Dispenser",  desc: "Headpat others {n} times",  counter: "pet_give",    tiers: [10, 50, 250], cls: "given" },
+    { id: "huggiver",  icon: "💞", name: "Hug Dealer",     desc: "Give {n} hugs",             counter: "hug_give",    tiers: [10, 50, 250], cls: "given" },
+    { id: "kissgiver", icon: "😘", name: "Kiss Bandit",    desc: "Kiss others {n} times",     counter: "kiss_give",   tiers: [10, 50, 250], cls: "given" },
+    { id: "spanker",   icon: "🍑", name: "Heavy Hand",     desc: "Spank others {n} times",    counter: "spank_give",  tiers: [10, 50, 250], cls: "given" },
+    { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
+    // ⛓ Bondage
+    { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
+    { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
+    { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
+    // ⭐ Emery - rare single golden unlocks
+    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Dev",    desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
+    { id: "boop_the_dev",  icon: "⭐", name: "Boop the Dev",   desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
+    { id: "hug_the_dev",   icon: "⭐", name: "Dev Cuddler",    desc: "Hug Emery {n} times",          counter: "hug_emery",   tiers: [10], cls: "emery", rare: true },
+    { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",     desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
+    { id: "dev_wrangler",  icon: "⭐", name: "Dev Wrangler",   desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
+    { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery",  tiers: [25], cls: "emery", rare: true },
 ];
 
 interface AchState {
@@ -160,12 +177,25 @@ export function achievementOnActivity(
             }
         } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
             // Things YOU do to others
-            if (act.includes("boop")) bump("boop_give");
+            const toEmery = targetNum === EMERY;
+            if (act.includes("boop")) {
+                bump("boop_give");
+                if (toEmery) bump("boop_emery");
+            }
             if (act.includes("pet")) {
                 bump("pet_give");
-                if (targetNum === EMERY) bump("pet_emery");
+                if (toEmery) bump("pet_emery");
             }
-            if (act.includes("hug") || act.includes("cuddle")) bump("hug_give");
+            if (act.includes("hug") || act.includes("cuddle")) {
+                bump("hug_give");
+                if (toEmery) bump("hug_emery");
+            }
+            if (act.includes("kiss")) bump("kiss_give");
+            if (act.includes("spank")) {
+                bump("spank_give");
+                if (toEmery) bump("spank_emery");
+            }
+            if (act.includes("tickle")) bump("tickle_give");
         }
     } catch { /* ignore */ }
 }
@@ -182,8 +212,9 @@ export function achievementOnItemApply(
         const me = Player.MemberNumber ?? 0;
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             bump("tied_recv");
-        } else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
-            bump("bind_emery");
+        } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
+            bump("tie_give");
+            if (targetNum === EMERY) bump("bind_emery");
         }
     } catch { /* ignore */ }
 }
