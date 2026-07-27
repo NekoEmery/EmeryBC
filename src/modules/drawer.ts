@@ -3961,6 +3961,16 @@ const EBC_TAB_LABELS: Record<string, string> = {
     notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
 };
 
+// ── Grouped ("new") layout ───────────────────────────────────────────────
+// The same features, regrouped behind six broader tabs. Nothing is removed:
+// every old renderX() still exists and the classic 8-tab set is restored the
+// moment the user flips "Menu layout" back to the old layout in DEV -> Drawer.
+const EBC_GROUPED_TABS   = ["me", "safety", "social", "buttons", "toys", "settings"] as const;
+const EBC_GROUPED_TAB_LABELS: Record<string, string> = {
+    me: "ME", safety: "SAFETY", social: "SOCIAL",
+    buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS",
+};
+
 // The 9 user-facing colour slots. All derived colours are computed from these.
 interface CoreColors {
     bg: string;         // Panel background
@@ -4176,7 +4186,27 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "thanks" | "dev" | "dom" | "puppy" | "kitty"
+    // Grouped-layout tabs. "buttons" and "toys" are shared by both layouts.
+    | "me" | "safety" | "social" | "settings";
+
+/** true when the user is on the new grouped 6-tab layout ("tabs"), false for
+ *  the original 8-tab stacked layout ("classic"). Same setting that already
+ *  drives pill sub-navigation, so one toggle switches the whole menu. */
+function isGroupedLayout(): boolean {
+    return getUsersLayout() === "tabs";
+}
+
+/** Nearest grouped-layout tab for a classic tab id, and vice versa. Used when
+ *  the layout is switched while sitting on a tab the other layout lacks. */
+const EBC_TAB_TO_GROUPED: Record<string, DrawerTab> = {
+    outfits: "me", anims: "me", notes: "social", thanks: "settings",
+    dev: "settings", dom: "toys", buttons: "buttons", toys: "toys",
+};
+const EBC_TAB_TO_CLASSIC: Record<string, DrawerTab> = {
+    me: "outfits", safety: "outfits", social: "notes", settings: "dev",
+    buttons: "buttons", toys: "toys",
+};
 
 // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
 // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
@@ -4347,6 +4377,20 @@ export class EBCDrawer {
     private quickActionsEl: HTMLElement | null = null;
     private selfPickPanelEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
+    private langRowEl: HTMLElement | null = null;
+    private tabBarEl: HTMLElement | null = null;
+    private notesBadgeEl: HTMLElement | null = null;
+    /** While set, every tab renderer builds into this element instead of
+     *  #ebc-body. The grouped layout uses it to run several existing renderX()
+     *  methods one after another without them wiping each other's output. */
+    private bodyOverride: HTMLElement | null = null;
+    /** Suppresses a tab's own _pillifyTab() call while it is being composed into
+     *  a grouped tab - the grouped tab pillifies the combined result once. */
+    private noPillify = false;
+    /** Pill sub-navigation of the tab currently on screen: which button owns
+     *  which elements. Lets the guide open the right pill before spotlighting.
+     *  Rebuilt on every renderCurrentTab(). */
+    private pillGroups: Array<{ btn: HTMLButtonElement; els: HTMLElement[] }> = [];
     // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
     private _langPillsRefresh: (() => void) | null = null;
@@ -4367,6 +4411,11 @@ export class EBCDrawer {
         tabPuppy?: HTMLButtonElement;
         tabKitty?: HTMLButtonElement;
         tabToys?: HTMLButtonElement;
+        // grouped-layout tabs
+        tabMe?: HTMLButtonElement;
+        tabSafety?: HTMLButtonElement;
+        tabSocial?: HTMLButtonElement;
+        tabSettings?: HTMLButtonElement;
         // quick-actions static elements
         releaseBtn?: HTMLButtonElement;
         unlockBtn?: HTMLButtonElement;
@@ -4759,6 +4808,8 @@ export class EBCDrawer {
         notesBadgeEl.id = "ebc-notes-tab-badge";
         notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
         notesTabBtn.appendChild(notesBadgeEl);
+        // Moved onto whichever tab button hosts the friends list (USERS or SOCIAL).
+        this.notesBadgeEl = notesBadgeEl;
 
         const toysTabBtn = document.createElement("button");
         toysTabBtn.className = "ebc-tab-btn";
@@ -4804,7 +4855,34 @@ export class EBCDrawer {
         kittyTabBtn.title = t("tabs.kitty");
         kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
+        // ── Grouped-layout tabs ──────────────────────────────────────────────
+        // Created alongside the classic ones and shown/hidden by applyLayoutMode().
+        // BUTTONS and TOYS are shared, so only four extra buttons are needed.
+        const mkGroupedTab = (id: string, labelKey: string, titleKey: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.className = "ebc-tab-btn";
+            b.id = `ebc-tab-${id}`;
+            b.style.position = "relative";   // SOCIAL hosts the unread badge
+            // The label lives in its own span so re-translating a tab never wipes
+            // a badge that has been appended to the button.
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-tab-label";
+            lbl.textContent = t(labelKey);
+            b.appendChild(lbl);
+            b.title = t(titleKey);
+            b.style.display = "none"; // applyLayoutMode() decides
+            return b;
+        };
+        const meTabBtn       = mkGroupedTab("me",       "tabs.me",       "tabs.meTitle");
+        const safetyTabBtn   = mkGroupedTab("safety",   "tabs.safety",   "tabs.safetyTitle");
+        const socialTabBtn   = mkGroupedTab("social",   "tabs.social",   "tabs.socialTitle");
+        const settingsTabBtn = mkGroupedTab("settings", "tabs.settings", "tabs.settingsTitle");
+
         // Store tab refs for language updates
+        this._i18nRefs.tabMe       = meTabBtn;
+        this._i18nRefs.tabSafety   = safetyTabBtn;
+        this._i18nRefs.tabSocial   = socialTabBtn;
+        this._i18nRefs.tabSettings = settingsTabBtn;
         this._i18nRefs.tabOutfits = outfitTabBtn;
         this._i18nRefs.tabButtons = btnsTabBtn;
         this._i18nRefs.tabAnims   = posesTabBtn;
@@ -4826,6 +4904,11 @@ export class EBCDrawer {
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
         tabBar.appendChild(kittyTabBtn);
+        tabBar.appendChild(meTabBtn);
+        tabBar.appendChild(safetyTabBtn);
+        tabBar.appendChild(socialTabBtn);
+        tabBar.appendChild(settingsTabBtn);
+        this.tabBarEl = tabBar;
 
         // ── Language picker row - sits between tab bar and quick-actions ─────
         const langRow = document.createElement("div");
@@ -4865,6 +4948,9 @@ export class EBCDrawer {
         }
         refreshLangPills();
         this._langPillsRefresh = refreshLangPills;
+        // Kept as a ref so applyLayoutMode() can move it: pinned under the tab
+        // bar in the classic layout, inside the SETTINGS tab when grouped.
+        this.langRowEl = langRow;
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -5609,6 +5695,10 @@ export class EBCDrawer {
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
         kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
+        meTabBtn.addEventListener("click",       () => this.switchTab("me"));
+        safetyTabBtn.addEventListener("click",   () => this.switchTab("safety"));
+        socialTabBtn.addEventListener("click",   () => this.switchTab("social"));
+        settingsTabBtn.addEventListener("click", () => this.switchTab("settings"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) { this.close(); return; }
@@ -5622,24 +5712,96 @@ export class EBCDrawer {
         });
     }
 
+    /** The tab ids that exist in the layout the user is currently on. */
+    private activeTabSet(): readonly string[] {
+        return isGroupedLayout() ? EBC_GROUPED_TABS : EBC_USER_TABS;
+    }
+
+    /** The one tab that can never be hidden - it holds the layout toggle. */
+    private lockedTabId(): string {
+        return isGroupedLayout() ? "settings" : "dev";
+    }
+
     private applyTabVisibility(): void {
         if (!this.rootEl) return;
-        const hidden = getHiddenTabs();
-        // dev tab can never be hidden - repair if it somehow got stored as hidden
-        if (hidden.includes("dev")) {
-            setHiddenTabs(hidden.filter(t => t !== "dev"));
+        const grouped   = isGroupedLayout();
+        const activeSet = this.activeTabSet();
+        const locked    = this.lockedTabId();
+        const hidden    = getHiddenTabs();
+        // The locked tab can never be hidden - repair if it got stored as hidden
+        if (hidden.includes(locked)) {
+            setHiddenTabs(hidden.filter(t => t !== locked));
             return this.applyTabVisibility();
         }
-        for (const tabId of EBC_USER_TABS) {
+        // Walk BOTH tab sets so the tabs belonging to the other layout are always
+        // hidden - "buttons"/"toys" appear in both and are handled once via the Set.
+        for (const tabId of new Set<string>([...EBC_USER_TABS, ...EBC_GROUPED_TABS])) {
             const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`) as HTMLElement | null;
             if (!btn) continue;
-            btn.style.display = (tabId === "dev" || !hidden.includes(tabId)) ? "" : "none";
+            const inLayout = activeSet.includes(tabId);
+            btn.style.display = (inLayout && (tabId === locked || !hidden.includes(tabId))) ? "" : "none";
         }
-        // If the active tab was hidden, fall back to the first visible tab
-        if (hidden.includes(this.currentTab)) {
-            const first = EBC_USER_TABS.find(id => !hidden.includes(id)) ?? "outfits";
-            this.switchTab(first);
+        // DOM tools are merged into the TOYS tab in the grouped layout, so the
+        // separate creator-only DOM tab only exists in the classic layout.
+        const domBtn = this.rootEl.querySelector("#ebc-tab-dom") as HTMLElement | null;
+        if (domBtn) domBtn.style.display = (!grouped && isDomEnabled()) ? "" : "none";
+        // Fall back to another tab only when the current one is hidden, belongs
+        // exclusively to the other layout, or is the DOM tab in the grouped
+        // layout. The puppy/kitty tabs exist in both layouts and are left alone.
+        const otherSet: readonly string[] = grouped ? EBC_USER_TABS : EBC_GROUPED_TABS;
+        const stranded = (!activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab))
+            || (grouped && this.currentTab === "dom");
+        if (stranded || hidden.includes(this.currentTab)) {
+            const mapped = (grouped ? EBC_TAB_TO_GROUPED : EBC_TAB_TO_CLASSIC)[this.currentTab];
+            const usable = (id: string | undefined): boolean =>
+                !!id && activeSet.includes(id) && (id === locked || !hidden.includes(id));
+            const first = usable(mapped)
+                ? mapped
+                : (activeSet.find(id => id === locked || !hidden.includes(id)) ?? (grouped ? "me" : "outfits"));
+            this.switchTab(first as DrawerTab);
         }
+    }
+
+    /**
+     * Show the tab bar for the layout the user picked and put the shared
+     * singleton elements where that layout expects them. Called on open, after
+     * setup, and whenever the "Menu layout" toggle in DEV -> Drawer is flipped.
+     */
+    private applyLayoutMode(): void {
+        const grouped = isGroupedLayout();
+        const bar = this.tabBarEl;
+
+        // Re-order the tab bar. appendChild moves existing nodes, so no button is
+        // ever recreated and every click handler stays attached.
+        const order = grouped
+            ? ["me", "safety", "social", "buttons", "toys", "settings", "dom", "puppy", "kitty"]
+            : ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev", "dom", "puppy", "kitty",
+               "me", "safety", "social", "settings"];
+        if (bar) {
+            for (const id of order) {
+                const el = this.rootEl?.querySelector(`#ebc-tab-${id}`) as HTMLElement | null;
+                if (el) bar.appendChild(el);
+            }
+        }
+
+        // Language pills: pinned under the tab bar in classic, moved into the
+        // SETTINGS tab when grouped (renderSettingsTab re-attaches them).
+        const lang = this.langRowEl;
+        if (lang) {
+            if (grouped) lang.remove();
+            else if (bar) bar.after(lang);
+        }
+
+        // The unread-beeps badge follows the tab that hosts the friends list.
+        const badge = this.notesBadgeEl;
+        const badgeHost = this.rootEl?.querySelector(
+            grouped ? "#ebc-tab-social" : "#ebc-tab-notes") as HTMLElement | null;
+        if (badge && badgeHost && badge.parentElement !== badgeHost) {
+            badgeHost.style.position = "relative";
+            badgeHost.appendChild(badge);
+        }
+
+        this.applyTabVisibility();
     }
 
     private injectStyles(): void {
@@ -6029,9 +6191,29 @@ export class EBCDrawer {
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
         try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
+
+        // Build the tab bar for the layout the user chose (classic 8 tabs vs the
+        // grouped 6). Done last so every button already has its click handler.
+        try { this.applyLayoutMode(); } catch { /* ignore */ }
     }
 
     // -- Interactive guide ─────────────────────────────────────────────────────
+
+    /**
+     * Guide steps are written against the classic tab ids. Translate one to the
+     * tab that actually holds that content in the layout the user is on, so the
+     * guide never tries to open a tab the current layout does not have.
+     *
+     * A step may set `groupedTab` when the grouped layout moved that content to
+     * a tab the generic old-tab -> new-tab map would not predict (storage went
+     * to SETTINGS, safewords to SAFETY).
+     */
+    private static guideTab(step: { tab: DrawerTab | null; groupedTab?: DrawerTab }): DrawerTab | null {
+        if (!isGroupedLayout()) return step.tab ?? null;
+        if (step.groupedTab) return step.groupedTab;
+        if (!step.tab) return null;
+        return EBC_TAB_TO_GROUPED[step.tab] ?? step.tab;
+    }
 
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     private static readonly SVG_CHEV_UP   = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -6048,6 +6230,7 @@ export class EBCDrawer {
         },
         {
             tab: "outfits",
+            groupedTab: "settings",   // storage lives in SETTINGS in the grouped layout
             label: t("guide.fast.sStor.label"),
             text: t("guide.fast.sStor.text"),
             spotlight: ["[data-guide-target='section-storage']"],
@@ -6077,12 +6260,20 @@ export class EBCDrawer {
             autoExpand: ["section-dev-prefs"],
         },
         {
+            tab: "dev",
+            label: t("guide.layout.label"),
+            text: t("guide.layout.text"),
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
+        },
+        {
             tab: null,
+            groupedTab: "safety",     // safewords live on the SAFETY tab when grouped
             label: t("guide.fast.s6.label"),
             text: t("guide.fast.s6.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    ] as Array<{ tab: DrawerTab | null; groupedTab?: DrawerTab; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
     }
 
     private static get INDEPTH_STEPS() {
@@ -6163,12 +6354,20 @@ export class EBCDrawer {
             autoExpand: ["section-dev-logs"],
         },
         {
+            tab: "dev",
+            label: t("guide.layout.label"),
+            text: t("guide.layout.text"),
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
+        },
+        {
             tab: null,
+            groupedTab: "safety",     // safewords live on the SAFETY tab when grouped
             label: t("guide.deep.s13.label"),
             text: t("guide.deep.s13.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    ] as Array<{ tab: DrawerTab | null; groupedTab?: DrawerTab; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
     }
 
     private renderGuideModeSelect(): void {
@@ -6338,9 +6537,12 @@ export class EBCDrawer {
         if (this.guideSpotlightIndex >= spotCount) this.guideSpotlightIndex = 0;
         const spotIdx = this.guideSpotlightIndex;
 
-        // Switch to the relevant tab (only on first spotlight of the step)
-        if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
-            this.switchTab(step.tab);
+        // Switch to the relevant tab (only on first spotlight of the step).
+        // guideTab() maps the classic tab id onto whichever tab holds that
+        // content in the layout the user is currently using.
+        const stepTab = EBCDrawer.guideTab(step);
+        if (spotIdx === 0 && stepTab && stepTab !== this.currentTab) {
+            this.switchTab(stepTab);
         }
 
         card.innerHTML = "";
@@ -6448,15 +6650,18 @@ export class EBCDrawer {
         card.appendChild(nav);
 
         // ── Spotlight UI elements this step is describing ─────────────────────
-        // Tab button: whenever the guide is on a tab-specific step, glow the tab
-        if (step.tab) {
-            const tabIdMap: Record<string, string> = { anims: "poses" };
-            const tabBtnId = tabIdMap[step.tab] ?? step.tab;
-            window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
+        // Tab button: whenever the guide is on a tab-specific step, glow the tab.
+        // The button id always matches the tab id (the old "anims" -> "poses"
+        // remap pointed at #ebc-tab-poses, which does not exist).
+        if (stepTab) {
+            window.setTimeout(() => this.spotlightEl(`#ebc-tab-${stepTab}`), 60);
         }
-        // Spotlight only the current sub-step element (one at a time)
+        // Spotlight only the current sub-step element (one at a time). Both tab
+        // layouts split their content behind pills, so open the pill that owns
+        // the target first - otherwise the spotlight lands on a hidden element.
         if (spotCount > 0) {
             window.setTimeout(() => {
+                this.revealGuideTarget(step.spotlight![spotIdx]);
                 this.spotlightEl(step.spotlight![spotIdx]);
             }, 80);
         }
@@ -6504,6 +6709,26 @@ export class EBCDrawer {
             .forEach(el => el.classList.remove("ebc-guide-spotlight"));
     }
 
+    /**
+     * Bring a guide target on screen. Tab bodies are split into pill sections,
+     * and only the active pill's elements are displayed - so if the target sits
+     * behind another pill, click that pill before the spotlight is applied.
+     */
+    private revealGuideTarget(selector: string): void {
+        try {
+            const el = this.rootEl?.querySelector(selector) as HTMLElement | null;
+            if (!el) return;
+            for (const g of this.pillGroups) {
+                if (!g.els.some(x => x === el || x.contains(el))) continue;
+                // Hidden group -> its pill is not the active one.
+                if (g.els.some(x => x.style.display === "none")) {
+                    try { g.btn.click(); } catch { /* ignore */ }
+                }
+                return;
+            }
+        } catch { /* ignore invalid selectors or detached nodes */ }
+    }
+
     private spotlightEl(selector: string): void {
         try {
             const el = this.rootEl?.querySelector(selector);
@@ -6520,12 +6745,63 @@ export class EBCDrawer {
         }
     }
 
+    /** The element a tab renderer should build into. Normally the real
+     *  #ebc-body; a detached container while a grouped tab is composing. */
+    private tabBody(): HTMLElement | null {
+        return this.bodyOverride ?? (this.rootEl?.querySelector("#ebc-body") as HTMLElement | null);
+    }
+
+    /**
+     * Run an existing tab renderer into a detached container and move whatever
+     * it produced into `dest`. This is the whole trick behind the grouped
+     * layout: no renderX() is rewritten, they are just re-hosted.
+     *
+     * The children are moved individually (not the wrapper) so `dest` keeps a
+     * flat list of sections and _pillifyTab() can still classify them.
+     */
+    private composeInto(dest: HTMLElement, fn: () => void): void {
+        const tmp = document.createElement("div");
+        const prevBody   = this.bodyOverride;
+        const prevNoPill = this.noPillify;
+        this.bodyOverride = tmp;
+        this.noPillify    = true;
+        try {
+            fn();
+        } catch (err) {
+            // A single broken section must not blank the whole grouped tab.
+            try { console.error("[EBC] grouped layout: section build failed", err); } catch { /* ignore */ }
+        } finally {
+            this.bodyOverride = prevBody;
+            this.noPillify    = prevNoPill;
+        }
+        while (tmp.firstChild) dest.appendChild(tmp.firstChild);
+    }
+
+    /** Wrap an element that carries no section header of its own (the safeword
+     *  strip, the language pills...) so _pillifyTab() sees it as a section. */
+    private addLabelledSection(dest: HTMLElement, label: string, el: HTMLElement): void {
+        const hdr = document.createElement("div");
+        hdr.className = "ebc-section-label";
+        hdr.textContent = label;
+        dest.appendChild(hdr);
+        const wrap = document.createElement("div");
+        wrap.style.marginBottom = "6px";
+        wrap.appendChild(el);
+        dest.appendChild(wrap);
+    }
+
+    /** True for the tab that hosts the friends/rooms list - "notes" in the
+     *  classic layout, "social" in the grouped one. */
+    private static isSocialTab(tab: DrawerTab): boolean {
+        return tab === "notes" || tab === "social";
+    }
+
     private switchTab(tab: DrawerTab): void {
         this.stopDevLogPoller();
         if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
-        if (tab !== "notes") this.friendsSectionEl = null;
+        if (!EBCDrawer.isSocialTab(tab)) this.friendsSectionEl = null;
         this.currentTab = tab;
-        if (tab === "notes") {
+        if (EBCDrawer.isSocialTab(tab)) {
             this.friendPollTick = 0;
             try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
         }
@@ -6541,6 +6817,10 @@ export class EBCDrawer {
             ["ebc-tab-dom",     "dom"],
             ["ebc-tab-puppy",   "puppy"],
             ["ebc-tab-kitty",   "kitty"],
+            ["ebc-tab-me",       "me"],
+            ["ebc-tab-safety",   "safety"],
+            ["ebc-tab-social",   "social"],
+            ["ebc-tab-settings", "settings"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -6551,18 +6831,150 @@ export class EBCDrawer {
     }
 
     private renderCurrentTab(): void {
+        this.pillGroups = [];   // repopulated by whichever tab builds pill nav
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "notes")    this.renderNotes();
-        else if (this.currentTab === "toys")     this.renderToys();
+        else if (this.currentTab === "toys")     this.renderToysTab();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
+        // Grouped layout - each of these composes existing renderX() methods.
+        else if (this.currentTab === "me")       this.renderMeTab();
+        else if (this.currentTab === "safety")   this.renderSafetyTab();
+        else if (this.currentTab === "social")   this.renderNotes();
+        else if (this.currentTab === "settings") this.renderSettingsTab();
         // Fix inline styles that bypass CSS class rules by hardcoding the default palette
         this.repaintTheme();
+    }
+
+    // -- Grouped layout tabs ---------------------------------------------------
+    // Composition only: every section below is built by a method that the classic
+    // layout also uses, so there is exactly one implementation of each feature.
+
+    /**
+     * Build a section into its own container and drop its collapsible header,
+     * so a grouped pill never turns into a dropdown inside a dropdown.
+     * Mirrors what _pillifyTab() does for "wrapper"-shaped sections.
+     */
+    private buildFlatSection(build: (c: HTMLElement) => void): HTMLElement {
+        const c = document.createElement("div");
+        build(c);
+        for (const wrap of Array.from(c.children) as HTMLElement[]) {
+            const lbl = wrap.classList.contains("ebc-section-label")
+                ? wrap
+                : wrap.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            if (!lbl) continue;
+            // Some sections only build their content once expanded, so run their
+            // own toggle rather than forcing display.
+            if ((wrap.textContent ?? "").includes("▶")) { try { lbl.click(); } catch { /* ignore */ } }
+            const host = lbl.parentElement ?? wrap;
+            for (const sub of Array.from(host.children) as HTMLElement[]) {
+                if (sub !== lbl && sub.style.display === "none") sub.style.display = "";
+            }
+            lbl.style.display = "none";
+        }
+        return c;
+    }
+
+    /** Re-host one of the pinned singleton strips (safewords, EBC tags) inside a
+     *  grouped tab as a pill section - the pill becomes its header. */
+    private attachStripSection(dest: HTMLElement, label: string, el: HTMLElement | null, flex = false): void {
+        if (!el) return;
+        el.style.display = flex ? "flex" : "";
+        const kids  = Array.from(el.children) as HTMLElement[];
+        const hdr   = kids.find(c => c.style.cursor === "pointer");
+        const inner = kids.find(c => c !== hdr);
+        if (hdr && inner && inner.style.display === "none") { try { hdr.click(); } catch { /* ignore */ } }
+        if (hdr) hdr.style.display = "none";
+        this.addLabelledSection(dest, label, el);
+    }
+
+    /** ME - everything that is about the player's own look and animation:
+     *  outfits, restraint sets, poses, scenes, expressions, colours, identity. */
+    private renderMeTab(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        this.buildIdentitySection(body, true);
+        this.buildSavedOutfitsSection(body);
+        this.buildOutfitTagsSection(body);
+        this.buildScheduleSection(body);
+        this.buildRestraintSection(body);
+        this.renderPalettes(body);
+        // The whole classic ANIMS tab: poses, combos, scenes, expression
+        // sequences and expressions - composed in unchanged.
+        this.composeInto(body, () => this.renderPoses());
+
+        this._pillifyTab(body, "EBC_meView", [
+            { pill: "Outfits",     match: [t("grouped.nicknameTitle"), t("outfits.savedOutfits"),
+                                           "TAGS", t("outfits.tagsN", { n: 0 }), t("outfits.outfitSchedule")] },
+            { pill: "Restraints",  match: [t("outfits.savedRestraints")] },
+            { pill: "Poses",       match: [t("anims.poses"), t("anims.poseCombos")] },
+            { pill: "Scenes",      match: [t("anims.scenes")] },
+            { pill: "Expressions", match: [t("expr.sequences"), t("anims.expressions")] },
+            { pill: "Colours",     match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+        ]);
+    }
+
+    /** SAFETY - getting out of things: release buttons, what is on you right
+     *  now, protected items, safewords and auto-escape. */
+    private renderSafetyTab(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Release Restraints / Remove Locks / picker. When they are pinned above
+        // every tab (the default) they are already on screen, so they are only
+        // re-hosted here if the user moved them off the pinned strip.
+        if (getQuickActionsInButtons() && this.quickActionsEl) {
+            const qaWrap = document.createElement("div");
+            this.quickActionsEl.style.display = "";
+            qaWrap.appendChild(this.quickActionsEl);
+            if (this.selfPickPanelEl) qaWrap.appendChild(this.selfPickPanelEl);
+            this.addLabelledSection(body, t("grouped.releaseUnlock"), qaWrap);
+        }
+
+        this.renderRestraintInfo(body);    // ACTIVE RESTRAINTS (+ timers)
+        this.renderOutfitWhitelist(body);  // PROTECTED ITEMS
+        this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
+        this.addLabelledSection(body, t("grouped.autoEscape"),
+            this.buildFlatSection(c => this.buildAutoEscapeSection(c)));
+
+        this._pillifyTab(body, "EBC_safetyView", [
+            { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
+            { pill: "Protected", match: [t("outfits.protectedItems")] },
+            { pill: "Safewords", match: [t("grouped.safewords")] },
+            { pill: "Escape",    match: [t("grouped.autoEscape")] },
+        ]);
+    }
+
+    /** TOYS - Lovense / PiShock / XToys, plus the creator-only Dom tools that
+     *  had their own tab in the classic layout. Still called "Toys". */
+    private renderToysTab(): void {
+        this.renderToys();
+        if (!isGroupedLayout() || !isDomEnabled()) return;
+        const body = this.tabBody();
+        if (!body) return;
+        const div = document.createElement("div");
+        div.className = "ebc-divider";
+        body.appendChild(div);
+        const lbl = document.createElement("div");
+        lbl.className = "ebc-section-label";
+        lbl.textContent = t("grouped.domTools");
+        body.appendChild(lbl);
+        // Auto-escape is skipped here - it lives on the SAFETY tab now.
+        this.composeInto(body, () => this.renderDomTools(false));
+    }
+
+    /** SETTINGS - drawer prefs, EBC tags, storage, language, dev tools, credits.
+     *  renderDev() builds all of it; the grouped flag adds the extra sections. */
+    private renderSettingsTab(): void {
+        this.renderDev(true);
     }
 
     /** Show or hide each pinned strip based on the active tab and the stored filter. */
@@ -6830,6 +7242,18 @@ export class EBCDrawer {
         if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
         if (r.tabPuppy)   r.tabPuppy.title = t("tabs.puppy");
         if (r.tabKitty)   r.tabKitty.title = t("tabs.kitty");
+        // Grouped tabs keep their label in a .ebc-tab-label span so the unread
+        // badge on SOCIAL survives a language change.
+        const setGroupedTab = (btn: HTMLButtonElement | undefined, labelKey: string, titleKey: string): void => {
+            if (!btn) return;
+            const lbl = btn.querySelector(".ebc-tab-label");
+            if (lbl) lbl.textContent = t(labelKey);
+            btn.title = t(titleKey);
+        };
+        setGroupedTab(r.tabMe,       "tabs.me",       "tabs.meTitle");
+        setGroupedTab(r.tabSafety,   "tabs.safety",   "tabs.safetyTitle");
+        setGroupedTab(r.tabSocial,   "tabs.social",   "tabs.socialTitle");
+        setGroupedTab(r.tabSettings, "tabs.settings", "tabs.settingsTitle");
         // Quick actions
         if (r.releaseBtn) { r.releaseBtn.textContent = t("qa.releaseRestraints"); r.releaseBtn.title = t("qa.releaseTitle"); }
         if (r.unlockBtn)  { r.unlockBtn.textContent = t("qa.removeLocks"); r.unlockBtn.title = t("qa.removeLocksTitle"); }
@@ -7655,11 +8079,20 @@ This cannot be undone.`,
         body.appendChild(wrap);
     }
 
-    private renderOutfits(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
+    // -- Sections shared by the classic OUTFITS tab and the grouped ME tab -----
+    // These were inline inside renderOutfits(); they are pure moves so the
+    // classic tab renders exactly as before, and the grouped layout can place
+    // each one on a different tab.
 
+    /** Default nickname + default title rows. `withHeader` adds a section
+     *  label so the grouped layout can turn it into its own pill. */
+    private buildIdentitySection(body: HTMLElement, withHeader = false): void {
+        if (withHeader) {
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-section-label";
+            hdr.textContent = t("grouped.nicknameTitle");
+            body.appendChild(hdr);
+        }
         // ── Default nickname (top of page) ───────────────────────────────────────
         const nickRow = document.createElement("div");
         nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
@@ -7703,11 +8136,10 @@ This cannot be undone.`,
         defTitleRow.appendChild(defTitleLbl);
         defTitleRow.appendChild(defTitleSel);
         body.appendChild(defTitleRow);
+    }
 
-        this.renderRestraintInfo(body);
-        this.renderOutfitWhitelist(body);
-        this.renderPalettes(body);
-
+    /** Outfit tag management - chips plus the add-tag row. */
+    private buildOutfitTagsSection(body: HTMLElement): void {
         // ── Tag management ───────────────────────────────────────────────────────────
         const tagMgmtDiv = document.createElement("div");
         tagMgmtDiv.style.marginBottom = "8px";
@@ -7834,14 +8266,15 @@ This cannot be undone.`,
         tagMgmtDiv.appendChild(tagToggleBtn);
         tagMgmtDiv.appendChild(tagMgmtBody);
         body.appendChild(tagMgmtDiv);
+    }
 
+    /** Saved outfits: collapsible header, filter box, rows, new-outfit form. */
+    private buildSavedOutfitsSection(body: HTMLElement): void {
         const outfits = getOutfits();
 
         // ── Collapsible "Saved Outfits" header ───────────────────────────────────
         let outfitsCollapsed = false;
         try { outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1"; } catch { /* ignore */ }
-
-        this.renderStorageUsage(body);
 
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
@@ -7917,6 +8350,23 @@ This cannot be undone.`,
 
         this.buildNewOutfitSection(outfitsBody);
         body.appendChild(outfitsBody);
+    }
+
+    private renderOutfits(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        this.buildIdentitySection(body);
+
+        this.renderRestraintInfo(body);
+        this.renderOutfitWhitelist(body);
+        this.renderPalettes(body);
+
+        this.buildOutfitTagsSection(body);
+
+        this.renderStorageUsage(body);
+        this.buildSavedOutfitsSection(body);
 
         this.buildRestraintSection(body);
         this.buildScheduleSection(body);
@@ -10624,7 +11074,7 @@ This cannot be undone.`,
     // -- Poses tab -------------------------------------------------------------
 
     private renderPoses(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -12929,9 +13379,9 @@ This cannot be undone.`,
             dot.style.cursor = "pointer";
             dot.addEventListener("click", (e) => {
                 e.stopPropagation();
-                // Open panel on the USERS tab so the messages dropdown is visible
+                // Open panel on the USERS / SOCIAL tab so the messages dropdown is visible
                 if (!this.isOpen) this.open();
-                this.switchTab("notes");
+                this.switchTab(isGroupedLayout() ? "social" : "notes");
             });
             tab.appendChild(dot);
         } else if (!hasUnread && dot) {
@@ -14371,7 +14821,7 @@ This cannot be undone.`,
             // No window open at all
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
-            if (this.currentTab === "notes") {
+            if (EBCDrawer.isSocialTab(this.currentTab)) {
                 try { this.rerender(); } catch { /* ignore */ }
             }
         }
@@ -14769,7 +15219,7 @@ This cannot be undone.`,
     }
 
     private renderNotes(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -15360,12 +15810,12 @@ This cannot be undone.`,
     }
 
     public refreshFriendList(): void {
-        if (this.currentTab !== "notes" || !this.friendsSectionEl) return;
+        if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl) return;
         if (this.friendRefreshDebounce !== null) window.clearTimeout(this.friendRefreshDebounce);
         const target = this.friendsSectionEl;
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
-            if (this.currentTab === "notes" && this.friendsSectionEl === target) {
+            if (EBCDrawer.isSocialTab(this.currentTab) && this.friendsSectionEl === target) {
                 this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
             }
         }, 80);
@@ -16685,7 +17135,7 @@ This cannot be undone.`,
                             saveNote(num, name, noteTA.value);
                             noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
                             window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
-                            try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
+                            try { if (EBCDrawer.isSocialTab(this.currentTab)) this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
                 };
@@ -16888,7 +17338,8 @@ This cannot be undone.`,
         lsKey: string,
         merge?: Array<{ pill: string; match: string[] }>,
     ): void {
-        if (getUsersLayout() !== "tabs") return;
+        if (this.noPillify) return;      // composing into a grouped tab - it pillifies once at the end
+        if (!isGroupedLayout()) return;
 
         // Classify a direct child of the tab body:
         //   "label"   - the element IS the section label (content = later siblings)
@@ -17060,6 +17511,7 @@ This cannot be undone.`,
                 paint();
             });
             pills.push(pill);
+            this.pillGroups.push({ btn: pill, els: g.els });
             nav.appendChild(pill);
         }
 
@@ -17388,8 +17840,8 @@ This cannot be undone.`,
         document.body.appendChild(overlay);
     }
 
-    private renderDev(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+    private renderDev(grouped = false): void {
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -17426,7 +17878,9 @@ This cannot be undone.`,
                     body.appendChild(el);
                 }
             };
-            mkMoved("SAFEWORDS", this.safewordRowEl);
+            // In the grouped layout the safeword strip belongs to the SAFETY tab,
+            // so it is not pulled in here - it would end up on two tabs at once.
+            if (!grouped) mkMoved("SAFEWORDS", this.safewordRowEl);
             mkMoved("EBC TAGS", this.ebcTagsStripEl);
         }
 
@@ -17453,6 +17907,11 @@ This cannot be undone.`,
             layoutBtn.addEventListener("click", () => {
                 setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
                 paintLayout();
+                // Swap the whole tab bar, re-place the language pills, and jump
+                // to the equivalent tab in the layout we just switched to.
+                // applyLayoutMode only switches tab when the current one does not
+                // exist in the new layout, so re-render explicitly as well.
+                this.applyLayoutMode();
                 this.rerender();
             });
             layoutRow.appendChild(layoutLbl);
@@ -17468,14 +17927,17 @@ This cannot be undone.`,
             const qaBtn = document.createElement("button");
             const paintQa = (): void => {
                 const inBtns = getQuickActionsInButtons();
-                qaBtn.textContent = inBtns ? "In Buttons tab" : "Always on top";
+                // The tab they move into differs per layout: BUTTONS in classic,
+                // SAFETY in the grouped layout.
+                const hostTab = grouped ? "Safety" : "Buttons";
+                qaBtn.textContent = inBtns ? `In ${hostTab} tab` : "Always on top";
                 qaBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
                     (inBtns
                         ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                         : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                 qaBtn.title = inBtns
-                    ? "Release Restraints / Remove Locks / picker live in the Buttons tab - click to pin them above every tab again"
-                    : "Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the Buttons tab";
+                    ? `Release Restraints / Remove Locks / picker live in the ${hostTab} tab - click to pin them above every tab again`
+                    : `Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the ${hostTab} tab`;
             };
             paintQa();
             qaBtn.addEventListener("click", () => {
@@ -17776,11 +18238,15 @@ This cannot be undone.`,
             const tabVisGrid = document.createElement("div");
             tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
             const hiddenTabs = getHiddenTabs();
-            for (const tabId of EBC_USER_TABS) {
-                if (tabId === "dev") {
+            // Only the tabs of the layout the user is actually on can be toggled.
+            const visTabSet   = this.activeTabSet();
+            const visLabels   = grouped ? EBC_GROUPED_TAB_LABELS : EBC_TAB_LABELS;
+            const visLockedId = this.lockedTabId();
+            for (const tabId of visTabSet) {
+                if (tabId === visLockedId) {
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                    chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
+                    chip.textContent = (visLabels[tabId] ?? "DEV") + " 🔒";
                     chip.title = t("dev.devTabLocked");
                     chip.disabled = true;
                     tabVisGrid.appendChild(chip);
@@ -17789,12 +18255,12 @@ This cannot be undone.`,
                 const isVisible = !hiddenTabs.includes(tabId);
                 const chip = document.createElement("button");
                 chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
-                chip.textContent = EBC_TAB_LABELS[tabId] ?? tabId.toUpperCase();
+                chip.textContent = visLabels[tabId] ?? tabId.toUpperCase();
                 chip.dataset["tabId"] = tabId;
                 chip.addEventListener("click", () => {
                     const cur = getHiddenTabs();
                     const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
-                    const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
+                    const visible = visTabSet.filter(t => !nowHidden.includes(t));
                     if (visible.length === 0) return;
                     setHiddenTabs(nowHidden);
                     const nowVis = !nowHidden.includes(tabId);
@@ -17895,6 +18361,21 @@ This cannot be undone.`,
         }, "section-dev-prefs");
 
         // ── Developer Tools ────────────────────────────────────────────────────
+        // ── Grouped layout only ───────────────────────────────────────────────
+        // Storage and the language pills move into SETTINGS. Both are built by
+        // the same code the classic layout uses, just re-hosted here.
+        if (grouped) {
+            makeSection(t("grouped.storageData"), "EBC_settingsStorageCollapsed", false, (cnt) => {
+                cnt.appendChild(this.buildFlatSection(c => this.renderStorageUsage(c)));
+            });
+            makeSection(t("header.language"), "EBC_settingsLangCollapsed", false, (cnt) => {
+                if (this.langRowEl) {
+                    this.langRowEl.style.display = "";
+                    cnt.appendChild(this.langRowEl);
+                }
+            });
+        }
+
         makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
             // Character Inspector
             const charLbl = document.createElement("div");
@@ -19397,11 +19878,19 @@ This cannot be undone.`,
             });
         }
 
-        // Auto-refresh every 1.5 s while the DEV tab is open.
+        // Credits close out the grouped SETTINGS tab - the classic layout keeps
+        // its own CREDITS tab, so this only runs in the grouped layout.
+        if (grouped) {
+            makeSection(t("tabs.credits"), "EBC_settingsCreditsCollapsed", false, (cnt) => {
+                this.composeInto(cnt, () => this.renderThanks());
+            });
+        }
+
+        // Auto-refresh every 1.5 s while the DEV / SETTINGS tab is open.
         // Room History always refreshes (cheap read). Message log only if logging is on.
         this.stopDevLogPoller();
         this.devLogPoller = window.setInterval(() => {
-            if (this.currentTab !== "dev") return;
+            if (this.currentTab !== "dev" && this.currentTab !== "settings") return;
             renderRoom();
             renderRlog();
             if (isDevLogEnabled()) renderMsgLog();
@@ -19416,11 +19905,18 @@ This cannot be undone.`,
                 [t("dev.copyRestraintsFromMember")]: "Copy",
                 [t("dev.logs")]: "Logs",
                 [t("dev.statEditor")]: "Stats",
+                [t("grouped.storageData")]: "Storage",
+                [t("header.language")]: "Language",
+                [t("tabs.credits")]: "Credits",
                 "SAFEWORDS": "Safewords",
                 "EBC TAGS": "EBC tags",
             };
+            // The two layouts have different section sets, so they remember their
+            // active pill separately - switching layout must not land on a pill
+            // the other layout does not have.
+            const viewKey = grouped ? "EBC_settingsView" : "EBC_devView";
             let active = "";
-            try { active = localStorage.getItem("EBC_devView") ?? ""; } catch { /* ignore */ }
+            try { active = localStorage.getItem(viewKey) ?? ""; } catch { /* ignore */ }
             if (!devSections.some(s => s.label === active)) active = devSections[0].label;
 
             const nav = document.createElement("div");
@@ -19442,10 +19938,11 @@ This cannot be undone.`,
                 pill.title = sec.label;
                 pill.addEventListener("click", () => {
                     active = sec.label;
-                    try { localStorage.setItem("EBC_devView", active); } catch { /* ignore */ }
+                    try { localStorage.setItem(viewKey, active); } catch { /* ignore */ }
                     paint();
                 });
                 pills.push(pill);
+                this.pillGroups.push({ btn: pill, els: [sec.el] });
                 nav.appendChild(pill);
             }
             body.appendChild(nav);
@@ -19831,7 +20328,7 @@ This cannot be undone.`,
     // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -20934,7 +21431,9 @@ This cannot be undone.`,
             try { localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0"); } catch { /* ignore */ }
         });
 
-        if (getQuickActionsInButtons() && this.quickActionsEl) {
+        // The grouped layout hosts these on the SAFETY tab instead, so they are
+        // only pulled into BUTTONS in the classic layout.
+        if (getQuickActionsInButtons() && !isGroupedLayout() && this.quickActionsEl) {
             // Moved out of the pinned strip - give them a real section header so
             // the pill converter picks them up like any other section.
             const qaHdr = document.createElement("div");
@@ -23091,7 +23590,7 @@ This cannot be undone.`,
     }
 
     private renderToys(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         // Stop any sync-status poller from a previous render. Without this, each
         // re-render (toggle, or any toy-control beep calling refreshToysIfActive)
@@ -25526,7 +26025,8 @@ This cannot be undone.`,
 
     public refreshToysIfActive(): void {
         if (!this.rootEl?.querySelector(".ebc-toys-card")) return;
-        this.renderToys();
+        // renderToysTab keeps the merged Dom tools in the grouped layout.
+        this.renderToysTab();
     }
 
     private sendGameToyMsg(targetNum: number, type: string, intensity?: number, duration?: number): void {
@@ -26259,7 +26759,7 @@ This cannot be undone.`,
     // ─────────────────────────────────────────────────────────────────────────────
 
     private renderThanks(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -26424,11 +26924,10 @@ This cannot be undone.`,
 
     // -- DOM Tools tab (creator-only) ------------------------------------------
 
-    private renderDomTools(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
-
+    /** Auto-escape card: the anti-restraint toggle plus its room emote.
+     *  Extracted from renderDomTools() (pure move) so the grouped SAFETY tab
+     *  can show it while the creator-only DOM tools live on the TOYS tab. */
+    private buildAutoEscapeSection(body: HTMLElement): void {
         // ── Auto-Escape card ─────────────────────────────────────────────────
         const aeCard = document.createElement("div");
         aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
@@ -26513,6 +27012,16 @@ This cannot be undone.`,
         aeEmoteHint.textContent = "Leave blank for default · tokens: {item} · {restrainer}";
         aeCard.appendChild(aeEmoteHint);
         body.appendChild(aeCard);
+    }
+
+    /** @param includeAutoEscape false when the grouped layout has already put the
+     *  auto-escape card on the SAFETY tab. */
+    private renderDomTools(includeAutoEscape = true): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        if (includeAutoEscape) this.buildAutoEscapeSection(body);
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -28175,9 +28684,10 @@ This cannot be undone.`,
         if (!this.positioned) this.syncToChat();
         // badge toggle now lives in the DEV tab and refreshes on render
         try { this.refreshSwEnableBtn?.(); } catch { /* ignore */ }
-        // Show the DOM tab only for the creator
+        // Show the DOM tab only for the creator, and only in the classic layout
+        // (the grouped layout merges the Dom tools into the TOYS tab).
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
-        if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
+        if (domTabEl) domTabEl.style.display = (isDomEnabled() && !isGroupedLayout()) ? "" : "none";
         // Show the Puppy tab only for Lucy (#230466)
         const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
         if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
@@ -28187,7 +28697,7 @@ This cannot be undone.`,
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
         if (toysTabEl) toysTabEl.style.display = "";
         this.updateTimer();
-        try { this.applyTabVisibility(); } catch { /* ignore */ }
+        try { this.applyLayoutMode(); } catch { /* ignore */ }
         this.renderCurrentTab();
     }
 

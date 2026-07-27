@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 205;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 206;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -136,6 +136,12 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
+            "Menu restructured into six broader tabs: ME (outfits, restraint sets, poses, combos, scenes, expressions, colours, nickname & title), SAFETY (release & unlock, active restraints, protected items, safewords, anti-restraint & auto-escape), SOCIAL (friends, rooms, notes, chat & notifications, AFK), BUTTONS (categories, fun actions, useful buttons), TOYS (Lovense, PiShock, XToys, plus the Dom tools that used to have their own tab) and SETTINGS (drawer preferences, EBC tags, storage & data, language, dev tools, logs, stats, credits). Nothing was removed or rewritten - each new tab simply calls the same section builders the old tabs used, so every feature behaves exactly as before.",
+            "The original eight tabs are still there: DEV -> Drawer -> 'Menu layout' -> 'Old layout' restores OUTFITS / BUTTONS / ANIMS / USERS / TOYS / CREDITS / DEV / DOM with their original content placement and stacked sections. The setting switches the whole menu live, without a reload, and each layout remembers its own active pill so switching back never lands on a section the other layout does not have.",
+            "The language pills moved out of the permanently pinned row and into SETTINGS -> Language, freeing a row of vertical space on every other tab. In the old layout they stay pinned under the tabs exactly where they were.",
+            "Tutorial: both the quick tour and the full guide now follow whichever layout you are on - every step opens the tab that actually holds the content it describes (storage points at SETTINGS, safewords at SAFETY when grouped). A new 'Menu Layout' step explains the six tabs and shows how to get the old eight back.",
+            "Fix: guide steps could spotlight an element hidden behind a different pill, so the highlight landed on nothing. Root cause: tab bodies are split into pill sections that hide everything except the active pill, and the guide only looked the element up without checking whether it was displayed. Fix: the guide now opens the pill that owns the target before highlighting it.",
+            "Fix: the guide never highlighted the ANIMS tab button. Root cause: a leftover id remap pointed the spotlight at '#ebc-tab-poses', which does not exist - the button's id is '#ebc-tab-anims'.",
         ],
     },
     {
