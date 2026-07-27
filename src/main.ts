@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 194;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 195;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "DEV tab decluttered the same way as Users: Drawer / Tools / Copy / Logs / Stats are now pills instead of five stacked collapsibles, with the chosen pill remembered. The layout toggle now controls both tabs (renamed 'Menu layout (Users + Dev)') and switching it redraws immediately - Classic still restores the original stacked pages.",
             "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
             "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",
             "Achievement plaques can be switched off: anyone who opted out of achievements never sees shared plaques at all, and everyone else gets a 'Shared achievements: shown/hidden' toggle in the trophy popup. When hidden, the plain chat line shows instead so nothing is lost.",

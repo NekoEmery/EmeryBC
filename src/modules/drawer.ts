@@ -17059,13 +17059,16 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Users tab layout (new pill sections vs the original long page) ────
+        const devTabs = getUsersLayout() === "tabs";
+        const devSections: Array<{ label: string; el: HTMLElement }> = [];
+
+        // ── Menu layout (pill sections vs the original long page) ─────────────
         {
             const layoutRow = document.createElement("div");
             layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
             const layoutLbl = document.createElement("span");
             layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-            layoutLbl.textContent = "Users tab layout";
+            layoutLbl.textContent = "Menu layout (Users + Dev)";
             const layoutBtn = document.createElement("button");
             const paintLayout = (): void => {
                 const tabs = getUsersLayout() === "tabs";
@@ -17075,13 +17078,14 @@ export class EBCDrawer {
                         ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                         : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                 layoutBtn.title = tabs
-                    ? "Users tab is split into People / Notes / Settings pills - click for the original single long page"
-                    : "Users tab shows every section stacked (original) - click for the tidier pill layout";
+                    ? "Users and Dev tabs are split into pill sections - click for the original single long pages"
+                    : "Users and Dev tabs show every section stacked (original) - click for the tidier pill layout";
             };
             paintLayout();
             layoutBtn.addEventListener("click", () => {
                 setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
                 paintLayout();
+                this.rerender();
             });
             layoutRow.appendChild(layoutLbl);
             layoutRow.appendChild(layoutBtn);
@@ -17125,6 +17129,16 @@ export class EBCDrawer {
                 updateChev();
                 cnt.style.display = collapsed ? "none" : "";
             });
+            // In pill mode each section becomes its own view - the pill IS the
+            // header, so the collapsible header and divider are dropped and the
+            // content is always open.
+            if (devTabs) {
+                cnt.style.display = "";
+                const wrap = document.createElement("div");
+                wrap.appendChild(cnt);
+                devSections.push({ label: labelText, el: wrap });
+                return;
+            }
             body.appendChild(hdr);
             body.appendChild(cnt);
             const div = document.createElement("div");
@@ -18982,6 +18996,50 @@ export class EBCDrawer {
             renderRlog();
             if (isDevLogEnabled()) renderMsgLog();
         }, 1500);
+
+        // ── Dev pill navigation ──────────────────────────────────────────────
+        if (devTabs && devSections.length > 0) {
+            // Short pill labels - the full section names are too long for a row.
+            const SHORT: Record<string, string> = {
+                [t("dev.drawerPrefs")]: "Drawer",
+                [t("dev.developerTools")]: "Tools",
+                [t("dev.copyRestraintsFromMember")]: "Copy",
+                [t("dev.logs")]: "Logs",
+                [t("dev.statEditor")]: "Stats",
+            };
+            let active = "";
+            try { active = localStorage.getItem("EBC_devView") ?? ""; } catch { /* ignore */ }
+            if (!devSections.some(s => s.label === active)) active = devSections[0].label;
+
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+            const pills: HTMLButtonElement[] = [];
+            const paint = (): void => {
+                for (let i = 0; i < devSections.length; i++) {
+                    const on = devSections[i].label === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                    devSections[i].el.style.display = on ? "" : "none";
+                }
+            };
+            for (const sec of devSections) {
+                const pill = document.createElement("button");
+                pill.textContent = SHORT[sec.label] ?? sec.label;
+                pill.title = sec.label;
+                pill.addEventListener("click", () => {
+                    active = sec.label;
+                    try { localStorage.setItem("EBC_devView", active); } catch { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                nav.appendChild(pill);
+            }
+            body.appendChild(nav);
+            for (const sec of devSections) body.appendChild(sec.el);
+            paint();
+        }
     }
 
     // -- Special Thanks tab ----------------------------------------------------

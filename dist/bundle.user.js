@@ -25630,19 +25630,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             document.body.appendChild(overlay);
         }
         renderDev() {
-            var _a;
+            var _a, _b, _c;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Users tab layout (new pill sections vs the original long page) ────
+            const devTabs = getUsersLayout() === "tabs";
+            const devSections = [];
+            // ── Menu layout (pill sections vs the original long page) ─────────────
             {
                 const layoutRow = document.createElement("div");
                 layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const layoutLbl = document.createElement("span");
                 layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-                layoutLbl.textContent = "Users tab layout";
+                layoutLbl.textContent = "Menu layout (Users + Dev)";
                 const layoutBtn = document.createElement("button");
                 const paintLayout = () => {
                     const tabs = getUsersLayout() === "tabs";
@@ -25652,13 +25654,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
                             : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
                     layoutBtn.title = tabs
-                        ? "Users tab is split into People / Notes / Settings pills - click for the original single long page"
-                        : "Users tab shows every section stacked (original) - click for the tidier pill layout";
+                        ? "Users and Dev tabs are split into pill sections - click for the original single long pages"
+                        : "Users and Dev tabs show every section stacked (original) - click for the tidier pill layout";
                 };
                 paintLayout();
                 layoutBtn.addEventListener("click", () => {
                     setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
                     paintLayout();
+                    this.rerender();
                 });
                 layoutRow.appendChild(layoutLbl);
                 layoutRow.appendChild(layoutBtn);
@@ -25702,6 +25705,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     updateChev();
                     cnt.style.display = collapsed ? "none" : "";
                 });
+                // In pill mode each section becomes its own view - the pill IS the
+                // header, so the collapsible header and divider are dropped and the
+                // content is always open.
+                if (devTabs) {
+                    cnt.style.display = "";
+                    const wrap = document.createElement("div");
+                    wrap.appendChild(cnt);
+                    devSections.push({ label: labelText, el: wrap });
+                    return;
+                }
                 body.appendChild(hdr);
                 body.appendChild(cnt);
                 const div = document.createElement("div");
@@ -27631,6 +27644,56 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (isDevLogEnabled())
                     renderMsgLog();
             }, 1500);
+            // ── Dev pill navigation ──────────────────────────────────────────────
+            if (devTabs && devSections.length > 0) {
+                // Short pill labels - the full section names are too long for a row.
+                const SHORT = {
+                    [t("dev.drawerPrefs")]: "Drawer",
+                    [t("dev.developerTools")]: "Tools",
+                    [t("dev.copyRestraintsFromMember")]: "Copy",
+                    [t("dev.logs")]: "Logs",
+                    [t("dev.statEditor")]: "Stats",
+                };
+                let active = "";
+                try {
+                    active = (_b = localStorage.getItem("EBC_devView")) !== null && _b !== void 0 ? _b : "";
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+                if (!devSections.some(s => s.label === active))
+                    active = devSections[0].label;
+                const nav = document.createElement("div");
+                nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+                const pills = [];
+                const paint = () => {
+                    for (let i = 0; i < devSections.length; i++) {
+                        const on = devSections[i].label === active;
+                        pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                            (on
+                                ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                                : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                        devSections[i].el.style.display = on ? "" : "none";
+                    }
+                };
+                for (const sec of devSections) {
+                    const pill = document.createElement("button");
+                    pill.textContent = (_c = SHORT[sec.label]) !== null && _c !== void 0 ? _c : sec.label;
+                    pill.title = sec.label;
+                    pill.addEventListener("click", () => {
+                        active = sec.label;
+                        try {
+                            localStorage.setItem("EBC_devView", active);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        paint();
+                    });
+                    pills.push(pill);
+                    nav.appendChild(pill);
+                }
+                body.appendChild(nav);
+                for (const sec of devSections)
+                    body.appendChild(sec.el);
+                paint();
+            }
         }
         // -- Special Thanks tab ----------------------------------------------------
         renderPuppy() {
@@ -37485,7 +37548,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 194; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 195; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37557,6 +37620,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "DEV tab decluttered the same way as Users: Drawer / Tools / Copy / Logs / Stats are now pills instead of five stacked collapsibles, with the chosen pill remembered. The layout toggle now controls both tabs (renamed 'Menu layout (Users + Dev)') and switching it redraws immediately - Classic still restores the original stacked pages.",
                 "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
                 "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",
                 "Achievement plaques can be switched off: anyone who opted out of achievements never sees shared plaques at all, and everyone else gets a 'Shared achievements: shown/hidden' toggle in the trophy popup. When hidden, the plain chat line shows instead so nothing is lost.",
