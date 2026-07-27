@@ -6596,8 +6596,8 @@
     // (pats, hugs, kisses, being tied...), things the player DOES (boops, pats,
     // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
     // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
-    // Same crew as the credits tab. Only these members track or see achievements.
-    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
+    // Crew whitelist - only these members track or see achievements.
+    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395];
     const EMERY = 130267;
     /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
      *  itself, so someone who opted out can find their way back). */
@@ -6691,7 +6691,6 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }, 3000);
     }
-    const ROMAN = ["I", "II", "III", "IV", "V"];
     const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
     function tiersReached(def, count) {
         let n = 0;
@@ -6701,11 +6700,11 @@
         return n;
     }
     function showTierToast(a, tier) {
-        var _a, _b;
+        var _a;
         try {
             const maxed = tier >= a.tiers.length;
             const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
-            const tierLabel = a.tiers.length > 1 ? ` ${(_a = ROMAN[tier - 1]) !== null && _a !== void 0 ? _a : tier}` : "";
+            const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const el = document.createElement("div");
             el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
             const head = document.createElement("div");
@@ -6716,14 +6715,14 @@
             name.textContent = `${a.icon} ${a.name}${tierLabel}`;
             const desc = document.createElement("div");
             desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
-            desc.textContent = a.desc.replace("{n}", String((_b = a.tiers[tier - 1]) !== null && _b !== void 0 ? _b : a.tiers[a.tiers.length - 1]));
+            desc.textContent = a.desc.replace("{n}", String((_a = a.tiers[tier - 1]) !== null && _a !== void 0 ? _a : a.tiers[a.tiers.length - 1]));
             el.appendChild(head);
             el.appendChild(name);
             el.appendChild(desc);
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 6000);
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     function checkUnlocks() {
         var _a, _b;
@@ -6849,7 +6848,7 @@
     }
     /** Whispers an unlocked achievement to one person in the room. */
     function shareAchievement(id, targetNum, targetName) {
-        var _a, _b;
+        var _a;
         try {
             const a = ACHIEVEMENTS.find(x => x.id === id);
             if (!a)
@@ -6864,7 +6863,7 @@
                 return "noRoom";
             if (getShareCooldownMs() > 0)
                 return "cooldown";
-            const tierLabel = a.tiers.length > 1 ? ` ${(_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : tier}` : "";
+            const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
             ServerSend("ChatRoomChat", {
                 Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
@@ -6877,7 +6876,7 @@
             renderSharedPlaque(`you shared with ${targetName}`, a, tier);
             return "ok";
         }
-        catch (_c) {
+        catch (_b) {
             return "error";
         }
     }
@@ -6929,7 +6928,6 @@
     /** Big shiny plaque in the chat log - deliberately larger than normal messages,
      *  like addon update notices, but in EBC's dark + metal style. */
     function renderSharedPlaque(byline, a, tier) {
-        var _a;
         try {
             const log = document.getElementById("TextAreaChatLog");
             if (!log)
@@ -6937,7 +6935,7 @@
             ensureShineStyle();
             const maxed = tier >= a.tiers.length;
             const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
-            const tierLabel = a.tiers.length > 1 ? ` ${(_a = ROMAN[tier - 1]) !== null && _a !== void 0 ? _a : tier}` : "";
+            const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
             const plaque = document.createElement("div");
             plaque.style.cssText = [
@@ -6968,14 +6966,14 @@
             log.scrollTop = log.scrollHeight;
             return true;
         }
-        catch (_b) {
+        catch (_a) {
             return false;
         }
     }
     function getAchievementProgress() {
         const st = getState();
         return ACHIEVEMENTS.map(a => {
-            var _a, _b;
+            var _a;
             const value = (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0;
             const tier = tiersReached(a, value);
             const maxed = tier >= a.tiers.length;
@@ -6984,7 +6982,7 @@
             return Object.assign(Object.assign({}, a), { value,
                 tier,
                 maxed,
-                nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? ((_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : String(tier)) : "", descNow: a.desc.replace("{n}", String(descN)) });
+                nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "", descNow: a.desc.replace("{n}", String(descN)) });
         });
     }
     // Continuous bound-streak check - the counter keeps the LONGEST streak seen.
@@ -11806,6 +11804,9 @@
     color: #a8e0b0;
     cursor: default;
 }
+/* Full people rows embedded in your current room's card */
+.ebc-friend-rooms-card.current .ebc-friend-wrap { margin-top: 4px; }
+.ebc-friend-rooms-card.current .ebc-friend-wrap:first-of-type { margin-top: 5px; }
 .ebc-friend-rooms-del {
     background: transparent;
     border: 1px solid #4a2038;
@@ -23556,7 +23557,7 @@
             }, 80);
         }
         renderFriendRows(body) {
-            var _a, _b, _c, _d;
+            var _a, _b, _c;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -23585,22 +23586,72 @@
                 }
                 catch ( /* ignore */_c) { /* ignore */ }
             };
-            // ── People in Room ────────────────────────────────────────────────────
+            // ── Rooms - your room's full people list + where online friends are ──
             {
-                const w2 = window;
-                const roomCharsAll = w2.ChatRoomCharacter;
-                const roomList = Array.isArray(roomCharsAll)
-                    ? roomCharsAll.filter(c => c.MemberNumber !== Player.MemberNumber)
-                    : [];
-                if (roomList.length > 0) {
-                    const divR = document.createElement("div");
-                    divR.className = "ebc-divider";
-                    body.appendChild(divR);
-                    try {
-                        this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
+                const myRoomNums = [];
+                const privateNums = [];
+                const lobbyNums = [];
+                const publicRooms = new Map();
+                for (const num of friendList) {
+                    const status = getFriendStatus(num);
+                    if (status === "away")
+                        continue;
+                    if (status === "room") {
+                        myRoomNums.push(num);
+                        continue;
                     }
-                    catch ( /* ignore */_e) { /* ignore */ }
-                    const roomContainer = document.createElement("div");
+                    const info = getFriendOnlineInfo(num);
+                    if (info === null || info === void 0 ? void 0 : info.roomName) {
+                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
+                        arr.push(num);
+                        publicRooms.set(info.roomName, arr);
+                    }
+                    else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
+                        privateNums.push(num);
+                    }
+                    else {
+                        lobbyNums.push(num);
+                    }
+                }
+                const groups = [];
+                // Include yourself in your room's list so the group reads like the
+                // actual room roster, and label it with the real room name.
+                const meNum = (_b = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _b !== void 0 ? _b : 0;
+                const myRoomName = getCurrentRoomName();
+                if (meNum && myRoomName)
+                    myRoomNums.unshift(meNum);
+                if (myRoomName || myRoomNums.length > 0) {
+                    groups.push({
+                        label: myRoomName ? `${myRoomName} (your room)` : "Your current room",
+                        nums: myRoomNums,
+                        joinable: false,
+                        icon: "🐾",
+                        current: true,
+                    });
+                }
+                [...publicRooms.entries()]
+                    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+                    .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
+                if (privateNums.length > 0)
+                    groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
+                if (lobbyNums.length > 0)
+                    groups.push({ label: "Lobby / hidden", nums: lobbyNums, joinable: false, icon: "🏛" });
+                if (groups.length > 0) {
+                    const divRm = document.createElement("div");
+                    divRm.className = "ebc-divider";
+                    body.appendChild(divRm);
+                    try {
+                        this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
+                    }
+                    catch ( /* ignore */_d) { /* ignore */ }
+                    const roomsContainer = document.createElement("div");
+                    // Everyone in the current room (friends or not) - rendered as the
+                    // full-featured rows inside your room's card below.
+                    const w2 = window;
+                    const roomCharsAll = w2.ChatRoomCharacter;
+                    const roomList = Array.isArray(roomCharsAll)
+                        ? roomCharsAll.filter(c => c.MemberNumber !== Player.MemberNumber)
+                        : [];
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
                         const num = char.MemberNumber;
@@ -23838,121 +23889,6 @@
                         wrap.appendChild(row);
                         container.appendChild(wrap);
                     };
-                    // Collapsible section header - styled like a section label + arrow
-                    const roomToggle = document.createElement("div");
-                    roomToggle.setAttribute("data-guide-target", "section-room-people");
-                    const updateRoomToggle = () => {
-                        const col = this.roomPeopleCollapsed;
-                        roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
-                        roomToggle.innerHTML = "";
-                        const arrow = document.createElement("span");
-                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
-                        arrow.textContent = col ? "▶" : "▼";
-                        const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                        lbl.textContent = t("users.peopleInRoom");
-                        const cnt = document.createElement("span");
-                        cnt.style.cssText = [
-                            "font-family:'Trebuchet MS',serif",
-                            "font-size:11px",
-                            "font-weight:bold",
-                            "color:#e8b4c4",
-                            "background:rgba(192,100,130,0.18)",
-                            "border:1px solid rgba(192,100,130,0.35)",
-                            "border-radius:10px",
-                            "padding:0 7px",
-                            "line-height:16px",
-                            "min-width:18px",
-                            "text-align:center",
-                            "flex-shrink:0",
-                        ].join(";");
-                        cnt.textContent = String(roomList.length);
-                        roomToggle.appendChild(arrow);
-                        roomToggle.appendChild(lbl);
-                        roomToggle.appendChild(cnt);
-                        roomContainer.style.display = col ? "none" : "block";
-                    };
-                    updateRoomToggle();
-                    roomToggle.addEventListener("click", () => {
-                        this.roomPeopleCollapsed = !this.roomPeopleCollapsed;
-                        try {
-                            localStorage.setItem("EBC_roomPeopleCollapsed", this.roomPeopleCollapsed ? "1" : "0");
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                        updateRoomToggle();
-                        if (!this.roomPeopleCollapsed && !roomContainer.firstChild) {
-                            for (const c of roomList)
-                                buildRoomRow(c, roomContainer);
-                        }
-                    });
-                    body.appendChild(roomToggle);
-                    body.appendChild(roomContainer);
-                    // Populate rows immediately if not collapsed
-                    if (!this.roomPeopleCollapsed) {
-                        for (const c of roomList)
-                            buildRoomRow(c, roomContainer);
-                    }
-                }
-            }
-            // ── Friend Rooms - where online friends are, with join buttons ────────
-            {
-                const myRoomNums = [];
-                const privateNums = [];
-                const lobbyNums = [];
-                const publicRooms = new Map();
-                for (const num of friendList) {
-                    const status = getFriendStatus(num);
-                    if (status === "away")
-                        continue;
-                    if (status === "room") {
-                        myRoomNums.push(num);
-                        continue;
-                    }
-                    const info = getFriendOnlineInfo(num);
-                    if (info === null || info === void 0 ? void 0 : info.roomName) {
-                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
-                        arr.push(num);
-                        publicRooms.set(info.roomName, arr);
-                    }
-                    else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
-                        privateNums.push(num);
-                    }
-                    else {
-                        lobbyNums.push(num);
-                    }
-                }
-                const groups = [];
-                // Include yourself in your room's list so the group reads like the
-                // actual room roster, and label it with the real room name.
-                const meNum = (_b = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _b !== void 0 ? _b : 0;
-                const myRoomName = getCurrentRoomName();
-                if (meNum && myRoomName)
-                    myRoomNums.unshift(meNum);
-                if (myRoomNums.length > 0) {
-                    groups.push({
-                        label: myRoomName ? `${myRoomName} (your room)` : "Your current room",
-                        nums: myRoomNums,
-                        joinable: false,
-                        icon: "🐾",
-                        current: true,
-                    });
-                }
-                [...publicRooms.entries()]
-                    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
-                    .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
-                if (privateNums.length > 0)
-                    groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
-                if (lobbyNums.length > 0)
-                    groups.push({ label: "Lobby / hidden", nums: lobbyNums, joinable: false, icon: "🏛" });
-                if (groups.length > 0) {
-                    const divRm = document.createElement("div");
-                    divRm.className = "ebc-divider";
-                    body.appendChild(divRm);
-                    try {
-                        this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
-                    }
-                    catch ( /* ignore */_f) { /* ignore */ }
-                    const roomsContainer = document.createElement("div");
                     const roomsToggle = document.createElement("div");
                     const updateRoomsToggle = () => {
                         const col = this.friendRoomsCollapsed;
@@ -23963,7 +23899,7 @@
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
                         lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                        lbl.textContent = "Friend rooms";
+                        lbl.textContent = "Rooms";
                         const cnt = document.createElement("span");
                         cnt.style.cssText = [
                             "font-family:'Trebuchet MS',serif",
@@ -24008,7 +23944,7 @@
                         rName.title = g.label;
                         const rCnt = document.createElement("span");
                         rCnt.className = "ebc-friend-rooms-cnt";
-                        rCnt.textContent = `${g.nums.length}`;
+                        rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
                         headRow.appendChild(rIcon);
                         headRow.appendChild(rName);
                         headRow.appendChild(rCnt);
@@ -24032,18 +23968,26 @@
                             headRow.appendChild(joinBtn);
                         }
                         gCard.appendChild(headRow);
-                        // Member chips - click to open that friend's chat window
-                        const chips = document.createElement("div");
-                        chips.className = "ebc-friend-rooms-chips";
-                        const selfNum = (_c = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _c !== void 0 ? _c : -1;
-                        for (const n of g.nums) {
-                            const chip = document.createElement("button");
-                            if (n === selfNum) {
-                                chip.className = "ebc-friend-rooms-chip self";
-                                chip.textContent = `${resolveName(n)} (you)`;
-                                chip.disabled = true;
+                        if (g.current) {
+                            // Your room: the full-featured people rows (profile / chat /
+                            // star / copy) that used to be the People in Room section.
+                            if (roomList.length === 0) {
+                                const solo = document.createElement("div");
+                                solo.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#88a890;padding:3px 0 1px 2px;";
+                                solo.textContent = "Just you in here right now.";
+                                gCard.appendChild(solo);
                             }
                             else {
+                                for (const c of roomList)
+                                    buildRoomRow(c, gCard);
+                            }
+                        }
+                        else {
+                            // Other rooms: member chips - click to open that friend's chat
+                            const chips = document.createElement("div");
+                            chips.className = "ebc-friend-rooms-chips";
+                            for (const n of g.nums) {
+                                const chip = document.createElement("button");
                                 chip.className = "ebc-friend-rooms-chip";
                                 chip.textContent = `${resolveName(n)} #${n}`;
                                 chip.title = "Open chat";
@@ -24052,10 +23996,10 @@
                                     this.beepUnread.delete(n);
                                     this.openBeepWindow(n);
                                 });
+                                chips.appendChild(chip);
                             }
-                            chips.appendChild(chip);
+                            gCard.appendChild(chips);
                         }
-                        gCard.appendChild(chips);
                         roomsContainer.appendChild(gCard);
                     }
                     body.appendChild(roomsToggle);
@@ -24079,9 +24023,9 @@
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_d = localStorage.getItem("EBC_friendSort")) !== null && _d !== void 0 ? _d : "status";
+                    this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
                 }
-                catch ( /* ignore */_g) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -25003,7 +24947,7 @@
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -25021,7 +24965,7 @@
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_j) { /* ignore */ }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -25161,7 +25105,6 @@
             const summary = document.createElement("div");
             const listWrap = document.createElement("div");
             listWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-            const ROMAN_UI = ["I", "II", "III"];
             const NAME_COL = ["#b090a0", "#ecc39b", "#e6edf6", "#ffd700"];
             const paintSummary = () => {
                 const progress = getAchievementProgress();
@@ -25188,7 +25131,6 @@
                 summary.appendChild(trough);
             };
             const buildList = () => {
-                var _a;
                 while (listWrap.firstChild)
                     listWrap.removeChild(listWrap.firstChild);
                 const progress = getAchievementProgress();
@@ -25218,9 +25160,9 @@
                         // Medal coin - tier numeral, ★ for rares, empty when locked
                         const medal = document.createElement("div");
                         medal.className = "ebc-ach-medal";
-                        medal.textContent = a.rare ? "★" : a.tier > 0 ? ((_a = ROMAN_UI[a.tier - 1]) !== null && _a !== void 0 ? _a : String(a.tier)) : "";
+                        medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
                         if (a.tiers.length > 1) {
-                            medal.title = a.tiers.map((t, ti) => { var _a; return `${(_a = ROMAN_UI[ti]) !== null && _a !== void 0 ? _a : ti + 1}: ${a.desc.replace("{n}", String(t))}`; }).join("\n");
+                            medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${a.desc.replace("{n}", String(t))}`).join("\n");
                         }
                         card.appendChild(medal);
                         const main = document.createElement("div");
@@ -37240,7 +37182,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 188; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 189; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37311,6 +37253,9 @@
                 "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
+                "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
+                "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
+                "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
