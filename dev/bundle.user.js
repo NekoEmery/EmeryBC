@@ -6654,6 +6654,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times", counter: "pet_give", tiers: [10, 50, 250], cls: "given" },
         { id: "huggiver", icon: "💞", name: "Hug Dealer", desc: "Give {n} hugs", counter: "hug_give", tiers: [10, 50, 250], cls: "given" },
         { id: "kissgiver", icon: "😘", name: "Kiss Bandit", desc: "Kiss others {n} times", counter: "kiss_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "bughunter", icon: "🐛", name: "Bug Hunter", desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "given" },
         { id: "spanker", icon: "🍑", name: "Heavy Hand", desc: "Spank others {n} times", counter: "spank_give", tiers: [10, 50, 250], cls: "given" },
         { id: "tickler", icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times", counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
         // ⛓ Bondage
@@ -6835,24 +6836,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
+    /** Called when the Feedback & Bugs form is submitted (bug or feature alike). */
+    function achievementOnFeedbackSent() {
+        try {
+            if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
+                return;
+            bump("feedback_sent");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // ── Sharing ───────────────────────────────────────────────────────────────────
     // An unlocked achievement can be posted to the room chat. The message carries a
     // machine-readable Dictionary entry: EBC clients suppress the plain emote and
     // render a big shiny plaque instead; everyone else sees a normal emote line.
-    /** Posts an unlocked achievement to the room chat. Returns false when not in a
-     *  room or the achievement isn't unlocked. */
+    /** Posts an unlocked achievement to the room chat. */
     function shareAchievement(id) {
         var _a, _b;
         try {
             const a = ACHIEVEMENTS.find(x => x.id === id);
             if (!a)
-                return false;
+                return "error";
             const st = getState();
-            const tier = Math.min((_a = st.u[a.id]) !== null && _a !== void 0 ? _a : 0, a.tiers.length);
+            // Derive the tier from the live counter (exactly like the UI does) - the
+            // announced-unlocks map can lag until the next bump/tick runs checkUnlocks,
+            // which made sharing fail right after login even on maxed achievements.
+            const tier = tiersReached(a, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0);
             if (tier <= 0)
-                return false;
+                return "locked";
             if (window.CurrentScreen !== "ChatRoom")
-                return false;
+                return "noRoom";
             const tierLabel = a.tiers.length > 1 ? ` ${(_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : tier}` : "";
             const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
             ServerSend("ChatRoomChat", {
@@ -6860,10 +6872,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 Type: "Emote",
                 Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
             });
-            return true;
+            return "ok";
         }
         catch (_c) {
-            return false;
+            return "error";
         }
     }
     /** Detects an incoming achievement share. Renders the plaque and returns true
@@ -25053,14 +25065,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
                             shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
                             shareBtn.addEventListener("click", () => {
-                                if (shareAchievement(a.id)) {
-                                    shareBtn.textContent = "Shared ✓";
-                                    window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
-                                }
-                                else {
-                                    shareBtn.textContent = "Join a room first";
-                                    window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
-                                }
+                                const res = shareAchievement(a.id);
+                                shareBtn.textContent =
+                                    res === "ok" ? "Shared ✓" :
+                                        res === "noRoom" ? "Join a room first" :
+                                            res === "locked" ? "Not unlocked yet" : "Failed";
+                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1600);
                             });
                             card.appendChild(shareBtn);
                         }
@@ -25140,16 +25150,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Achievements (credits crew only) ─────────────────────────────────
-            if (isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
-                const achLbl = document.createElement("div");
-                achLbl.className = "ebc-section-label";
-                achLbl.textContent = "ACHIEVEMENTS";
-                body.appendChild(achLbl);
-                const cards = this.buildAchievementCards();
-                cards.style.marginBottom = "14px";
-                body.appendChild(cards);
-            }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
@@ -34662,6 +34662,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
                     .then(() => { close(); this._showToyToast(t("feedback.toast")); })
                     .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+                try {
+                    achievementOnFeedbackSent();
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
             });
             document.body.appendChild(overlay);
             whatArea.focus();
@@ -36950,7 +36954,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 181; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 182; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37008,6 +37012,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
                 "Achievements: category filter chips (All / Received / Given / Bondage / Emery) above the list - click one to show just that class; the choice is remembered.",
                 "Achievements: unlocked cards have a Share button that posts the achievement to the room chat. Other EBC users (and you) see it as a big shiny animated plaque - metal-colored border and glow matching the tier, larger than normal chat messages like addon update notices. Non-EBC users see a plain '*shares an achievement: ...*' emote line instead.",
+                "Achievements: removed from the DEV tab - the 🏆 trophy button beside the reload button (panel header, crew only) is now the one home for the whole list.",
+                "Fix: Share said 'Join a room first' while standing in a room. Root cause: the share checked the announced-unlocks map, which lags behind the live counters until the next event or 5-minute tick - so a freshly loaded session considered even maxed achievements locked, and the button showed the wrong error label for every failure. Fix: the share derives the tier from the live counter exactly like the cards do, and the button now reports the real reason (Shared ✓ / Join a room first / Not unlocked yet).",
+                "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
