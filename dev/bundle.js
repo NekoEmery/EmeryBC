@@ -2952,6 +2952,26 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Quick actions placement ---------------------------------------------------
+    // false (default) = Release Restraints / Remove Locks / restraint picker stay
+    // pinned above every tab. true = they move into the Buttons tab as their own
+    // pill, freeing that vertical space everywhere else.
+    function getQuickActionsInButtons() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.quickActionsInButtons) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setQuickActionsInButtons(v) {
+        try {
+            getSettings().quickActionsInButtons = v;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Users tab layout ----------------------------------------------------------
     // "tabs"    = sections split behind pill sub-navigation (less clutter)
     // "classic" = every section stacked on one long page (the original layout)
@@ -13155,6 +13175,8 @@
             this._hqScreenWatchTimer = null;
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
+            this.quickActionsEl = null;
+            this.selfPickPanelEl = null;
             this.ebcTagsStripEl = null;
             // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
             this._langUnsubscribe = null;
@@ -13601,6 +13623,7 @@
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
+            this.quickActionsEl = quickActions;
             quickActions.style.cssText = quickActions.style.cssText + ";flex-direction:column;gap:4px;";
             // Row 1: all-at-once danger buttons
             const qaRow1 = document.createElement("div");
@@ -13672,6 +13695,7 @@
             quickActions.appendChild(selfPickToggle);
             // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
             const selfPickPanel = document.createElement("div");
+            this.selfPickPanelEl = selfPickPanel;
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
             const selfPickStatus = document.createElement("div");
             selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
@@ -14131,8 +14155,11 @@
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(langRow);
-            panel.appendChild(quickActions);
-            panel.appendChild(selfPickPanel);
+            // Pinned above every tab unless the user moved them into Buttons.
+            if (!getQuickActionsInButtons()) {
+                panel.appendChild(quickActions);
+                panel.appendChild(selfPickPanel);
+            }
             // Safewords and EBC Tags are no longer pinned above every tab - they live
             // in the DEV tab as their own pill sections (see renderDev). They are kept
             // as detached elements here and re-appended on each DEV render, so all
@@ -24255,7 +24282,12 @@
                         }
                         roomsContainer.appendChild(gCard);
                     }
-                    roomsBody.appendChild(roomsToggle);
+                    // In pill mode the Rooms pill IS the header - the collapsible
+                    // toggle would just be a redundant dropdown inside it.
+                    if (roomsTarget)
+                        roomsContainer.style.display = "block";
+                    else
+                        roomsBody.appendChild(roomsToggle);
                     roomsBody.appendChild(roomsContainer);
                 }
             }
@@ -25445,6 +25477,10 @@
                         el.style.display = "";
                 }
             }
+            try {
+                console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]`).join(" | ") || "(none)");
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             // Assign sections to pills.
             const norm = (x) => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
             const used = new Set();
@@ -25479,7 +25515,7 @@
             try {
                 active = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             if (!groups.some(g => g.label === active))
                 active = groups[0].label;
             const nav = document.createElement("div");
@@ -25851,6 +25887,20 @@
                     if (!el)
                         return;
                     el.style.display = labelText === "SAFEWORDS" ? "flex" : "";
+                    // These strips carry their own collapsible header. Inside a pill
+                    // that is a redundant dropdown, so open the body and hide the
+                    // header - the pill is the header now.
+                    const kids2 = Array.from(el.children);
+                    const hdr2 = kids2.find(c => c.style.cursor === "pointer");
+                    const bodyEl = kids2.find(c => c !== hdr2);
+                    if (hdr2 && bodyEl && bodyEl.style.display === "none") {
+                        try {
+                            hdr2.click();
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }
+                    if (hdr2)
+                        hdr2.style.display = "none";
                     if (devTabs) {
                         // Register as a pill section - the pill acts as the header.
                         const wrap = document.createElement("div");
@@ -25897,6 +25947,50 @@
                 layoutRow.appendChild(layoutLbl);
                 layoutRow.appendChild(layoutBtn);
                 body.appendChild(layoutRow);
+                // Where the Release / Remove locks / restraint picker strip lives.
+                const qaRow = document.createElement("div");
+                qaRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const qaLbl = document.createElement("span");
+                qaLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+                qaLbl.textContent = "Restraint buttons";
+                const qaBtn = document.createElement("button");
+                const paintQa = () => {
+                    const inBtns = getQuickActionsInButtons();
+                    qaBtn.textContent = inBtns ? "In Buttons tab" : "Always on top";
+                    qaBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                        (inBtns
+                            ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                            : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                    qaBtn.title = inBtns
+                        ? "Release Restraints / Remove Locks / picker live in the Buttons tab - click to pin them above every tab again"
+                        : "Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the Buttons tab";
+                };
+                paintQa();
+                qaBtn.addEventListener("click", () => {
+                    var _a, _b, _c, _d;
+                    const toButtons = !getQuickActionsInButtons();
+                    setQuickActionsInButtons(toButtons);
+                    paintQa();
+                    // Apply immediately - the elements are kept as refs, so detaching
+                    // and re-attaching them keeps every handler intact (no reload).
+                    const bodyEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+                    const host = (_b = bodyEl === null || bodyEl === void 0 ? void 0 : bodyEl.parentElement) !== null && _b !== void 0 ? _b : null;
+                    if (toButtons) {
+                        (_c = this.quickActionsEl) === null || _c === void 0 ? void 0 : _c.remove();
+                        (_d = this.selfPickPanelEl) === null || _d === void 0 ? void 0 : _d.remove();
+                    }
+                    else if (host && bodyEl) {
+                        if (this.quickActionsEl) {
+                            this.quickActionsEl.style.display = "";
+                            host.insertBefore(this.quickActionsEl, bodyEl);
+                        }
+                        if (this.selfPickPanelEl)
+                            host.insertBefore(this.selfPickPanelEl, bodyEl);
+                    }
+                });
+                qaRow.appendChild(qaLbl);
+                qaRow.appendChild(qaBtn);
+                body.appendChild(qaRow);
             }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
@@ -29372,6 +29466,18 @@
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             });
+            if (getQuickActionsInButtons() && this.quickActionsEl) {
+                // Moved out of the pinned strip - give them a real section header so
+                // the pill converter picks them up like any other section.
+                const qaHdr = document.createElement("div");
+                qaHdr.className = "ebc-section-label";
+                qaHdr.textContent = "RESTRAINTS";
+                body.insertBefore(qaHdr, body.firstChild);
+                this.quickActionsEl.style.display = "";
+                qaHdr.after(this.quickActionsEl);
+                if (this.selfPickPanelEl)
+                    this.quickActionsEl.after(this.selfPickPanelEl);
+            }
             this._pillifyTab(body, "EBC_buttonsView");
         }
         renderKittyTab() {
@@ -37793,7 +37899,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 200; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 201; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37865,6 +37971,9 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
+                "New drawer option (DEV → Drawer → 'Restraint buttons'): move Release Restraints / Remove Locks / the restraint picker off the permanently-pinned strip and into the Buttons tab as their own pill, freeing that space on every other tab. Toggling applies instantly without a reload, and 'Always on top' restores the original behaviour.",
+                "Dev: the pill converter now logs the sections it finds per tab ('[EBC] pillify EBC_animsView: POSES[2] | ...') so an empty pill can be diagnosed from the console instead of guessed at.",
                 "Safewords and EBC Tags moved out of the always-pinned strip above the tabs and into the DEV tab as their own pills - the panel gets that vertical space back on every other tab. They keep all their existing controls and handlers (the elements are moved, not rebuilt), and in Classic layout they appear as normal stacked sections.",
                 "Outfits tab consolidated from eight pills to four: Outfits (saved outfits, schedule, tags), Restraints (active, protected, saved sets), Colours and Storage. Merged pills keep their sub-headers so the grouping stays readable; the grouping is matched on translated labels, and any section that doesn't match simply keeps its own pill rather than disappearing.",
                 "Renamed 'special friend' to starred: you can star anyone you meet, friend or not, so calling it a friend marker was misleading. The star, golden highlight and 'Starred first' sorting are unchanged, and existing stars are kept (the stored data is untouched).",
