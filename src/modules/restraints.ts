@@ -16,14 +16,15 @@ function isDogsActive(): boolean {
 }
 
 // Locks that must never be touched regardless of the operation.
-// ExclusivePadlock is included: it is the base lock used by DOGS (Devious Obligate
-// Great Stuff) and also semantically should not be bulk-removed — the person who
-// applied it intended it to be exclusive to them.
+// ExclusivePadlock is only protected while DOGS (Devious Obligate Great Stuff)
+// is loaded - DOGS uses it as its base lock and re-applies it via server hooks.
+// Without DOGS an exclusive padlock is an ordinary lock and stays removable,
+// otherwise exclusive-locked items silently vanish from the removal picker.
 function isProtectedLock(item: Item): boolean {
     const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
     if (!lock) return false;
     return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
-        || lock.includes("exclusive");
+        || (lock.includes("exclusive") && isDogsActive());
 }
 
 // Returns true if this item's slot is in the user's outfit whitelist.

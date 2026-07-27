@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 171;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 172;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -67,6 +67,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
             "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
             "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
+            "Fix: importing/saving outfits with many crafted restraints could trap the account in an infinite relog loop. Root cause: each crafted item carries its full Craft + Property data, so a full crafted set pushed EBC's settings blob past BC's ~180 KB account budget - the server dropped the connection on every sync, and the data re-flushed after each reconnect. Fix: two guards - the outfit list refuses to save past a 60 KB budget (clear in-chat error instead of a false success), and the settings flush skips the server push entirely if EBC's whole blob ever exceeds 150 KB (console error, previous server copy kept). Escaping an existing loop: the oversized data now simply stops syncing, so the account recovers on next login and the offending outfit can be deleted.",
+            "Fix: restraints locked with an Exclusive Padlock were invisible to the removal picker and skipped by Release Restraints / Remove Locks. Root cause: exclusive locks were unconditionally on the protected-locks list (they are DOGS's base lock). Fix: exclusive locks are only protected while the DOGS addon is actually loaded - without DOGS they list and remove like any other lock. Owner/Lover/Family locks stay protected.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

@@ -114,11 +114,31 @@ export function setDefaultTitle(title: string): void {
     syncSettings();
 }
 
-function saveOutfits(list: ConfiguredOutfit[]): void {
+// Budget for the serialized outfit list inside EBC's settings. A full set of
+// crafted restraints with long descriptions can hit several KB per outfit -
+// unbounded growth eventually blows BC's ~180 KB account cap and the server
+// starts dropping the connection on every sync (infinite relog loop).
+const OUTFITS_BUDGET = 60_000;
+
+/** Persists the outfit list. Returns false (and keeps the previous list) when
+ *  the serialized outfits would exceed the storage budget. */
+function saveOutfits(list: ConfiguredOutfit[]): boolean {
     const sanitized = list.map(sanitizeOutfit);
+    try {
+        const size = JSON.stringify(sanitized).length;
+        if (size > OUTFITS_BUDGET) {
+            localNotice(
+                `Outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                "Not saved - delete some outfits first. Outfits with many crafted items are the biggest.",
+                "#ff8a8a",
+            );
+            return false;
+        }
+    } catch { /* size check best-effort */ }
     cachedOutfits = sanitized;
     getSettings().outfits = sanitized;
     syncSettings();
+    return true;
 }
 
 function sanitizeSerializable(value: unknown, seen = new WeakSet<object>(), depth = 0): unknown {
@@ -690,7 +710,7 @@ export function importOutfitFromJSON(json: string): ConfiguredOutfit {
     while (existing.some(o => o.command === finalCmd)) finalCmd = baseCmd + suffix++;
 
     const outfit = sanitizeOutfit({ ...raw, id: uid(), command: finalCmd });
-    saveOutfits([...existing, outfit]);
+    if (!saveOutfits([...existing, outfit])) throw new Error("Outfit storage is full - delete some outfits first.");
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}).`);
     return outfit;
 }
@@ -1114,7 +1134,7 @@ export function importOutfitFromBCCode(
         expressionPresetId: null,
         items,
     });
-    saveOutfits([...existing, outfit]);
+    if (!saveOutfits([...existing, outfit])) throw new Error("Outfit storage is full - delete some outfits first.");
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
     return outfit;
 }

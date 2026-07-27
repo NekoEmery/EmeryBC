@@ -134,9 +134,23 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
 }
 
 /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
-export function flushToExtensionSettings(): void {
+// Hard ceiling for EBC's ExtensionSettings blob. BC accounts share a ~180 KB
+// budget across ALL addons - pushing an oversized account update gets the
+// connection dropped by the server, and since the data is re-flushed after every
+// relog the client ends up in an infinite reconnect loop. Never let that happen.
+const SETTINGS_FLUSH_CAP = 150_000;
+
+export function flushToExtensionSettings(): boolean {
     try {
-        if (!Player.ExtensionSettings) return;
+        if (!Player.ExtensionSettings) return false;
+        try {
+            const size = JSON.stringify(_mem).length;
+            if (size > SETTINGS_FLUSH_CAP) {
+                console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap). ` +
+                    "Delete some saved outfits to shrink it. Keeping the previous server copy to avoid a disconnect loop.");
+                return false;
+            }
+        } catch { /* size check best-effort */ }
         if (!Player.ExtensionSettings.EmeryBC ||
             typeof Player.ExtensionSettings.EmeryBC !== "object") {
             Player.ExtensionSettings.EmeryBC = {} as typeof Player.ExtensionSettings.EmeryBC;
@@ -168,7 +182,8 @@ export function flushToExtensionSettings(): void {
                 target[k] = v;
             }
         }
-    } catch { /* ignore */ }
+        return true;
+    } catch { return false; }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,8 +230,11 @@ export function syncSettings(): void {
     if (_syncTimer !== null) clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => {
         _syncTimer = null;
-        flushToExtensionSettings();
-        try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+        // Only push to the server when the flush actually wrote - an oversized
+        // blob is kept in-memory only (see SETTINGS_FLUSH_CAP above).
+        if (flushToExtensionSettings()) {
+            try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+        }
     }, 400);
 }
 
