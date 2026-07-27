@@ -7259,15 +7259,35 @@ export class EBCDrawer {
      * Tab *switches* intentionally bypass this and call renderCurrentTab()
      * directly so the new tab always starts at the top.
      */
+    private _rerenderTimer: number | null = null;
+
     private rerender(delay = 0): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         const scroll = body?.scrollTop ?? 0;
         const doRender = (): void => {
+            this._rerenderTimer = null;
             this.renderCurrentTab();
             if (body) body.scrollTop = scroll;
         };
-        if (delay > 0) window.setTimeout(doRender, delay);
+        // Only ever one render pending. These used to be bare setTimeouts, so
+        // clicking several buttons in a row queued a full tab rebuild for each
+        // one and they all landed a moment later - the panel visibly stuttered
+        // and anything the user touched in between got torn down and rebuilt.
+        if (this._rerenderTimer !== null) {
+            window.clearTimeout(this._rerenderTimer);
+            this._rerenderTimer = null;
+        }
+        if (delay > 0) this._rerenderTimer = window.setTimeout(doRender, delay);
         else doRender();
+    }
+
+    /** Drop a queued rerender - used when the user navigates, so their click
+     *  isn't undone by a rebuild that was scheduled before it. */
+    private cancelPendingRerender(): void {
+        if (this._rerenderTimer !== null) {
+            window.clearTimeout(this._rerenderTimer);
+            this._rerenderTimer = null;
+        }
     }
 
     /** Update every static element that was built once in setup() and never re-rendered. */
@@ -11424,6 +11444,31 @@ This cannot be undone.`,
         // ── Poses (collapsible) ───────────────────────────────────────────────
         const posesCnt = makeCollapse(t("anims.poses"), "EBC_posesCollapsed", false);
 
+        // Pose buttons repaint themselves rather than rerendering the tab. A full
+        // rebuild fired ~150ms after each click and tore down the pill nav with
+        // it, so a pill pressed in that window lagged behind its own highlight.
+        const poseBtnRefs: Array<{ btn: HTMLButtonElement; key: string; group: string }> = [];
+        const poseTitle = (key: string, grp: string, blocked: boolean): string =>
+            blocked ? "Your restraints stop you from taking this pose"
+            : key ? `Set ${grp.toLowerCase()} pose: ${key}`
+            : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
+        const refreshPoseBtns = (): void => {
+            const live = getCurrentPoses();
+            const armKeys2 = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
+            for (const ref of poseBtnRefs) {
+                const on = ref.key === "" && ref.group === "Arms"
+                    ? !live.some(p => armKeys2.includes(p))
+                    : ref.key === ""
+                    ? live.length === 0
+                    : live.includes(ref.key);
+                const blocked = !canTakePose(ref.key);
+                ref.btn.className = "ebc-pose-btn" + (on ? " active" : "");
+                ref.btn.style.opacity = blocked ? "0.4" : "";
+                ref.btn.style.cursor  = blocked ? "not-allowed" : "";
+                ref.btn.title = poseTitle(ref.key, ref.group, blocked);
+            }
+        };
+
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
@@ -11450,11 +11495,8 @@ This cannot be undone.`,
                     btn.style.opacity = "0.4";
                     btn.style.cursor = "not-allowed";
                 }
-                btn.title = poseBlocked
-                    ? "Your restraints stop you from taking this pose"
-                    : preset.key
-                    ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                    : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
+                btn.title = poseTitle(preset.key, group.group, poseBlocked);
+                poseBtnRefs.push({ btn, key: preset.key, group: group.group });
                 btn.addEventListener("click", () => {
                     // Re-check live - restraints may have changed since render.
                     // Without this EBC forced the pose mapping and emoted the
@@ -11493,7 +11535,10 @@ This cannot be undone.`,
                     if (preset.announceText) {
                         try { sendEmoteViaBC(preset.announceText); } catch { /* ignore */ }
                     }
-                    this.rerender(150);
+                    // Repaint the grid only. The second pass catches BC settling
+                    // the pose (CharacterRefresh) a moment after we set it.
+                    refreshPoseBtns();
+                    window.setTimeout(refreshPoseBtns, 150);
                 });
                 grid.appendChild(btn);
             }
@@ -17630,6 +17675,11 @@ This cannot be undone.`,
             pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
             pill.title = g.label;
             pill.addEventListener("click", () => {
+                // A rebuild queued by an earlier click (a pose button, say) would
+                // land moments later and tear this nav down again, so the section
+                // appeared to lag behind the highlight. Drop it - we are painting
+                // the up-to-date state right now.
+                this.cancelPendingRerender();
                 active = g.label;
                 try { localStorage.setItem(lsKey, active); } catch { /* ignore */ }
                 paint();
