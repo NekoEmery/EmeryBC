@@ -9640,6 +9640,108 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-ach-scroll::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-ach-scroll { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
+/* Achievement cards - tiered plates with depth (t0 locked, t1-t3 bronze/silver/gold) */
+.ebc-ach-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid #2a1421;
+    background: linear-gradient(160deg, rgba(40,19,32,0.75), rgba(16,7,13,0.92));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.45);
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.ebc-ach-card:hover {
+    transform: translateY(-1px);
+    border-color: #4a2438;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.5);
+}
+.ebc-ach-card.t0 { opacity: 0.88; }
+.ebc-ach-card.t1 {
+    border-color: #9a6636;
+    background: linear-gradient(160deg, rgba(122,72,32,0.32), rgba(32,15,9,0.94));
+    box-shadow: inset 0 1px 0 rgba(255,190,130,0.10), 0 1px 3px rgba(0,0,0,0.45);
+}
+.ebc-ach-card.t2 {
+    border-color: #aab4c2;
+    background: linear-gradient(160deg, rgba(142,154,170,0.26), rgba(24,26,33,0.94));
+    box-shadow: inset 0 1px 0 rgba(230,240,255,0.12), 0 1px 3px rgba(0,0,0,0.45);
+}
+.ebc-ach-card.t3 {
+    border-color: #ffd700;
+    background: linear-gradient(160deg, rgba(150,118,0,0.30), rgba(42,32,2,0.94));
+    box-shadow: inset 0 1px 0 rgba(255,235,150,0.16), 0 0 12px rgba(255,215,0,0.12);
+}
+.ebc-ach-card.t3:hover { box-shadow: inset 0 1px 0 rgba(255,235,150,0.2), 0 0 16px rgba(255,215,0,0.22); }
+
+/* Medal coin at the card's left */
+.ebc-ach-medal {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid #331a2a;
+    background: radial-gradient(circle at 35% 30%, #261120, #120810);
+    color: #5e3c50;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.65);
+}
+.t1 .ebc-ach-medal {
+    border-color: #b57a42;
+    background: radial-gradient(circle at 35% 30%, #dc9d60, #8a5426 62%, #5e3717);
+    color: #38200a;
+    box-shadow: inset 0 1px 1px rgba(255,220,180,0.55), 0 1px 3px rgba(0,0,0,0.5);
+}
+.t2 .ebc-ach-medal {
+    border-color: #ccd4e0;
+    background: radial-gradient(circle at 35% 30%, #f2f6fc, #a8b2c0 60%, #6f7a8a);
+    color: #2c3340;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.5);
+}
+.t3 .ebc-ach-medal {
+    border-color: #ffe066;
+    background: radial-gradient(circle at 35% 30%, #fff3b0, #f0c420 56%, #a07800);
+    color: #4a3800;
+    box-shadow: inset 0 1px 1px rgba(255,255,220,0.7), 0 0 9px rgba(255,215,0,0.45);
+}
+
+/* Progress bar - inset trough, gradient fill toward the NEXT metal */
+.ebc-ach-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #150911;
+    border: 1px solid #2a1421;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.55);
+}
+.ebc-ach-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8a5426, #cd7f32); }
+.t1 .ebc-ach-fill { background: linear-gradient(90deg, #8f99a8, #dfe6ee); }
+.t2 .ebc-ach-fill { background: linear-gradient(90deg, #c09a20, #ffd700); }
+.t3 .ebc-ach-fill { background: linear-gradient(90deg, #e8c020, #ffe680); box-shadow: 0 0 6px rgba(255,215,0,0.6); }
+
+/* Class section header with a fading divider line */
+.ebc-ach-clshead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 9px 2px 3px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #b98aa0;
+}
+.ebc-ach-clsline { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,111,152,0.45), transparent); }
+.ebc-ach-clscnt { color: #7a5a6a; font-weight: normal; letter-spacing: 0; }
+
 /* -- Section label -- */
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
@@ -11697,6 +11799,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: color 0.12s, border-color 0.12s;
 }
 .ebc-friend-rooms-chip:hover { color: #e8c0d4; border-color: #cf6f98; }
+/* Your current room - green-tinted so it never blends with joinable rooms */
+.ebc-friend-rooms-card.current {
+    border-color: rgba(121,168,133,0.7);
+    background: linear-gradient(160deg, rgba(52,98,66,0.24), rgba(14,10,13,0.92));
+    box-shadow: inset 0 1px 0 rgba(160,220,175,0.08);
+}
+.ebc-friend-rooms-card.current .ebc-friend-rooms-name { color: #a8e0b0; }
+.ebc-friend-rooms-card.current .ebc-friend-rooms-cnt {
+    color: #a8e0b0;
+    background: rgba(121,168,133,0.16);
+    border-color: rgba(121,168,133,0.4);
+}
+.ebc-friend-rooms-chip.self {
+    border-color: rgba(121,168,133,0.6);
+    color: #a8e0b0;
+    cursor: default;
+}
 .ebc-friend-rooms-del {
     background: transparent;
     border: 1px solid #4a2038;
@@ -23445,7 +23564,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }, 80);
         }
         renderFriendRows(body) {
-            var _a, _b;
+            var _a, _b, _c, _d;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -23488,7 +23607,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_e) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
@@ -23807,8 +23926,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
                 const groups = [];
-                if (myRoomNums.length > 0)
-                    groups.push({ label: "Your current room", nums: myRoomNums, joinable: false, icon: "🐾" });
+                // Include yourself in your room's list so the group reads like the
+                // actual room roster, and label it with the real room name.
+                const meNum = (_b = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _b !== void 0 ? _b : 0;
+                const myRoomName = getCurrentRoomName();
+                if (meNum && myRoomName)
+                    myRoomNums.unshift(meNum);
+                if (myRoomNums.length > 0) {
+                    groups.push({
+                        label: myRoomName ? `${myRoomName} (your room)` : "Your current room",
+                        nums: myRoomNums,
+                        joinable: false,
+                        icon: "🐾",
+                        current: true,
+                    });
+                }
                 [...publicRooms.entries()]
                     .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
                     .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
@@ -23823,7 +23955,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
-                    catch ( /* ignore */_d) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                     const roomsContainer = document.createElement("div");
                     const roomsToggle = document.createElement("div");
                     const updateRoomsToggle = () => {
@@ -23868,7 +24000,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     for (const g of groups) {
                         const gCard = document.createElement("div");
-                        gCard.className = "ebc-friend-rooms-card";
+                        gCard.className = "ebc-friend-rooms-card" + (g.current ? " current" : "");
                         const headRow = document.createElement("div");
                         headRow.className = "ebc-friend-rooms-head";
                         const rIcon = document.createElement("span");
@@ -23907,16 +24039,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // Member chips - click to open that friend's chat window
                         const chips = document.createElement("div");
                         chips.className = "ebc-friend-rooms-chips";
+                        const selfNum = (_c = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _c !== void 0 ? _c : -1;
                         for (const n of g.nums) {
                             const chip = document.createElement("button");
-                            chip.className = "ebc-friend-rooms-chip";
-                            chip.textContent = `${resolveName(n)} #${n}`;
-                            chip.title = "Open chat";
-                            chip.addEventListener("click", (e) => {
-                                e.stopPropagation();
-                                this.beepUnread.delete(n);
-                                this.openBeepWindow(n);
-                            });
+                            if (n === selfNum) {
+                                chip.className = "ebc-friend-rooms-chip self";
+                                chip.textContent = `${resolveName(n)} (you)`;
+                                chip.disabled = true;
+                            }
+                            else {
+                                chip.className = "ebc-friend-rooms-chip";
+                                chip.textContent = `${resolveName(n)} #${n}`;
+                                chip.title = "Open chat";
+                                chip.addEventListener("click", (e) => {
+                                    e.stopPropagation();
+                                    this.beepUnread.delete(n);
+                                    this.openBeepWindow(n);
+                                });
+                            }
                             chips.appendChild(chip);
                         }
                         gCard.appendChild(chips);
@@ -23943,9 +24083,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_b = localStorage.getItem("EBC_friendSort")) !== null && _b !== void 0 ? _b : "status";
+                    this.friendSort = (_d = localStorage.getItem("EBC_friendSort")) !== null && _d !== void 0 ? _d : "status";
                 }
-                catch ( /* ignore */_e) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -24872,7 +25012,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -24890,7 +25030,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_g) { /* ignore */ }
+                        catch ( /* ignore */_j) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -25014,8 +25154,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return container;
         }
         // -- Developer Tools tab ---------------------------------------------------
-        /** Class-grouped achievement cards - category filter chips, tier plates,
-         *  progress bars, no icons. */
+        /** Class-grouped achievement cards - category filter chips, medal coins,
+         *  tier plates and progress bars. */
         buildAchievementCards() {
             var _a;
             const outer = document.createElement("div");
@@ -25027,18 +25167,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_b) { /* ignore */ }
             const chipRow = document.createElement("div");
             chipRow.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;";
+            const summary = document.createElement("div");
             const listWrap = document.createElement("div");
-            listWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
-            // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
-            const PLATE = [
-                "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.85;",
-                "border:1px solid #a06a3a;background:linear-gradient(135deg, rgba(130,78,34,0.32), rgba(60,35,15,0.22));box-shadow:inset 0 1px 0 rgba(255,190,130,0.12);",
-                "border:1px solid #b8c2ce;background:linear-gradient(135deg, rgba(150,162,178,0.26), rgba(78,88,102,0.18));box-shadow:inset 0 1px 0 rgba(230,240,255,0.14);",
-                "border:1px solid #ffd700;background:linear-gradient(135deg, rgba(140,110,0,0.34), rgba(75,58,0,0.24));box-shadow:inset 0 1px 0 rgba(255,235,150,0.18), 0 0 10px rgba(255,215,0,0.14);",
-            ];
-            const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
-            const METAL = ["#cd7f32", "#c8d0dc", "#ffd700"];
+            listWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            const ROMAN_UI = ["I", "II", "III"];
+            const NAME_COL = ["#b090a0", "#ecc39b", "#e6edf6", "#ffd700"];
+            const paintSummary = () => {
+                const progress = getAchievementProgress();
+                const unlocked = progress.filter(p => p.tier > 0).length;
+                const gold = progress.filter(p => p.maxed).length;
+                const pct = progress.length ? Math.round((unlocked / progress.length) * 100) : 0;
+                summary.innerHTML = "";
+                summary.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:2px 2px 0;";
+                const line = document.createElement("div");
+                line.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b98aa0;";
+                const l = document.createElement("span");
+                l.textContent = `Unlocked ${unlocked} / ${progress.length}`;
+                const r = document.createElement("span");
+                r.style.color = "#ffd700";
+                r.textContent = gold > 0 ? `${gold} gold` : "";
+                line.appendChild(l);
+                line.appendChild(r);
+                const trough = document.createElement("div");
+                trough.className = "ebc-ach-bar";
+                const fill = document.createElement("div");
+                fill.style.cssText = `height:100%;border-radius:3px;width:${pct}%;background:linear-gradient(90deg, #8a4a68, #cf6f98);`;
+                trough.appendChild(fill);
+                summary.appendChild(line);
+                summary.appendChild(trough);
+            };
             const buildList = () => {
+                var _a;
                 while (listWrap.firstChild)
                     listWrap.removeChild(listWrap.firstChild);
                 const progress = getAchievementProgress();
@@ -25049,60 +25208,56 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (clsItems.length === 0)
                         continue;
                     const clsHead = document.createElement("div");
-                    clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
+                    clsHead.className = "ebc-ach-clshead";
                     const clsLbl = document.createElement("span");
                     clsLbl.textContent = clsDef.label;
+                    const clsLine = document.createElement("span");
+                    clsLine.className = "ebc-ach-clsline";
                     const clsCnt = document.createElement("span");
-                    clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
+                    clsCnt.className = "ebc-ach-clscnt";
                     clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
                     clsHead.appendChild(clsLbl);
+                    clsHead.appendChild(clsLine);
                     clsHead.appendChild(clsCnt);
                     listWrap.appendChild(clsHead);
                     for (const a of clsItems) {
                         const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
                         const card = document.createElement("div");
-                        card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
+                        card.className = `ebc-ach-card t${plate}`;
+                        // Medal coin - tier numeral, ★ for rares, empty when locked
+                        const medal = document.createElement("div");
+                        medal.className = "ebc-ach-medal";
+                        medal.textContent = a.rare ? "★" : a.tier > 0 ? ((_a = ROMAN_UI[a.tier - 1]) !== null && _a !== void 0 ? _a : String(a.tier)) : "";
+                        if (a.tiers.length > 1) {
+                            medal.title = a.tiers.map((t, ti) => { var _a; return `${(_a = ROMAN_UI[ti]) !== null && _a !== void 0 ? _a : ti + 1}: ${a.desc.replace("{n}", String(t))}`; }).join("\n");
+                        }
+                        card.appendChild(medal);
+                        const main = document.createElement("div");
+                        main.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;";
                         const topRow = document.createElement("div");
                         topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
                         const nm = document.createElement("span");
                         nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
-                        nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
+                        nm.textContent = a.name;
                         topRow.appendChild(nm);
-                        if (a.tiers.length > 1) {
-                            const pips = document.createElement("span");
-                            pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
-                            for (let ti = 0; ti < a.tiers.length; ti++) {
-                                const pip = document.createElement("span");
-                                const litCol = METAL[Math.min(ti, 2)];
-                                pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
-                                    (ti < a.tier
-                                        ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
-                                        : "background:transparent;border:1px solid #4a3040;");
-                                pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
-                                pips.appendChild(pip);
-                            }
-                            topRow.appendChild(pips);
-                        }
                         const pr = document.createElement("span");
                         pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
                         pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
                         topRow.appendChild(pr);
-                        card.appendChild(topRow);
+                        main.appendChild(topRow);
                         const ds = document.createElement("div");
                         ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                         ds.textContent = a.descNow;
-                        card.appendChild(ds);
-                        // Progress bar toward the next tier - gold and full when maxed
+                        main.appendChild(ds);
                         const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
-                        const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
                         const trough = document.createElement("div");
-                        trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
+                        trough.className = "ebc-ach-bar";
                         const fill = document.createElement("div");
-                        fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
-                            (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
+                        fill.className = "ebc-ach-fill";
+                        fill.style.width = `${pct}%`;
                         trough.appendChild(fill);
-                        card.appendChild(trough);
-                        // Share an unlocked achievement to the room chat as a shiny plaque
+                        main.appendChild(trough);
+                        // Share an unlocked achievement - whispered to one chosen person
                         if (a.tier > 0) {
                             const shareBtn = document.createElement("button");
                             shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
@@ -25128,8 +25283,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                                 res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
                                 });
                             });
-                            card.appendChild(shareBtn);
+                            main.appendChild(shareBtn);
                         }
+                        card.appendChild(main);
                         listWrap.appendChild(card);
                     }
                 }
@@ -25164,8 +25320,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 chipRow.appendChild(chip);
             }
             paintChips();
+            paintSummary();
             buildList();
             outer.appendChild(chipRow);
+            outer.appendChild(summary);
             outer.appendChild(listWrap);
             return outer;
         }
@@ -25228,7 +25386,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 overlay.remove(); });
             const panel = document.createElement("div");
-            panel.style.cssText = "background:#130810;border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85);";
+            panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
             const head = document.createElement("div");
             head.style.cssText = "display:flex;align-items:center;justify-content:space-between;";
             const title = document.createElement("span");
@@ -37060,7 +37218,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 185; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 186; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37125,6 +37283,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: dragging the panel out of the drawer (free-float mode) crushed the header - the DEV pill clipped mid-letter and the title overlapped the buttons on narrow widths. Fix: the version text and DEV pill no longer shrink, the 'EmeryBC' subtitle hides in float mode, and the header buttons compact slightly so everything always fits.",
                 "Achievements popup: the fat default browser scrollbar replaced with EBC's slim pink one (same style as the panel body).",
                 "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
+                "Achievements visual overhaul: every card now has a metallic medal coin (empty when locked, bronze/silver/gold with the tier numeral, ★ for rares), gradient tier plates with depth and a hover lift, inset progress bars with metal-gradient fills, class headers with fading divider lines, an 'Unlocked X / Y' summary bar at the top, and a soft glow on the popup background. No more flat look.",
+                "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
