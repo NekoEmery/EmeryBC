@@ -13310,7 +13310,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // The header is built before login completes, so Player.MemberNumber may
             // not exist yet - re-check visibility until it does (or give up quietly).
             const refreshTrophyVis = () => {
-                trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
+                trophyBtn.style.display = isAchievementCrewMember(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
             };
             refreshTrophyVis();
             this._refreshTrophyVis = refreshTrophyVis;
@@ -24768,7 +24768,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const d2 = new Date(lsTsFull);
                             const label2 = d2.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
                                 + " " + d2.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-                            lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
+                            lsFullEl.textContent = `Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
                             infoBox.appendChild(lsFullEl);
                         }
                         // ── Relationship info ──────────────────────────────────────
@@ -24781,46 +24781,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return isNaN(t) ? null : t;
                         };
                         const relFmt = (ts) => new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                        // Same pill style as the People-in-Room relationship pills, so
+                        // both places use one consistent visual language.
+                        const mkRelLine = (pillText, pillColor, text) => {
+                            const line = document.createElement("div");
+                            line.style.cssText = "display:flex;align-items:center;gap:5px;";
+                            const pill = document.createElement("span");
+                            pill.textContent = pillText;
+                            pill.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pillColor}22;border:1px solid ${pillColor}66;color:${pillColor};`;
+                            const txt = document.createElement("span");
+                            txt.textContent = text;
+                            line.appendChild(pill);
+                            line.appendChild(txt);
+                            return line;
+                        };
                         try {
                             // They own you
                             const own = Player.Ownership;
                             if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num) {
-                                const ownEl = document.createElement("div");
-                                ownEl.style.color = "#e8c060";
                                 const ts = parseRelStart(own.Start);
-                                ownEl.textContent = ts
-                                    ? `👑 Owned since: ${relFmt(ts)}`
-                                    : "👑 Owned by them";
-                                infoBox.appendChild(ownEl);
+                                infoBox.appendChild(mkRelLine("Owner", "#ffd700", ts ? `since ${relFmt(ts)}` : "they own you"));
                             }
                             // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                             const loves = Player.Lovership;
                             const love = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
                             if (love) {
-                                const loveEl = document.createElement("div");
-                                loveEl.style.color = "#e87090";
                                 const ts = parseRelStart(love.Start);
-                                const [ico, label] = love.Stage === 2
-                                    ? ["💒", "Married"]
-                                    : love.Stage === 1
-                                        ? ["💍", "Engaged"]
-                                        : ["❤️", "Lovers"];
-                                loveEl.textContent = ts
-                                    ? `${ico} ${label} since: ${relFmt(ts)}`
-                                    : `${ico} ${label}`;
-                                infoBox.appendChild(loveEl);
+                                const label = love.Stage === 2 ? "Married" : love.Stage === 1 ? "Engaged" : "Dating";
+                                infoBox.appendChild(mkRelLine(label, "#f078a8", ts ? `since ${relFmt(ts)}` : ""));
                             }
                             // You own them (room data only - offline skip)
                             const roomChars = window.ChatRoomCharacter;
                             const rc = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
                             if (((_a = rc === null || rc === void 0 ? void 0 : rc.Ownership) === null || _a === void 0 ? void 0 : _a.MemberNumber) === Player.MemberNumber) {
-                                const ownedByMeEl = document.createElement("div");
-                                ownedByMeEl.style.color = "#e8c060";
                                 const ts = parseRelStart(rc.Ownership.Start);
-                                ownedByMeEl.textContent = ts
-                                    ? `🔒 Owns them since: ${relFmt(ts)}`
-                                    : "🔒 You own them";
-                                infoBox.appendChild(ownedByMeEl);
+                                infoBox.appendChild(mkRelLine("Yours", "#b088d0", ts ? `since ${relFmt(ts)}` : "you own them"));
                             }
                         }
                         catch ( /* ignore */_d) { /* ignore */ }
@@ -25429,12 +25424,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             closeBtn.addEventListener("click", () => overlay.remove());
             head.appendChild(title);
             head.appendChild(closeBtn);
-            const scroll = document.createElement("div");
-            scroll.className = "ebc-ach-scroll";
-            scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
-            scroll.appendChild(this.buildAchievementCards());
             panel.appendChild(head);
-            panel.appendChild(scroll);
+            if (isAchievementsOptedOut()) {
+                // Off-state: explain + offer the way back. Tracking is fully stopped.
+                const offMsg = document.createElement("div");
+                offMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#9a8290;line-height:1.6;padding:6px 2px;";
+                offMsg.textContent = "Achievements are turned off - nothing is being tracked and your progress is frozen (not deleted).";
+                const onBtn = document.createElement("button");
+                onBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;";
+                onBtn.textContent = "Turn achievements back ON";
+                onBtn.addEventListener("click", () => {
+                    setAchievementsOptedOut(false);
+                    overlay.remove();
+                    this.showAchievementsOverlay();
+                });
+                panel.appendChild(offMsg);
+                panel.appendChild(onBtn);
+            }
+            else {
+                const scroll = document.createElement("div");
+                scroll.className = "ebc-ach-scroll";
+                scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
+                scroll.appendChild(this.buildAchievementCards());
+                panel.appendChild(scroll);
+                // Opt-out lives here, in the achievements popup itself.
+                const optOutBtn = document.createElement("button");
+                optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                optOutBtn.textContent = "Opt out of achievements";
+                optOutBtn.title = "Stops all tracking and freezes your progress - you can turn it back on here anytime";
+                optOutBtn.addEventListener("mouseenter", () => { optOutBtn.style.color = "#cf6f98"; optOutBtn.style.borderColor = "#cf6f98"; });
+                optOutBtn.addEventListener("mouseleave", () => { optOutBtn.style.color = "#7a6a86"; optOutBtn.style.borderColor = "#33283c"; });
+                optOutBtn.addEventListener("click", () => {
+                    setAchievementsOptedOut(true);
+                    overlay.remove();
+                    this.showAchievementsOverlay();
+                });
+                panel.appendChild(optOutBtn);
+            }
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
         }
@@ -25445,40 +25471,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Achievements opt-out (crew only; uses raw membership so an opted-out
-            // user can still find the toggle to come back) ────────────────────────
-            if (isAchievementCrewMember(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
-                const achRow = document.createElement("div");
-                achRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-                const achLbl = document.createElement("span");
-                achLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-                achLbl.textContent = "Achievements (🏆 trophy + tracking)";
-                const achToggle = document.createElement("button");
-                const paintAchToggle = () => {
-                    const on = !isAchievementsOptedOut();
-                    achToggle.textContent = on ? "ON" : "OFF";
-                    achToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
-                        (on
-                            ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
-                            : "background:transparent;border:1px solid #4a3040;color:#7a5a6a;");
-                    achToggle.title = on
-                        ? "Achievements are on - click to opt out (hides the trophy and stops all tracking)"
-                        : "Achievements are off - click to opt back in";
-                };
-                paintAchToggle();
-                achToggle.addEventListener("click", () => {
-                    var _a;
-                    setAchievementsOptedOut(!isAchievementsOptedOut());
-                    paintAchToggle();
-                    try {
-                        (_a = this._refreshTrophyVis) === null || _a === void 0 ? void 0 : _a.call(this);
-                    }
-                    catch ( /* ignore */_b) { /* ignore */ }
-                });
-                achRow.appendChild(achLbl);
-                achRow.appendChild(achToggle);
-                body.appendChild(achRow);
-            }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
@@ -37283,7 +37275,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 187; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 188; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37352,6 +37344,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
                 "People in Room: the relationship emoji (👑 ❤️ 🔒) replaced with clear labeled pills - gold 'Owner' (they own you), pink 'Dating' / 'Engaged' / 'Married' (the actual lovership stage instead of one generic heart), and purple 'Yours' (you own them). Each has a tooltip.",
                 "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
+                "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
+                "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],

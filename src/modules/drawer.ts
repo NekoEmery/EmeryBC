@@ -4629,7 +4629,7 @@ export class EBCDrawer {
         // The header is built before login completes, so Player.MemberNumber may
         // not exist yet - re-check visibility until it does (or give up quietly).
         const refreshTrophyVis = (): void => {
-            trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
+            trophyBtn.style.display = isAchievementCrewMember((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
         };
         refreshTrophyVis();
         this._refreshTrophyVis = refreshTrophyVis;
@@ -16294,7 +16294,7 @@ export class EBCDrawer {
                         const d2 = new Date(lsTsFull);
                         const label2 = d2.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
                             + " " + d2.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-                        lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
+                        lsFullEl.textContent = `Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
                         infoBox.appendChild(lsFullEl);
                     }
 
@@ -16307,50 +16307,48 @@ export class EBCDrawer {
                     };
                     const relFmt = (ts: number): string =>
                         new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                    // Same pill style as the People-in-Room relationship pills, so
+                    // both places use one consistent visual language.
+                    const mkRelLine = (pillText: string, pillColor: string, text: string): HTMLElement => {
+                        const line = document.createElement("div");
+                        line.style.cssText = "display:flex;align-items:center;gap:5px;";
+                        const pill = document.createElement("span");
+                        pill.textContent = pillText;
+                        pill.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pillColor}22;border:1px solid ${pillColor}66;color:${pillColor};`;
+                        const txt = document.createElement("span");
+                        txt.textContent = text;
+                        line.appendChild(pill);
+                        line.appendChild(txt);
+                        return line;
+                    };
 
                     try {
                         // They own you
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number; Start?: string | number } | undefined;
                         if (own?.MemberNumber === num) {
-                            const ownEl = document.createElement("div");
-                            ownEl.style.color = "#e8c060";
                             const ts = parseRelStart(own.Start);
-                            ownEl.textContent = ts
-                                ? `👑 Owned since: ${relFmt(ts)}`
-                                : "👑 Owned by them";
-                            infoBox.appendChild(ownEl);
+                            infoBox.appendChild(mkRelLine("Owner", "#ffd700",
+                                ts ? `since ${relFmt(ts)}` : "they own you"));
                         }
                         // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
                             Array<{ MemberNumber?: number; Start?: string | number; Stage?: number }> | undefined;
                         const love = loves?.find(l => l.MemberNumber === num);
                         if (love) {
-                            const loveEl = document.createElement("div");
-                            loveEl.style.color = "#e87090";
                             const ts = parseRelStart(love.Start);
-                            const [ico, label] = love.Stage === 2
-                                ? ["💒", "Married"]
-                                : love.Stage === 1
-                                    ? ["💍", "Engaged"]
-                                    : ["❤️", "Lovers"];
-                            loveEl.textContent = ts
-                                ? `${ico} ${label} since: ${relFmt(ts)}`
-                                : `${ico} ${label}`;
-                            infoBox.appendChild(loveEl);
+                            const label = love.Stage === 2 ? "Married" : love.Stage === 1 ? "Engaged" : "Dating";
+                            infoBox.appendChild(mkRelLine(label, "#f078a8",
+                                ts ? `since ${relFmt(ts)}` : ""));
                         }
                         // You own them (room data only - offline skip)
                         const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number; Start?: string | number } }> | undefined;
                         const rc = roomChars?.find(c => c.MemberNumber === num);
                         if (rc?.Ownership?.MemberNumber === Player.MemberNumber) {
-                            const ownedByMeEl = document.createElement("div");
-                            ownedByMeEl.style.color = "#e8c060";
                             const ts = parseRelStart(rc.Ownership.Start);
-                            ownedByMeEl.textContent = ts
-                                ? `🔒 Owns them since: ${relFmt(ts)}`
-                                : "🔒 You own them";
-                            infoBox.appendChild(ownedByMeEl);
+                            infoBox.appendChild(mkRelLine("Yours", "#b088d0",
+                                ts ? `since ${relFmt(ts)}` : "you own them"));
                         }
                     } catch { /* ignore */ }
 
@@ -16960,12 +16958,42 @@ export class EBCDrawer {
         closeBtn.addEventListener("click", () => overlay.remove());
         head.appendChild(title);
         head.appendChild(closeBtn);
-        const scroll = document.createElement("div");
-        scroll.className = "ebc-ach-scroll";
-        scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
-        scroll.appendChild(this.buildAchievementCards());
         panel.appendChild(head);
-        panel.appendChild(scroll);
+        if (isAchievementsOptedOut()) {
+            // Off-state: explain + offer the way back. Tracking is fully stopped.
+            const offMsg = document.createElement("div");
+            offMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#9a8290;line-height:1.6;padding:6px 2px;";
+            offMsg.textContent = "Achievements are turned off - nothing is being tracked and your progress is frozen (not deleted).";
+            const onBtn = document.createElement("button");
+            onBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;";
+            onBtn.textContent = "Turn achievements back ON";
+            onBtn.addEventListener("click", () => {
+                setAchievementsOptedOut(false);
+                overlay.remove();
+                this.showAchievementsOverlay();
+            });
+            panel.appendChild(offMsg);
+            panel.appendChild(onBtn);
+        } else {
+            const scroll = document.createElement("div");
+            scroll.className = "ebc-ach-scroll";
+            scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
+            scroll.appendChild(this.buildAchievementCards());
+            panel.appendChild(scroll);
+            // Opt-out lives here, in the achievements popup itself.
+            const optOutBtn = document.createElement("button");
+            optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+            optOutBtn.textContent = "Opt out of achievements";
+            optOutBtn.title = "Stops all tracking and freezes your progress - you can turn it back on here anytime";
+            optOutBtn.addEventListener("mouseenter", () => { optOutBtn.style.color = "#cf6f98"; optOutBtn.style.borderColor = "#cf6f98"; });
+            optOutBtn.addEventListener("mouseleave", () => { optOutBtn.style.color = "#7a6a86"; optOutBtn.style.borderColor = "#33283c"; });
+            optOutBtn.addEventListener("click", () => {
+                setAchievementsOptedOut(true);
+                overlay.remove();
+                this.showAchievementsOverlay();
+            });
+            panel.appendChild(optOutBtn);
+        }
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
     }
@@ -16974,37 +17002,6 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
-
-        // ── Achievements opt-out (crew only; uses raw membership so an opted-out
-        // user can still find the toggle to come back) ────────────────────────
-        if (isAchievementCrewMember((Player as { MemberNumber?: number })?.MemberNumber)) {
-            const achRow = document.createElement("div");
-            achRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const achLbl = document.createElement("span");
-            achLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
-            achLbl.textContent = "Achievements (🏆 trophy + tracking)";
-            const achToggle = document.createElement("button");
-            const paintAchToggle = (): void => {
-                const on = !isAchievementsOptedOut();
-                achToggle.textContent = on ? "ON" : "OFF";
-                achToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
-                    (on
-                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
-                        : "background:transparent;border:1px solid #4a3040;color:#7a5a6a;");
-                achToggle.title = on
-                    ? "Achievements are on - click to opt out (hides the trophy and stops all tracking)"
-                    : "Achievements are off - click to opt back in";
-            };
-            paintAchToggle();
-            achToggle.addEventListener("click", () => {
-                setAchievementsOptedOut(!isAchievementsOptedOut());
-                paintAchToggle();
-                try { this._refreshTrophyVis?.(); } catch { /* ignore */ }
-            });
-            achRow.appendChild(achLbl);
-            achRow.appendChild(achToggle);
-            body.appendChild(achRow);
-        }
 
 
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).
