@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress, getWornBadgeId, setWornBadge, sanitizeBadgeIcon } from "./achievements";
+import { isAchievementUser, getAchievementProgress } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -15121,15 +15121,13 @@ export class EBCDrawer {
                         } catch { return ""; }
                     })();
 
-                    // EBC version badge + worn achievement badge (both from presence)
-                    let achBadge: string | null = null;
+                    // EBC version badge
                     const ebcVer = (() => {
                         try {
                             const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
-                                    achBadge = sanitizeBadgeIcon((p as Record<string, unknown>).badge);
                                     const v = (p as Record<string, unknown>).version;
                                     const m = (p as Record<string, unknown>).marker;
                                     if (m === "EBC" && typeof v === "string") { cacheEBCVersion(num, v); return v; }
@@ -15157,13 +15155,6 @@ export class EBCDrawer {
                     }
 
                     nameRow.appendChild(numEl);
-                    if (achBadge) {
-                        const ab = document.createElement("span");
-                        ab.textContent = achBadge;
-                        ab.title = "Achievement badge";
-                        ab.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;filter:drop-shadow(0 0 3px rgba(255,215,0,0.5));";
-                        nameRow.appendChild(ab);
-                    }
                     if (relBadge) {
                         const badge = document.createElement("span");
                         badge.textContent = relBadge;
@@ -16555,49 +16546,58 @@ export class EBCDrawer {
             body.appendChild(achLbl);
 
             const achWrap = document.createElement("div");
-            achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+            achWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-bottom:14px;";
+            // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
+            const PLATE = [
+                "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.8;",
+                "border:1px solid #a06a3a;background:linear-gradient(135deg, rgba(130,78,34,0.32), rgba(60,35,15,0.22));box-shadow:inset 0 1px 0 rgba(255,190,130,0.12);",
+                "border:1px solid #b8c2ce;background:linear-gradient(135deg, rgba(150,162,178,0.26), rgba(78,88,102,0.18));box-shadow:inset 0 1px 0 rgba(230,240,255,0.14);",
+                "border:1px solid #ffd700;background:linear-gradient(135deg, rgba(140,110,0,0.34), rgba(75,58,0,0.24));box-shadow:inset 0 1px 0 rgba(255,235,150,0.18), 0 0 10px rgba(255,215,0,0.14);",
+            ];
+            const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
+            const PIP_COL  = ["#cd7f32", "#c8d0dc", "#ffd700"];
             for (const a of getAchievementProgress()) {
-                const done = a.unlockedAt !== null;
+                const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
                 const row = document.createElement("div");
-                row.style.cssText =
-                    `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
-                    `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
-                    `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
-                    (done ? "" : "opacity:0.78;");
+                row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;" + PLATE[plate];
                 const ic = document.createElement("span");
-                ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                ic.style.cssText = "font-size:16px;flex-shrink:0;" + (a.tier === 0 ? "filter:grayscale(1);opacity:0.5;" : "");
                 ic.textContent = a.icon;
                 const col = document.createElement("div");
                 col.style.cssText = "flex:1;min-width:0;";
                 const nm = document.createElement("div");
-                nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
-                nm.textContent = a.name + (a.rare ? " ★" : "");
+                nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
                 const ds = document.createElement("div");
-                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
-                ds.textContent = a.desc;
+                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                ds.textContent = a.descNow;
                 col.appendChild(nm);
                 col.appendChild(ds);
+                const right = document.createElement("div");
+                right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;";
                 const pr = document.createElement("span");
-                pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
-                pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                right.appendChild(pr);
+                // Tier pips for multi-tier achievements
+                if (a.tiers.length > 1) {
+                    const pips = document.createElement("div");
+                    pips.style.cssText = "display:flex;gap:3px;";
+                    for (let ti = 0; ti < a.tiers.length; ti++) {
+                        const pip = document.createElement("span");
+                        const litCol = PIP_COL[Math.min(ti, 2)];
+                        pip.style.cssText = `width:7px;height:7px;border-radius:50%;` +
+                            (ti < a.tier
+                                ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
+                                : "background:transparent;border:1px solid #4a3040;");
+                        pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
+                        pips.appendChild(pip);
+                    }
+                    right.appendChild(pips);
+                }
                 row.appendChild(ic);
                 row.appendChild(col);
-                row.appendChild(pr);
-                if (done) {
-                    const worn = getWornBadgeId() === a.id;
-                    const wearBtn = document.createElement("button");
-                    wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
-                    wearBtn.style.flexShrink = "0";
-                    wearBtn.textContent = worn ? "Worn ✓" : "Wear";
-                    wearBtn.title = worn
-                        ? "This badge shows next to your name for other EBC users - click to take it off"
-                        : "Wear this badge - its icon shows next to your name for other EBC users";
-                    wearBtn.addEventListener("click", () => {
-                        setWornBadge(worn ? null : a.id);
-                        this.rerender();
-                    });
-                    row.appendChild(wearBtn);
-                }
+                row.appendChild(right);
                 achWrap.appendChild(row);
             }
             body.appendChild(achWrap);

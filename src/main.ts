@@ -23,11 +23,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
-import { isAchievementUser, achievementOnActivity, achievementOnItemApply, getWornBadgeIcon, setPresenceRefreshCallback } from "./modules/achievements";
+import { isAchievementUser, achievementOnActivity, achievementOnItemApply } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 178;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 179;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -82,6 +82,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
             "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
             "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
+            "Achievements reworked to TIERS: most achievements now level up through three thresholds (e.g. pats 5 → 25 → 250) and their card upgrades bronze → silver → gold plate, with tier pips and I/II/III labels. New doer achievements: Boop! (boop someone 10/50/250 times), Pat Dispenser (headpat others 10/50/250), Hug Dealer (give 10/50/250 hugs). Tier-ups pop a toast in the tier's metal color. Existing counters carry over.",
+            "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -6669,8 +6671,6 @@ interface EmeryPresence {
     version: string;
     marker: string;
     isDev?: boolean;
-    /** Worn achievement badge icon (credits crew feature). */
-    badge?: string;
     /** Unix timestamp (seconds) when this presence was last broadcast.
      *  Absent on old EBC versions (pre-2.8.5).  Presences without a ts are
      *  rejected so stale OnlineSharedSettings from previous EBC sessions no
@@ -6739,13 +6739,11 @@ function syncPresenceMarker(): void {
     // broadcasting. Your EBC presence is always sent so others always see
     // your tag. The toggle only controls whether YOU see it above your own head.
 
-    const wornBadge = (() => { try { return getWornBadgeIcon(); } catch { return null; } })();
     const presence: EmeryPresence = {
         version: MOD_VERSION,
         marker:  "EBC",
         ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
         ...(IS_DEV_BUILD ? { isDev: true } : {}),
-        ...(wornBadge ? { badge: wornBadge } : {}),
     };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
@@ -6753,8 +6751,7 @@ function syncPresenceMarker(): void {
     const settings = getAddonSettings(Player, true);
     if (settings) {
         const alreadyStored = settings.presence?.version === MOD_VERSION
-            && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined)
-            && settings.presence?.badge === (wornBadge ?? undefined);
+            && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined);
         if (!alreadyStored) {
             settings.presence = presence;
             ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -8412,9 +8409,6 @@ function init(): void {
         } catch { /* ignore */ }
         return _r;
     });
-
-    // Wearing/removing a badge re-broadcasts presence right away (6s rate limit applies).
-    setPresenceRefreshCallback(() => { try { syncPresenceMarker(); } catch { /* ignore */ } });
 
     // Achievements feed (credits crew only): watch activities done to/by the
     // player and item applies. Independent of the XToys gates above.

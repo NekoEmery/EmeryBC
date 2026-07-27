@@ -1,7 +1,9 @@
 // Achievement system - currently limited to the credits crew (devs & friends).
-// Counts things done TO the player (pats, hugs, kisses, being tied...) plus a
-// few rare Emery-targeted ones. Progress lives in EBC settings (synced, tiny);
-// unlocks pop a golden toast. Fed from main.ts's ChatRoomMessage hook.
+// Tiered: most achievements level up through thresholds (e.g. 5 → 25 → 100) and
+// their card upgrades bronze → silver → gold. Counts things done TO the player
+// (pats, hugs, kisses, being tied...), things the player DOES (boops, pats,
+// hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
+// tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
 import { getSettings, syncSettings } from "./bcUtils";
 import { getRestraintMs } from "./timer";
@@ -18,30 +20,35 @@ export interface AchievementDef {
     id: string;
     icon: string;
     name: string;
+    /** Description template - {n} is replaced with the tier threshold. */
     desc: string;
     counter: string;
-    target: number;
+    /** Ascending thresholds. One entry = single unlock; three = bronze/silver/gold. */
+    tiers: number[];
     rare?: boolean;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
     // Things done TO you
-    { id: "pat_magnet",    icon: "🐾", name: "Pat Magnet",     desc: "Get headpatted 25 times",                 counter: "pet_recv",  target: 25 },
-    { id: "pat_addict",    icon: "💖", name: "Pat Addict",     desc: "Get headpatted 250 times",                counter: "pet_recv",  target: 250 },
-    { id: "hug_collector", icon: "🤗", name: "Hug Collector",  desc: "Receive 50 hugs",                         counter: "hug_recv",  target: 50 },
-    { id: "cherished",     icon: "💋", name: "Cherished",      desc: "Receive 100 kisses",                      counter: "kiss_recv", target: 100 },
-    { id: "popular",       icon: "🌟", name: "Popular",        desc: "25 different people do things to you",    counter: "people",    target: 25 },
-    { id: "tied_down",     icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you 50 times",     counter: "tied_recv", target: 50 },
-    { id: "iron_streak",   icon: "⏳", name: "Living in Rope", desc: "Stay bound for 24 hours straight",        counter: "bound_h",   target: 24 },
-    // Rare - Emery-targeted
-    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Dev",    desc: "Headpat Emery 5 times",                   counter: "pet_emery",  target: 5,  rare: true },
-    { id: "dev_wrangler",  icon: "⭐", name: "Dev Wrangler",   desc: "Tie Emery up",                            counter: "bind_emery", target: 1,  rare: true },
-    { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does 25 things to you",             counter: "from_emery", target: 25, rare: true },
+    { id: "pats",    icon: "🐾", name: "Pat Magnet",     desc: "Get headpatted {n} times",              counter: "pet_recv",  tiers: [5, 25, 250] },
+    { id: "hugs",    icon: "🤗", name: "Hug Collector",  desc: "Receive {n} hugs",                      counter: "hug_recv",  tiers: [5, 25, 100] },
+    { id: "kisses",  icon: "💋", name: "Cherished",      desc: "Receive {n} kisses",                    counter: "kiss_recv", tiers: [5, 25, 100] },
+    { id: "popular", icon: "🌟", name: "Popular",        desc: "{n} different people do things to you", counter: "people",    tiers: [5, 25, 100] },
+    { id: "tied",    icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times",  counter: "tied_recv", tiers: [5, 25, 100] },
+    { id: "streak",  icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",         counter: "bound_h",   tiers: [24, 100, 500] },
+    // Things YOU do
+    { id: "boops",    icon: "👉", name: "Boop!",         desc: "Boop someone {n} times",                counter: "boop_give", tiers: [10, 50, 250] },
+    { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times",              counter: "pet_give",  tiers: [10, 50, 250] },
+    { id: "huggiver", icon: "💞", name: "Hug Dealer",    desc: "Give {n} hugs",                         counter: "hug_give",  tiers: [10, 50, 250] },
+    // Rare - Emery-targeted (single golden unlock)
+    { id: "pat_the_dev",   icon: "⭐", name: "Pat the Dev",    desc: "Headpat Emery {n} times",       counter: "pet_emery",  tiers: [5],  rare: true },
+    { id: "dev_wrangler",  icon: "⭐", name: "Dev Wrangler",   desc: "Tie Emery up",                  counter: "bind_emery", tiers: [1],  rare: true },
+    { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you",  counter: "from_emery", tiers: [25], rare: true },
 ];
 
 interface AchState {
     c: Record<string, number>;  // counters
-    u: Record<string, number>;  // unlocked: id -> unix ms
+    u: Record<string, number>;  // announced tier count per achievement id
     p?: number[];               // distinct member numbers who acted on you (capped)
 }
 
@@ -72,20 +79,31 @@ function save(): void {
     }, 3000);
 }
 
-function showUnlockToast(a: AchievementDef): void {
+const ROMAN = ["I", "II", "III", "IV", "V"];
+const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
+
+function tiersReached(def: AchievementDef, count: number): number {
+    let n = 0;
+    for (const t of def.tiers) if (count >= t) n++;
+    return n;
+}
+
+function showTierToast(a: AchievementDef, tier: number): void {
     try {
-        const col = a.rare ? "#ffd700" : "#cf6f98";
+        const maxed = tier >= a.tiers.length;
+        const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
+        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
         const el = document.createElement("div");
         el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
         const head = document.createElement("div");
         head.style.cssText = `font-size:10.5px;color:${col};letter-spacing:0.15em;margin-bottom:3px;`;
-        head.textContent = "🏆 ACHIEVEMENT UNLOCKED";
+        head.textContent = a.tiers.length > 1 && !maxed ? "🏆 ACHIEVEMENT TIER UP" : "🏆 ACHIEVEMENT UNLOCKED";
         const name = document.createElement("div");
         name.style.cssText = "font-weight:bold;font-size:14px;";
-        name.textContent = `${a.icon} ${a.name}`;
+        name.textContent = `${a.icon} ${a.name}${tierLabel}`;
         const desc = document.createElement("div");
         desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
-        desc.textContent = a.desc;
+        desc.textContent = a.desc.replace("{n}", String(a.tiers[tier - 1] ?? a.tiers[a.tiers.length - 1]));
         el.appendChild(head);
         el.appendChild(name);
         el.appendChild(desc);
@@ -97,10 +115,11 @@ function showUnlockToast(a: AchievementDef): void {
 function checkUnlocks(): void {
     const st = getState();
     for (const a of ACHIEVEMENTS) {
-        if (st.u[a.id]) continue;
-        if ((st.c[a.counter] ?? 0) >= a.target) {
-            st.u[a.id] = Date.now();
-            showUnlockToast(a);
+        const reached = tiersReached(a, st.c[a.counter] ?? 0);
+        const announced = st.u[a.id] ?? 0;
+        if (reached > announced) {
+            st.u[a.id] = reached;
+            showTierToast(a, reached);
         }
     }
 }
@@ -124,6 +143,7 @@ export function achievementOnActivity(
         const act = actName.toLowerCase();
 
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
+            // Done TO you
             if (act.includes("pet")) bump("pet_recv");
             if (act.includes("hug") || act.includes("cuddle")) bump("hug_recv");
             if (act.includes("kiss")) bump("kiss_recv");
@@ -138,8 +158,14 @@ export function achievementOnActivity(
                 checkUnlocks();
                 save();
             }
-        } else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
-            if (act.includes("pet")) bump("pet_emery");
+        } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
+            // Things YOU do to others
+            if (act.includes("boop")) bump("boop_give");
+            if (act.includes("pet")) {
+                bump("pet_give");
+                if (targetNum === EMERY) bump("pet_emery");
+            }
+            if (act.includes("hug") || act.includes("cuddle")) bump("hug_give");
         }
     } catch { /* ignore */ }
 }
@@ -162,57 +188,34 @@ export function achievementOnItemApply(
     } catch { /* ignore */ }
 }
 
-// ── Worn badge ────────────────────────────────────────────────────────────────
-// One unlocked achievement can be "worn" - its icon travels in EBC's presence
-// broadcast and other EBC users see it next to the name in People-in-Room.
-
-let _presenceRefresh: (() => void) | null = null;
-/** main.ts registers its presence broadcaster here so badge changes push out. */
-export function setPresenceRefreshCallback(cb: () => void): void {
-    _presenceRefresh = cb;
+/** Progress rows for the DEV-tab UI. */
+export interface AchievementProgress extends AchievementDef {
+    value: number;        // raw counter
+    tier: number;         // tiers reached (0 = locked)
+    maxed: boolean;
+    nextTarget: number | null;  // next threshold, null when maxed
+    tierLabel: string;    // "II" etc., "" for single-tier or locked
+    descNow: string;      // desc for the next target (or the final tier when maxed)
 }
 
-export function getWornBadgeId(): string | null {
-    try {
-        const st = getState() as AchState & { w?: string };
-        return typeof st.w === "string" && st.w ? st.w : null;
-    } catch { return null; }
-}
-
-/** The worn badge's icon, for the presence payload. Null when nothing worn. */
-export function getWornBadgeIcon(): string | null {
-    const id = getWornBadgeId();
-    if (!id) return null;
+export function getAchievementProgress(): AchievementProgress[] {
     const st = getState();
-    if (!st.u[id]) return null; // must actually be unlocked
-    return ACHIEVEMENTS.find(a => a.id === id)?.icon ?? null;
-}
-
-/** Wear an unlocked achievement's badge (null = wear nothing). */
-export function setWornBadge(id: string | null): boolean {
-    try {
-        const st = getState() as AchState & { w?: string };
-        if (id !== null && !st.u[id]) return false; // not unlocked
-        if (id === null) delete st.w; else st.w = id;
-        syncSettings();
-        try { _presenceRefresh?.(); } catch { /* ignore */ }
-        return true;
-    } catch { return false; }
-}
-
-/** Cap incoming badge strings from other clients - emoji only, no essays. */
-export function sanitizeBadgeIcon(v: unknown): string | null {
-    return typeof v === "string" && v.length > 0 && v.length <= 8 ? v : null;
-}
-
-/** Progress rows for the credits-tab UI. */
-export function getAchievementProgress(): Array<AchievementDef & { value: number; unlockedAt: number | null }> {
-    const st = getState();
-    return ACHIEVEMENTS.map(a => ({
-        ...a,
-        value: Math.min(a.target, st.c[a.counter] ?? 0),
-        unlockedAt: st.u[a.id] ?? null,
-    }));
+    return ACHIEVEMENTS.map(a => {
+        const value = st.c[a.counter] ?? 0;
+        const tier = tiersReached(a, value);
+        const maxed = tier >= a.tiers.length;
+        const nextTarget = maxed ? null : a.tiers[tier];
+        const descN = maxed ? a.tiers[a.tiers.length - 1] : a.tiers[tier];
+        return {
+            ...a,
+            value,
+            tier,
+            maxed,
+            nextTarget,
+            tierLabel: a.tiers.length > 1 && tier > 0 ? (ROMAN[tier - 1] ?? String(tier)) : "",
+            descNow: a.desc.replace("{n}", String(descN)),
+        };
+    });
 }
 
 // Continuous bound-streak check - the counter keeps the LONGEST streak seen.
