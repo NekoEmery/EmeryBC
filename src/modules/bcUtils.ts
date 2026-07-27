@@ -138,7 +138,12 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
 // budget across ALL addons - pushing an oversized account update gets the
 // connection dropped by the server, and since the data is re-flushed after every
 // relog the client ends up in an infinite reconnect loop. Never let that happen.
-const SETTINGS_FLUSH_CAP = 150_000;
+export const SETTINGS_FLUSH_CAP = 150_000;
+
+/** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
+export function getSettingsBlobSize(): number {
+    try { return JSON.stringify(_mem).length; } catch { return 0; }
+}
 
 export function flushToExtensionSettings(): boolean {
     try {

@@ -149,7 +149,7 @@ export function setDefaultTitle(title: string): void {
 // crafted restraints with long descriptions can hit several KB per outfit -
 // unbounded growth eventually blows BC's ~180 KB account cap and the server
 // starts dropping the connection on every sync (infinite relog loop).
-const OUTFITS_BUDGET = 60_000;
+export const OUTFITS_BUDGET = 60_000;
 
 /** Persists the outfit list. Account-stored outfits go to the BC account (60 KB
  *  budget); local:true outfits go to this device's localStorage. Returns false
@@ -871,6 +871,22 @@ function saveRestraints(list: ConfiguredOutfit[]): boolean {
     getSettings().restraints = account;
     syncSettings();
     return true;
+}
+
+/** Storage usage for the meter in the Outfits tab. Sizes are serialized JSON
+ *  lengths (characters ~ bytes). */
+export function getOutfitStorageUsage(): { accountOutfits: number; accountRestraints: number; deviceBytes: number } {
+    const size = (v: unknown): number => { try { return JSON.stringify(v).length; } catch { return 0; } };
+    let deviceBytes = 0;
+    try {
+        deviceBytes = (localStorage.getItem(LOCAL_OUTFITS_KEY)?.length ?? 0)
+                    + (localStorage.getItem(LOCAL_RESTRAINTS_KEY)?.length ?? 0);
+    } catch { /* ignore */ }
+    return {
+        accountOutfits:    size(getOutfits().filter(o => !o.local)),
+        accountRestraints: size(getRestraints().filter(o => !o.local)),
+        deviceBytes,
+    };
 }
 
 /** Moves a restraint set between account storage and this-device storage. */

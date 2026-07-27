@@ -54,6 +54,10 @@ import {
     addToOutfitWhitelist,
     removeFromOutfitWhitelist,
     setOutfitNameInAnnounce,
+    setOutfitStorage,
+    setRestraintStorage,
+    getOutfitStorageUsage,
+    OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -101,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -7215,6 +7219,89 @@ export class EBCDrawer {
 
     // -- Outfits tab -----------------------------------------------------------
 
+    /** Collapsible storage meter - account outfit/restraint budgets, the whole
+     *  EBC settings blob vs the sync cap, and this-device (localStorage) usage. */
+    private renderStorageUsage(body: HTMLElement): void {
+        const usage = getOutfitStorageUsage();
+        const total = getSettingsBlobSize();
+        const kb = (n: number): string => (n / 1000).toFixed(1);
+
+        const wrap = document.createElement("div");
+        wrap.style.marginBottom = "8px";
+
+        let open = false;
+        try { open = localStorage.getItem("EBC_storageOpen") === "1"; } catch { /* ignore */ }
+
+        const totalPct = Math.min(100, (total / SETTINGS_FLUSH_CAP) * 100);
+        const headCol  = totalPct >= 90 ? "#e05a5a" : totalPct >= 70 ? "#d8a04a" : "#9a7080";
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "ebc-section-label";
+        toggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+        const paintToggle = (): void => {
+            toggleBtn.innerHTML = "";
+            const arrow = document.createTextNode((open ? "▼" : "▶") + " STORAGE ");
+            toggleBtn.appendChild(arrow);
+            const pill = document.createElement("span");
+            pill.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:normal;color:${headCol};`;
+            pill.textContent = `${kb(total)} / ${kb(SETTINGS_FLUSH_CAP)} KB account`;
+            toggleBtn.appendChild(pill);
+        };
+        paintToggle();
+
+        const content = document.createElement("div");
+        content.style.cssText = "display:" + (open ? "block" : "none") + ";padding:2px 4px 6px;";
+
+        const mkBar = (label: string, used: number, cap: number): HTMLElement => {
+            const pct = Math.min(100, (used / cap) * 100);
+            const col = pct >= 90 ? "#e05a5a" : pct >= 70 ? "#d8a04a" : "#79a885";
+            const row = document.createElement("div");
+            row.style.cssText = "margin:5px 0;";
+            const lblRow = document.createElement("div");
+            lblRow.style.cssText = "display:flex;justify-content:space-between;gap:8px;font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-bottom:2px;";
+            const l = document.createElement("span");
+            l.textContent = label;
+            const r = document.createElement("span");
+            r.textContent = `${kb(used)} / ${kb(cap)} KB`;
+            r.style.cssText = `color:${col};flex-shrink:0;`;
+            lblRow.appendChild(l);
+            lblRow.appendChild(r);
+            const trough = document.createElement("div");
+            trough.style.cssText = "height:6px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;";
+            const fill = document.createElement("div");
+            fill.style.cssText = `height:100%;width:${pct}%;background:${col};border-radius:3px;`;
+            trough.appendChild(fill);
+            row.appendChild(lblRow);
+            row.appendChild(trough);
+            return row;
+        };
+
+        content.appendChild(mkBar("Outfits (account)", usage.accountOutfits, OUTFITS_BUDGET));
+        content.appendChild(mkBar("Restraint sets (account)", usage.accountRestraints, OUTFITS_BUDGET));
+        content.appendChild(mkBar("All EBC settings (account sync cap)", total, SETTINGS_FLUSH_CAP));
+
+        const devRow = document.createElement("div");
+        devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-top:6px;";
+        devRow.textContent = `💾 This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
+        content.appendChild(devRow);
+
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#6a4a58;margin-top:4px;line-height:1.4;";
+        hint.textContent = "Full bars? Switch outfits to 💾 This device storage or delete unused ones. Crafted items take the most space.";
+        content.appendChild(hint);
+
+        toggleBtn.addEventListener("click", () => {
+            open = !open;
+            try { localStorage.setItem("EBC_storageOpen", open ? "1" : "0"); } catch { /* ignore */ }
+            content.style.display = open ? "block" : "none";
+            paintToggle();
+        });
+
+        wrap.appendChild(toggleBtn);
+        wrap.appendChild(content);
+        body.appendChild(wrap);
+    }
+
     private renderOutfits(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -7267,6 +7354,7 @@ export class EBCDrawer {
         this.renderRestraintInfo(body);
         this.renderOutfitWhitelist(body);
         this.renderPalettes(body);
+        this.renderStorageUsage(body);
 
         // ── Tag management ───────────────────────────────────────────────────────────
         const tagMgmtDiv = document.createElement("div");

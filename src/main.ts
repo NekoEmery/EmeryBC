@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 173;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 174;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -73,6 +73,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: running two accounts in two windows could deliver one account's queued offline beeps from the OTHER account (recipient saw the wrong sender). Root cause: the offline re-delivery queue lived under one shared localStorage key for the whole browser. Fix: the queue is now keyed per account; the old shared queue migrates to whichever account logs in first.",
             "Fix: vibes and piercings could not be removed by Release Restraints or the removal picker. Root cause: the ItemVulvaPiercings, ItemNipplesPiercings, and ItemHandheld groups were missing from EBC's restraint-group list, so items in those slots (e.g. the Vibrating Heart Clitoris Piercing) were invisible to every removal feature. All three groups added.",
             "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
+            "Outfits tab: new collapsible STORAGE meter - progress bars for account outfits (vs 60 KB), account restraint sets (vs 60 KB), and all EBC settings (vs the 150 KB sync cap), plus this-device usage. Bars turn amber at 70% and red at 90%; the header shows the account total even when collapsed.",
+            "Fix: the ☁/💾 storage chips from the previous build crashed when clicked - the two mover functions were referenced in the UI but never imported. Now imported (and the build-warning check that let this slip is being watched more carefully).",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
