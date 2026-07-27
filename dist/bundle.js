@@ -40,7 +40,15 @@
         }
         const log = w.FriendListBeepLog;
         const before = Array.isArray(log) ? log.length : -1;
-        viaBC(target, message, { includeRoom });
+        try {
+            viaBC(target, message, { includeRoom });
+        }
+        catch (_a) {
+            // Deliberately no raw-send fallback here. If a hook threw we cannot tell
+            // whether it meant to block us, and guessing "send it anyway" would put
+            // the bypass straight back. Report undelivered instead.
+            return false;
+        }
         if (before < 0)
             return true; // no log to compare against
         return log.length > before;
@@ -56,8 +64,14 @@
         const w = window;
         const viaBC = w.ChatRoomSendEmote;
         if (typeof viaBC === "function") {
-            viaBC("*" + content);
-            return;
+            try {
+                viaBC("*" + content);
+                return;
+            }
+            catch ( /* fall through to the direct send below */_a) { /* fall through to the direct send below */ }
+            // Unlike beeps, falling back here is safe: an emote rule that meant to
+            // stop us returns quietly, it does not throw. A throw means BC's own
+            // path broke, and dropping the emote entirely would be the worse bug.
         }
         ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
     }
