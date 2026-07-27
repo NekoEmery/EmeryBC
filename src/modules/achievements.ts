@@ -67,6 +67,21 @@ export interface AchievementDef {
     /** Achievement class - groups the list (see ACHIEVEMENT_CLASSES). */
     cls: string;
     rare?: boolean;
+    /** Optional pretty-printer for {n}, e.g. minutes -> "20 min" / "1 day". */
+    fmtN?: (n: number) => string;
+}
+
+/** Minutes -> "20 min" / "1 hour" / "2 days" for readable thresholds. */
+function fmtMinutes(n: number): string {
+    if (n < 60) return `${n} min`;
+    if (n < 1440) { const h = Math.round(n / 60); return `${h} hour${h === 1 ? "" : "s"}`; }
+    const d = Math.round(n / 1440);
+    return `${d} day${d === 1 ? "" : "s"}`;
+}
+
+/** Fills {n} in a description, honouring the def's formatter. */
+export function achievementDesc(a: AchievementDef, n: number): string {
+    return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
 }
 
 export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: string }> = [
@@ -96,6 +111,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
     { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room",     counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
+    { id: "settled",  icon: "🛋", name: "Settled In",    desc: "Stay in one room for {n} straight",     counter: "room_min",     tiers: [20, 60, 1440], cls: "received", fmtN: fmtMinutes },
     // ⭐ Emery - rare single golden unlocks
     { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
     { id: "boop_the_dev",  icon: "⭐", name: "Boop the Kitty",  desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
@@ -162,7 +178,7 @@ function showTierToast(a: AchievementDef, tier: number): void {
         name.textContent = `${a.icon} ${a.name}${tierLabel}`;
         const desc = document.createElement("div");
         desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
-        desc.textContent = a.desc.replace("{n}", String(a.tiers[tier - 1] ?? a.tiers[a.tiers.length - 1]));
+        desc.textContent = achievementDesc(a, a.tiers[tier - 1] ?? a.tiers[a.tiers.length - 1]);
         el.appendChild(head);
         el.appendChild(name);
         el.appendChild(desc);
@@ -318,7 +334,7 @@ export function shareAchievement(
         if (w.CurrentScreen !== "ChatRoom") return "noRoom";
         if (getShareCooldownMs() > 0) return "cooldown";
         const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
-        const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+        const desc = achievementDesc(a, a.tiers[tier - 1]);
         const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
         const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
 
@@ -408,7 +424,7 @@ function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): bo
         const maxed = tier >= a.tiers.length;
         const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
         const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
-        const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+        const desc = achievementDesc(a, a.tiers[tier - 1]);
 
         const plaque = document.createElement("div");
         plaque.style.cssText = [
@@ -468,7 +484,7 @@ export function getAchievementProgress(): AchievementProgress[] {
             maxed,
             nextTarget,
             tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "",
-            descNow: a.desc.replace("{n}", String(descN)),
+            descNow: achievementDesc(a, descN),
         };
     });
 }
@@ -479,6 +495,7 @@ const TICK_MS = 5 * 60 * 1000;
 const HQ_ROOM = "emerybc (ebc) hq";
 let _lastRoom = "";
 let _roomBoundMs = 0;   // time bound without leaving the current room
+let _roomMs = 0;        // time in the current room, restraints irrelevant
 let _hqMs = 0;          // accumulated time spent in HQ
 
 setInterval(() => {
@@ -491,6 +508,12 @@ setInterval(() => {
         // Longest continuous bound streak (any room).
         const hours = Math.floor(getRestraintMs() / 3_600_000);
         if (hours > (st.c["bound_h"] ?? 0)) st.c["bound_h"] = hours;
+
+        // Plain time in one room - resets only when the room changes.
+        if (room && room === _lastRoom) _roomMs += TICK_MS;
+        else _roomMs = 0;
+        const roomMin = Math.floor(_roomMs / 60_000);
+        if (roomMin > (st.c["room_min"] ?? 0)) st.c["room_min"] = roomMin;
 
         // Bound AND staying put - resets when the room changes or you get free.
         if (room && room === _lastRoom && getRestraintMs() > 0) _roomBoundMs += TICK_MS;

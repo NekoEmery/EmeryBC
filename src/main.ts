@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 204;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 205;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -104,6 +104,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
             "Fix: empty pills (Poses, Expressions) no longer appear at all - the converter now drops any section that renders nothing, so a pill only exists when there is something behind it. The console line also marks which sections came back empty.",
             "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
+            "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
             "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
             "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
             "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",

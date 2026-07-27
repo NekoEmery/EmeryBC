@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, type ShareMode } from "./achievements";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -17143,7 +17143,7 @@ This cannot be undone.`,
                     medal.className = "ebc-ach-medal";
                     medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
                     if (a.tiers.length > 1) {
-                        medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${a.desc.replace("{n}", String(t))}`).join("\n");
+                        medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${achievementDesc(a, t)}`).join("\n");
                     }
                     card.appendChild(medal);
 
