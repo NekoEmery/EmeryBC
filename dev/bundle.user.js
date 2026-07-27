@@ -2984,6 +2984,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Users tab layout ----------------------------------------------------------
+    // "tabs"    = sections split behind pill sub-navigation (less clutter)
+    // "classic" = every section stacked on one long page (the original layout)
+    function getUsersLayout() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.usersLayout) === "classic" ? "classic" : "tabs";
+        }
+        catch (_b) {
+            return "tabs";
+        }
+    }
+    function setUsersLayout(v) {
+        try {
+            getSettings().usersLayout = v;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Quick replies -------------------------------------------------------------
     // Configurable one-click phrases shown as buttons inside beep windows.
     // Clicking inserts the text into the input so the user can review/edit before sending.
@@ -6650,7 +6669,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
     // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
     // Crew whitelist - only these members track or see achievements.
-    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395];
+    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
     const EMERY = 130267;
     /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
      *  itself, so someone who opted out can find their way back). */
@@ -23137,20 +23156,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(divider);
         }
         renderNotes() {
-            var _a;
+            var _a, _b;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // Sections are built into their own containers so the layout can either
+            // stack them all (classic) or split them behind pills (tabs).
+            const secPeople = document.createElement("div");
+            const secNotes = document.createElement("div");
+            const secSettings = document.createElement("div");
             // ── Messages dropdown ─────────────────────────────────────────────────
-            this.renderMessagesDropdown(body);
+            this.renderMessagesDropdown(secPeople);
             // ── Chat & Notifications ──────────────────────────────────────────────
             let chatSettingsCollapsed = true;
             try {
                 chatSettingsCollapsed = localStorage.getItem("EBC_chatSettingsCollapsed") !== "0";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             const chatSettingsHeader = document.createElement("div");
             chatSettingsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const chatSettingsLbl = document.createElement("div");
@@ -23161,7 +23185,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             chatSettingsChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
             chatSettingsHeader.appendChild(chatSettingsLbl);
             chatSettingsHeader.appendChild(chatSettingsChevron);
-            body.appendChild(chatSettingsHeader);
+            secSettings.appendChild(chatSettingsHeader);
             const chatSettingsBody = document.createElement("div");
             chatSettingsBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
             // Helper: build a [label ......... ON/OFF] toggle row
@@ -23252,7 +23276,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const afkSubHeader = document.createElement("div");
             afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const afkSubLbl = document.createElement("div");
@@ -23371,24 +23395,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
             chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
             chatSettingsHeader.addEventListener("click", toggleChatSettings);
-            body.appendChild(chatSettingsBody);
+            secSettings.appendChild(chatSettingsBody);
             // ── Divider ───────────────────────────────────────────────────────────
             const chatSettingsDiv = document.createElement("div");
             chatSettingsDiv.className = "ebc-divider";
-            body.appendChild(chatSettingsDiv);
+            secSettings.appendChild(chatSettingsDiv);
             // ── AFK Auto-Reply (top-level section) ───────────────────────────────
-            body.appendChild(afkSubHeader);
-            body.appendChild(afkBody);
+            secSettings.appendChild(afkSubHeader);
+            secSettings.appendChild(afkBody);
             const afkTopDiv = document.createElement("div");
             afkTopDiv.className = "ebc-divider";
-            body.appendChild(afkTopDiv);
+            secSettings.appendChild(afkTopDiv);
             const notes = getNotes();
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -23400,7 +23424,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
             userNotesHeaderRow.appendChild(userNotesLbl);
             userNotesHeaderRow.appendChild(userNotesChevron);
-            body.appendChild(userNotesHeaderRow);
+            secNotes.appendChild(userNotesHeaderRow);
             const userNotesBody = document.createElement("div");
             userNotesBody.style.display = userNotesCollapsed ? "none" : "block";
             const toggleUserNotesCollapsed = () => {
@@ -23426,7 +23450,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 empty.textContent = t("users.noSavedNotes");
                 userNotesBody.appendChild(empty);
             }
-            body.appendChild(userNotesBody);
+            secNotes.appendChild(userNotesBody);
             // ── Groups ───────────────────────────────────────────────────────────
             const grpSec = document.createElement("div");
             grpSec.style.cssText = "margin-top:10px;";
@@ -23606,7 +23630,60 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
-            body.appendChild(friendsSection);
+            secPeople.appendChild(friendsSection);
+            // ── Layout ───────────────────────────────────────────────────────────
+            if (getUsersLayout() === "classic") {
+                // Original: everything stacked on one page.
+                body.appendChild(secPeople);
+                body.appendChild(secNotes);
+                body.appendChild(secSettings);
+            }
+            else {
+                // Tabs: one pill row, one section visible at a time.
+                const VIEWS = [
+                    { id: "people", label: "People", el: secPeople },
+                    { id: "notes", label: "Notes", el: secNotes },
+                    { id: "settings", label: "Settings", el: secSettings },
+                ];
+                let active = "people";
+                try {
+                    active = (_b = localStorage.getItem("EBC_usersView")) !== null && _b !== void 0 ? _b : "people";
+                }
+                catch ( /* ignore */_f) { /* ignore */ }
+                if (!VIEWS.some(v => v.id === active))
+                    active = "people";
+                const nav = document.createElement("div");
+                nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+                const pills = [];
+                const paint = () => {
+                    for (let i = 0; i < VIEWS.length; i++) {
+                        const on = VIEWS[i].id === active;
+                        pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                            (on
+                                ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                                : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                        VIEWS[i].el.style.display = on ? "" : "none";
+                    }
+                };
+                for (const v of VIEWS) {
+                    const pill = document.createElement("button");
+                    pill.textContent = v.label;
+                    pill.addEventListener("click", () => {
+                        active = v.id;
+                        try {
+                            localStorage.setItem("EBC_usersView", active);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        paint();
+                    });
+                    pills.push(pill);
+                    nav.appendChild(pill);
+                }
+                body.appendChild(nav);
+                for (const v of VIEWS)
+                    body.appendChild(v.el);
+                paint();
+            }
             // Defer heavy list build to next animation frame so the tab paints first.
             window.requestAnimationFrame(() => {
                 if (this.friendsSectionEl === friendsSection)
@@ -25448,6 +25525,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Users tab layout (new pill sections vs the original long page) ────
+            {
+                const layoutRow = document.createElement("div");
+                layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const layoutLbl = document.createElement("span");
+                layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+                layoutLbl.textContent = "Users tab layout";
+                const layoutBtn = document.createElement("button");
+                const paintLayout = () => {
+                    const tabs = getUsersLayout() === "tabs";
+                    layoutBtn.textContent = tabs ? "New (tabs)" : "Classic";
+                    layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                        (tabs
+                            ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                            : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                    layoutBtn.title = tabs
+                        ? "Users tab is split into People / Notes / Settings pills - click for the original single long page"
+                        : "Users tab shows every section stacked (original) - click for the tidier pill layout";
+                };
+                paintLayout();
+                layoutBtn.addEventListener("click", () => {
+                    setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
+                    paintLayout();
+                });
+                layoutRow.appendChild(layoutLbl);
+                layoutRow.appendChild(layoutBtn);
+                body.appendChild(layoutRow);
+            }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
@@ -37252,7 +37357,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 191; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 192; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37323,7 +37428,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
-                "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
+                "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
                 "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
                 "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
                 "Fix: the Boop achievements could never unlock, and booping wrongly counted as a headpat. Root cause: BC's 'Boop Nose' is not its own activity - it is the Pet activity performed on the ItemNose group, so the only way to tell a boop from a headpat is the group, which the achievement code ignored. Fix: the activity group is now passed through and used - Pet on ItemNose = boop, Pet anywhere else = headpat. Added a matching 'Boop Target' achievement (get your nose booped 5/25/100 times), and nose-nuzzles now count toward hugs.",
