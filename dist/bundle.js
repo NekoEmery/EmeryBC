@@ -6564,12 +6564,11 @@
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
         var _a;
-        // Protocol messages are silent channel commands and must never appear in
-        // the IM conversation window or the offline re-delivery queue.
+        // Protocol payloads are addon sync, not speech. They keep the direct socket
+        // so rules never mangle EBC's internals, and they stay out of the IM window
+        // and the offline queue. Everything the person actually typed goes through
+        // BC's function instead, where rule addons can see and refuse it.
         const isProtocol = message.startsWith("[EBC-");
-        // Protocol payloads are addon sync, not speech - they stay on the direct
-        // socket so rules never mangle EBC's internals. Everything the person
-        // actually typed goes through BC's function, where rule addons can see it.
         if (isProtocol) {
             try {
                 ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
