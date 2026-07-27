@@ -4268,6 +4268,7 @@ export class EBCDrawer {
     private roomPeopleCollapsed = false;
     private friendRoomsCollapsed = false;
     private _refreshTrophyVis: (() => void) | null = null;
+    private _roomsSectionEl: HTMLElement | null = null;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -14682,8 +14683,21 @@ export class EBCDrawer {
         // Sections are built into their own containers so the layout can either
         // stack them all (classic) or split them behind pills (tabs).
         const secPeople   = document.createElement("div");
+        const secRooms    = document.createElement("div");
         const secNotes    = document.createElement("div");
         const secSettings = document.createElement("div");
+        const tabsMode = getUsersLayout() === "tabs";
+        this._roomsSectionEl = tabsMode ? secRooms : null;
+        // In pill mode the pill itself is the section header, so the collapsibles
+        // inside would just be redundant dropdowns - open them up front.
+        if (tabsMode) {
+            try {
+                localStorage.setItem("EBC_chatSettingsCollapsed", "0");
+                localStorage.setItem("EBC_afkCollapsed", "0");
+                localStorage.setItem("EBC_userNotesCollapsed", "0");
+                localStorage.setItem("EBC_friendRoomsCollapsed", "0");
+            } catch { /* ignore */ }
+        }
 
         // ── Messages dropdown ─────────────────────────────────────────────────
         this.renderMessagesDropdown(secPeople);
@@ -15189,15 +15203,18 @@ export class EBCDrawer {
         secPeople.appendChild(friendsSection);
 
         // ── Layout ───────────────────────────────────────────────────────────
-        if (getUsersLayout() === "classic") {
+        if (!tabsMode) {
             // Original: everything stacked on one page.
             body.appendChild(secPeople);
             body.appendChild(secNotes);
             body.appendChild(secSettings);
         } else {
-            // Tabs: one pill row, one section visible at a time.
+            // Tabs: one pill row, one section visible at a time. The single-section
+            // pills hide their now-redundant collapsible header.
+            if (userNotesHeaderRow) userNotesHeaderRow.style.display = "none";
             const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
                 { id: "people",   label: "People",   el: secPeople },
+                { id: "rooms",    label: "Rooms",    el: secRooms },
                 { id: "notes",    label: "Notes",    el: secNotes },
                 { id: "settings", label: "Settings", el: secSettings },
             ];
@@ -15235,7 +15252,9 @@ export class EBCDrawer {
         }
         // Defer heavy list build to next animation frame so the tab paints first.
         window.requestAnimationFrame(() => {
-            if (this.friendsSectionEl === friendsSection) this.renderFriendRows(friendsSection);
+            if (this.friendsSectionEl === friendsSection) {
+                this.renderFriendRows(friendsSection, tabsMode ? secRooms : undefined);
+            }
         });
     }
 
@@ -15246,13 +15265,17 @@ export class EBCDrawer {
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
             if (this.currentTab === "notes" && this.friendsSectionEl === target) {
-                this.renderFriendRows(target);
+                this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
             }
         }, 80);
     }
 
-    private renderFriendRows(body: HTMLElement): void {
+    /** Renders the friends list. When roomsTarget is given, the Rooms section is
+     *  rendered there instead (its own pill in the tabbed Users layout). */
+    private renderFriendRows(body: HTMLElement, roomsTarget?: HTMLElement): void {
         while (body.firstChild) body.removeChild(body.firstChild);
+        if (roomsTarget) while (roomsTarget.firstChild) roomsTarget.removeChild(roomsTarget.firstChild);
+        const roomsBody = roomsTarget ?? body;
 
         const friendList = getFriendList();
 
@@ -15318,7 +15341,7 @@ export class EBCDrawer {
             if (groups.length > 0) {
                 const divRm = document.createElement("div");
                 divRm.className = "ebc-divider";
-                body.appendChild(divRm);
+                if (!roomsTarget) roomsBody.appendChild(divRm);
 
                 try { this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1"; } catch { /* ignore */ }
 
@@ -15674,8 +15697,8 @@ export class EBCDrawer {
                     roomsContainer.appendChild(gCard);
                 }
 
-                body.appendChild(roomsToggle);
-                body.appendChild(roomsContainer);
+                roomsBody.appendChild(roomsToggle);
+                roomsBody.appendChild(roomsContainer);
             }
         }
 
@@ -25328,16 +25351,32 @@ export class EBCDrawer {
         };
 
         const doScan = (): void => {
-            // BC server ignores ChatRoomSearch while the player is inside a chat room;
-            // the resulting empty response would incorrectly hide the badge. Skip the
-            // scan and let the badge hold its last known state until back in the lobby.
             const w = window as unknown as Record<string, unknown>;
-            if ((w["CurrentScreen"] as string | undefined) === "ChatRoom") return;
+            // BC's server ignores ChatRoomSearch while the player is inside a chat
+            // room, and while the player is ON the search screen our own query would
+            // be picked up by BC's pending once-listener and replace their room list.
+            // In both cases skip the active scan - the passive listener below still
+            // reads BC's own search results, so the badge keeps updating.
+            const screen = String(w["CurrentScreen"] ?? "");
+            if (screen === "ChatRoom" || screen === "ChatSearch") return;
             try {
                 if (!ensureListener()) return;
                 if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
                 scanSentAt = Date.now();
-                ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                // Must mirror BC's own ServerChatRoomSearchRequest shape - a partial
+                // request (Query + Language only) is filtered/dropped by the server,
+                // which is why the badge stopped appearing. Filters are permissive so
+                // a full or locked HQ still matches.
+                ServerSend("ChatRoomSearch", {
+                    Query: HQ_NAME.toUpperCase(),
+                    Language: "",
+                    Space: "",
+                    Game: "",
+                    FullRooms: true,
+                    ShowLocked: true,
+                    MapTypes: [],
+                    SearchDescs: false,
+                });
                 // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
                 // silently dropped the request - e.g. player not yet authenticated),
                 // reset scanSentAt so the next scheduled scan is not blocked.
