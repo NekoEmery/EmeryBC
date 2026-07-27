@@ -5742,15 +5742,14 @@ export class EBCDrawer {
             btn.style.display = (inLayout && (tabId === locked || !hidden.includes(tabId))) ? "" : "none";
         }
         // DOM tools are merged into the TOYS tab in the grouped layout, so the
-        // separate creator-only DOM tab only exists in the classic layout.
+        // The creator-only DOM tab is its own tab in BOTH layouts.
         const domBtn = this.rootEl.querySelector("#ebc-tab-dom") as HTMLElement | null;
-        if (domBtn) domBtn.style.display = (!grouped && isDomEnabled()) ? "" : "none";
+        if (domBtn) domBtn.style.display = isDomEnabled() ? "" : "none";
         // Fall back to another tab only when the current one is hidden, belongs
         // exclusively to the other layout, or is the DOM tab in the grouped
         // layout. The puppy/kitty tabs exist in both layouts and are left alone.
         const otherSet: readonly string[] = grouped ? EBC_USER_TABS : EBC_GROUPED_TABS;
-        const stranded = (!activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab))
-            || (grouped && this.currentTab === "dom");
+        const stranded = !activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab);
         if (stranded || hidden.includes(this.currentTab)) {
             const mapped = (grouped ? EBC_TAB_TO_GROUPED : EBC_TAB_TO_CLASSIC)[this.currentTab];
             const usable = (id: string | undefined): boolean =>
@@ -6839,7 +6838,7 @@ export class EBCDrawer {
         else if (this.currentTab === "toys")     this.renderToysTab();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
-        else if (this.currentTab === "dom")      this.renderDomTools();
+        else if (this.currentTab === "dom")      this.renderDomTools(!isGroupedLayout());
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
         // Grouped layout - each of these composes existing renderX() methods.
@@ -6953,22 +6952,10 @@ export class EBCDrawer {
         ]);
     }
 
-    /** TOYS - Lovense / PiShock / XToys, plus the creator-only Dom tools that
-     *  had their own tab in the classic layout. Still called "Toys". */
+    /** TOYS - Lovense / PiShock / XToys. Dom keeps its own creator-only tab in
+     *  both layouts, so nothing extra is composed in here. */
     private renderToysTab(): void {
         this.renderToys();
-        if (!isGroupedLayout() || !isDomEnabled()) return;
-        const body = this.tabBody();
-        if (!body) return;
-        const div = document.createElement("div");
-        div.className = "ebc-divider";
-        body.appendChild(div);
-        const lbl = document.createElement("div");
-        lbl.className = "ebc-section-label";
-        lbl.textContent = t("grouped.domTools");
-        body.appendChild(lbl);
-        // Auto-escape is skipped here - it lives on the SAFETY tab now.
-        this.composeInto(body, () => this.renderDomTools(false));
     }
 
     /** SETTINGS - drawer prefs, EBC tags, storage, language, dev tools, credits.
@@ -17488,10 +17475,18 @@ This cannot be undone.`,
             for (const sec of picked) {
                 // Several sections share this pill - keep their headers as labels.
                 if (picked.length > 1 && sec.headerEl) {
-                    // Some headers are <button> elements (Tags, Storage) which
-                    // otherwise render inset with button padding and sit visibly
-                    // offset from the plain <div> headers next to them.
-                    const h = sec.headerEl;
+                    // Kept as a sub-label inside a shared pill. Replace it with a
+                    // clone so its collapse handler is dropped - by this point the
+                    // section is already expanded, and leaving the toggle live let
+                    // the user re-collapse a section that no longer shows a working
+                    // chevron. cloneNode does not copy event listeners.
+                    const src = sec.headerEl;
+                    const clone = src.cloneNode(true) as HTMLElement;
+                    clone.textContent = (clone.textContent ?? "").replace(/[▶▼]/g, "").trim();
+                    clone.style.cursor = "default";
+                    src.replaceWith(clone);
+                    sec.headerEl = clone;
+                    const h = clone;
                     h.style.display = "block";
                     h.style.width = "100%";
                     h.style.boxSizing = "border-box";
