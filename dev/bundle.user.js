@@ -6798,6 +6798,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function isAchievementUser(memberNumber) {
         return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
     }
+    /** Minutes -> "20 min" / "1 hour" / "2 days" for readable thresholds. */
+    function fmtMinutes(n) {
+        if (n < 60)
+            return `${n} min`;
+        if (n < 1440) {
+            const h = Math.round(n / 60);
+            return `${h} hour${h === 1 ? "" : "s"}`;
+        }
+        const d = Math.round(n / 1440);
+        return `${d} day${d === 1 ? "" : "s"}`;
+    }
+    /** Fills {n} in a description, honouring the def's formatter. */
+    function achievementDesc(a, n) {
+        return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
+    }
     const ACHIEVEMENT_CLASSES = [
         { id: "received", label: "Received", icon: "💝" },
         { id: "given", label: "Given", icon: "🖐" },
@@ -6824,6 +6839,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
         { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room", counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
+        { id: "settled", icon: "🛋", name: "Settled In", desc: "Stay in one room for {n} straight", counter: "room_min", tiers: [20, 60, 1440], cls: "received", fmtN: fmtMinutes },
         // ⭐ Emery - rare single golden unlocks
         { id: "pat_the_dev", icon: "⭐", name: "Pat the Kitty", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
         { id: "boop_the_dev", icon: "⭐", name: "Boop the Kitty", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
@@ -6889,7 +6905,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             name.textContent = `${a.icon} ${a.name}${tierLabel}`;
             const desc = document.createElement("div");
             desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
-            desc.textContent = a.desc.replace("{n}", String((_a = a.tiers[tier - 1]) !== null && _a !== void 0 ? _a : a.tiers[a.tiers.length - 1]));
+            desc.textContent = achievementDesc(a, (_a = a.tiers[tier - 1]) !== null && _a !== void 0 ? _a : a.tiers[a.tiers.length - 1]);
             el.appendChild(head);
             el.appendChild(name);
             el.appendChild(desc);
@@ -7056,7 +7072,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (getShareCooldownMs() > 0)
                 return "cooldown";
             const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
-            const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+            const desc = achievementDesc(a, a.tiers[tier - 1]);
             const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
             const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
             if (mode.kind === "public") {
@@ -7158,7 +7174,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const maxed = tier >= a.tiers.length;
             const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
             const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
-            const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+            const desc = achievementDesc(a, a.tiers[tier - 1]);
             const plaque = document.createElement("div");
             plaque.style.cssText = [
                 "margin:4px 4px",
@@ -7204,7 +7220,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return Object.assign(Object.assign({}, a), { value,
                 tier,
                 maxed,
-                nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "", descNow: a.desc.replace("{n}", String(descN)) });
+                nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "", descNow: achievementDesc(a, descN) });
         });
     }
     // Periodic tick: bound streak, bound-in-one-room streak, and time spent in EBC
@@ -7213,9 +7229,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const HQ_ROOM = "emerybc (ebc) hq";
     let _lastRoom = "";
     let _roomBoundMs = 0; // time bound without leaving the current room
+    let _roomMs = 0; // time in the current room, restraints irrelevant
     let _hqMs = 0; // accumulated time spent in HQ
     setInterval(() => {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
@@ -7226,6 +7243,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const hours = Math.floor(getRestraintMs() / 3600000);
             if (hours > ((_c = st.c["bound_h"]) !== null && _c !== void 0 ? _c : 0))
                 st.c["bound_h"] = hours;
+            // Plain time in one room - resets only when the room changes.
+            if (room && room === _lastRoom)
+                _roomMs += TICK_MS;
+            else
+                _roomMs = 0;
+            const roomMin = Math.floor(_roomMs / 60000);
+            if (roomMin > ((_d = st.c["room_min"]) !== null && _d !== void 0 ? _d : 0))
+                st.c["room_min"] = roomMin;
             // Bound AND staying put - resets when the room changes or you get free.
             if (room && room === _lastRoom && getRestraintMs() > 0)
                 _roomBoundMs += TICK_MS;
@@ -7233,19 +7258,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 _roomBoundMs = 0;
             _lastRoom = room;
             const roomBoundH = Math.floor(_roomBoundMs / 3600000);
-            if (roomBoundH > ((_d = st.c["room_bound_h"]) !== null && _d !== void 0 ? _d : 0))
+            if (roomBoundH > ((_e = st.c["room_bound_h"]) !== null && _e !== void 0 ? _e : 0))
                 st.c["room_bound_h"] = roomBoundH;
             // Time spent in the EBC HQ support room (accumulates across visits).
             if (room.trim().toLowerCase() === HQ_ROOM) {
                 _hqMs += TICK_MS;
                 const hqH = Math.floor(_hqMs / 3600000);
-                if (hqH > ((_e = st.c["hq_h"]) !== null && _e !== void 0 ? _e : 0))
+                if (hqH > ((_f = st.c["hq_h"]) !== null && _f !== void 0 ? _f : 0))
                     st.c["hq_h"] = hqH;
             }
             checkUnlocks();
             save();
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
     }, TICK_MS);
 
     // Safeword system — two-word safety protocol.
@@ -25850,7 +25875,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         medal.className = "ebc-ach-medal";
                         medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
                         if (a.tiers.length > 1) {
-                            medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${a.desc.replace("{n}", String(t))}`).join("\n");
+                            medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${achievementDesc(a, t)}`).join("\n");
                         }
                         card.appendChild(medal);
                         const main = document.createElement("div");
@@ -38118,7 +38143,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 204; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 205; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38192,6 +38217,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
                 "Fix: empty pills (Poses, Expressions) no longer appear at all - the converter now drops any section that renders nothing, so a pill only exists when there is something behind it. The console line also marks which sections came back empty.",
                 "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
+                "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
                 "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
                 "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
                 "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
