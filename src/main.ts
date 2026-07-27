@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 181;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 182;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -88,6 +88,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
             "Achievements: category filter chips (All / Received / Given / Bondage / Emery) above the list - click one to show just that class; the choice is remembered.",
             "Achievements: unlocked cards have a Share button that posts the achievement to the room chat. Other EBC users (and you) see it as a big shiny animated plaque - metal-colored border and glow matching the tier, larger than normal chat messages like addon update notices. Non-EBC users see a plain '*shares an achievement: ...*' emote line instead.",
+            "Achievements: removed from the DEV tab - the 🏆 trophy button beside the reload button (panel header, crew only) is now the one home for the whole list.",
+            "Fix: Share said 'Join a room first' while standing in a room. Root cause: the share checked the announced-unlocks map, which lags behind the live counters until the next event or 5-minute tick - so a freshly loaded session considered even maxed achievements locked, and the button showed the wrong error label for every failure. Fix: the share derives the tier from the live counter exactly like the cards do, and the button now reports the real reason (Shared ✓ / Join a room first / Not unlocked yet).",
+            "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],

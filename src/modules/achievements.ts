@@ -48,6 +48,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "patgiver",  icon: "🖐", name: "Pat Dispenser",  desc: "Headpat others {n} times",  counter: "pet_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "huggiver",  icon: "💞", name: "Hug Dealer",     desc: "Give {n} hugs",             counter: "hug_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "kissgiver", icon: "😘", name: "Kiss Bandit",    desc: "Kiss others {n} times",     counter: "kiss_give",   tiers: [10, 50, 250], cls: "given" },
+    { id: "bughunter", icon: "🐛", name: "Bug Hunter",     desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "given" },
     { id: "spanker",   icon: "🍑", name: "Heavy Hand",     desc: "Spank others {n} times",    counter: "spank_give",  tiers: [10, 50, 250], cls: "given" },
     { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
     // ⛓ Bondage
@@ -219,21 +220,31 @@ export function achievementOnItemApply(
     } catch { /* ignore */ }
 }
 
+/** Called when the Feedback & Bugs form is submitted (bug or feature alike). */
+export function achievementOnFeedbackSent(): void {
+    try {
+        if (!isAchievementUser(Player?.MemberNumber)) return;
+        bump("feedback_sent");
+    } catch { /* ignore */ }
+}
+
 // ── Sharing ───────────────────────────────────────────────────────────────────
 // An unlocked achievement can be posted to the room chat. The message carries a
 // machine-readable Dictionary entry: EBC clients suppress the plain emote and
 // render a big shiny plaque instead; everyone else sees a normal emote line.
 
-/** Posts an unlocked achievement to the room chat. Returns false when not in a
- *  room or the achievement isn't unlocked. */
-export function shareAchievement(id: string): boolean {
+/** Posts an unlocked achievement to the room chat. */
+export function shareAchievement(id: string): "ok" | "noRoom" | "locked" | "error" {
     try {
         const a = ACHIEVEMENTS.find(x => x.id === id);
-        if (!a) return false;
+        if (!a) return "error";
         const st = getState();
-        const tier = Math.min(st.u[a.id] ?? 0, a.tiers.length);
-        if (tier <= 0) return false;
-        if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return false;
+        // Derive the tier from the live counter (exactly like the UI does) - the
+        // announced-unlocks map can lag until the next bump/tick runs checkUnlocks,
+        // which made sharing fail right after login even on maxed achievements.
+        const tier = tiersReached(a, st.c[a.counter] ?? 0);
+        if (tier <= 0) return "locked";
+        if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return "noRoom";
         const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
         const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
         ServerSend("ChatRoomChat", {
@@ -241,8 +252,8 @@ export function shareAchievement(id: string): boolean {
             Type: "Emote",
             Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
         } as never);
-        return true;
-    } catch { return false; }
+        return "ok";
+    } catch { return "error"; }
 }
 
 /** Detects an incoming achievement share. Renders the plaque and returns true

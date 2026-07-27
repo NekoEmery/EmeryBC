@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement } from "./achievements";
+import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, achievementOnFeedbackSent } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -16641,13 +16641,12 @@ export class EBCDrawer {
                         shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
                         shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
                         shareBtn.addEventListener("click", () => {
-                            if (shareAchievement(a.id)) {
-                                shareBtn.textContent = "Shared ✓";
-                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
-                            } else {
-                                shareBtn.textContent = "Join a room first";
-                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
-                            }
+                            const res = shareAchievement(a.id);
+                            shareBtn.textContent =
+                                res === "ok"     ? "Shared ✓" :
+                                res === "noRoom" ? "Join a room first" :
+                                res === "locked" ? "Not unlocked yet" : "Failed";
+                            window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1600);
                         });
                         card.appendChild(shareBtn);
                     }
@@ -16725,16 +16724,6 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Achievements (credits crew only) ─────────────────────────────────
-        if (isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber)) {
-            const achLbl = document.createElement("div");
-            achLbl.className = "ebc-section-label";
-            achLbl.textContent = "ACHIEVEMENTS";
-            body.appendChild(achLbl);
-            const cards = this.buildAchievementCards();
-            cards.style.marginBottom = "14px";
-            body.appendChild(cards);
-        }
 
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).
         // No longer shown in DEV tab.
@@ -25217,6 +25206,7 @@ export class EBCDrawer {
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
                 .then(() => { close(); this._showToyToast(t("feedback.toast")); })
                 .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+            try { achievementOnFeedbackSent(); } catch { /* ignore */ }
         });
 
         document.body.appendChild(overlay);
