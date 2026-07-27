@@ -205,10 +205,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }
     /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
+    // Hard ceiling for EBC's ExtensionSettings blob. BC accounts share a ~180 KB
+    // budget across ALL addons - pushing an oversized account update gets the
+    // connection dropped by the server, and since the data is re-flushed after every
+    // relog the client ends up in an infinite reconnect loop. Never let that happen.
+    const SETTINGS_FLUSH_CAP = 150000;
     function flushToExtensionSettings() {
         try {
             if (!Player.ExtensionSettings)
-                return;
+                return false;
+            try {
+                const size = JSON.stringify(_mem).length;
+                if (size > SETTINGS_FLUSH_CAP) {
+                    console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap). ` +
+                        "Delete some saved outfits to shrink it. Keeping the previous server copy to avoid a disconnect loop.");
+                    return false;
+                }
+            }
+            catch ( /* size check best-effort */_a) { /* size check best-effort */ }
             if (!Player.ExtensionSettings.EmeryBC ||
                 typeof Player.ExtensionSettings.EmeryBC !== "object") {
                 Player.ExtensionSettings.EmeryBC = {};
@@ -243,8 +257,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     target[k] = v;
                 }
             }
+            return true;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch (_b) {
+            return false;
+        }
     }
     // ---------------------------------------------------------------------------
     /**
@@ -282,11 +299,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             clearTimeout(_syncTimer);
         _syncTimer = setTimeout(() => {
             _syncTimer = null;
-            flushToExtensionSettings();
-            try {
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+            // Only push to the server when the flush actually wrote - an oversized
+            // blob is kept in-memory only (see SETTINGS_FLUSH_CAP above).
+            if (flushToExtensionSettings()) {
+                try {
+                    ServerPlayerExtensionSettingsSync("EmeryBC");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
         }, 400);
     }
     // Debounced appearance broadcast — collapses rapid expression chip clicks into
@@ -843,11 +863,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         getSettings().defaultTitle = title;
         syncSettings();
     }
+    // Budget for the serialized outfit list inside EBC's settings. A full set of
+    // crafted restraints with long descriptions can hit several KB per outfit -
+    // unbounded growth eventually blows BC's ~180 KB account cap and the server
+    // starts dropping the connection on every sync (infinite relog loop).
+    const OUTFITS_BUDGET = 60000;
+    /** Persists the outfit list. Returns false (and keeps the previous list) when
+     *  the serialized outfits would exceed the storage budget. */
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
+        try {
+            const size = JSON.stringify(sanitized).length;
+            if (size > OUTFITS_BUDGET) {
+                localNotice$2(`Outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                    "Not saved - delete some outfits first. Outfits with many crafted items are the biggest.", "#ff8a8a");
+                return false;
+            }
+        }
+        catch ( /* size check best-effort */_a) { /* size check best-effort */ }
         cachedOutfits = sanitized;
         getSettings().outfits = sanitized;
         syncSettings();
+        return true;
     }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
         if (value == null)
@@ -1379,7 +1416,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
         const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
-        saveOutfits([...existing, outfit]);
+        if (!saveOutfits([...existing, outfit]))
+            throw new Error("Outfit storage is full - delete some outfits first.");
         localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
@@ -1740,7 +1778,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             expressionPresetId: null,
             items,
         });
-        saveOutfits([...existing, outfit]);
+        if (!saveOutfits([...existing, outfit]))
+            throw new Error("Outfit storage is full - delete some outfits first.");
         localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
         return outfit;
     }
@@ -4938,16 +4977,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     // Locks that must never be touched regardless of the operation.
-    // ExclusivePadlock is included: it is the base lock used by DOGS (Devious Obligate
-    // Great Stuff) and also semantically should not be bulk-removed — the person who
-    // applied it intended it to be exclusive to them.
+    // ExclusivePadlock is only protected while DOGS (Devious Obligate Great Stuff)
+    // is loaded - DOGS uses it as its base lock and re-applies it via server hooks.
+    // Without DOGS an exclusive padlock is an ordinary lock and stays removable,
+    // otherwise exclusive-locked items silently vanish from the removal picker.
     function isProtectedLock(item) {
         var _a, _b;
         const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
         if (!lock)
             return false;
         return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
-            || lock.includes("exclusive");
+            || (lock.includes("exclusive") && isDogsActive());
     }
     // Returns true if this item's slot is in the user's outfit whitelist.
     function isWhitelisted(item) {
@@ -36551,7 +36591,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 171; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 172; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36589,6 +36629,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
                 "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
                 "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
+                "Fix: importing/saving outfits with many crafted restraints could trap the account in an infinite relog loop. Root cause: each crafted item carries its full Craft + Property data, so a full crafted set pushed EBC's settings blob past BC's ~180 KB account budget - the server dropped the connection on every sync, and the data re-flushed after each reconnect. Fix: two guards - the outfit list refuses to save past a 60 KB budget (clear in-chat error instead of a false success), and the settings flush skips the server push entirely if EBC's whole blob ever exceeds 150 KB (console error, previous server copy kept). Escaping an existing loop: the oversized data now simply stops syncing, so the account recovers on next login and the offending outfit can be deleted.",
+                "Fix: restraints locked with an Exclusive Padlock were invisible to the removal picker and skipped by Release Restraints / Remove Locks. Root cause: exclusive locks were unconditionally on the protected-locks list (they are DOGS's base lock). Fix: exclusive locks are only protected while the DOGS addon is actually loaded - without DOGS they list and remove like any other lock. Owner/Lover/Family locks stay protected.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
