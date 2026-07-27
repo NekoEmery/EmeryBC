@@ -8,6 +8,7 @@
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design!
  */
+import { sendEmoteViaBC } from "./bcSpeech";
 import {
     getOutfits,
     applyOutfit,
@@ -11474,7 +11475,7 @@ This cannot be undone.`,
                         applyPoses([...bodyPoses, preset.key]);
                     }
                     if (preset.announceText) {
-                        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] }); } catch { /* ignore */ }
+                        try { sendEmoteViaBC(preset.announceText); } catch { /* ignore */ }
                     }
                     this.rerender(150);
                 });
@@ -21782,7 +21783,7 @@ This cannot be undone.`,
 
         const sendRoomEmote = (text: string): void => {
             if (!text) return;
-            try { ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] }); } catch { /* ignore */ }
+            try { sendEmoteViaBC(text); } catch { /* ignore */ }
         };
 
 

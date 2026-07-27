@@ -36,6 +36,67 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 (function () {
     'use strict';
 
+    // Routes outgoing speech through BC's own send functions instead of the raw
+    // socket.
+    //
+    // Rule addons (BCX above all) enforce restrictions by hooking the named BC
+    // globals - ServerSendBeepMessage for beeps, ChatRoomSendEmote for emotes,
+    // ChatRoomSendWhisper for whispers. Anything that calls ServerSend() itself
+    // skips that hook chain entirely, so a person who had deliberately turned on a
+    // "no beeping" rule could still beep from EBC's own windows. That is a consent
+    // bypass, not a convenience bug: the rule was opted into and EBC was quietly
+    // stepping around it.
+    //
+    // Every helper here falls back to the direct send when the BC global is
+    // missing, so a BC version that renames or drops one of them degrades to the
+    // old behaviour rather than going silent.
+    //
+    // EBC protocol traffic ("[EBC-..." payloads: toy sync, group routing) is
+    // deliberately NOT routed through here. It is addon-to-addon sync, not the
+    // person speaking, and putting it through the speech pipeline would both
+    // mangle it and make unrelated rules break EBC's internals.
+    /**
+     * Sends a beep, honouring any rule addon hooked onto ServerSendBeepMessage.
+     *
+     * Returns false when a hook swallowed the beep, so callers can skip recording
+     * it as sent. BC's function returns void, so the block is detected by watching
+     * FriendListBeepLog: the real implementation always appends an entry as its
+     * last step, so an unchanged log means the call never reached it.
+     *
+     * @param includeRoom - attaches the current room, giving the recipient a join
+     *   button. Maps to BC's IsSecret:false.
+     */
+    function sendBeepViaBC(target, message, includeRoom) {
+        const w = window;
+        const viaBC = w.ServerSendBeepMessage;
+        if (typeof viaBC !== "function") {
+            ServerSend("AccountBeep", { MemberNumber: target, Message: message, BeepType: "", IsSecret: !includeRoom });
+            return true;
+        }
+        const log = w.FriendListBeepLog;
+        const before = Array.isArray(log) ? log.length : -1;
+        viaBC(target, message, { includeRoom });
+        if (before < 0)
+            return true; // no log to compare against
+        return log.length > before;
+    }
+    /**
+     * Sends a room emote through BC's own pipeline.
+     *
+     * @param content - emote text WITHOUT the leading asterisk. BC's
+     *   ChatRoomSendEmote expects the asterisk (it strips it while parsing the
+     *   `*50%` chance syntax), so it is added back here.
+     */
+    function sendEmoteViaBC(content) {
+        const w = window;
+        const viaBC = w.ChatRoomSendEmote;
+        if (typeof viaBC === "function") {
+            viaBC("*" + content);
+            return;
+        }
+        ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
+    }
+
     const UI = {
         backdrop: "#12070d",
         panel: "#1b0d17",
@@ -4397,7 +4458,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const intro = introEmote.trim().replace(/^\*/, "").trim();
         if (intro) {
             try {
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: intro, Dictionary: [] });
+                sendEmoteViaBC(intro);
             }
             catch ( /* ignore */_a) { /* ignore */ }
             slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
@@ -4621,7 +4682,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         if (style === "emote") {
             // BC natively formats Emote as:  * Name text *
-            ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+            sendEmoteViaBC(text);
             return;
         }
         // Action style: (Name text) or (text) when name is excluded
@@ -6119,7 +6180,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     redeliverySlot++;
                     window.setTimeout(() => {
                         try {
-                            ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                            // Same routing as sendBeep - a rule active at delivery
+                            // time must still apply to a message queued earlier.
+                            sendBeepViaBC(num, msg, false);
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                     }, delay);
@@ -6536,28 +6599,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
         var _a;
-        // Queue the message for re-delivery if the recipient is currently offline.
-        // BC drops beeps to offline players, so we resend when they come online.
-        // Don't queue or record EBC protocol messages - they are silent channel commands
-        // and must never appear in the IM conversation window
+        // Protocol messages are silent channel commands and must never appear in
+        // the IM conversation window or the offline re-delivery queue.
         const isProtocol = message.startsWith("[EBC-");
-        if (!isProtocol)
-            markPendingMessage(memberNumber, message);
-        try {
-            // IsSecret: false tells the BC server to include the sender's current room
-            // in the beep it delivers to the recipient, so they see "in room X" with a
-            // join button.  The server derives the room name itself — sending ChatRoomName
-            // from the client has no effect; only IsSecret matters.
-            ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+        // Protocol payloads are addon sync, not speech - they stay on the direct
+        // socket so rules never mangle EBC's internals. Everything the person
+        // actually typed goes through BC's function, where rule addons can see it.
+        if (isProtocol) {
+            try {
+                ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return;
         }
-        catch ( /* ignore */_b) { /* ignore */ }
-        if (!isProtocol)
-            addBeepEntry({
-                from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
-                to: memberNumber,
-                message,
-                ts: Date.now(),
-            });
+        let delivered = true;
+        try {
+            delivered = sendBeepViaBC(memberNumber, message, true);
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
+        // A rule blocked it - don't queue it, don't file it in history as sent.
+        // The rule addon shows its own explanation, so EBC stays quiet here.
+        if (!delivered)
+            return;
+        markPendingMessage(memberNumber, message);
+        addBeepEntry({
+            from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
+            to: memberNumber,
+            message,
+            ts: Date.now(),
+        });
     }
     // In-session group message history (not persisted — groups definitions are)
     const _groupHistory = new Map();
@@ -20477,7 +20547,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         }
                         if (preset.announceText) {
                             try {
-                                ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] });
+                                sendEmoteViaBC(preset.announceText);
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
                         }
@@ -30706,7 +30776,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 if (!text)
                     return;
                 try {
-                    ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+                    sendEmoteViaBC(text);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             };
@@ -38989,7 +39059,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 212; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 213; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39006,6 +39076,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
                 "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
                 "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
                 "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
@@ -45125,7 +45196,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 else {
                     // Fallback: direct send (same as sendRoomEmote)
-                    ServerSend("ChatRoomChat", { Type: "Emote", Content: emoteText.slice(1), Dictionary: [] });
+                    sendEmoteViaBC(emoteText.slice(1));
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -45151,7 +45222,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         : (hasItem
                             ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
                             : "squirms right up until the very end and goes still with a sulky exhale~");
-                    ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+                    sendEmoteViaBC(emote);
                 }
             }
             catch ( /* ignore */_j) { /* ignore */ }
@@ -45271,7 +45342,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         acceptBtn.textContent = "Accept~ 🥰";
         acceptBtn.addEventListener("click", () => {
             try {
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] });
+                sendEmoteViaBC("brightens up happily, tail wagging~ 💜");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             close();
@@ -45281,7 +45352,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         ignoreBtn.textContent = "Ignore 🙈";
         ignoreBtn.addEventListener("click", () => {
             try {
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] });
+                sendEmoteViaBC("glances away shyly, pretending not to notice~");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             close();
@@ -45431,7 +45502,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
                     if (arg) {
                         try {
-                            ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                            sendEmoteViaBC(arg);
                         }
                         catch ( /* ignore */_g) { /* ignore */ }
                     }
@@ -47288,14 +47359,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         && Date.now() - ((_c = afkBeepCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0) > AFK_REPLY_COOLDOWN_MS) {
                         afkBeepCooldown.set(fromNum, Date.now());
                         const replyMsg = `[AFK] ${getAfkMessage()}`;
-                        ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
-                        addBeepEntry({ from: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, to: fromNum, message: replyMsg, ts: Date.now() });
-                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
-                        appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
-                        try {
-                            drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                        // An auto-reply is still this player sending a beep, so it
+                        // goes through BC's function and a rule can refuse it.
+                        if (sendBeepViaBC(fromNum, replyMsg, false)) {
+                            addBeepEntry({ from: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                            const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
+                            appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
+                            try {
+                                drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                            }
+                            catch ( /* ignore */_f) { /* ignore */ }
                         }
-                        catch ( /* ignore */_f) { /* ignore */ }
                     }
                 }
                 catch ( /* ignore */_g) { /* ignore */ }

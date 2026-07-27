@@ -3,6 +3,7 @@
 // so it's available across devices on next login.
 
 import { getSettings, syncSettings } from "./bcUtils";
+import { sendBeepViaBC } from "./bcSpeech";
 
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
@@ -395,7 +396,9 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
                 redeliverySlot++;
                 window.setTimeout(() => {
                     try {
-                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                        // Same routing as sendBeep - a rule active at delivery
+                        // time must still apply to a message queued earlier.
+                        sendBeepViaBC(num, msg, false);
                     } catch { /* ignore */ }
                 }, delay);
             }
@@ -836,20 +839,30 @@ export function hasSessionBundle(memberNumber: number): boolean {
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {
-    // Queue the message for re-delivery if the recipient is currently offline.
-    // BC drops beeps to offline players, so we resend when they come online.
-    // Don't queue or record EBC protocol messages - they are silent channel commands
-    // and must never appear in the IM conversation window
+    // Protocol messages are silent channel commands and must never appear in
+    // the IM conversation window or the offline re-delivery queue.
     const isProtocol = message.startsWith("[EBC-");
-    if (!isProtocol) markPendingMessage(memberNumber, message);
+
+    // Protocol payloads are addon sync, not speech - they stay on the direct
+    // socket so rules never mangle EBC's internals. Everything the person
+    // actually typed goes through BC's function, where rule addons can see it.
+    if (isProtocol) {
+        try {
+            ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+        } catch { /* ignore */ }
+        return;
+    }
+
+    let delivered = true;
     try {
-        // IsSecret: false tells the BC server to include the sender's current room
-        // in the beep it delivers to the recipient, so they see "in room X" with a
-        // join button.  The server derives the room name itself — sending ChatRoomName
-        // from the client has no effect; only IsSecret matters.
-        ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+        delivered = sendBeepViaBC(memberNumber, message, true);
     } catch { /* ignore */ }
-    if (!isProtocol) addBeepEntry({
+
+    // A rule blocked it - don't queue it, don't file it in history as sent.
+    // The rule addon shows its own explanation, so EBC stays quiet here.
+    if (!delivered) return;
+    markPendingMessage(memberNumber, message);
+    addBeepEntry({
         from: Player.MemberNumber ?? 0,
         to: memberNumber,
         message,

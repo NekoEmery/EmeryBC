@@ -2,6 +2,7 @@
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
+import { sendBeepViaBC, sendEmoteViaBC } from "./modules/bcSpeech";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
@@ -27,7 +28,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 212;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 213;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +48,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
             "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
             "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
             "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
@@ -6177,7 +6179,7 @@ function showKittyResistancePopup(
                 setTimeout(() => { if (elemVal) elemVal("InputChat", saved); }, 0);
             } else {
                 // Fallback: direct send (same as sendRoomEmote)
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emoteText.slice(1), Dictionary: [] });
+                sendEmoteViaBC(emoteText.slice(1));
             }
         } catch { /* ignore */ }
         close();
@@ -6201,7 +6203,7 @@ function showKittyResistancePopup(
                     : (hasItem
                         ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
                         : "squirms right up until the very end and goes still with a sulky exhale~");
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+                sendEmoteViaBC(emote);
             }
         } catch { /* ignore */ }
         // Apply restraint items to self (with full craft/property/difficulty support)
@@ -6322,7 +6324,7 @@ function showKittyReactPopup(label: string): void {
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🥰";
     acceptBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
+        try { sendEmoteViaBC("brightens up happily, tail wagging~ 💜"); } catch { /* ignore */ }
         close();
     });
 
@@ -6330,7 +6332,7 @@ function showKittyReactPopup(label: string): void {
     ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
     ignoreBtn.textContent = "Ignore 🙈";
     ignoreBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
+        try { sendEmoteViaBC("glances away shyly, pretending not to notice~"); } catch { /* ignore */ }
         close();
     });
 
@@ -6472,7 +6474,7 @@ function handleKittyCommand(msg: string): void {
                 // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
                 if (arg) {
                     try {
-                        ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                        sendEmoteViaBC(arg);
                     } catch { /* ignore */ }
                 }
                 break;
@@ -8159,11 +8161,14 @@ function init(): void {
                     && Date.now() - (afkBeepCooldown.get(fromNum) ?? 0) > AFK_REPLY_COOLDOWN_MS) {
                     afkBeepCooldown.set(fromNum, Date.now());
                     const replyMsg = `[AFK] ${getAfkMessage()}`;
-                    ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
-                    addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
-                    const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
-                    appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
-                    try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+                    // An auto-reply is still this player sending a beep, so it
+                    // goes through BC's function and a rule can refuse it.
+                    if (sendBeepViaBC(fromNum, replyMsg, false)) {
+                        addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
+                        appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
+                        try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+                    }
                 }
             } catch { /* ignore */ }
 
