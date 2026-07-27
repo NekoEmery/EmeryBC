@@ -13699,6 +13699,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._langUnsubscribe = null;
             this._langPillsRefresh = null;
             this._i18nRefs = {};
+            /**
+             * Re-render the current tab in-place while preserving the panel's scroll
+             * position.  All within-tab actions (save, delete, reorder, etc.) should
+             * call this instead of renderCurrentTab() directly so the user doesn't
+             * get snapped back to the top of the list after every interaction.
+             *
+             * Tab *switches* intentionally bypass this and call renderCurrentTab()
+             * directly so the new tab always starts at the top.
+             */
+            this._rerenderTimer = null;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -16444,28 +16454,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 el.style.transformOrigin = scale === 1 ? "" : "top left";
             }
         }
-        /**
-         * Re-render the current tab in-place while preserving the panel's scroll
-         * position.  All within-tab actions (save, delete, reorder, etc.) should
-         * call this instead of renderCurrentTab() directly so the user doesn't
-         * get snapped back to the top of the list after every interaction.
-         *
-         * Tab *switches* intentionally bypass this and call renderCurrentTab()
-         * directly so the new tab always starts at the top.
-         */
         rerender(delay = 0) {
             var _a, _b;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             const scroll = (_b = body === null || body === void 0 ? void 0 : body.scrollTop) !== null && _b !== void 0 ? _b : 0;
             const doRender = () => {
+                this._rerenderTimer = null;
                 this.renderCurrentTab();
                 if (body)
                     body.scrollTop = scroll;
             };
+            // Only ever one render pending. These used to be bare setTimeouts, so
+            // clicking several buttons in a row queued a full tab rebuild for each
+            // one and they all landed a moment later - the panel visibly stuttered
+            // and anything the user touched in between got torn down and rebuilt.
+            if (this._rerenderTimer !== null) {
+                window.clearTimeout(this._rerenderTimer);
+                this._rerenderTimer = null;
+            }
             if (delay > 0)
-                window.setTimeout(doRender, delay);
+                this._rerenderTimer = window.setTimeout(doRender, delay);
             else
                 doRender();
+        }
+        /** Drop a queued rerender - used when the user navigates, so their click
+         *  isn't undone by a rebuild that was scheduled before it. */
+        cancelPendingRerender() {
+            if (this._rerenderTimer !== null) {
+                window.clearTimeout(this._rerenderTimer);
+                this._rerenderTimer = null;
+            }
         }
         /** Update every static element that was built once in setup() and never re-rendered. */
         updateStaticTranslations() {
@@ -20606,6 +20624,30 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             };
             // ── Poses (collapsible) ───────────────────────────────────────────────
             const posesCnt = makeCollapse(t("anims.poses"), "EBC_posesCollapsed", false);
+            // Pose buttons repaint themselves rather than rerendering the tab. A full
+            // rebuild fired ~150ms after each click and tore down the pill nav with
+            // it, so a pill pressed in that window lagged behind its own highlight.
+            const poseBtnRefs = [];
+            const poseTitle = (key, grp, blocked) => blocked ? "Your restraints stop you from taking this pose"
+                : key ? `Set ${grp.toLowerCase()} pose: ${key}`
+                    : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
+            const refreshPoseBtns = () => {
+                var _a, _b;
+                const live = getCurrentPoses();
+                const armKeys2 = (_b = (_a = KNOWN_POSES.find(g => g.group === "Arms")) === null || _a === void 0 ? void 0 : _a.poses.map(p => p.key).filter(Boolean)) !== null && _b !== void 0 ? _b : [];
+                for (const ref of poseBtnRefs) {
+                    const on = ref.key === "" && ref.group === "Arms"
+                        ? !live.some(p => armKeys2.includes(p))
+                        : ref.key === ""
+                            ? live.length === 0
+                            : live.includes(ref.key);
+                    const blocked = !canTakePose(ref.key);
+                    ref.btn.className = "ebc-pose-btn" + (on ? " active" : "");
+                    ref.btn.style.opacity = blocked ? "0.4" : "";
+                    ref.btn.style.cursor = blocked ? "not-allowed" : "";
+                    ref.btn.title = poseTitle(ref.key, ref.group, blocked);
+                }
+            };
             for (const group of KNOWN_POSES) {
                 const lbl = document.createElement("div");
                 lbl.className = "ebc-section-label";
@@ -20630,11 +20672,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         btn.style.opacity = "0.4";
                         btn.style.cursor = "not-allowed";
                     }
-                    btn.title = poseBlocked
-                        ? "Your restraints stop you from taking this pose"
-                        : preset.key
-                            ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                            : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
+                    btn.title = poseTitle(preset.key, group.group, poseBlocked);
+                    poseBtnRefs.push({ btn, key: preset.key, group: group.group });
                     btn.addEventListener("click", () => {
                         // Re-check live - restraints may have changed since render.
                         // Without this EBC forced the pose mapping and emoted the
@@ -20675,7 +20714,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
                         }
-                        this.rerender(150);
+                        // Repaint the grid only. The second pass catches BC settling
+                        // the pose (CharacterRefresh) a moment after we set it.
+                        refreshPoseBtns();
+                        window.setTimeout(refreshPoseBtns, 150);
                     });
                     grid.appendChild(btn);
                 }
@@ -26720,6 +26762,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
                 pill.title = g.label;
                 pill.addEventListener("click", () => {
+                    // A rebuild queued by an earlier click (a pose button, say) would
+                    // land moments later and tear this nav down again, so the section
+                    // appeared to lag behind the highlight. Drop it - we are painting
+                    // the up-to-date state right now.
+                    this.cancelPendingRerender();
                     active = g.label;
                     try {
                         localStorage.setItem(lsKey, active);
@@ -39194,7 +39241,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 214; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 215; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39211,6 +39258,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
                 "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
                 "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
                 "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
