@@ -219,6 +219,108 @@ export function achievementOnItemApply(
     } catch { /* ignore */ }
 }
 
+// ── Sharing ───────────────────────────────────────────────────────────────────
+// An unlocked achievement can be posted to the room chat. The message carries a
+// machine-readable Dictionary entry: EBC clients suppress the plain emote and
+// render a big shiny plaque instead; everyone else sees a normal emote line.
+
+/** Posts an unlocked achievement to the room chat. Returns false when not in a
+ *  room or the achievement isn't unlocked. */
+export function shareAchievement(id: string): boolean {
+    try {
+        const a = ACHIEVEMENTS.find(x => x.id === id);
+        if (!a) return false;
+        const st = getState();
+        const tier = Math.min(st.u[a.id] ?? 0, a.tiers.length);
+        if (tier <= 0) return false;
+        if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return false;
+        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
+        const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+        ServerSend("ChatRoomChat", {
+            Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
+            Type: "Emote",
+            Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
+        } as never);
+        return true;
+    } catch { return false; }
+}
+
+/** Detects an incoming achievement share. Renders the plaque and returns true
+ *  so the caller suppresses the plain emote. Works for EVERY EBC user. */
+export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
+    try {
+        if (!data || (data.Type !== "Emote" && data.Type !== "Chat")) return false;
+        const dict = Array.isArray(data.Dictionary) ? data.Dictionary as Array<Record<string, unknown>> : [];
+        const entry = dict.find(d => d?.Tag === "EBCACH");
+        if (!entry) return false;
+        const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
+        if (!a) return false;
+        const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
+        const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+        let senderName = `#${senderNum}`;
+        try {
+            const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+            const c = room?.find(x => x.MemberNumber === senderNum);
+            if (c) senderName = (c.Nickname ?? "").trim() || c.Name || senderName;
+        } catch { /* ignore */ }
+        return renderSharedPlaque(senderName, a, tier);
+    } catch { return false; }
+}
+
+function ensureShineStyle(): void {
+    if (document.getElementById("ebc-ach-shine-style")) return;
+    const st = document.createElement("style");
+    st.id = "ebc-ach-shine-style";
+    st.textContent = "@keyframes ebcAchShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }";
+    document.head.appendChild(st);
+}
+
+/** Big shiny plaque in the chat log - deliberately larger than normal messages,
+ *  like addon update notices, but in EBC's dark + metal style. */
+function renderSharedPlaque(senderName: string, a: AchievementDef, tier: number): boolean {
+    try {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        ensureShineStyle();
+        const maxed = tier >= a.tiers.length;
+        const metal = a.rare || maxed ? "#ffd700" : tier === 2 ? "#c8d0dc" : "#cd7f32";
+        const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
+        const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
+
+        const plaque = document.createElement("div");
+        plaque.style.cssText = [
+            "margin:8px 4px",
+            "padding:14px 16px",
+            "border-radius:10px",
+            `border:2px solid ${metal}`,
+            `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
+            "background-size:200% 100%",
+            "animation:ebcAchShine 3.4s linear infinite",
+            `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
+            "font-family:'Trebuchet MS',serif",
+            "text-align:center",
+        ].join(";");
+
+        const head = document.createElement("div");
+        head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
+        head.textContent = `🏆 Achievement · shared by ${senderName}`;
+        const nameEl = document.createElement("div");
+        nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
+        nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");
+        const descEl = document.createElement("div");
+        descEl.style.cssText = "font-size:12px;color:#d8c4d8;margin-top:3px;";
+        descEl.textContent = desc;
+
+        plaque.appendChild(head);
+        plaque.appendChild(nameEl);
+        plaque.appendChild(descEl);
+        log.appendChild(plaque);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    } catch { return false; }
+}
+
 /** Progress rows for the DEV-tab UI. */
 export interface AchievementProgress extends AchievementDef {
     value: number;        // raw counter

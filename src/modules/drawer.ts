@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES } from "./achievements";
+import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -16541,10 +16541,20 @@ export class EBCDrawer {
 
     // -- Developer Tools tab ---------------------------------------------------
 
-    /** Class-grouped achievement cards - tier plates, progress bars, no icons. */
+    /** Class-grouped achievement cards - category filter chips, tier plates,
+     *  progress bars, no icons. */
     private buildAchievementCards(): HTMLElement {
-        const wrap = document.createElement("div");
-        wrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+        const outer = document.createElement("div");
+        outer.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+        let filter = "all";
+        try { filter = localStorage.getItem("EBC_achFilter") ?? "all"; } catch { /* ignore */ }
+
+        const chipRow = document.createElement("div");
+        chipRow.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;";
+        const listWrap = document.createElement("div");
+        listWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+
         // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
         const PLATE = [
             "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.85;",
@@ -16554,74 +16564,131 @@ export class EBCDrawer {
         ];
         const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
         const METAL    = ["#cd7f32", "#c8d0dc", "#ffd700"];
-        const progress = getAchievementProgress();
-        for (const clsDef of ACHIEVEMENT_CLASSES) {
-            const clsItems = progress.filter(x => x.cls === clsDef.id);
-            if (clsItems.length === 0) continue;
 
-            const clsHead = document.createElement("div");
-            clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
-            const clsLbl = document.createElement("span");
-            clsLbl.textContent = clsDef.label;
-            const clsCnt = document.createElement("span");
-            clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
-            clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
-            clsHead.appendChild(clsLbl);
-            clsHead.appendChild(clsCnt);
-            wrap.appendChild(clsHead);
+        const buildList = (): void => {
+            while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
+            const progress = getAchievementProgress();
+            for (const clsDef of ACHIEVEMENT_CLASSES) {
+                if (filter !== "all" && clsDef.id !== filter) continue;
+                const clsItems = progress.filter(x => x.cls === clsDef.id);
+                if (clsItems.length === 0) continue;
 
-            for (const a of clsItems) {
-                const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
-                const card = document.createElement("div");
-                card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
+                const clsHead = document.createElement("div");
+                clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
+                const clsLbl = document.createElement("span");
+                clsLbl.textContent = clsDef.label;
+                const clsCnt = document.createElement("span");
+                clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
+                clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
+                clsHead.appendChild(clsLbl);
+                clsHead.appendChild(clsCnt);
+                listWrap.appendChild(clsHead);
 
-                const topRow = document.createElement("div");
-                topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
-                const nm = document.createElement("span");
-                nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
-                nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
-                topRow.appendChild(nm);
-                if (a.tiers.length > 1) {
-                    const pips = document.createElement("span");
-                    pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
-                    for (let ti = 0; ti < a.tiers.length; ti++) {
-                        const pip = document.createElement("span");
-                        const litCol = METAL[Math.min(ti, 2)];
-                        pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
-                            (ti < a.tier
-                                ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
-                                : "background:transparent;border:1px solid #4a3040;");
-                        pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
-                        pips.appendChild(pip);
+                for (const a of clsItems) {
+                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
+                    const card = document.createElement("div");
+                    card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
+
+                    const topRow = document.createElement("div");
+                    topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                    nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
+                    topRow.appendChild(nm);
+                    if (a.tiers.length > 1) {
+                        const pips = document.createElement("span");
+                        pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
+                        for (let ti = 0; ti < a.tiers.length; ti++) {
+                            const pip = document.createElement("span");
+                            const litCol = METAL[Math.min(ti, 2)];
+                            pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
+                                (ti < a.tier
+                                    ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
+                                    : "background:transparent;border:1px solid #4a3040;");
+                            pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
+                            pips.appendChild(pip);
+                        }
+                        topRow.appendChild(pips);
                     }
-                    topRow.appendChild(pips);
+                    const pr = document.createElement("span");
+                    pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                    topRow.appendChild(pr);
+                    card.appendChild(topRow);
+
+                    const ds = document.createElement("div");
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                    ds.textContent = a.descNow;
+                    card.appendChild(ds);
+
+                    // Progress bar toward the next tier - gold and full when maxed
+                    const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
+                    const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
+                    const trough = document.createElement("div");
+                    trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
+                    const fill = document.createElement("div");
+                    fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
+                        (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
+                    trough.appendChild(fill);
+                    card.appendChild(trough);
+
+                    // Share an unlocked achievement to the room chat as a shiny plaque
+                    if (a.tier > 0) {
+                        const shareBtn = document.createElement("button");
+                        shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
+                        shareBtn.textContent = "Share";
+                        shareBtn.title = "Show this achievement in the room chat as a shiny plaque";
+                        shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
+                        shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
+                        shareBtn.addEventListener("click", () => {
+                            if (shareAchievement(a.id)) {
+                                shareBtn.textContent = "Shared ✓";
+                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
+                            } else {
+                                shareBtn.textContent = "Join a room first";
+                                window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
+                            }
+                        });
+                        card.appendChild(shareBtn);
+                    }
+
+                    listWrap.appendChild(card);
                 }
-                const pr = document.createElement("span");
-                pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
-                pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
-                topRow.appendChild(pr);
-                card.appendChild(topRow);
-
-                const ds = document.createElement("div");
-                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
-                ds.textContent = a.descNow;
-                card.appendChild(ds);
-
-                // Progress bar toward the next tier - gold and full when maxed
-                const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
-                const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
-                const trough = document.createElement("div");
-                trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
-                const fill = document.createElement("div");
-                fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
-                    (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
-                trough.appendChild(fill);
-                card.appendChild(trough);
-
-                wrap.appendChild(card);
             }
+        };
+
+        const CHOICES: Array<{ id: string; label: string }> = [
+            { id: "all", label: "All" },
+            ...ACHIEVEMENT_CLASSES.map(c => ({ id: c.id, label: c.label })),
+        ];
+        const chips: HTMLButtonElement[] = [];
+        const paintChips = (): void => {
+            for (let ci = 0; ci < chips.length; ci++) {
+                const on = CHOICES[ci].id === filter;
+                chips[ci].style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 10px;border-radius:10px;cursor:pointer;transition:all 0.12s;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+            }
+        };
+        for (const c of CHOICES) {
+            const chip = document.createElement("button");
+            chip.textContent = c.label;
+            chip.addEventListener("click", () => {
+                filter = c.id;
+                try { localStorage.setItem("EBC_achFilter", filter); } catch { /* ignore */ }
+                paintChips();
+                buildList();
+            });
+            chips.push(chip);
+            chipRow.appendChild(chip);
         }
-        return wrap;
+        paintChips();
+        buildList();
+
+        outer.appendChild(chipRow);
+        outer.appendChild(listWrap);
+        return outer;
     }
 
     /** Fun popup version of the achievement list, opened from the 🏆 header button. */

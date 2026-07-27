@@ -23,11 +23,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
-import { isAchievementUser, achievementOnActivity, achievementOnItemApply } from "./modules/achievements";
+import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 180;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 181;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -86,6 +86,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
             "Achievements: organized into CLASSES - Received (things done to you), Given (things you do), Bondage, and Emery - each with its own header and unlocked count. New Given achievements: Kiss Bandit (kiss others 10/50/250), Heavy Hand (spank others 10/50/250), Tickle Monster (tickle others 10/50/250). New Bondage: Rigger (put restraints on others 10/50/250). New Emery rares: Boop the Dev (boop Emery 10x), Dev Cuddler (hug Emery 10x), Brave Soul (spank Emery 5x).",
             "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
+            "Achievements: category filter chips (All / Received / Given / Bondage / Emery) above the list - click one to show just that class; the choice is remembered.",
+            "Achievements: unlocked cards have a Share button that posts the achievement to the room chat. Other EBC users (and you) see it as a big shiny animated plaque - metal-colored border and glow matching the tier, larger than normal chat messages like addon update notices. Non-EBC users see a plain '*shares an achievement: ...*' emote line instead.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -8414,7 +8416,12 @@ function init(): void {
 
     // Achievements feed (credits crew only): watch activities done to/by the
     // player and item applies. Independent of the XToys gates above.
+    // Shared achievement plaques render for EVERY EBC user - and suppress the
+    // plain emote fallback that non-EBC clients see.
     modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+        try {
+            if (handleAchievementShareMessage(args[0] as Record<string, unknown>)) return;
+        } catch { /* ignore */ }
         const _r = next(args);
         try {
             if (!isAchievementUser(Player.MemberNumber)) return _r;
