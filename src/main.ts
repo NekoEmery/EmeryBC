@@ -7,7 +7,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, autoUpdateFavoriteSnapshot } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -26,7 +26,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 172;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 173;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -69,6 +69,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
             "Fix: importing/saving outfits with many crafted restraints could trap the account in an infinite relog loop. Root cause: each crafted item carries its full Craft + Property data, so a full crafted set pushed EBC's settings blob past BC's ~180 KB account budget - the server dropped the connection on every sync, and the data re-flushed after each reconnect. Fix: two guards - the outfit list refuses to save past a 60 KB budget (clear in-chat error instead of a false success), and the settings flush skips the server push entirely if EBC's whole blob ever exceeds 150 KB (console error, previous server copy kept). Escaping an existing loop: the oversized data now simply stops syncing, so the account recovers on next login and the offending outfit can be deleted.",
             "Fix: restraints locked with an Exclusive Padlock were invisible to the removal picker and skipped by Release Restraints / Remove Locks. Root cause: exclusive locks were unconditionally on the protected-locks list (they are DOGS's base lock). Fix: exclusive locks are only protected while the DOGS addon is actually loaded - without DOGS they list and remove like any other lock. Owner/Lover/Family locks stay protected.",
+            "Outfits & restraint sets: new per-item storage choice - each outfit/set now has a ☁ Account / 💾 This device chip. Account = synced across devices (uses the 60 KB account budget). This device = stored in the browser's localStorage: uses NO account storage (no relog risk), effectively unlimited, and visible to EVERY account you log in from this browser. Click the chip to move an item between stores. Imports automatically fall back to device storage when the account budget is full.",
+            "Fix: running two accounts in two windows could deliver one account's queued offline beeps from the OTHER account (recipient saw the wrong sender). Root cause: the offline re-delivery queue lived under one shared localStorage key for the whole browser. Fix: the queue is now keyed per account; the old shared queue migrates to whichever account logs in first.",
+            "Fix: vibes and piercings could not be removed by Release Restraints or the removal picker. Root cause: the ItemVulvaPiercings, ItemNipplesPiercings, and ItemHandheld groups were missing from EBC's restraint-group list, so items in those slots (e.g. the Vibrating Heart Clitoris Piercing) were invisible to every removal feature. All three groups added.",
+            "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -7436,31 +7440,6 @@ function init(): void {
         return result;
     });
 
-    // Room property updates (admin saves, background/description changes...) -
-    // capture the favorited room's new state immediately, so a quick
-    // edit-then-leave doesn't lose the changes to the 60s poll window.
-    tryHookFunction(modAPI, "ChatRoomSyncRoomProperties", 1, (args, next) => {
-        const result = next(args);
-        window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(true); } catch { /* ignore */ } }, 500);
-        return result;
-    });
-
-    // Redundant socket-level listener for the same event - fires even if another
-    // addon breaks the ChatRoomSyncRoomProperties hook chain mid-way.
-    (function hookPropsSocket(): void {
-        try {
-            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
-                { on?: (ev: string, cb: (d: unknown) => void) => void } | null | undefined;
-            if (sock?.on) {
-                sock.on("ChatRoomSyncRoomProperties", () => {
-                    window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(true); } catch { /* ignore */ } }, 600);
-                });
-                return;
-            }
-        } catch { /* ignore */ }
-        window.setTimeout(hookPropsSocket, 2000);
-    })();
-
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
         // Delay presence broadcast by 5–8 s (randomised) so EBC's AccountUpdate
@@ -7483,10 +7462,6 @@ function init(): void {
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
-        // Favorited room? Silently refresh its saved snapshot once BC has fully
-        // populated ChatRoomData - delayed 5s so a rebuild's settings-restore
-        // update (1.2s after entry) has landed before we capture.
-        window.setTimeout(() => { try { autoUpdateFavoriteSnapshot(); } catch { /* ignore */ } }, 5000);
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
             if (getAutoApplyDefaultFace()) {
@@ -8316,13 +8291,6 @@ function init(): void {
     setInterval(() => {
         try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
     }, 30 * 1000);
-
-    // While inside a favorited room, keep its saved snapshot fresh (picks up
-    // description/admin/background edits made during the session). The helper
-    // itself throttles and only writes on real changes.
-    setInterval(() => {
-        try { autoUpdateFavoriteSnapshot(); } catch { /* ignore */ }
-    }, 60 * 1000);
 
     // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
     // Typing *text (or * text) in the chat box sends a BC Emote message so it

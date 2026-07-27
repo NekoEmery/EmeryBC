@@ -93,7 +93,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getFavoriteRooms, setFavoriteRooms, captureCurrentRoomSnapshot, autoUpdateFavoriteSnapshot, type FavoriteRoomData } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4127,7 +4127,6 @@ export class EBCDrawer {
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
     private friendRoomsCollapsed = false;
-    private favRoomsCollapsed = false;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -8639,9 +8638,18 @@ export class EBCDrawer {
         nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
         nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
 
+        const isLocalStore = o.local === true;
+        const storageBtn = document.createElement("button");
+        storageBtn.className = "ebc-flag-chip" + (isLocalStore ? " on" : "");
+        storageBtn.textContent = isLocalStore ? "💾 This device" : "☁ Account";
+        storageBtn.title = isLocalStore
+            ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+            : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
+
         flagsRow.appendChild(preserveBtn);
         flagsRow.appendChild(preserveClothingBtn);
         flagsRow.appendChild(nameInAnnounceBtn);
+        flagsRow.appendChild(storageBtn);
 
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
@@ -8891,6 +8899,11 @@ export class EBCDrawer {
             nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
             nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
             setOutfitNameInAnnounce(o.id, next);
+        });
+
+        storageBtn.addEventListener("click", () => {
+            const next = !storageBtn.classList.contains("on");
+            if (setOutfitStorage(o.id, next)) this.rerender();
         });
 
         wearBtn.addEventListener("click", () => {
@@ -9761,6 +9774,19 @@ export class EBCDrawer {
             setOutfitNameInAnnounce(r.id, next);
         });
         rFlagsRow.appendChild(rNameInAnnounceBtn);
+
+        const rIsLocalStore = r.local === true;
+        const rStorageBtn = document.createElement("button");
+        rStorageBtn.className = "ebc-flag-chip" + (rIsLocalStore ? " on" : "");
+        rStorageBtn.textContent = rIsLocalStore ? "💾 This device" : "☁ Account";
+        rStorageBtn.title = rIsLocalStore
+            ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+            : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
+        rStorageBtn.addEventListener("click", () => {
+            const next = !rStorageBtn.classList.contains("on");
+            if (setRestraintStorage(r.id, next)) rerender();
+        });
+        rFlagsRow.appendChild(rStorageBtn);
         info.appendChild(rFlagsRow);
 
         if (r.items.length === 0) {
@@ -14818,221 +14844,6 @@ export class EBCDrawer {
         }, 80);
     }
 
-    /** Smart join for a favorite room: joins it when it's open; when the
-     *  server says it doesn't exist, recreates it from the saved snapshot
-     *  (background, description, admins, size...) via rebuildFavoriteRoom. */
-    private joinOrRebuildFavorite(fav: FavoriteRoomData): void {
-        const w = window as unknown as Record<string, unknown>;
-        const sock = w.ServerSocket as {
-            on?:  (ev: string, cb: (d: unknown) => void) => void;
-            off?: (ev: string, cb: (d: unknown) => void) => void;
-        } | undefined;
-
-        let cleanupTimer: number | null = null;
-        const cleanup = (): void => {
-            if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
-            try { sock?.off?.("ChatRoomSearchResponse", onResp); } catch { /* ignore */ }
-        };
-        const onResp = (data: unknown): void => {
-            try { console.info("[EBC] Favorite join response =", data); } catch { /* ignore */ }
-            if (data === "CannotFindRoom") {
-                cleanup();
-                // Ask before recreating - and SHOW what the snapshot holds, so a
-                // stale/default snapshot is obvious before the room gets created.
-                const accessArr = Array.isArray(fav.access) && fav.access.every(x => typeof x === "string")
-                    ? (fav.access as string[]) : ["All"];
-                const visArr = Array.isArray(fav.visibility) && fav.visibility.every(x => typeof x === "string")
-                    ? (fav.visibility as string[]) : ["All"];
-                const desc = (fav.description ?? "").trim();
-                const summary = [
-                    `Background: ${fav.background ?? "BrickWall (default)"}`,
-                    `Size: ${typeof fav.limit === "number" ? fav.limit : 10}`,
-                    `Admins: ${(fav.admin?.length ?? 0) > 0 ? fav.admin!.join(", ") : "(just you)"}`,
-                    `Visibility: ${visArr.length ? visArr.join("/") : "Unlisted"} · Access: ${accessArr.join("/")}`,
-                    desc ? `Description: "${desc.slice(0, 60)}${desc.length > 60 ? "…" : ""}"` : "Description: (empty)",
-                ].join("\n");
-                showConfirmOverlay(
-                    `"${fav.name}" is closed. Recreate it with the saved settings?\n\n${summary}\n\nIf this looks wrong, open the room, set it up, and press Save in the room admin - the favorite updates instantly.`,
-                    "Cancel", "Recreate",
-                    () => { try { this.rebuildFavoriteRoom(fav); } catch { /* ignore */ } },
-                );
-            } else {
-                // JoinedRoom -> entering; RoomFull/Locked/Banned -> BC shows its own toast.
-                cleanup();
-            }
-        };
-        try { sock?.on?.("ChatRoomSearchResponse", onResp); } catch { /* ignore */ }
-        cleanupTimer = window.setTimeout(cleanup, 10000);
-
-        try {
-            const joinFn = w.ChatRoomJoin as ((n: string) => void) | undefined;
-            if (typeof joinFn === "function") { try { joinFn(fav.name); return; } catch { /* fall through */ } }
-        } catch { /* ignore */ }
-        try { ServerSend("ChatRoomJoin", { Name: fav.name }); } catch { /* ignore */ }
-    }
-
-    /** Recreates a favorited room from its saved snapshot.
-     *  The create carries ALL saved settings directly (description, background,
-     *  size, admin list, whitelist, bans, visibility, access/lock, custom
-     *  theme). Visibility/Access are guaranteed string arrays so BC R130's
-     *  client-side validation passes. 3s after entering, the actual room state
-     *  is compared against the snapshot and any field the server ignored is
-     *  corrected with a ChatRoomAdmin update (always carrying MapData - room
-     *  updates without it crash every client).
-     *  "RoomAlreadyExist" first tries joining; if that join then reports
-     *  CannotFindRoom the name is squatted by a ghost/private room, so the
-     *  create retries with a numbered suffix ("Name 2") like BC itself does.
-     *  Every step is logged to the console as [EBC] Rebuild. */
-    private rebuildFavoriteRoom(fav: FavoriteRoomData): void {
-        const me = Player?.MemberNumber ?? 0;
-        const strArr = (v: unknown): string[] | null =>
-            Array.isArray(v) && v.every(x => typeof x === "string") ? v as string[] : null;
-
-        try { console.info("[EBC] Rebuild: saved snapshot for", fav.name, JSON.parse(JSON.stringify(fav))); } catch { /* ignore */ }
-
-        const baseName = fav.name.trim().slice(0, 20);
-        let attempt = 0; // 0 = original name, 1+ = numbered suffix
-        const currentName = (): string => {
-            if (attempt === 0) return baseName;
-            const suffix = " " + (attempt + 1);
-            return baseName.slice(0, Math.min(baseName.length, 20 - suffix.length)) + suffix;
-        };
-
-        const fullAdmin = Array.isArray(fav.admin) ? [...fav.admin] : [];
-        if (me && !fullAdmin.includes(me)) fullAdmin.unshift(me);
-
-        // Server caps: Name 20 chars, Description 100, Limit 2-10.
-        const mkRoomSettings = (name: string): Record<string, unknown> => {
-            const p: Record<string, unknown> = {
-                Name: name,
-                Description: (fav.description ?? "").trim().slice(0, 100),
-                Background: fav.background ?? "BrickWall",
-                Limit: Math.max(2, Math.min(10, typeof fav.limit === "number" ? fav.limit : 10)),
-                Admin: fullAdmin,
-                Whitelist: Array.isArray(fav.whitelist) ? fav.whitelist : [],
-                Ban: Array.isArray(fav.ban) ? fav.ban : [],
-                BlockCategory: Array.isArray(fav.blockCategory) ? fav.blockCategory : [],
-                Game: fav.game ?? "",
-                Language: fav.language ?? "EN",
-                Space: fav.space ?? "X",
-                Visibility: strArr(fav.visibility) ?? ["All"],
-                Access: strArr(fav.access) ?? ["All"],
-            };
-            if (fav.custom !== undefined) p.Custom = fav.custom;
-            return p;
-        };
-
-        const w = window as unknown as Record<string, unknown>;
-        const sock = w.ServerSocket as {
-            on?:  (ev: string, cb: (d: unknown) => void) => void;
-            off?: (ev: string, cb: (d: unknown) => void) => void;
-        } | undefined;
-
-        // 3s after entering: compare the live room against the snapshot and push
-        // one corrective update if the server ignored anything from the create.
-        const verifyAndCorrect = (createdName: string): void => {
-            try {
-                const d = w.ChatRoomData as Record<string, unknown> | null | undefined;
-                if (!d || d.Name !== createdName) return;
-                const want = mkRoomSettings(createdName);
-                const differs: string[] = [];
-                for (const key of ["Description", "Background", "Limit", "Admin", "Whitelist", "Ban", "BlockCategory", "Game", "Language", "Space", "Visibility", "Access"]) {
-                    const a = JSON.stringify((want as Record<string, unknown>)[key] ?? null);
-                    const b = JSON.stringify(d[key] ?? null);
-                    if (a !== b) differs.push(`${key}: room=${b} saved=${a}`);
-                }
-                if (differs.length === 0) {
-                    console.info("[EBC] Rebuild: verify OK - room matches the snapshot");
-                    return;
-                }
-                console.info("[EBC] Rebuild: correcting fields the server ignored:", differs);
-                const update: Record<string, unknown> = {
-                    ...want,
-                    // Room UPDATES must always carry MapData - omitting it makes the
-                    // server null the room's map state, crashing every client.
-                    MapData: fav.mapData !== undefined ? fav.mapData : { Type: "Never" },
-                };
-                ServerSend("ChatRoomAdmin", {
-                    MemberNumber: (Player as unknown as { ID?: number }).ID ?? 0,
-                    Room: update,
-                    Action: "Update",
-                });
-            } catch { /* ignore */ }
-        };
-
-        let joinPending = false;
-        let cleanupTimer: number | null = null;
-        const cleanup = (): void => {
-            if (cleanupTimer !== null) { window.clearTimeout(cleanupTimer); cleanupTimer = null; }
-            try { sock?.off?.("ChatRoomCreateResponse", onCreateResp); } catch { /* ignore */ }
-            try { sock?.off?.("ChatRoomSearchResponse", onSearchResp); } catch { /* ignore */ }
-        };
-
-        const doCreate = (): void => {
-            const p = mkRoomSettings(currentName());
-            if (fav.mapData !== undefined) p.MapData = fav.mapData;
-            try { console.info("[EBC] Rebuild: sending ChatRoomCreate", JSON.parse(JSON.stringify(p))); } catch { /* ignore */ }
-            try { ServerSend("ChatRoomCreate", p); } catch { /* ignore */ }
-        };
-
-        const onCreateResp = (data: unknown): void => {
-            try { console.info("[EBC] Rebuild: ChatRoomCreateResponse =", data); } catch { /* ignore */ }
-            if (data === "ChatRoomCreated") {
-                cleanup();
-                this._showToyToast(`Rebuilt "${currentName()}" ✓`);
-                const createdName = currentName();
-                window.setTimeout(() => verifyAndCorrect(createdName), 3000);
-            } else if (data === "RoomAlreadyExist") {
-                // Maybe it is genuinely open - try joining. If the join comes back
-                // CannotFindRoom the name is squatted by a ghost/private room.
-                joinPending = true;
-                this._showToyToast(`"${currentName()}" name is taken - trying to join it`);
-                window.setTimeout(() => { try { ServerSend("ChatRoomJoin", { Name: currentName() }); } catch { /* ignore */ } }, 400);
-            } else {
-                cleanup();
-                this._showToyToast(`Rebuild failed (${String(data)})`);
-            }
-        };
-
-        const onSearchResp = (data: unknown): void => {
-            if (!joinPending) return;
-            try { console.info("[EBC] Rebuild: join response =", data); } catch { /* ignore */ }
-            if (data === "CannotFindRoom") {
-                joinPending = false;
-                attempt++;
-                if (attempt <= 5) {
-                    this._showToyToast(`Name blocked by a hidden room - rebuilding as "${currentName()}"`);
-                    window.setTimeout(doCreate, 600);
-                } else {
-                    cleanup();
-                    this._showToyToast("Rebuild failed - the room name is stuck on the server");
-                }
-            } else if (data === "RoomFull" || data === "RoomLocked" || data === "RoomBanned" || data === "RoomKicked") {
-                joinPending = false;
-                cleanup();
-                this._showToyToast(`Room exists but can't be joined (${String(data)})`);
-            } else {
-                // JoinedRoom (or anything else) - we're entering, all done.
-                joinPending = false;
-                cleanup();
-            }
-        };
-
-        try { sock?.on?.("ChatRoomCreateResponse", onCreateResp); } catch { /* ignore */ }
-        try { sock?.on?.("ChatRoomSearchResponse", onSearchResp); } catch { /* ignore */ }
-        cleanupTimer = window.setTimeout(cleanup, 30000);
-
-        this._showToyToast(`Rebuilding "${baseName}"…`);
-        this.close();
-        if (w.CurrentScreen === "ChatRoom") {
-            try { (w.ChatRoomLeave as ((c?: boolean) => void) | undefined)?.(); } catch { /* ignore */ }
-            try { (w.CommonSetScreen as ((m: string, s: string) => void) | undefined)?.("Online", "ChatSearch"); } catch { /* ignore */ }
-            window.setTimeout(doCreate, 1200);
-        } else {
-            doCreate();
-        }
-    }
-
     private renderFriendRows(body: HTMLElement): void {
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -15342,130 +15153,6 @@ export class EBCDrawer {
                     for (const c of roomList) buildRoomRow(c, roomContainer);
                 }
             }
-        }
-
-        // ── Favorite rooms - user-saved rooms with one-click join ─────────────
-        {
-            // If we're standing in a favorited room, re-capture it right now so the
-            // list (and the Recreate dialog) can never show stale data.
-            try { autoUpdateFavoriteSnapshot(true); } catch { /* ignore */ }
-            const favs = getFavoriteRooms();
-            const curRoom = getCurrentRoomName();
-            const divFav = document.createElement("div");
-            divFav.className = "ebc-divider";
-            body.appendChild(divFav);
-
-            try { this.favRoomsCollapsed = localStorage.getItem("EBC_favRoomsCollapsed") === "1"; } catch { /* ignore */ }
-
-            const favContainer = document.createElement("div");
-            const favToggle = document.createElement("div");
-            const updateFavToggle = (): void => {
-                const col = this.favRoomsCollapsed;
-                favToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
-                favToggle.innerHTML = "";
-                const arrow = document.createElement("span");
-                arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
-                arrow.textContent = col ? "▶" : "▼";
-                const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                lbl.textContent = "Favorite rooms";
-                const cnt = document.createElement("span");
-                cnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#e8b4c4;background:rgba(192,100,130,0.18);border:1px solid rgba(192,100,130,0.35);border-radius:10px;padding:0 7px;line-height:16px;min-width:18px;text-align:center;flex-shrink:0;";
-                cnt.textContent = String(favs.length);
-                favToggle.appendChild(arrow);
-                favToggle.appendChild(lbl);
-                favToggle.appendChild(cnt);
-                favContainer.style.display = col ? "none" : "block";
-            };
-            updateFavToggle();
-            favToggle.addEventListener("click", () => {
-                this.favRoomsCollapsed = !this.favRoomsCollapsed;
-                try { localStorage.setItem("EBC_favRoomsCollapsed", this.favRoomsCollapsed ? "1" : "0"); } catch { /* ignore */ }
-                updateFavToggle();
-            });
-
-            for (const fav of favs) {
-                const rn = fav.name;
-                const card = document.createElement("div");
-                card.className = "ebc-friend-rooms-card";
-                const head = document.createElement("div");
-                head.className = "ebc-friend-rooms-head";
-                const ic = document.createElement("span");
-                ic.className = "ebc-friend-rooms-icon";
-                ic.textContent = "⭐";
-                const nm = document.createElement("span");
-                nm.className = "ebc-friend-rooms-name";
-                nm.textContent = rn;
-                {
-                    const bits: string[] = [rn];
-                    if (fav.description) bits.push(fav.description);
-                    if (typeof fav.limit === "number") bits.push(`Limit: ${fav.limit}`);
-                    if (fav.admin?.length) bits.push(`Admins: ${fav.admin.join(", ")}`);
-                    nm.title = bits.join("\n");
-                }
-                head.appendChild(ic);
-                head.appendChild(nm);
-                const jb = document.createElement("button");
-                jb.className = "ebc-friend-rooms-join";
-                jb.textContent = "Join →";
-                jb.title = `Join "${rn}" - if the room is closed it gets recreated with the saved settings (background, description, admins...)`;
-                jb.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    if (getCurrentRoomName().toLowerCase() === rn.toLowerCase()) {
-                        jb.textContent = "Here ✓";
-                        window.setTimeout(() => { jb.textContent = "Join →"; }, 1500);
-                        return;
-                    }
-                    jb.textContent = "→ …";
-                    try { this.joinOrRebuildFavorite(fav); } catch { /* ignore */ }
-                    // Un-stick the label if we stay on this screen
-                    window.setTimeout(() => { jb.textContent = "Join →"; }, 2500);
-                });
-                const del = document.createElement("button");
-                del.className = "ebc-friend-rooms-del";
-                del.textContent = "×";
-                del.title = "Remove from favorites";
-                del.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    setFavoriteRooms(getFavoriteRooms().filter(r => r.name.toLowerCase() !== rn.toLowerCase()));
-                    try { this.renderFriendRows(body); } catch { /* ignore */ }
-                });
-                head.appendChild(jb);
-                head.appendChild(del);
-                card.appendChild(head);
-                favContainer.appendChild(card);
-            }
-
-            const canSave = !!curRoom && !favs.some(r => r.name.toLowerCase() === curRoom.toLowerCase());
-            const addBtn = document.createElement("button");
-            addBtn.className = "ebc-friend-rooms-add";
-            if (canSave) {
-                addBtn.textContent = `+ Save "${curRoom.length > 26 ? curRoom.slice(0, 24) + "…" : curRoom}"`;
-                addBtn.title = `Save "${curRoom}" and its settings (description, admins, background...) to favorites`;
-                addBtn.addEventListener("click", () => {
-                    const snap = captureCurrentRoomSnapshot() ?? { name: curRoom };
-                    setFavoriteRooms([...getFavoriteRooms(), snap]);
-                    try { this.renderFriendRows(body); } catch { /* ignore */ }
-                });
-            } else if (curRoom) {
-                addBtn.textContent = "Update saved room settings ↻";
-                addBtn.title = "Re-capture this room's settings (description, admins, background...) into the favorite";
-                addBtn.addEventListener("click", () => {
-                    const snap = captureCurrentRoomSnapshot();
-                    if (!snap) return;
-                    setFavoriteRooms(getFavoriteRooms().map(r => r.name.toLowerCase() === curRoom.toLowerCase() ? snap : r));
-                    addBtn.textContent = "Updated ✓";
-                    window.setTimeout(() => { try { this.renderFriendRows(body); } catch { /* ignore */ } }, 900);
-                });
-            } else {
-                addBtn.textContent = "Join a room to save it here";
-                addBtn.disabled = true;
-                addBtn.style.cursor = "default";
-            }
-            favContainer.appendChild(addBtn);
-
-            body.appendChild(favToggle);
-            body.appendChild(favContainer);
         }
 
         // ── Friend Rooms - where online friends are, with join buttons ────────

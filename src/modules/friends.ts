@@ -171,27 +171,49 @@ const onlineInfo = new Map<number, FriendOnlineInfo>();
 const pendingOfflineMessages = new Map<number, string[]>();
 const pendingOfflineQueuedAt = new Map<number, number>(); // first-queued timestamp per member
 
-const OFFLINE_QUEUE_LS_KEY  = "EBC_offlineQueue";
+// The queue key is scoped per account: localStorage is shared by every BC
+// account in this browser, and a shared queue made a SECOND account re-deliver
+// the first account's messages under its own name (wrong sender shown).
+const OFFLINE_QUEUE_LS_BASE = "EBC_offlineQueue";
 const OFFLINE_QUEUE_TTL_MS  = 48 * 60 * 60 * 1000; // 48 hours
+
+function offlineQueueKey(): string | null {
+    try {
+        const num = typeof Player !== "undefined" ? Player?.MemberNumber : undefined;
+        return typeof num === "number" && num > 0 ? `${OFFLINE_QUEUE_LS_BASE}_${num}` : null;
+    } catch { return null; }
+}
 
 function persistOfflineQueue(): void {
     try {
+        const key = offlineQueueKey();
+        if (!key) return; // not logged in yet - nothing to persist
         const obj: Record<string, { messages: string[]; ts: number }> = {};
         for (const [num, msgs] of pendingOfflineMessages) {
             obj[String(num)] = { messages: msgs, ts: pendingOfflineQueuedAt.get(num) ?? Date.now() };
         }
         if (Object.keys(obj).length === 0) {
-            localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+            localStorage.removeItem(key);
         } else {
-            localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+            localStorage.setItem(key, JSON.stringify(obj));
         }
     } catch { /* ignore */ }
 }
 
-// Restore persisted offline queue on module load — discard entries older than 48h.
+// Restore the persisted offline queue - retries until the player is logged in
+// (the per-account key needs Player.MemberNumber). Entries older than 48h are
+// discarded. The old shared key is migrated once, to whichever account logs in
+// first, then deleted so a second account can never re-deliver it.
 void (function restoreOfflineQueue() {
     try {
-        const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+        const key = offlineQueueKey();
+        if (!key) { setTimeout(restoreOfflineQueue, 2000); return; }
+        const legacy = localStorage.getItem(OFFLINE_QUEUE_LS_BASE);
+        if (legacy) {
+            if (!localStorage.getItem(key)) localStorage.setItem(key, legacy);
+            localStorage.removeItem(OFFLINE_QUEUE_LS_BASE);
+        }
+        const raw = localStorage.getItem(key);
         if (!raw) return;
         const parsed = JSON.parse(raw) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
