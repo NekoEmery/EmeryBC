@@ -16547,6 +16547,62 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Achievements (credits crew only) ─────────────────────────────────
+        if (isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber)) {
+            const achLbl = document.createElement("div");
+            achLbl.className = "ebc-section-label";
+            achLbl.textContent = "🏆 ACHIEVEMENTS";
+            body.appendChild(achLbl);
+
+            const achWrap = document.createElement("div");
+            achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+            for (const a of getAchievementProgress()) {
+                const done = a.unlockedAt !== null;
+                const row = document.createElement("div");
+                row.style.cssText =
+                    `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
+                    `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
+                    `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
+                    (done ? "" : "opacity:0.78;");
+                const ic = document.createElement("span");
+                ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                ic.textContent = a.icon;
+                const col = document.createElement("div");
+                col.style.cssText = "flex:1;min-width:0;";
+                const nm = document.createElement("div");
+                nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
+                nm.textContent = a.name + (a.rare ? " ★" : "");
+                const ds = document.createElement("div");
+                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
+                ds.textContent = a.desc;
+                col.appendChild(nm);
+                col.appendChild(ds);
+                const pr = document.createElement("span");
+                pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
+                pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                row.appendChild(ic);
+                row.appendChild(col);
+                row.appendChild(pr);
+                if (done) {
+                    const worn = getWornBadgeId() === a.id;
+                    const wearBtn = document.createElement("button");
+                    wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
+                    wearBtn.style.flexShrink = "0";
+                    wearBtn.textContent = worn ? "Worn ✓" : "Wear";
+                    wearBtn.title = worn
+                        ? "This badge shows next to your name for other EBC users - click to take it off"
+                        : "Wear this badge - its icon shows next to your name for other EBC users";
+                    wearBtn.addEventListener("click", () => {
+                        setWornBadge(worn ? null : a.id);
+                        this.rerender();
+                    });
+                    row.appendChild(wearBtn);
+                }
+                achWrap.appendChild(row);
+            }
+            body.appendChild(achWrap);
+        }
+
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).
         // No longer shown in DEV tab.
 
@@ -25211,62 +25267,6 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
-
-        // ── Achievements (credits crew only) ─────────────────────────────────
-        if (isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber)) {
-            const achLbl = document.createElement("div");
-            achLbl.className = "ebc-section-label";
-            achLbl.textContent = "🏆 ACHIEVEMENTS";
-            body.appendChild(achLbl);
-
-            const achWrap = document.createElement("div");
-            achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
-            for (const a of getAchievementProgress()) {
-                const done = a.unlockedAt !== null;
-                const row = document.createElement("div");
-                row.style.cssText =
-                    `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
-                    `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
-                    `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
-                    (done ? "" : "opacity:0.78;");
-                const ic = document.createElement("span");
-                ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
-                ic.textContent = a.icon;
-                const col = document.createElement("div");
-                col.style.cssText = "flex:1;min-width:0;";
-                const nm = document.createElement("div");
-                nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
-                nm.textContent = a.name + (a.rare ? " ★" : "");
-                const ds = document.createElement("div");
-                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
-                ds.textContent = a.desc;
-                col.appendChild(nm);
-                col.appendChild(ds);
-                const pr = document.createElement("span");
-                pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
-                pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
-                row.appendChild(ic);
-                row.appendChild(col);
-                row.appendChild(pr);
-                if (done) {
-                    const worn = getWornBadgeId() === a.id;
-                    const wearBtn = document.createElement("button");
-                    wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
-                    wearBtn.style.flexShrink = "0";
-                    wearBtn.textContent = worn ? "Worn ✓" : "Wear";
-                    wearBtn.title = worn
-                        ? "This badge shows next to your name for other EBC users - click to take it off"
-                        : "Wear this badge - its icon shows next to your name for other EBC users";
-                    wearBtn.addEventListener("click", () => {
-                        setWornBadge(worn ? null : a.id);
-                        this.rerender();
-                    });
-                    row.appendChild(wearBtn);
-                }
-                achWrap.appendChild(row);
-            }
-            body.appendChild(achWrap);
-        }
 
         // ── Creator card (above "Special Thanks") ─────────────────────────────
         const madeLbl = document.createElement("div");

@@ -24838,6 +24838,60 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Achievements (credits crew only) ─────────────────────────────────
+            if (isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
+                const achLbl = document.createElement("div");
+                achLbl.className = "ebc-section-label";
+                achLbl.textContent = "🏆 ACHIEVEMENTS";
+                body.appendChild(achLbl);
+                const achWrap = document.createElement("div");
+                achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+                for (const a of getAchievementProgress()) {
+                    const done = a.unlockedAt !== null;
+                    const row = document.createElement("div");
+                    row.style.cssText =
+                        `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
+                            `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
+                            `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
+                            (done ? "" : "opacity:0.78;");
+                    const ic = document.createElement("span");
+                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                    ic.textContent = a.icon;
+                    const col = document.createElement("div");
+                    col.style.cssText = "flex:1;min-width:0;";
+                    const nm = document.createElement("div");
+                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
+                    nm.textContent = a.name + (a.rare ? " ★" : "");
+                    const ds = document.createElement("div");
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
+                    ds.textContent = a.desc;
+                    col.appendChild(nm);
+                    col.appendChild(ds);
+                    const pr = document.createElement("span");
+                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
+                    pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                    row.appendChild(ic);
+                    row.appendChild(col);
+                    row.appendChild(pr);
+                    if (done) {
+                        const worn = getWornBadgeId() === a.id;
+                        const wearBtn = document.createElement("button");
+                        wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
+                        wearBtn.style.flexShrink = "0";
+                        wearBtn.textContent = worn ? "Worn ✓" : "Wear";
+                        wearBtn.title = worn
+                            ? "This badge shows next to your name for other EBC users - click to take it off"
+                            : "Wear this badge - its icon shows next to your name for other EBC users";
+                        wearBtn.addEventListener("click", () => {
+                            setWornBadge(worn ? null : a.id);
+                            this.rerender();
+                        });
+                        row.appendChild(wearBtn);
+                    }
+                    achWrap.appendChild(row);
+                }
+                body.appendChild(achWrap);
+            }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
@@ -34516,60 +34570,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Achievements (credits crew only) ─────────────────────────────────
-            if (isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
-                const achLbl = document.createElement("div");
-                achLbl.className = "ebc-section-label";
-                achLbl.textContent = "🏆 ACHIEVEMENTS";
-                body.appendChild(achLbl);
-                const achWrap = document.createElement("div");
-                achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
-                for (const a of getAchievementProgress()) {
-                    const done = a.unlockedAt !== null;
-                    const row = document.createElement("div");
-                    row.style.cssText =
-                        `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
-                            `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
-                            `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
-                            (done ? "" : "opacity:0.78;");
-                    const ic = document.createElement("span");
-                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
-                    ic.textContent = a.icon;
-                    const col = document.createElement("div");
-                    col.style.cssText = "flex:1;min-width:0;";
-                    const nm = document.createElement("div");
-                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
-                    nm.textContent = a.name + (a.rare ? " ★" : "");
-                    const ds = document.createElement("div");
-                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
-                    ds.textContent = a.desc;
-                    col.appendChild(nm);
-                    col.appendChild(ds);
-                    const pr = document.createElement("span");
-                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
-                    pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
-                    row.appendChild(ic);
-                    row.appendChild(col);
-                    row.appendChild(pr);
-                    if (done) {
-                        const worn = getWornBadgeId() === a.id;
-                        const wearBtn = document.createElement("button");
-                        wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
-                        wearBtn.style.flexShrink = "0";
-                        wearBtn.textContent = worn ? "Worn ✓" : "Wear";
-                        wearBtn.title = worn
-                            ? "This badge shows next to your name for other EBC users - click to take it off"
-                            : "Wear this badge - its icon shows next to your name for other EBC users";
-                        wearBtn.addEventListener("click", () => {
-                            setWornBadge(worn ? null : a.id);
-                            this.rerender();
-                        });
-                        row.appendChild(wearBtn);
-                    }
-                    achWrap.appendChild(row);
-                }
-                body.appendChild(achWrap);
-            }
             // ── Creator card (above "Special Thanks") ─────────────────────────────
             const madeLbl = document.createElement("div");
             madeLbl.className = "ebc-section-label";
@@ -36692,7 +36692,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 177; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 178; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36743,6 +36743,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
                 "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
                 "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
+                "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
