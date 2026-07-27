@@ -6952,6 +6952,58 @@ export class EBCDrawer {
         ]);
     }
 
+    /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
+     *  sharing. Sections tag themselves via data-toy-group; anything untagged is
+     *  physical-toy setup and falls into "irl". No-ops in classic layout so the
+     *  original single scrolling page is untouched. */
+    private _pillifyToys(host: HTMLElement): void {
+        if (!isGroupedLayout()) return;
+        const GROUPS: Array<{ id: string; label: string }> = [
+            { id: "irl",      label: "IRL toy" },
+            { id: "game",     label: "In-game" },
+            { id: "triggers", label: "Triggers" },
+            { id: "share",    label: "Sharing" },
+        ];
+        const kids = Array.from(host.children) as HTMLElement[];
+        if (kids.length === 0) return;
+        for (const el of kids) {
+            if (!el.dataset.toyGroup) el.dataset.toyGroup = "irl";
+        }
+        const present = GROUPS.filter(g => kids.some(el => el.dataset.toyGroup === g.id));
+        if (present.length < 2) return;
+
+        let active = "";
+        try { active = localStorage.getItem("EBC_toysView") ?? ""; } catch { /* ignore */ }
+        if (!present.some(g => g.id === active)) active = present[0].id;
+
+        const nav = document.createElement("div");
+        nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+        const pills: HTMLButtonElement[] = [];
+        const paint = (): void => {
+            for (let i = 0; i < present.length; i++) {
+                const on = present[i].id === active;
+                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+            }
+            for (const el of kids) el.style.display = el.dataset.toyGroup === active ? "" : "none";
+        };
+        for (const g of present) {
+            const pill = document.createElement("button");
+            pill.textContent = g.label;
+            pill.addEventListener("click", () => {
+                active = g.id;
+                try { localStorage.setItem("EBC_toysView", active); } catch { /* ignore */ }
+                paint();
+            });
+            pills.push(pill);
+            nav.appendChild(pill);
+        }
+        host.insertBefore(nav, host.firstChild);
+        paint();
+    }
+
     /** TOYS - Lovense / PiShock / XToys. Dom keeps its own creator-only tab in
      *  both layouts, so nothing extra is composed in here. */
     private renderToysTab(): void {
@@ -24070,6 +24122,7 @@ This cannot be undone.`,
             // ── CHAT PHRASES ─────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
+            phraseSec.dataset.toyGroup = "triggers";
 
             const phraseAddBtn = document.createElement("button");
             phraseAddBtn.textContent = "+ Add phrase";
@@ -24168,6 +24221,7 @@ This cannot be undone.`,
             // ── BODY TOUCH ───────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
+            touchSec.dataset.toyGroup = "triggers";
 
             const touchData = EBCDrawer.getTouchTriggers();
             const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
@@ -24282,6 +24336,7 @@ This cannot be undone.`,
             // ── BC TOY SYNC ──────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: syncSec, body: syncSecBody } = mkLovSub("BC TOY SYNC", "EBC_sec_sync");
+            syncSec.dataset.toyGroup = "game";
 
             const syncEnabled = s["lovenseBcSyncEnabled"] === true;
             const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
@@ -24376,6 +24431,7 @@ This cannot be undone.`,
 
             // ── SECTION 1: LET OTHERS CONTROL YOUR TOY ───────────────────────────
             const { wrap: s1Wrap, body: s1Body } = makeCollSection("LET OTHERS CONTROL YOUR TOY", "EBC_irl_s1_open", this._irlGrantedTo.size);
+            s1Wrap.dataset.toyGroup = "share";
             const irlAllowReqs = s["irlToyAllowRequests"] === true;
             const s1Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;margin-bottom:8px;");
 
@@ -24492,6 +24548,7 @@ This cannot be undone.`,
 
             // ── SECTION 2: CONTROL A FRIEND'S LOVENSE ────────────────────────────
             const { wrap: s2Wrap, body: s2Body } = makeCollSection("CONTROL A FRIEND'S LOVENSE", "EBC_irl_s2_open");
+            s2Wrap.dataset.toyGroup = "share";
             const irlFriendChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
             const irlPW = (window as unknown as { Player?: { MemberNumber?: number; FriendList?: number[] } }).Player;
             const irlMyMN2 = irlPW?.MemberNumber;
@@ -24610,6 +24667,11 @@ This cannot be undone.`,
             }
             s2Body.appendChild(s2Card);
             lovContent.appendChild(s2Wrap);
+
+            // Group the Toys page: real hardware setup, in-game toys, triggers,
+            // and sharing. Anything not explicitly tagged is connection/setup for
+            // the physical toy, so it defaults to "irl".
+            this._pillifyToys(lovContent);
         }
 
         // ── GAME TOYS ────────────────────────────────────────────────────────────

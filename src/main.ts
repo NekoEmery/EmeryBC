@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 208;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 209;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -106,6 +106,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
             "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
             "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+            "Toys tab split into pills: IRL toy (Bluetooth/Lovense Connect setup and vibrate defaults), In-game (BC toy sync), Triggers (chat phrases and body touch) and Sharing (let others control your toy / control a friend's). Sections declare their own group, and anything untagged counts as physical-toy setup - so a section added later still lands somewhere sensible rather than disappearing. Classic layout keeps the original single scrolling page.",
             "Dom keeps its own tab in the new layout instead of being folded into Toys, matching the classic layout - it is still creator-only in both. Auto-escape is not duplicated: it shows on the Dom tab in classic, and on Safety in the new layout.",
             "Fix: section headers kept as sub-labels inside a shared pill (Tags, Storage) were still live collapse buttons, so they could be clicked shut inside a pill that no longer had a working chevron. They are now replaced with a listener-free clone - a plain label with the arrow stripped.",
             "Storage: every data category can now live on your BC account (synced across devices) or on this device only (browser storage, no account space used). Each row in 'All stored EBC data' has an Account/Device pill; switching shows a confirm naming which copy is about to become the only one, with both sizes, since the other side gets replaced - empty categories switch without nagging. Categories that are usually better kept local (beep history, name cache, people met, last seen, barks) say so in their tooltip, but nothing is moved for you. Implemented purely in the persistence layer: device keys are written to localStorage and nulled on the account, and loaded back into memory at startup, so every existing getter and setter works unchanged. The account size bar now excludes device-stored data.",

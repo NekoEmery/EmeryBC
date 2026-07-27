@@ -15919,6 +15919,68 @@
                 { pill: "Escape", match: [t("grouped.autoEscape")] },
             ]);
         }
+        /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
+         *  sharing. Sections tag themselves via data-toy-group; anything untagged is
+         *  physical-toy setup and falls into "irl". No-ops in classic layout so the
+         *  original single scrolling page is untouched. */
+        _pillifyToys(host) {
+            var _a;
+            if (!isGroupedLayout())
+                return;
+            const GROUPS = [
+                { id: "irl", label: "IRL toy" },
+                { id: "game", label: "In-game" },
+                { id: "triggers", label: "Triggers" },
+                { id: "share", label: "Sharing" },
+            ];
+            const kids = Array.from(host.children);
+            if (kids.length === 0)
+                return;
+            for (const el of kids) {
+                if (!el.dataset.toyGroup)
+                    el.dataset.toyGroup = "irl";
+            }
+            const present = GROUPS.filter(g => kids.some(el => el.dataset.toyGroup === g.id));
+            if (present.length < 2)
+                return;
+            let active = "";
+            try {
+                active = (_a = localStorage.getItem("EBC_toysView")) !== null && _a !== void 0 ? _a : "";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            if (!present.some(g => g.id === active))
+                active = present[0].id;
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+            const pills = [];
+            const paint = () => {
+                for (let i = 0; i < present.length; i++) {
+                    const on = present[i].id === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                }
+                for (const el of kids)
+                    el.style.display = el.dataset.toyGroup === active ? "" : "none";
+            };
+            for (const g of present) {
+                const pill = document.createElement("button");
+                pill.textContent = g.label;
+                pill.addEventListener("click", () => {
+                    active = g.id;
+                    try {
+                        localStorage.setItem("EBC_toysView", active);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                nav.appendChild(pill);
+            }
+            host.insertBefore(nav, host.firstChild);
+            paint();
+        }
         /** TOYS - Lovense / PiShock / XToys. Dom keeps its own creator-only tab in
          *  both layouts, so nothing extra is composed in here. */
         renderToysTab() {
@@ -33546,6 +33608,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // ── CHAT PHRASES ─────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
                 const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
+                phraseSec.dataset.toyGroup = "triggers";
                 const phraseAddBtn = document.createElement("button");
                 phraseAddBtn.textContent = "+ Add phrase";
                 phraseAddBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:4px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);margin-bottom:7px;`;
@@ -33659,6 +33722,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // ── BODY TOUCH ───────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
                 const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
+                touchSec.dataset.toyGroup = "triggers";
                 const touchData = EBCDrawer.getTouchTriggers();
                 const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
                 for (const def of TOUCH_DEFS) {
@@ -33774,6 +33838,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // ── BC TOY SYNC ──────────────────────────────────────────────────────
                 lovContent.appendChild(sep());
                 const { wrap: syncSec, body: syncSecBody } = mkLovSub("BC TOY SYNC", "EBC_sec_sync");
+                syncSec.dataset.toyGroup = "game";
                 const syncEnabled = s["lovenseBcSyncEnabled"] === true;
                 const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
                 const syncToggleRow = mk("div", "display:flex;align-items:center;gap:8px;margin-bottom:8px;");
@@ -33884,6 +33949,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 };
                 // ── SECTION 1: LET OTHERS CONTROL YOUR TOY ───────────────────────────
                 const { wrap: s1Wrap, body: s1Body } = makeCollSection("LET OTHERS CONTROL YOUR TOY", "EBC_irl_s1_open", this._irlGrantedTo.size);
+                s1Wrap.dataset.toyGroup = "share";
                 const irlAllowReqs = s["irlToyAllowRequests"] === true;
                 const s1Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;margin-bottom:8px;");
                 const irlTogRow = mk("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
@@ -34032,6 +34098,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 lovContent.appendChild(s1Wrap);
                 // ── SECTION 2: CONTROL A FRIEND'S LOVENSE ────────────────────────────
                 const { wrap: s2Wrap, body: s2Body } = makeCollSection("CONTROL A FRIEND'S LOVENSE", "EBC_irl_s2_open");
+                s2Wrap.dataset.toyGroup = "share";
                 const irlFriendChs = window.ChatRoomCharacter;
                 const irlPW = window.Player;
                 const irlMyMN2 = irlPW === null || irlPW === void 0 ? void 0 : irlPW.MemberNumber;
@@ -34182,6 +34249,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 s2Body.appendChild(s2Card);
                 lovContent.appendChild(s2Wrap);
+                // Group the Toys page: real hardware setup, in-game toys, triggers,
+                // and sharing. Anything not explicitly tagged is connection/setup for
+                // the physical toy, so it defaults to "irl".
+                this._pillifyToys(lovContent);
             }
             // ── GAME TOYS ────────────────────────────────────────────────────────────
             // Always-accessible section - no enable toggle
@@ -38814,7 +38885,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 208; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 209; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38890,6 +38961,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
                 "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
                 "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+                "Toys tab split into pills: IRL toy (Bluetooth/Lovense Connect setup and vibrate defaults), In-game (BC toy sync), Triggers (chat phrases and body touch) and Sharing (let others control your toy / control a friend's). Sections declare their own group, and anything untagged counts as physical-toy setup - so a section added later still lands somewhere sensible rather than disappearing. Classic layout keeps the original single scrolling page.",
                 "Dom keeps its own tab in the new layout instead of being folded into Toys, matching the classic layout - it is still creator-only in both. Auto-escape is not duplicated: it shows on the Dom tab in classic, and on Safety in the new layout.",
                 "Fix: section headers kept as sub-labels inside a shared pill (Tags, Storage) were still live collapse buttons, so they could be clicked shut inside a pill that no longer had a working chevron. They are now replaced with a listener-free clone - a plain label with the arrow stripped.",
                 "Storage: every data category can now live on your BC account (synced across devices) or on this device only (browser storage, no account space used). Each row in 'All stored EBC data' has an Account/Device pill; switching shows a confirm naming which copy is about to become the only one, with both sizes, since the other side gets replaced - empty categories switch without nagging. Categories that are usually better kept local (beep history, name cache, people met, last seen, barks) say so in their tooltip, but nothing is moved for you. Implemented purely in the persistence layer: device keys are written to localStorage and nulled on the account, and loaded back into memory at startup, so every existing getter and setter works unchanged. The account size bar now excludes device-stored data.",
