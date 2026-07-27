@@ -210,6 +210,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // connection dropped by the server, and since the data is re-flushed after every
     // relog the client ends up in an infinite reconnect loop. Never let that happen.
     const SETTINGS_FLUSH_CAP = 150000;
+    /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
+    function getSettingsBlobSize() {
+        try {
+            return JSON.stringify(_mem).length;
+        }
+        catch (_a) {
+            return 0;
+        }
+    }
     function flushToExtensionSettings() {
         try {
             if (!Player.ExtensionSettings)
@@ -923,6 +932,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
         return true;
     }
+    /** Moves an outfit between account storage (synced) and this-device storage. */
+    function setOutfitStorage(id, local) {
+        const outfits = getOutfits().map(o => o.id === id ? Object.assign(Object.assign({}, o), { local: local ? true : undefined }) : o);
+        const ok = saveOutfits(outfits);
+        if (ok)
+            localNotice$2(local
+                ? "Outfit moved to THIS DEVICE - no account storage used; visible to every account in this browser."
+                : "Outfit moved to your BC ACCOUNT - synced across devices.");
+        return ok;
+    }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
         if (value == null)
             return value;
@@ -1546,6 +1565,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         getSettings().restraints = account;
         syncSettings();
         return true;
+    }
+    /** Storage usage for the meter in the Outfits tab. Sizes are serialized JSON
+     *  lengths (characters ~ bytes). */
+    function getOutfitStorageUsage() {
+        var _a, _b, _c, _d;
+        const size = (v) => { try {
+            return JSON.stringify(v).length;
+        }
+        catch (_a) {
+            return 0;
+        } };
+        let deviceBytes = 0;
+        try {
+            deviceBytes = ((_b = (_a = localStorage.getItem(LOCAL_OUTFITS_KEY)) === null || _a === void 0 ? void 0 : _a.length) !== null && _b !== void 0 ? _b : 0)
+                + ((_d = (_c = localStorage.getItem(LOCAL_RESTRAINTS_KEY)) === null || _c === void 0 ? void 0 : _c.length) !== null && _d !== void 0 ? _d : 0);
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
+        return {
+            accountOutfits: size(getOutfits().filter(o => !o.local)),
+            accountRestraints: size(getRestraints().filter(o => !o.local)),
+            deviceBytes,
+        };
+    }
+    /** Moves a restraint set between account storage and this-device storage. */
+    function setRestraintStorage(id, local) {
+        const sets = getRestraints().map(o => o.id === id ? Object.assign(Object.assign({}, o), { local: local ? true : undefined }) : o);
+        const ok = saveRestraints(sets);
+        if (ok)
+            localNotice$2(local
+                ? "Restraint set moved to THIS DEVICE - no account storage used; visible to every account in this browser."
+                : "Restraint set moved to your BC ACCOUNT - synced across devices.");
+        return ok;
     }
     function captureRestraints() {
         return Player.Appearance
@@ -15373,6 +15424,83 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return sel;
         }
         // -- Outfits tab -----------------------------------------------------------
+        /** Collapsible storage meter - account outfit/restraint budgets, the whole
+         *  EBC settings blob vs the sync cap, and this-device (localStorage) usage. */
+        renderStorageUsage(body) {
+            const usage = getOutfitStorageUsage();
+            const total = getSettingsBlobSize();
+            const kb = (n) => (n / 1000).toFixed(1);
+            const wrap = document.createElement("div");
+            wrap.style.marginBottom = "8px";
+            let open = false;
+            try {
+                open = localStorage.getItem("EBC_storageOpen") === "1";
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            const totalPct = Math.min(100, (total / SETTINGS_FLUSH_CAP) * 100);
+            const headCol = totalPct >= 90 ? "#e05a5a" : totalPct >= 70 ? "#d8a04a" : "#9a7080";
+            const toggleBtn = document.createElement("button");
+            toggleBtn.className = "ebc-section-label";
+            toggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+            const paintToggle = () => {
+                toggleBtn.innerHTML = "";
+                const arrow = document.createTextNode((open ? "▼" : "▶") + " STORAGE ");
+                toggleBtn.appendChild(arrow);
+                const pill = document.createElement("span");
+                pill.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:normal;color:${headCol};`;
+                pill.textContent = `${kb(total)} / ${kb(SETTINGS_FLUSH_CAP)} KB account`;
+                toggleBtn.appendChild(pill);
+            };
+            paintToggle();
+            const content = document.createElement("div");
+            content.style.cssText = "display:" + (open ? "block" : "none") + ";padding:2px 4px 6px;";
+            const mkBar = (label, used, cap) => {
+                const pct = Math.min(100, (used / cap) * 100);
+                const col = pct >= 90 ? "#e05a5a" : pct >= 70 ? "#d8a04a" : "#79a885";
+                const row = document.createElement("div");
+                row.style.cssText = "margin:5px 0;";
+                const lblRow = document.createElement("div");
+                lblRow.style.cssText = "display:flex;justify-content:space-between;gap:8px;font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-bottom:2px;";
+                const l = document.createElement("span");
+                l.textContent = label;
+                const r = document.createElement("span");
+                r.textContent = `${kb(used)} / ${kb(cap)} KB`;
+                r.style.cssText = `color:${col};flex-shrink:0;`;
+                lblRow.appendChild(l);
+                lblRow.appendChild(r);
+                const trough = document.createElement("div");
+                trough.style.cssText = "height:6px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;";
+                const fill = document.createElement("div");
+                fill.style.cssText = `height:100%;width:${pct}%;background:${col};border-radius:3px;`;
+                trough.appendChild(fill);
+                row.appendChild(lblRow);
+                row.appendChild(trough);
+                return row;
+            };
+            content.appendChild(mkBar("Outfits (account)", usage.accountOutfits, OUTFITS_BUDGET));
+            content.appendChild(mkBar("Restraint sets (account)", usage.accountRestraints, OUTFITS_BUDGET));
+            content.appendChild(mkBar("All EBC settings (account sync cap)", total, SETTINGS_FLUSH_CAP));
+            const devRow = document.createElement("div");
+            devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-top:6px;";
+            devRow.textContent = `💾 This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
+            content.appendChild(devRow);
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#6a4a58;margin-top:4px;line-height:1.4;";
+            hint.textContent = "Full bars? Switch outfits to 💾 This device storage or delete unused ones. Crafted items take the most space.";
+            content.appendChild(hint);
+            toggleBtn.addEventListener("click", () => {
+                open = !open;
+                try {
+                    localStorage.setItem("EBC_storageOpen", open ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                content.style.display = open ? "block" : "none";
+                paintToggle();
+            });
+            wrap.appendChild(toggleBtn);
+            wrap.appendChild(content);
+            body.appendChild(wrap);
+        }
         renderOutfits() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -15421,6 +15549,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.renderRestraintInfo(body);
             this.renderOutfitWhitelist(body);
             this.renderPalettes(body);
+            this.renderStorageUsage(body);
             // ── Tag management ───────────────────────────────────────────────────────────
             const tagMgmtDiv = document.createElement("div");
             tagMgmtDiv.style.marginBottom = "8px";
@@ -36145,7 +36274,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 173; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 174; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36189,6 +36318,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Fix: running two accounts in two windows could deliver one account's queued offline beeps from the OTHER account (recipient saw the wrong sender). Root cause: the offline re-delivery queue lived under one shared localStorage key for the whole browser. Fix: the queue is now keyed per account; the old shared queue migrates to whichever account logs in first.",
                 "Fix: vibes and piercings could not be removed by Release Restraints or the removal picker. Root cause: the ItemVulvaPiercings, ItemNipplesPiercings, and ItemHandheld groups were missing from EBC's restraint-group list, so items in those slots (e.g. the Vibrating Heart Clitoris Piercing) were invisible to every removal feature. All three groups added.",
                 "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
+                "Outfits tab: new collapsible STORAGE meter - progress bars for account outfits (vs 60 KB), account restraint sets (vs 60 KB), and all EBC settings (vs the 150 KB sync cap), plus this-device usage. Bars turn amber at 70% and red at 90%; the header shows the account total even when collapsed.",
+                "Fix: the ☁/💾 storage chips from the previous build crashed when clicked - the two mover functions were referenced in the UI but never imported. Now imported (and the build-warning check that let this slip is being watched more carefully).",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
