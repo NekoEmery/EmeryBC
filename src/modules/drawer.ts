@@ -6970,6 +6970,21 @@ export class EBCDrawer {
         const present = GROUPS.filter(g => kids.some(el => el.dataset.toyGroup === g.id));
         if (present.length < 2) return;
 
+        // A pill holding a single section makes that section's own collapsible
+        // header redundant - the pill IS the header. Open it and hide the header.
+        // Groups with several sections keep theirs so they stay distinguishable.
+        for (const g of present) {
+            const own = kids.filter(el => el.dataset.toyGroup === g.id);
+            if (own.length !== 1) continue;
+            const parts = Array.from(own[0].children) as HTMLElement[];
+            const hdr = parts.find(c => c.style.cursor === "pointer");
+            const bodyEl = parts.find(c => c !== hdr);
+            if (hdr && bodyEl && bodyEl.style.display === "none") {
+                try { hdr.click(); } catch { /* ignore */ }
+            }
+            if (hdr) hdr.style.display = "none";
+        }
+
         let active = "";
         try { active = localStorage.getItem("EBC_toysView") ?? ""; } catch { /* ignore */ }
         if (!present.some(g => g.id === active)) active = present[0].id;
