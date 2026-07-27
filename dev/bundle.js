@@ -6591,9 +6591,11 @@
     }
 
     // Achievement system - currently limited to the credits crew (devs & friends).
-    // Counts things done TO the player (pats, hugs, kisses, being tied...) plus a
-    // few rare Emery-targeted ones. Progress lives in EBC settings (synced, tiny);
-    // unlocks pop a golden toast. Fed from main.ts's ChatRoomMessage hook.
+    // Tiered: most achievements level up through thresholds (e.g. 5 → 25 → 100) and
+    // their card upgrades bronze → silver → gold. Counts things done TO the player
+    // (pats, hugs, kisses, being tied...), things the player DOES (boops, pats,
+    // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
+    // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
     // Same crew as the credits tab. Only these members track or see achievements.
     const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80];
     const EMERY = 130267;
@@ -6602,17 +6604,20 @@
     }
     const ACHIEVEMENTS = [
         // Things done TO you
-        { id: "pat_magnet", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted 25 times", counter: "pet_recv", target: 25 },
-        { id: "pat_addict", icon: "💖", name: "Pat Addict", desc: "Get headpatted 250 times", counter: "pet_recv", target: 250 },
-        { id: "hug_collector", icon: "🤗", name: "Hug Collector", desc: "Receive 50 hugs", counter: "hug_recv", target: 50 },
-        { id: "cherished", icon: "💋", name: "Cherished", desc: "Receive 100 kisses", counter: "kiss_recv", target: 100 },
-        { id: "popular", icon: "🌟", name: "Popular", desc: "25 different people do things to you", counter: "people", target: 25 },
-        { id: "tied_down", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you 50 times", counter: "tied_recv", target: 50 },
-        { id: "iron_streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound for 24 hours straight", counter: "bound_h", target: 24 },
-        // Rare - Emery-targeted
-        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery 5 times", counter: "pet_emery", target: 5, rare: true },
-        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", target: 1, rare: true },
-        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does 25 things to you", counter: "from_emery", target: 25, rare: true },
+        { id: "pats", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted {n} times", counter: "pet_recv", tiers: [5, 25, 250] },
+        { id: "hugs", icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs", counter: "hug_recv", tiers: [5, 25, 100] },
+        { id: "kisses", icon: "💋", name: "Cherished", desc: "Receive {n} kisses", counter: "kiss_recv", tiers: [5, 25, 100] },
+        { id: "popular", icon: "🌟", name: "Popular", desc: "{n} different people do things to you", counter: "people", tiers: [5, 25, 100] },
+        { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100] },
+        { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500] },
+        // Things YOU do
+        { id: "boops", icon: "👉", name: "Boop!", desc: "Boop someone {n} times", counter: "boop_give", tiers: [10, 50, 250] },
+        { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times", counter: "pet_give", tiers: [10, 50, 250] },
+        { id: "huggiver", icon: "💞", name: "Hug Dealer", desc: "Give {n} hugs", counter: "hug_give", tiers: [10, 50, 250] },
+        // Rare - Emery-targeted (single golden unlock)
+        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], rare: true },
+        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], rare: true },
+        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], rare: true },
     ];
     function getState() {
         try {
@@ -6646,37 +6651,49 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }, 3000);
     }
-    function showUnlockToast(a) {
+    const ROMAN = ["I", "II", "III", "IV", "V"];
+    const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
+    function tiersReached(def, count) {
+        let n = 0;
+        for (const t of def.tiers)
+            if (count >= t)
+                n++;
+        return n;
+    }
+    function showTierToast(a, tier) {
+        var _a, _b;
         try {
-            const col = a.rare ? "#ffd700" : "#cf6f98";
+            const maxed = tier >= a.tiers.length;
+            const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
+            const tierLabel = a.tiers.length > 1 ? ` ${(_a = ROMAN[tier - 1]) !== null && _a !== void 0 ? _a : tier}` : "";
             const el = document.createElement("div");
             el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
             const head = document.createElement("div");
             head.style.cssText = `font-size:10.5px;color:${col};letter-spacing:0.15em;margin-bottom:3px;`;
-            head.textContent = "🏆 ACHIEVEMENT UNLOCKED";
+            head.textContent = a.tiers.length > 1 && !maxed ? "🏆 ACHIEVEMENT TIER UP" : "🏆 ACHIEVEMENT UNLOCKED";
             const name = document.createElement("div");
             name.style.cssText = "font-weight:bold;font-size:14px;";
-            name.textContent = `${a.icon} ${a.name}`;
+            name.textContent = `${a.icon} ${a.name}${tierLabel}`;
             const desc = document.createElement("div");
             desc.style.cssText = "font-size:10.5px;color:#b8a8c8;margin-top:2px;";
-            desc.textContent = a.desc;
+            desc.textContent = a.desc.replace("{n}", String((_b = a.tiers[tier - 1]) !== null && _b !== void 0 ? _b : a.tiers[a.tiers.length - 1]));
             el.appendChild(head);
             el.appendChild(name);
             el.appendChild(desc);
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 6000);
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     function checkUnlocks() {
-        var _a;
+        var _a, _b;
         const st = getState();
         for (const a of ACHIEVEMENTS) {
-            if (st.u[a.id])
-                continue;
-            if (((_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0) >= a.target) {
-                st.u[a.id] = Date.now();
-                showUnlockToast(a);
+            const reached = tiersReached(a, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0);
+            const announced = (_b = st.u[a.id]) !== null && _b !== void 0 ? _b : 0;
+            if (reached > announced) {
+                st.u[a.id] = reached;
+                showTierToast(a, reached);
             }
         }
     }
@@ -6696,6 +6713,7 @@
             const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const act = actName.toLowerCase();
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
+                // Done TO you
                 if (act.includes("pet"))
                     bump("pet_recv");
                 if (act.includes("hug") || act.includes("cuddle"))
@@ -6717,9 +6735,17 @@
                     save();
                 }
             }
-            else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
-                if (act.includes("pet"))
-                    bump("pet_emery");
+            else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
+                // Things YOU do to others
+                if (act.includes("boop"))
+                    bump("boop_give");
+                if (act.includes("pet")) {
+                    bump("pet_give");
+                    if (targetNum === EMERY)
+                        bump("pet_emery");
+                }
+                if (act.includes("hug") || act.includes("cuddle"))
+                    bump("hug_give");
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
@@ -6742,65 +6768,19 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // ── Worn badge ────────────────────────────────────────────────────────────────
-    // One unlocked achievement can be "worn" - its icon travels in EBC's presence
-    // broadcast and other EBC users see it next to the name in People-in-Room.
-    let _presenceRefresh = null;
-    /** main.ts registers its presence broadcaster here so badge changes push out. */
-    function setPresenceRefreshCallback(cb) {
-        _presenceRefresh = cb;
-    }
-    function getWornBadgeId() {
-        try {
-            const st = getState();
-            return typeof st.w === "string" && st.w ? st.w : null;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    /** The worn badge's icon, for the presence payload. Null when nothing worn. */
-    function getWornBadgeIcon() {
-        var _a, _b;
-        const id = getWornBadgeId();
-        if (!id)
-            return null;
-        const st = getState();
-        if (!st.u[id])
-            return null; // must actually be unlocked
-        return (_b = (_a = ACHIEVEMENTS.find(a => a.id === id)) === null || _a === void 0 ? void 0 : _a.icon) !== null && _b !== void 0 ? _b : null;
-    }
-    /** Wear an unlocked achievement's badge (null = wear nothing). */
-    function setWornBadge(id) {
-        try {
-            const st = getState();
-            if (id !== null && !st.u[id])
-                return false; // not unlocked
-            if (id === null)
-                delete st.w;
-            else
-                st.w = id;
-            syncSettings();
-            try {
-                _presenceRefresh === null || _presenceRefresh === void 0 ? void 0 : _presenceRefresh();
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            return true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    /** Cap incoming badge strings from other clients - emoji only, no essays. */
-    function sanitizeBadgeIcon(v) {
-        return typeof v === "string" && v.length > 0 && v.length <= 8 ? v : null;
-    }
-    /** Progress rows for the credits-tab UI. */
     function getAchievementProgress() {
         const st = getState();
         return ACHIEVEMENTS.map(a => {
             var _a, _b;
-            return (Object.assign(Object.assign({}, a), { value: Math.min(a.target, (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0), unlockedAt: (_b = st.u[a.id]) !== null && _b !== void 0 ? _b : null }));
+            const value = (_a = st.c[a.counter]) !== null && _a !== void 0 ? _a : 0;
+            const tier = tiersReached(a, value);
+            const maxed = tier >= a.tiers.length;
+            const nextTarget = maxed ? null : a.tiers[tier];
+            const descN = maxed ? a.tiers[a.tiers.length - 1] : a.tiers[tier];
+            return Object.assign(Object.assign({}, a), { value,
+                tier,
+                maxed,
+                nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? ((_b = ROMAN[tier - 1]) !== null && _b !== void 0 ? _b : String(tier)) : "", descNow: a.desc.replace("{n}", String(descN)) });
         });
     }
     // Continuous bound-streak check - the counter keeps the LONGEST streak seen.
@@ -23307,8 +23287,7 @@
                                 return "";
                             }
                         })();
-                        // EBC version badge + worn achievement badge (both from presence)
-                        let achBadge = null;
+                        // EBC version badge
                         const ebcVer = (() => {
                             var _a;
                             try {
@@ -23316,7 +23295,6 @@
                                 if (sh && typeof sh === "object") {
                                     const p = sh.presence;
                                     if (p && typeof p === "object") {
-                                        achBadge = sanitizeBadgeIcon(p.badge);
                                         const v = p.version;
                                         const m = p.marker;
                                         if (m === "EBC" && typeof v === "string") {
@@ -23345,13 +23323,6 @@
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
-                        if (achBadge) {
-                            const ab = document.createElement("span");
-                            ab.textContent = achBadge;
-                            ab.title = "Achievement badge";
-                            ab.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;filter:drop-shadow(0 0 3px rgba(255,215,0,0.5));";
-                            nameRow.appendChild(ab);
-                        }
                         if (relBadge) {
                             const badge = document.createElement("span");
                             badge.textContent = relBadge;
@@ -24810,49 +24781,58 @@
                 achLbl.textContent = "🏆 ACHIEVEMENTS";
                 body.appendChild(achLbl);
                 const achWrap = document.createElement("div");
-                achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+                achWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-bottom:14px;";
+                // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
+                const PLATE = [
+                    "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.8;",
+                    "border:1px solid #a06a3a;background:linear-gradient(135deg, rgba(130,78,34,0.32), rgba(60,35,15,0.22));box-shadow:inset 0 1px 0 rgba(255,190,130,0.12);",
+                    "border:1px solid #b8c2ce;background:linear-gradient(135deg, rgba(150,162,178,0.26), rgba(78,88,102,0.18));box-shadow:inset 0 1px 0 rgba(230,240,255,0.14);",
+                    "border:1px solid #ffd700;background:linear-gradient(135deg, rgba(140,110,0,0.34), rgba(75,58,0,0.24));box-shadow:inset 0 1px 0 rgba(255,235,150,0.18), 0 0 10px rgba(255,215,0,0.14);",
+                ];
+                const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
+                const PIP_COL = ["#cd7f32", "#c8d0dc", "#ffd700"];
                 for (const a of getAchievementProgress()) {
-                    const done = a.unlockedAt !== null;
+                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
                     const row = document.createElement("div");
-                    row.style.cssText =
-                        `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
-                            `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
-                            `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
-                            (done ? "" : "opacity:0.78;");
+                    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;" + PLATE[plate];
                     const ic = document.createElement("span");
-                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (a.tier === 0 ? "filter:grayscale(1);opacity:0.5;" : "");
                     ic.textContent = a.icon;
                     const col = document.createElement("div");
                     col.style.cssText = "flex:1;min-width:0;";
                     const nm = document.createElement("div");
-                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
-                    nm.textContent = a.name + (a.rare ? " ★" : "");
+                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                    nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
                     const ds = document.createElement("div");
-                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
-                    ds.textContent = a.desc;
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                    ds.textContent = a.descNow;
                     col.appendChild(nm);
                     col.appendChild(ds);
+                    const right = document.createElement("div");
+                    right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;";
                     const pr = document.createElement("span");
-                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
-                    pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                    right.appendChild(pr);
+                    // Tier pips for multi-tier achievements
+                    if (a.tiers.length > 1) {
+                        const pips = document.createElement("div");
+                        pips.style.cssText = "display:flex;gap:3px;";
+                        for (let ti = 0; ti < a.tiers.length; ti++) {
+                            const pip = document.createElement("span");
+                            const litCol = PIP_COL[Math.min(ti, 2)];
+                            pip.style.cssText = `width:7px;height:7px;border-radius:50%;` +
+                                (ti < a.tier
+                                    ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
+                                    : "background:transparent;border:1px solid #4a3040;");
+                            pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
+                            pips.appendChild(pip);
+                        }
+                        right.appendChild(pips);
+                    }
                     row.appendChild(ic);
                     row.appendChild(col);
-                    row.appendChild(pr);
-                    if (done) {
-                        const worn = getWornBadgeId() === a.id;
-                        const wearBtn = document.createElement("button");
-                        wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
-                        wearBtn.style.flexShrink = "0";
-                        wearBtn.textContent = worn ? "Worn ✓" : "Wear";
-                        wearBtn.title = worn
-                            ? "This badge shows next to your name for other EBC users - click to take it off"
-                            : "Wear this badge - its icon shows next to your name for other EBC users";
-                        wearBtn.addEventListener("click", () => {
-                            setWornBadge(worn ? null : a.id);
-                            this.rerender();
-                        });
-                        row.appendChild(wearBtn);
-                    }
+                    row.appendChild(right);
                     achWrap.appendChild(row);
                 }
                 body.appendChild(achWrap);
@@ -36657,7 +36637,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 178; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 179; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36709,6 +36689,8 @@
                 "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
                 "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
                 "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
+                "Achievements reworked to TIERS: most achievements now level up through three thresholds (e.g. pats 5 → 25 → 250) and their card upgrades bronze → silver → gold plate, with tier pips and I/II/III labels. New doer achievements: Boop! (boop someone 10/50/250 times), Pat Dispenser (headpat others 10/50/250), Hug Dealer (give 10/50/250 hugs). Tier-ups pop a toast in the tier's metal color. Existing counters carry over.",
+                "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43350,25 +43332,18 @@
     let lastPresenceSyncTime = 0;
     const PRESENCE_SYNC_COOLDOWN_MS = 6000; // 6 s between sends
     function syncPresenceMarker() {
-        var _a, _b, _c, _d;
+        var _a, _b, _c;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const wornBadge = (() => { try {
-            return getWornBadgeIcon();
-        }
-        catch (_a) {
-            return null;
-        } })();
-        const presence = Object.assign(Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } )), (wornBadge ? { badge: wornBadge } : {}));
+        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
         if (settings) {
             const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION
-                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true )
-                && ((_d = settings.presence) === null || _d === void 0 ? void 0 : _d.badge) === (wornBadge !== null && wornBadge !== void 0 ? wornBadge : undefined);
+                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true );
             if (!alreadyStored) {
                 settings.presence = presence;
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -45275,11 +45250,6 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return _r;
         });
-        // Wearing/removing a badge re-broadcasts presence right away (6s rate limit applies).
-        setPresenceRefreshCallback(() => { try {
-            syncPresenceMarker();
-        }
-        catch ( /* ignore */_a) { /* ignore */ } });
         // Achievements feed (credits crew only): watch activities done to/by the
         // player and item applies. Independent of the XToys gates above.
         modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
