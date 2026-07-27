@@ -33152,7 +33152,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             catch ( /* ignore */_a) { /* ignore */ }
         }
         renderToys() {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             const body = this.tabBody();
             if (!body)
                 return;
@@ -34335,6 +34335,56 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 d.textContent = txt;
                 return d;
             };
+            // ── MY TOYS - drive your own equipped BC vibrators ──────────────────
+            {
+                gtContent.appendChild(gtHdr("MY TOYS"));
+                const myCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:6px;");
+                // What is actually equipped, so the buttons are not a mystery.
+                const worn = [];
+                try {
+                    const win = window;
+                    const lookup = (_c = win.VibratorModeDataLookup) !== null && _c !== void 0 ? _c : {};
+                    for (const item of ((_d = Player === null || Player === void 0 ? void 0 : Player.Appearance) !== null && _d !== void 0 ? _d : [])) {
+                        const key = item.Asset.Group.Name + item.Asset.Name;
+                        if (item.Asset.Archetype === "vibrating" || key in lookup || typeof ((_e = item.Property) === null || _e === void 0 ? void 0 : _e["Mode"]) === "string") {
+                            worn.push(item.Asset.Description || item.Asset.Name);
+                        }
+                    }
+                }
+                catch ( /* ignore */_o) { /* ignore */ }
+                const wornNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
+                wornNote.textContent = worn.length
+                    ? `Wearing: ${worn.join(", ")}`
+                    : "No vibrating items equipped - these apply to every vibrator you put on.";
+                myCard.appendChild(wornNote);
+                const modeRow = mk("div", "display:flex;flex-wrap:wrap;gap:5px;");
+                const MODES = [
+                    ["Off", "Off"], ["Low", "Low"], ["Medium", "Med"], ["High", "High"],
+                    ["Maximum", "Max"], ["Random", "Random"], ["Escalate", "Escalate"],
+                    ["Tease", "Tease"], ["Deny", "Deny"], ["Edge", "Edge"],
+                ];
+                for (const [mode, label] of MODES) {
+                    const b = document.createElement("button");
+                    b.textContent = label;
+                    b.title = `Set every vibrator you are wearing to ${mode}`;
+                    b.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:11px;cursor:pointer;min-height:28px;` +
+                        (mode === "Off"
+                            ? "background:transparent;border:1px solid #5a2838;color:#b07888;"
+                            : "background:rgba(194,98,138,0.16);border:1px solid #cf6f98;color:#e8b0c8;");
+                    b.addEventListener("mouseenter", () => { b.style.filter = "brightness(1.3)"; });
+                    b.addEventListener("mouseleave", () => { b.style.filter = ""; });
+                    b.addEventListener("click", () => {
+                        this._applyBCVibratorMode(mode);
+                        const prev = b.textContent;
+                        b.textContent = "✓";
+                        window.setTimeout(() => { b.textContent = prev; }, 700);
+                    });
+                    modeRow.appendChild(b);
+                }
+                myCard.appendChild(modeRow);
+                gtContent.appendChild(myCard);
+                gtContent.appendChild(sep());
+            }
             // ── MY PRIVACY ──────────────────────────────────────────────────────
             gtContent.appendChild(gtHdr("MY PRIVACY"));
             const privCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:8px;");
@@ -34475,7 +34525,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const gtRoomChars = window.ChatRoomCharacter;
             const gtPlayerW = window.Player;
             const gtMyMN = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.MemberNumber;
-            const gtFriendNums = (_c = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _c !== void 0 ? _c : [];
+            const gtFriendNums = (_f = gtPlayerW === null || gtPlayerW === void 0 ? void 0 : gtPlayerW.FriendList) !== null && _f !== void 0 ? _f : [];
             const gtFriendsInRoom = (gtRoomChars !== null && gtRoomChars !== void 0 ? gtRoomChars : []).filter(c => c.MemberNumber && c.MemberNumber !== gtMyMN && gtFriendNums.includes(c.MemberNumber));
             const ctrlCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;");
             if (gtFriendsInRoom.length === 0) {
@@ -34490,7 +34540,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 for (const c of gtFriendsInRoom) {
                     const opt = document.createElement("option");
                     opt.value = String(c.MemberNumber);
-                    opt.textContent = `${((_d = c.Nickname) !== null && _d !== void 0 ? _d : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
+                    opt.textContent = `${((_g = c.Nickname) !== null && _g !== void 0 ? _g : "").trim() || c.Name || String(c.MemberNumber)} (#${c.MemberNumber})`;
                     friendSel.appendChild(opt);
                 }
                 const charHasVibs = (memberNum) => {
@@ -34727,7 +34777,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     warnBox.appendChild(warnText);
                     psContent.appendChild(warnBox);
                     // ── Connection (collapsible) ───────────────────────────────────────
-                    const connHasCreds = !!(((_e = localStorage.getItem("EBC_ps_user")) === null || _e === void 0 ? void 0 : _e.trim()) && ((_f = localStorage.getItem("EBC_ps_key")) === null || _f === void 0 ? void 0 : _f.trim()));
+                    const connHasCreds = !!(((_h = localStorage.getItem("EBC_ps_user")) === null || _h === void 0 ? void 0 : _h.trim()) && ((_j = localStorage.getItem("EBC_ps_key")) === null || _j === void 0 ? void 0 : _j.trim()));
                     const connBox = mk("div", "border:1px solid var(--ebc-border);border-radius:8px;margin-bottom:8px;overflow:hidden;");
                     const connHdr = mk("div", `${FONT}display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;user-select:none;background:var(--ebc-bg-darker);`);
                     const connHdrLbl = mk("span", `${FONT}font-size:10px;font-weight:bold;letter-spacing:0.8px;text-transform:uppercase;color:${connHasCreds ? "#70c080" : "#e07070"};`);
@@ -34753,7 +34803,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     proxyOptNote.textContent = "Leave blank to send directly from your browser. Only needed if direct mode stops working.";
                     connBody.appendChild(proxyOptNote);
                     const proxyRow = psRow();
-                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_g = localStorage.getItem("EBC_ps_proxy")) !== null && _g !== void 0 ? _g : "");
+                    const proxyInp = psInp("https://your-worker.workers.dev (optional)", (_k = localStorage.getItem("EBC_ps_proxy")) !== null && _k !== void 0 ? _k : "");
                     proxyInp.style.flex = "1";
                     proxyInp.addEventListener("input", () => { try {
                         localStorage.setItem("EBC_ps_proxy", proxyInp.value.trim());
@@ -34783,7 +34833,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const userSubLbl = mk("div", `${FONT}font-size:9.5px;font-weight:bold;color:var(--ebc-text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;`);
                     userSubLbl.textContent = "Username";
                     connBody.appendChild(userSubLbl);
-                    const userInp = psInp("PiShock username (pishock.com login name)", (_h = localStorage.getItem("EBC_ps_user")) !== null && _h !== void 0 ? _h : "");
+                    const userInp = psInp("PiShock username (pishock.com login name)", (_l = localStorage.getItem("EBC_ps_user")) !== null && _l !== void 0 ? _l : "");
                     userInp.style.marginBottom = "2px";
                     userInp.addEventListener("input", () => {
                         var _a;
@@ -34804,7 +34854,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     keySubLbl.textContent = "API Key";
                     connBody.appendChild(keySubLbl);
                     const keyRow = psRow();
-                    const keyInp = psInp("API key", (_j = localStorage.getItem("EBC_ps_key")) !== null && _j !== void 0 ? _j : "", true);
+                    const keyInp = psInp("API key", (_m = localStorage.getItem("EBC_ps_key")) !== null && _m !== void 0 ? _m : "", true);
                     keyInp.style.flex = "1";
                     keyInp.addEventListener("input", () => {
                         var _a;
@@ -38939,7 +38989,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 211; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 212; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39015,6 +39065,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
                 "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
                 "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+                "Game toys: new MY TOYS section at the top - drive your own equipped BC vibrators directly with Off / Low / Med / High / Max / Random / Escalate / Tease / Deny / Edge, applied to every vibrating item you are wearing. It lists what you currently have on so the buttons are not a mystery, and says so when nothing is equipped. Previously you could let others control your toys or control a friend's, but not your own.",
                 "Toys: the Game toys pill no longer shows a redundant 'GAME TOYS' dropdown inside it - a pill holding a single section opens that section and hides its header, since the pill is the header. IRL toys keeps its per-integration headers (Lovense / PiShock / XToys) because there are several to tell apart.",
                 "Fix: the Toys pills did not appear - the converter was pointed at the Lovense section's inner content instead of the tab's top-level sections. It now runs over the card holding Game toys / IRL toys (Lovense) / PiShock / XToys, giving two pills: Game toys and IRL toys.",
                 "Toys tab split into pills: IRL toy (Bluetooth/Lovense Connect setup and vibrate defaults), In-game (BC toy sync), Triggers (chat phrases and body touch) and Sharing (let others control your toy / control a friend's). Sections declare their own group, and anything untagged counts as physical-toy setup - so a section added later still lands somewhere sensible rather than disappearing. Classic layout keeps the original single scrolling page.",

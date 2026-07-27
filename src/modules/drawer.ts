@@ -24713,6 +24713,59 @@ This cannot be undone.`,
             d.textContent = txt; return d;
         };
 
+        // ── MY TOYS - drive your own equipped BC vibrators ──────────────────
+        {
+            gtContent.appendChild(gtHdr("MY TOYS"));
+            const myCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:6px;");
+
+            // What is actually equipped, so the buttons are not a mystery.
+            const worn: string[] = [];
+            try {
+                const win = window as unknown as { VibratorModeDataLookup?: Record<string, unknown> };
+                const lookup = win.VibratorModeDataLookup ?? {};
+                for (const item of (Player?.Appearance ?? []) as Array<{ Asset: { Archetype?: string; Group: { Name: string }; Name: string; Description?: string }; Property?: Record<string, unknown> }>) {
+                    const key = item.Asset.Group.Name + item.Asset.Name;
+                    if (item.Asset.Archetype === "vibrating" || key in lookup || typeof item.Property?.["Mode"] === "string") {
+                        worn.push(item.Asset.Description || item.Asset.Name);
+                    }
+                }
+            } catch { /* ignore */ }
+
+            const wornNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
+            wornNote.textContent = worn.length
+                ? `Wearing: ${worn.join(", ")}`
+                : "No vibrating items equipped - these apply to every vibrator you put on.";
+            myCard.appendChild(wornNote);
+
+            const modeRow = mk("div", "display:flex;flex-wrap:wrap;gap:5px;");
+            const MODES: Array<[string, string]> = [
+                ["Off", "Off"], ["Low", "Low"], ["Medium", "Med"], ["High", "High"],
+                ["Maximum", "Max"], ["Random", "Random"], ["Escalate", "Escalate"],
+                ["Tease", "Tease"], ["Deny", "Deny"], ["Edge", "Edge"],
+            ];
+            for (const [mode, label] of MODES) {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.title = `Set every vibrator you are wearing to ${mode}`;
+                b.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:11px;cursor:pointer;min-height:28px;` +
+                    (mode === "Off"
+                        ? "background:transparent;border:1px solid #5a2838;color:#b07888;"
+                        : "background:rgba(194,98,138,0.16);border:1px solid #cf6f98;color:#e8b0c8;");
+                b.addEventListener("mouseenter", () => { b.style.filter = "brightness(1.3)"; });
+                b.addEventListener("mouseleave", () => { b.style.filter = ""; });
+                b.addEventListener("click", () => {
+                    this._applyBCVibratorMode(mode);
+                    const prev = b.textContent;
+                    b.textContent = "✓";
+                    window.setTimeout(() => { b.textContent = prev; }, 700);
+                });
+                modeRow.appendChild(b);
+            }
+            myCard.appendChild(modeRow);
+            gtContent.appendChild(myCard);
+            gtContent.appendChild(sep());
+        }
+
         // ── MY PRIVACY ──────────────────────────────────────────────────────
         gtContent.appendChild(gtHdr("MY PRIVACY"));
 
