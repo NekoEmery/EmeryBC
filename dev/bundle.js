@@ -6602,22 +6602,36 @@
     function isAchievementUser(memberNumber) {
         return typeof memberNumber === "number" && ACHIEVEMENT_MEMBERS.includes(memberNumber);
     }
+    const ACHIEVEMENT_CLASSES = [
+        { id: "received", label: "Received", icon: "💝" },
+        { id: "given", label: "Given", icon: "🖐" },
+        { id: "bondage", label: "Bondage", icon: "⛓" },
+        { id: "emery", label: "Emery", icon: "⭐" },
+    ];
     const ACHIEVEMENTS = [
-        // Things done TO you
-        { id: "pats", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted {n} times", counter: "pet_recv", tiers: [5, 25, 250] },
-        { id: "hugs", icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs", counter: "hug_recv", tiers: [5, 25, 100] },
-        { id: "kisses", icon: "💋", name: "Cherished", desc: "Receive {n} kisses", counter: "kiss_recv", tiers: [5, 25, 100] },
-        { id: "popular", icon: "🌟", name: "Popular", desc: "{n} different people do things to you", counter: "people", tiers: [5, 25, 100] },
-        { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100] },
-        { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500] },
-        // Things YOU do
-        { id: "boops", icon: "👉", name: "Boop!", desc: "Boop someone {n} times", counter: "boop_give", tiers: [10, 50, 250] },
-        { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times", counter: "pet_give", tiers: [10, 50, 250] },
-        { id: "huggiver", icon: "💞", name: "Hug Dealer", desc: "Give {n} hugs", counter: "hug_give", tiers: [10, 50, 250] },
-        // Rare - Emery-targeted (single golden unlock)
-        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], rare: true },
-        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], rare: true },
-        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], rare: true },
+        // 💝 Received - things done TO you
+        { id: "pats", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted {n} times", counter: "pet_recv", tiers: [5, 25, 250], cls: "received" },
+        { id: "hugs", icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs", counter: "hug_recv", tiers: [5, 25, 100], cls: "received" },
+        { id: "kisses", icon: "💋", name: "Cherished", desc: "Receive {n} kisses", counter: "kiss_recv", tiers: [5, 25, 100], cls: "received" },
+        { id: "popular", icon: "🌟", name: "Popular", desc: "{n} different people do things to you", counter: "people", tiers: [5, 25, 100], cls: "received" },
+        // 🖐 Given - things YOU do to others
+        { id: "boops", icon: "👉", name: "Boop!", desc: "Boop someone {n} times", counter: "boop_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times", counter: "pet_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "huggiver", icon: "💞", name: "Hug Dealer", desc: "Give {n} hugs", counter: "hug_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "kissgiver", icon: "😘", name: "Kiss Bandit", desc: "Kiss others {n} times", counter: "kiss_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "spanker", icon: "🍑", name: "Heavy Hand", desc: "Spank others {n} times", counter: "spank_give", tiers: [10, 50, 250], cls: "given" },
+        { id: "tickler", icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times", counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
+        // ⛓ Bondage
+        { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100], cls: "bondage" },
+        { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
+        { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
+        // ⭐ Emery - rare single golden unlocks
+        { id: "pat_the_dev", icon: "⭐", name: "Pat the Dev", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
+        { id: "boop_the_dev", icon: "⭐", name: "Boop the Dev", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
+        { id: "hug_the_dev", icon: "⭐", name: "Dev Cuddler", desc: "Hug Emery {n} times", counter: "hug_emery", tiers: [10], cls: "emery", rare: true },
+        { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
+        { id: "dev_wrangler", icon: "⭐", name: "Dev Wrangler", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "devs_favorite", icon: "⭐", name: "Dev's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -6737,15 +6751,31 @@
             }
             else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
                 // Things YOU do to others
-                if (act.includes("boop"))
+                const toEmery = targetNum === EMERY;
+                if (act.includes("boop")) {
                     bump("boop_give");
+                    if (toEmery)
+                        bump("boop_emery");
+                }
                 if (act.includes("pet")) {
                     bump("pet_give");
-                    if (targetNum === EMERY)
+                    if (toEmery)
                         bump("pet_emery");
                 }
-                if (act.includes("hug") || act.includes("cuddle"))
+                if (act.includes("hug") || act.includes("cuddle")) {
                     bump("hug_give");
+                    if (toEmery)
+                        bump("hug_emery");
+                }
+                if (act.includes("kiss"))
+                    bump("kiss_give");
+                if (act.includes("spank")) {
+                    bump("spank_give");
+                    if (toEmery)
+                        bump("spank_emery");
+                }
+                if (act.includes("tickle"))
+                    bump("tickle_give");
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
@@ -6762,8 +6792,10 @@
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 bump("tied_recv");
             }
-            else if (sourceNum === me && targetNum === EMERY && me !== EMERY) {
-                bump("bind_emery");
+            else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
+                bump("tie_give");
+                if (targetNum === EMERY)
+                    bump("bind_emery");
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
@@ -12928,6 +12960,13 @@
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
+            const trophyBtn = document.createElement("button");
+            trophyBtn.className = "ebc-icon-btn";
+            trophyBtn.title = "Achievements";
+            trophyBtn.textContent = "🏆";
+            trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
+            trophyBtn.addEventListener("click", () => this.showAchievementsOverlay());
+            headerBtns.appendChild(trophyBtn);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
@@ -24767,6 +24806,113 @@
             return container;
         }
         // -- Developer Tools tab ---------------------------------------------------
+        /** Class-grouped achievement cards - tier plates, progress bars, no icons. */
+        buildAchievementCards() {
+            const wrap = document.createElement("div");
+            wrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+            // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
+            const PLATE = [
+                "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.85;",
+                "border:1px solid #a06a3a;background:linear-gradient(135deg, rgba(130,78,34,0.32), rgba(60,35,15,0.22));box-shadow:inset 0 1px 0 rgba(255,190,130,0.12);",
+                "border:1px solid #b8c2ce;background:linear-gradient(135deg, rgba(150,162,178,0.26), rgba(78,88,102,0.18));box-shadow:inset 0 1px 0 rgba(230,240,255,0.14);",
+                "border:1px solid #ffd700;background:linear-gradient(135deg, rgba(140,110,0,0.34), rgba(75,58,0,0.24));box-shadow:inset 0 1px 0 rgba(255,235,150,0.18), 0 0 10px rgba(255,215,0,0.14);",
+            ];
+            const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
+            const METAL = ["#cd7f32", "#c8d0dc", "#ffd700"];
+            const progress = getAchievementProgress();
+            for (const clsDef of ACHIEVEMENT_CLASSES) {
+                const clsItems = progress.filter(x => x.cls === clsDef.id);
+                if (clsItems.length === 0)
+                    continue;
+                const clsHead = document.createElement("div");
+                clsHead.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:7px 2px 2px;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#a87890;";
+                const clsLbl = document.createElement("span");
+                clsLbl.textContent = clsDef.label;
+                const clsCnt = document.createElement("span");
+                clsCnt.style.cssText = "color:#7a5a6a;font-weight:normal;letter-spacing:0;";
+                clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
+                clsHead.appendChild(clsLbl);
+                clsHead.appendChild(clsCnt);
+                wrap.appendChild(clsHead);
+                for (const a of clsItems) {
+                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
+                    const card = document.createElement("div");
+                    card.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:6px 9px 7px;border-radius:8px;" + PLATE[plate];
+                    const topRow = document.createElement("div");
+                    topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                    nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
+                    topRow.appendChild(nm);
+                    if (a.tiers.length > 1) {
+                        const pips = document.createElement("span");
+                        pips.style.cssText = "display:flex;gap:3px;flex-shrink:0;align-items:center;";
+                        for (let ti = 0; ti < a.tiers.length; ti++) {
+                            const pip = document.createElement("span");
+                            const litCol = METAL[Math.min(ti, 2)];
+                            pip.style.cssText = "width:7px;height:7px;border-radius:50%;" +
+                                (ti < a.tier
+                                    ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
+                                    : "background:transparent;border:1px solid #4a3040;");
+                            pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
+                            pips.appendChild(pip);
+                        }
+                        topRow.appendChild(pips);
+                    }
+                    const pr = document.createElement("span");
+                    pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                    topRow.appendChild(pr);
+                    card.appendChild(topRow);
+                    const ds = document.createElement("div");
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                    ds.textContent = a.descNow;
+                    card.appendChild(ds);
+                    // Progress bar toward the next tier - gold and full when maxed
+                    const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
+                    const fillCol = a.maxed || (a.rare && a.tier > 0) ? "#ffd700" : METAL[Math.min(a.tier, 2)];
+                    const trough = document.createElement("div");
+                    trough.style.cssText = "height:5px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;margin-top:2px;";
+                    const fill = document.createElement("div");
+                    fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:${fillCol};` +
+                        (a.maxed ? `box-shadow:0 0 6px ${fillCol};` : "");
+                    trough.appendChild(fill);
+                    card.appendChild(trough);
+                    wrap.appendChild(card);
+                }
+            }
+            return wrap;
+        }
+        /** Fun popup version of the achievement list, opened from the 🏆 header button. */
+        showAchievementsOverlay() {
+            if (document.getElementById("ebc-ach-overlay"))
+                return;
+            const overlay = document.createElement("div");
+            overlay.id = "ebc-ach-overlay";
+            overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;";
+            overlay.addEventListener("click", (e) => { if (e.target === overlay)
+                overlay.remove(); });
+            const panel = document.createElement("div");
+            panel.style.cssText = "background:#130810;border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85);";
+            const head = document.createElement("div");
+            head.style.cssText = "display:flex;align-items:center;justify-content:space-between;";
+            const title = document.createElement("span");
+            title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:14px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;";
+            title.textContent = "🏆 Achievements";
+            const closeBtn = document.createElement("button");
+            closeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:2px 9px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;";
+            closeBtn.textContent = "X";
+            closeBtn.addEventListener("click", () => overlay.remove());
+            head.appendChild(title);
+            head.appendChild(closeBtn);
+            const scroll = document.createElement("div");
+            scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
+            scroll.appendChild(this.buildAchievementCards());
+            panel.appendChild(head);
+            panel.appendChild(scroll);
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+        }
         renderDev() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -24778,64 +24924,11 @@
             if (isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
                 const achLbl = document.createElement("div");
                 achLbl.className = "ebc-section-label";
-                achLbl.textContent = "🏆 ACHIEVEMENTS";
+                achLbl.textContent = "ACHIEVEMENTS";
                 body.appendChild(achLbl);
-                const achWrap = document.createElement("div");
-                achWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-bottom:14px;";
-                // Card plates per tier: locked, bronze, silver, gold (maxed / rare)
-                const PLATE = [
-                    "border:1px solid #2a1421;background:rgba(20,8,16,0.4);opacity:0.8;",
-                    "border:1px solid #a06a3a;background:linear-gradient(135deg, rgba(130,78,34,0.32), rgba(60,35,15,0.22));box-shadow:inset 0 1px 0 rgba(255,190,130,0.12);",
-                    "border:1px solid #b8c2ce;background:linear-gradient(135deg, rgba(150,162,178,0.26), rgba(78,88,102,0.18));box-shadow:inset 0 1px 0 rgba(230,240,255,0.14);",
-                    "border:1px solid #ffd700;background:linear-gradient(135deg, rgba(140,110,0,0.34), rgba(75,58,0,0.24));box-shadow:inset 0 1px 0 rgba(255,235,150,0.18), 0 0 10px rgba(255,215,0,0.14);",
-                ];
-                const NAME_COL = ["#b090a0", "#e8b488", "#dde6f0", "#ffd700"];
-                const PIP_COL = ["#cd7f32", "#c8d0dc", "#ffd700"];
-                for (const a of getAchievementProgress()) {
-                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;" + PLATE[plate];
-                    const ic = document.createElement("span");
-                    ic.style.cssText = "font-size:16px;flex-shrink:0;" + (a.tier === 0 ? "filter:grayscale(1);opacity:0.5;" : "");
-                    ic.textContent = a.icon;
-                    const col = document.createElement("div");
-                    col.style.cssText = "flex:1;min-width:0;";
-                    const nm = document.createElement("div");
-                    nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
-                    nm.textContent = a.name + (a.tierLabel ? ` ${a.tierLabel}` : "") + (a.rare ? " ★" : "");
-                    const ds = document.createElement("div");
-                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
-                    ds.textContent = a.descNow;
-                    col.appendChild(nm);
-                    col.appendChild(ds);
-                    const right = document.createElement("div");
-                    right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;";
-                    const pr = document.createElement("span");
-                    pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
-                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
-                    right.appendChild(pr);
-                    // Tier pips for multi-tier achievements
-                    if (a.tiers.length > 1) {
-                        const pips = document.createElement("div");
-                        pips.style.cssText = "display:flex;gap:3px;";
-                        for (let ti = 0; ti < a.tiers.length; ti++) {
-                            const pip = document.createElement("span");
-                            const litCol = PIP_COL[Math.min(ti, 2)];
-                            pip.style.cssText = `width:7px;height:7px;border-radius:50%;` +
-                                (ti < a.tier
-                                    ? `background:${litCol};box-shadow:0 0 4px ${litCol};`
-                                    : "background:transparent;border:1px solid #4a3040;");
-                            pip.title = a.desc.replace("{n}", String(a.tiers[ti]));
-                            pips.appendChild(pip);
-                        }
-                        right.appendChild(pips);
-                    }
-                    row.appendChild(ic);
-                    row.appendChild(col);
-                    row.appendChild(right);
-                    achWrap.appendChild(row);
-                }
-                body.appendChild(achWrap);
+                const cards = this.buildAchievementCards();
+                cards.style.marginBottom = "14px";
+                body.appendChild(cards);
             }
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
@@ -36637,7 +36730,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 179; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 180; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36691,6 +36784,8 @@
                 "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
                 "Achievements reworked to TIERS: most achievements now level up through three thresholds (e.g. pats 5 → 25 → 250) and their card upgrades bronze → silver → gold plate, with tier pips and I/II/III labels. New doer achievements: Boop! (boop someone 10/50/250 times), Pat Dispenser (headpat others 10/50/250), Hug Dealer (give 10/50/250 hugs). Tier-ups pop a toast in the tier's metal color. Existing counters carry over.",
                 "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
+                "Achievements: organized into CLASSES - Received (things done to you), Given (things you do), Bondage, and Emery - each with its own header and unlocked count. New Given achievements: Kiss Bandit (kiss others 10/50/250), Heavy Hand (spank others 10/50/250), Tickle Monster (tickle others 10/50/250). New Bondage: Rigger (put restraints on others 10/50/250). New Emery rares: Boop the Dev (boop Emery 10x), Dev Cuddler (hug Emery 10x), Brave Soul (spank Emery 5x).",
+                "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
