@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 185;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 186;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -95,6 +95,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: dragging the panel out of the drawer (free-float mode) crushed the header - the DEV pill clipped mid-letter and the title overlapped the buttons on narrow widths. Fix: the version text and DEV pill no longer shrink, the 'EmeryBC' subtitle hides in float mode, and the header buttons compact slightly so everything always fits.",
             "Achievements popup: the fat default browser scrollbar replaced with EBC's slim pink one (same style as the panel body).",
             "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
+            "Achievements visual overhaul: every card now has a metallic medal coin (empty when locked, bronze/silver/gold with the tier numeral, ★ for rares), gradient tier plates with depth and a hover lift, inset progress bars with metal-gradient fills, class headers with fading divider lines, an 'Unlocked X / Y' summary bar at the top, and a soft glow on the popup background. No more flat look.",
+            "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
