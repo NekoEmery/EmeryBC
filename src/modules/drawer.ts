@@ -4084,6 +4084,19 @@ function buildCSS(c: CoreColors): string {
 
 // -- VIP members (highlighted in Notes tab when present in the room) -----------
 
+// Room occupancy (name -> count/limit), harvested from any ChatRoomSearchResult
+// that passes by. Friend-presence data carries no counts, so this is the only
+// source for rooms the player is not standing in. Entries older than 5 minutes
+// are treated as stale and not shown.
+const _roomCounts = new Map<string, { count: number; limit: number; ts: number }>();
+const ROOM_COUNT_TTL_MS = 5 * 60 * 1000;
+
+function getRoomCount(name: string): { count: number; limit: number } | null {
+    const e = _roomCounts.get(name.trim().toLowerCase());
+    if (!e || Date.now() - e.ts > ROOM_COUNT_TTL_MS) return null;
+    return { count: e.count, limit: e.limit };
+}
+
 const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {
     130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] },  // Emery  - pink → turquoise
     143776: { label: "Sin",     color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] },  // Sin    - light pink → hot pink
@@ -15648,7 +15661,35 @@ export class EBCDrawer {
                     rName.title = g.label;
                     const rCnt = document.createElement("span");
                     rCnt.className = "ebc-friend-rooms-cnt";
-                    rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
+                    // Prefer real occupancy: live data for your own room, cached
+                    // search data for others. Fall back to the friend count.
+                    let occ: { count: number; limit: number } | null = null;
+                    if (g.current) {
+                        try {
+                            const d = (window as unknown as Record<string, unknown>).ChatRoomData as
+                                { Character?: unknown[]; Limit?: number } | null | undefined;
+                            if (d && Array.isArray(d.Character) && typeof d.Limit === "number") {
+                                occ = { count: d.Character.length, limit: d.Limit };
+                            }
+                        } catch { /* ignore */ }
+                        if (!occ) occ = getRoomCount(myRoomName);
+                    } else {
+                        occ = getRoomCount(g.label);
+                    }
+                    if (occ) {
+                        rCnt.textContent = `${occ.count}/${occ.limit}`;
+                        rCnt.title = `${occ.count} of ${occ.limit} people in this room`;
+                        if (occ.count >= occ.limit) {
+                            rCnt.style.color = "#e0a0a0";
+                            rCnt.style.borderColor = "rgba(224,160,160,0.45)";
+                            rCnt.title += " (full)";
+                        }
+                    } else {
+                        rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
+                        rCnt.title = g.current
+                            ? "People in this room"
+                            : `${g.nums.length} friend${g.nums.length === 1 ? "" : "s"} here`;
+                    }
                     headRow.appendChild(rIcon);
                     headRow.appendChild(rName);
                     headRow.appendChild(rCnt);
@@ -25560,6 +25601,16 @@ export class EBCDrawer {
             sock.on("ChatRoomSearchResult", (data: unknown) => {
                 try {
                     const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+                    // Cache occupancy for every room the search returned - the Rooms
+                    // section shows it, and friend-presence data carries no counts.
+                    for (const r of list) {
+                        const nm = String(r["Name"] ?? "").trim();
+                        const cnt = r["MemberCount"];
+                        const lim = r["MemberLimit"];
+                        if (nm && typeof cnt === "number" && typeof lim === "number") {
+                            _roomCounts.set(nm.toLowerCase(), { count: cnt, limit: lim, ts: Date.now() });
+                        }
+                    }
                     const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
                     if (found) {
                         // Positive: bypass the timestamp guard - any result that contains

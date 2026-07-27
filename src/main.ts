@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 198;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 199;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Rooms section now shows real occupancy (e.g. '4/10') instead of just the friend count, turning red when a room is full. Your own room reads live from the room data so it is always current; other rooms use counts harvested from room searches (BC's friend-presence data carries no occupancy at all), cached for 5 minutes - so their numbers appear once you have browsed the room list, and fall back to the friend count until then.",
             "Fix (pill sections, Anims): the Anims tab kept a leftover dropdown row above its content and its sections still opened collapsed. Root cause: Anims puts the ▶/▼ chevron in a span BESIDE the label rather than inside it, so the collapse check never saw the arrow and the header row was misread as a content wrapper. Fix: sections are now classified properly - label-only, chevron+label header row, or header+content wrapper - by checking whether anything follows the label inside the element, and the collapsed check reads the whole header's text. Header rows are hidden completely, so no stray dropdown remains.",
             "Pills enlarged for touch: bigger text, taller hit area (30px minimum) and more spacing, across every pill row - tab sections, Users, Dev and the achievement filters.",
             "Fix (pill sections): Colours, Tags and Storage opened empty, and pill labels were cut off mid-word. Two root causes: those sections wrap their header AND content in one element, so hiding the 'header' hid the whole section - the converter now hides just the inner header and keeps the wrapper as content; and several sections build their content lazily, skipping the build entirely while collapsed, so forcing them visible showed an empty panel - the converter now clicks each collapsed header first, running the section's own expand-and-build. Labels also strip trailing stats ('STORAGE 82.2 / 150.0 KB ACCOUNT' -> 'Storage') and the row wraps instead of truncating.",
