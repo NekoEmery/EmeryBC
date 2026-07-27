@@ -836,6 +836,62 @@ export function hasSessionBundle(memberNumber: number): boolean {
     return sessionCharacterBundles.has(memberNumber);
 }
 
+// -- Blocked messages ----------------------------------------------------------
+// When a recipient runs a rule addon that forbids them receiving beeps, their
+// client silently drops ours and beeps back an automatic reply. Before this,
+// our copy sat in the conversation looking delivered, and the offline queue
+// would happily retry it forever. Blocked timestamps are kept on the device -
+// they are a local display detail, not worth account-sync budget.
+
+const BLOCKED_LS = "EBC_blockedBeeps";
+const MAX_BLOCKED = 300;
+let _blocked: Set<number> | null = null;
+
+function blockedSet(): Set<number> {
+    if (_blocked) return _blocked;
+    _blocked = new Set<number>();
+    try {
+        const raw = localStorage.getItem(BLOCKED_LS);
+        if (raw) for (const n of JSON.parse(raw) as number[]) {
+            if (typeof n === "number") _blocked.add(n);
+        }
+    } catch { /* ignore */ }
+    return _blocked;
+}
+
+function saveBlocked(): void {
+    try {
+        const all = [...blockedSet()].sort((a, b) => b - a).slice(0, MAX_BLOCKED);
+        _blocked = new Set(all);
+        localStorage.setItem(BLOCKED_LS, JSON.stringify(all));
+    } catch { /* ignore */ }
+}
+
+/** True when this sent message was refused by the recipient's rules. */
+export function isBeepBlocked(entry: BeepEntry): boolean {
+    return blockedSet().has(entry.ts);
+}
+
+/**
+ * Flags the newest message we sent this person as refused, and drops any queued
+ * copy so the offline re-delivery loop stops retrying something their rules will
+ * reject again. Returns true if a message was found to flag.
+ */
+export function markLastSentBlocked(memberNumber: number): boolean {
+    const self = Player.MemberNumber ?? 0;
+    const convo = getConversation(memberNumber);
+    for (let i = convo.length - 1; i >= 0; i--) {
+        const e = convo[i];
+        if (e.from !== self || e.to !== memberNumber) continue;
+        if (blockedSet().has(e.ts)) return false;   // already flagged, don't walk further back
+        blockedSet().add(e.ts);
+        saveBlocked();
+        try { cancelPendingMessage(memberNumber, stripBeepMetadata(e.message)); } catch { /* ignore */ }
+        return true;
+    }
+    return false;
+}
+
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {

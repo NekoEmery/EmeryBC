@@ -16,7 +16,7 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine } from "./modules/notify";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { addBeepEntry, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -28,7 +28,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 213;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 214;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +48,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
+            "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
             "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
             "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
             "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
@@ -8132,6 +8134,18 @@ function init(): void {
                 }
                 return; // sender not a friend - still suppress, just don't process
             }
+            // A rule addon on the recipient's side dropped our message and beeped
+            // back its automatic reply. Flag the message we sent so it stops
+            // looking delivered, and drop it from the offline retry queue - their
+            // rule will refuse it again. The reply itself still shows: it carries
+            // the owner's own wording and explains why nothing arrived.
+            if (typeof beep.Message === "string" && beep.Message.startsWith("[Automatic reply by BCX]")) {
+                const fromNum2 = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                if (fromNum2) { try { markLastSentBlocked(fromNum2); } catch { /* ignore */ } }
+            }
+
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
             // can carry a text message and must be recorded in EBC's IM window.

@@ -2314,6 +2314,40 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         },
     ];
     const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
+    /**
+     * Whether BC will actually let the player take this pose right now.
+     *
+     * Reported: clicking a pose in the Body menu while restrained still emoted that
+     * you were doing it, even though the pose never changed. EBC forces the pose
+     * mapping directly, so it never consulted BC's own permission check.
+     *
+     * Poses reachable by struggling (BC's kneel/stand minigame) still count as
+     * allowed - those are things you genuinely can do to yourself. Only NEVER and
+     * NEVER_WITHOUT_AID are refused. On a BC build that exposes neither helper we
+     * return true, so an unknown version loses the guard rather than the feature.
+     */
+    function canTakePose(poseKey) {
+        var _a;
+        if (!poseKey)
+            return true; // clearing a pose is always allowed
+        try {
+            const w = window;
+            const statusFn = w.PoseCanChangeUnaidedStatus;
+            if (typeof statusFn === "function") {
+                // 0 NEVER, 1 NEVER_WITHOUT_AID, 2 ALWAYS_WITH_STRUGGLE, 3 ALWAYS
+                return statusFn(Player, poseKey) >= 2;
+            }
+            const avail = w.PoseAvailable;
+            const findName = w.AssetPoseFindName;
+            if (typeof avail === "function" && typeof findName === "function") {
+                const cat = (_a = findName(poseKey)) === null || _a === void 0 ? void 0 : _a.Category;
+                if (cat)
+                    return avail(Player, cat, poseKey) !== false;
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return true;
+    }
     function applyPoses(poses) {
         // An explicit empty string ("") in the list means "Relaxed arms" —
         // clear any active arm pose from the result set.
@@ -6609,6 +6643,67 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (session !== undefined)
             return session;
         return readBundleFromLS(memberNumber);
+    }
+    // -- Blocked messages ----------------------------------------------------------
+    // When a recipient runs a rule addon that forbids them receiving beeps, their
+    // client silently drops ours and beeps back an automatic reply. Before this,
+    // our copy sat in the conversation looking delivered, and the offline queue
+    // would happily retry it forever. Blocked timestamps are kept on the device -
+    // they are a local display detail, not worth account-sync budget.
+    const BLOCKED_LS = "EBC_blockedBeeps";
+    const MAX_BLOCKED = 300;
+    let _blocked = null;
+    function blockedSet() {
+        if (_blocked)
+            return _blocked;
+        _blocked = new Set();
+        try {
+            const raw = localStorage.getItem(BLOCKED_LS);
+            if (raw)
+                for (const n of JSON.parse(raw)) {
+                    if (typeof n === "number")
+                        _blocked.add(n);
+                }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return _blocked;
+    }
+    function saveBlocked() {
+        try {
+            const all = [...blockedSet()].sort((a, b) => b - a).slice(0, MAX_BLOCKED);
+            _blocked = new Set(all);
+            localStorage.setItem(BLOCKED_LS, JSON.stringify(all));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** True when this sent message was refused by the recipient's rules. */
+    function isBeepBlocked(entry) {
+        return blockedSet().has(entry.ts);
+    }
+    /**
+     * Flags the newest message we sent this person as refused, and drops any queued
+     * copy so the offline re-delivery loop stops retrying something their rules will
+     * reject again. Returns true if a message was found to flag.
+     */
+    function markLastSentBlocked(memberNumber) {
+        var _a;
+        const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+        const convo = getConversation(memberNumber);
+        for (let i = convo.length - 1; i >= 0; i--) {
+            const e = convo[i];
+            if (e.from !== self || e.to !== memberNumber)
+                continue;
+            if (blockedSet().has(e.ts))
+                return false; // already flagged, don't walk further back
+            blockedSet().add(e.ts);
+            saveBlocked();
+            try {
+                cancelPendingMessage(memberNumber, stripBeepMetadata(e.message));
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return true;
+        }
+        return false;
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
@@ -20530,10 +20625,26 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             : isPoseActive(preset.key);
                     btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                     btn.textContent = preset.label;
-                    btn.title = preset.key
-                        ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                        : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
+                    const poseBlocked = !canTakePose(preset.key);
+                    if (poseBlocked) {
+                        btn.style.opacity = "0.4";
+                        btn.style.cursor = "not-allowed";
+                    }
+                    btn.title = poseBlocked
+                        ? "Your restraints stop you from taking this pose"
+                        : preset.key
+                            ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
+                            : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                     btn.addEventListener("click", () => {
+                        // Re-check live - restraints may have changed since render.
+                        // Without this EBC forced the pose mapping and emoted the
+                        // announce even when the pose could never take.
+                        if (!canTakePose(preset.key)) {
+                            btn.style.opacity = "0.4";
+                            btn.style.cursor = "not-allowed";
+                            btn.title = "Your restraints stop you from taking this pose";
+                            return;
+                        }
                         // Always read fresh - the closure-captured currentPoses is stale
                         // if the user clicks a second button before the 150ms rerender fires.
                         const livePoses = getCurrentPoses();
@@ -23211,6 +23322,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         pRow.appendChild(pLbl);
                         pRow.appendChild(pCancel);
                         wrap.appendChild(pRow);
+                    }
+                    else if (isSent && isBeepBlocked(e)) {
+                        // Their rules refused this one - it never reached them.
+                        bubble.style.opacity = "0.72";
+                        const bRow = document.createElement("div");
+                        bRow.style.cssText = "padding:1px 3px 0;";
+                        const bLbl = document.createElement("span");
+                        bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
+                        bLbl.textContent = "⛔ Not delivered - their rules block beeps from you";
+                        bRow.appendChild(bLbl);
+                        wrap.appendChild(bRow);
                     }
                     // Reply button - only show on received messages
                     if (!isSent) {
@@ -39072,7 +39194,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 213; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 214; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39089,6 +39211,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
+                "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
                 "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
                 "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
                 "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
@@ -47342,6 +47466,22 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                     return; // sender not a friend - still suppress, just don't process
                 }
+                // A rule addon on the recipient's side dropped our message and beeped
+                // back its automatic reply. Flag the message we sent so it stops
+                // looking delivered, and drop it from the offline retry queue - their
+                // rule will refuse it again. The reply itself still shows: it carries
+                // the owner's own wording and explains why nothing arrived.
+                if (typeof beep.Message === "string" && beep.Message.startsWith("[Automatic reply by BCX]")) {
+                    const fromNum2 = typeof beep.MemberNumber === "number"
+                        ? beep.MemberNumber
+                        : (parseInt(String(beep.MemberNumber), 10) || 0);
+                    if (fromNum2) {
+                        try {
+                            markLastSentBlocked(fromNum2);
+                        }
+                        catch ( /* ignore */_f) { /* ignore */ }
+                    }
+                }
                 // Skip non-IM beep types (grief reports, game invites, etc.).
                 // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
                 // can carry a text message and must be recorded in EBC's IM window.
@@ -47381,11 +47521,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             try {
                                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                             }
-                            catch ( /* ignore */_f) { /* ignore */ }
+                            catch ( /* ignore */_g) { /* ignore */ }
                         }
                     }
                 }
-                catch ( /* ignore */_g) { /* ignore */ }
+                catch ( /* ignore */_h) { /* ignore */ }
                 if (!isFriendBeep)
                     return next(args);
                 // Strip metadata and add to IM — isolated in its own try so any
@@ -47400,12 +47540,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_h) { /* ignore */ }
+                            catch ( /* ignore */_j) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members);
                         }
-                        catch ( /* ignore */_j) { /* ignore */ }
+                        catch ( /* ignore */_k) { /* ignore */ }
                         return; // suppress BC native popup for group messages
                     }
                     const msg = stripBeepMetadata(rawMsg);
@@ -47415,12 +47555,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_k) { /* ignore */ }
+                            catch ( /* ignore */_l) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                         }
-                        catch ( /* ignore */_l) { /* ignore */ }
+                        catch ( /* ignore */_m) { /* ignore */ }
                         // Room invite messages are handled entirely by EBC's invite card in the
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
@@ -47430,7 +47570,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             return;
                     }
                 }
-                catch ( /* ignore */_m) { /* ignore */ }
+                catch ( /* ignore */_o) { /* ignore */ }
                 // Suppress EBC's own sound already ran above. Call next() so other mods in
                 // the chain (LianChat, WCE, etc.) still see this beep, but set a flag first
                 // so the low-priority sentinel hook below can block BC's native notification
@@ -47445,7 +47585,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                 }
             }
-            catch ( /* ignore */_o) { /* ignore */ }
+            catch ( /* ignore */_p) { /* ignore */ }
             return next(args);
         });
         // Sentinel hook at priority 0 (runs just before BC native). When _ebcBlockBeepNative

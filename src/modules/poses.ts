@@ -43,6 +43,40 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string; 
 
 const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
 
+/**
+ * Whether BC will actually let the player take this pose right now.
+ *
+ * Reported: clicking a pose in the Body menu while restrained still emoted that
+ * you were doing it, even though the pose never changed. EBC forces the pose
+ * mapping directly, so it never consulted BC's own permission check.
+ *
+ * Poses reachable by struggling (BC's kneel/stand minigame) still count as
+ * allowed - those are things you genuinely can do to yourself. Only NEVER and
+ * NEVER_WITHOUT_AID are refused. On a BC build that exposes neither helper we
+ * return true, so an unknown version loses the guard rather than the feature.
+ */
+export function canTakePose(poseKey: string): boolean {
+    if (!poseKey) return true;   // clearing a pose is always allowed
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const statusFn = w.PoseCanChangeUnaidedStatus as
+            ((C: unknown, name: string) => number) | undefined;
+        if (typeof statusFn === "function") {
+            // 0 NEVER, 1 NEVER_WITHOUT_AID, 2 ALWAYS_WITH_STRUGGLE, 3 ALWAYS
+            return statusFn(Player, poseKey) >= 2;
+        }
+        const avail = w.PoseAvailable as
+            ((C: unknown, cat: string, name: string) => boolean) | undefined;
+        const findName = w.AssetPoseFindName as
+            ((n: string) => { Category?: string } | null | undefined) | undefined;
+        if (typeof avail === "function" && typeof findName === "function") {
+            const cat = findName(poseKey)?.Category;
+            if (cat) return avail(Player, cat, poseKey) !== false;
+        }
+    } catch { /* ignore */ }
+    return true;
+}
+
 export function applyPoses(poses: string[]): void {
     // An explicit empty string ("") in the list means "Relaxed arms" —
     // clear any active arm pose from the result set.

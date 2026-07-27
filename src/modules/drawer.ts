@@ -61,7 +61,7 @@ import {
     OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
-import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
@@ -102,7 +102,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
@@ -11445,10 +11445,26 @@ This cannot be undone.`,
                     : isPoseActive(preset.key);
                 btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                 btn.textContent = preset.label;
-                btn.title = preset.key
+                const poseBlocked = !canTakePose(preset.key);
+                if (poseBlocked) {
+                    btn.style.opacity = "0.4";
+                    btn.style.cursor = "not-allowed";
+                }
+                btn.title = poseBlocked
+                    ? "Your restraints stop you from taking this pose"
+                    : preset.key
                     ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
                     : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
+                    // Re-check live - restraints may have changed since render.
+                    // Without this EBC forced the pose mapping and emoted the
+                    // announce even when the pose could never take.
+                    if (!canTakePose(preset.key)) {
+                        btn.style.opacity = "0.4";
+                        btn.style.cursor = "not-allowed";
+                        btn.title = "Your restraints stop you from taking this pose";
+                        return;
+                    }
                     // Always read fresh - the closure-captured currentPoses is stale
                     // if the user clicks a second button before the 150ms rerender fires.
                     const livePoses = getCurrentPoses();
@@ -14240,6 +14256,16 @@ This cannot be undone.`,
                     pRow.appendChild(pLbl);
                     pRow.appendChild(pCancel);
                     wrap.appendChild(pRow);
+                } else if (isSent && isBeepBlocked(e)) {
+                    // Their rules refused this one - it never reached them.
+                    bubble.style.opacity = "0.72";
+                    const bRow = document.createElement("div");
+                    bRow.style.cssText = "padding:1px 3px 0;";
+                    const bLbl = document.createElement("span");
+                    bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
+                    bLbl.textContent = "⛔ Not delivered - their rules block beeps from you";
+                    bRow.appendChild(bLbl);
+                    wrap.appendChild(bRow);
                 }
 
                 // Reply button - only show on received messages
