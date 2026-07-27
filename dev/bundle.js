@@ -13026,6 +13026,7 @@
             this.roomPeopleCollapsed = false;
             this.friendRoomsCollapsed = false;
             this._refreshTrophyVis = null;
+            this._roomsSectionEl = null;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
             this.friendSearch = ""; // live search query - not persisted
             // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -23130,8 +23131,22 @@
             // Sections are built into their own containers so the layout can either
             // stack them all (classic) or split them behind pills (tabs).
             const secPeople = document.createElement("div");
+            const secRooms = document.createElement("div");
             const secNotes = document.createElement("div");
             const secSettings = document.createElement("div");
+            const tabsMode = getUsersLayout() === "tabs";
+            this._roomsSectionEl = tabsMode ? secRooms : null;
+            // In pill mode the pill itself is the section header, so the collapsibles
+            // inside would just be redundant dropdowns - open them up front.
+            if (tabsMode) {
+                try {
+                    localStorage.setItem("EBC_chatSettingsCollapsed", "0");
+                    localStorage.setItem("EBC_afkCollapsed", "0");
+                    localStorage.setItem("EBC_userNotesCollapsed", "0");
+                    localStorage.setItem("EBC_friendRoomsCollapsed", "0");
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
             // ── Messages dropdown ─────────────────────────────────────────────────
             this.renderMessagesDropdown(secPeople);
             // ── Chat & Notifications ──────────────────────────────────────────────
@@ -23139,7 +23154,7 @@
             try {
                 chatSettingsCollapsed = localStorage.getItem("EBC_chatSettingsCollapsed") !== "0";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const chatSettingsHeader = document.createElement("div");
             chatSettingsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const chatSettingsLbl = document.createElement("div");
@@ -23241,7 +23256,7 @@
             try {
                 afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             const afkSubHeader = document.createElement("div");
             afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const afkSubLbl = document.createElement("div");
@@ -23377,7 +23392,7 @@
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -23597,16 +23612,20 @@
             this.friendsSectionEl = friendsSection;
             secPeople.appendChild(friendsSection);
             // ── Layout ───────────────────────────────────────────────────────────
-            if (getUsersLayout() === "classic") {
+            if (!tabsMode) {
                 // Original: everything stacked on one page.
                 body.appendChild(secPeople);
                 body.appendChild(secNotes);
                 body.appendChild(secSettings);
             }
             else {
-                // Tabs: one pill row, one section visible at a time.
+                // Tabs: one pill row, one section visible at a time. The single-section
+                // pills hide their now-redundant collapsible header.
+                if (userNotesHeaderRow)
+                    userNotesHeaderRow.style.display = "none";
                 const VIEWS = [
                     { id: "people", label: "People", el: secPeople },
+                    { id: "rooms", label: "Rooms", el: secRooms },
                     { id: "notes", label: "Notes", el: secNotes },
                     { id: "settings", label: "Settings", el: secSettings },
                 ];
@@ -23614,7 +23633,7 @@
                 try {
                     active = (_b = localStorage.getItem("EBC_usersView")) !== null && _b !== void 0 ? _b : "people";
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 if (!VIEWS.some(v => v.id === active))
                     active = "people";
                 const nav = document.createElement("div");
@@ -23651,8 +23670,9 @@
             }
             // Defer heavy list build to next animation frame so the tab paints first.
             window.requestAnimationFrame(() => {
-                if (this.friendsSectionEl === friendsSection)
-                    this.renderFriendRows(friendsSection);
+                if (this.friendsSectionEl === friendsSection) {
+                    this.renderFriendRows(friendsSection, tabsMode ? secRooms : undefined);
+                }
             });
         }
         refreshFriendList() {
@@ -23662,16 +23682,23 @@
                 window.clearTimeout(this.friendRefreshDebounce);
             const target = this.friendsSectionEl;
             this.friendRefreshDebounce = window.setTimeout(() => {
+                var _a;
                 this.friendRefreshDebounce = null;
                 if (this.currentTab === "notes" && this.friendsSectionEl === target) {
-                    this.renderFriendRows(target);
+                    this.renderFriendRows(target, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
                 }
             }, 80);
         }
-        renderFriendRows(body) {
+        /** Renders the friends list. When roomsTarget is given, the Rooms section is
+         *  rendered there instead (its own pill in the tabbed Users layout). */
+        renderFriendRows(body, roomsTarget) {
             var _a, _b, _c;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            if (roomsTarget)
+                while (roomsTarget.firstChild)
+                    roomsTarget.removeChild(roomsTarget.firstChild);
+            const roomsBody = roomsTarget !== null && roomsTarget !== void 0 ? roomsTarget : body;
             const friendList = getFriendList();
             // Shared join helper (same path as the beep window's shortcut) - BC's own
             // join function handles the implicit leave from the current room.
@@ -23751,7 +23778,8 @@
                 if (groups.length > 0) {
                     const divRm = document.createElement("div");
                     divRm.className = "ebc-divider";
-                    body.appendChild(divRm);
+                    if (!roomsTarget)
+                        roomsBody.appendChild(divRm);
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
@@ -24114,8 +24142,8 @@
                         }
                         roomsContainer.appendChild(gCard);
                     }
-                    body.appendChild(roomsToggle);
-                    body.appendChild(roomsContainer);
+                    roomsBody.appendChild(roomsToggle);
+                    roomsBody.appendChild(roomsContainer);
                 }
             }
             if (friendList.length > 0) {
@@ -34837,11 +34865,15 @@
                 return true;
             };
             const doScan = () => {
-                // BC server ignores ChatRoomSearch while the player is inside a chat room;
-                // the resulting empty response would incorrectly hide the badge. Skip the
-                // scan and let the badge hold its last known state until back in the lobby.
+                var _a;
                 const w = window;
-                if (w["CurrentScreen"] === "ChatRoom")
+                // BC's server ignores ChatRoomSearch while the player is inside a chat
+                // room, and while the player is ON the search screen our own query would
+                // be picked up by BC's pending once-listener and replace their room list.
+                // In both cases skip the active scan - the passive listener below still
+                // reads BC's own search results, so the badge keeps updating.
+                const screen = String((_a = w["CurrentScreen"]) !== null && _a !== void 0 ? _a : "");
+                if (screen === "ChatRoom" || screen === "ChatSearch")
                     return;
                 try {
                     if (!ensureListener())
@@ -34851,13 +34883,26 @@
                         noRespTimer = null;
                     }
                     scanSentAt = Date.now();
-                    ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                    // Must mirror BC's own ServerChatRoomSearchRequest shape - a partial
+                    // request (Query + Language only) is filtered/dropped by the server,
+                    // which is why the badge stopped appearing. Filters are permissive so
+                    // a full or locked HQ still matches.
+                    ServerSend("ChatRoomSearch", {
+                        Query: HQ_NAME.toUpperCase(),
+                        Language: "",
+                        Space: "",
+                        Game: "",
+                        FullRooms: true,
+                        ShowLocked: true,
+                        MapTypes: [],
+                        SearchDescs: false,
+                    });
                     // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
                     // silently dropped the request - e.g. player not yet authenticated),
                     // reset scanSentAt so the next scheduled scan is not blocked.
                     noRespTimer = window.setTimeout(() => { noRespTimer = null; scanSentAt = 0; }, 15000);
                 }
-                catch (_a) {
+                catch (_b) {
                     scanSentAt = 0;
                 }
             };
@@ -37322,7 +37367,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 192; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 193; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37394,6 +37439,8 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Fix: the 'Live support' badge stopped appearing when EBC HQ was open. Root cause: the scanner sent a partial ChatRoomSearch ({ Query, Language }) while BC's server expects the full request shape (Space, Game, FullRooms, ShowLocked, MapTypes, SearchDescs) - partial requests get filtered out, so the room was never found. Fix: the scan now mirrors BC's own request with permissive filters (a full or locked HQ still matches). It also no longer scans while you're on the room-search screen, where its query could hijack BC's pending search and replace your room list - the passive listener still reads BC's own results there, so the badge keeps updating.",
+                "Users tab: Rooms is now its own pill (People / Rooms / Notes / Settings), and the collapsible dropdowns inside each pill are opened automatically - the pill is the section header, so the extra dropdown was redundant. The User Notes header is hidden entirely in pill mode.",
                 "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
                 "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
                 "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
