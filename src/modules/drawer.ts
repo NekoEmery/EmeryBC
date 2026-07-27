@@ -16757,19 +16757,55 @@ export class EBCDrawer {
     private _pillifyTab(body: HTMLElement, lsKey: string): void {
         if (getUsersLayout() !== "tabs") return;
 
+        // Pass 1 - expand every collapsed section by clicking its header. Several
+        // sections (Colours, Tags, Storage...) build their content lazily and skip
+        // building entirely while collapsed, so merely forcing display would leave
+        // an empty panel. Clicking runs their own toggle, which builds the content
+        // and persists the expanded state. "▶" is the collapsed marker everywhere.
+        for (const el of Array.from(body.children) as HTMLElement[]) {
+            const lbl = el.classList.contains("ebc-section-label")
+                ? el
+                : el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            if (lbl && (lbl.textContent ?? "").includes("▶")) {
+                try { lbl.click(); } catch { /* ignore */ }
+            }
+        }
+
         const kids = Array.from(body.children) as HTMLElement[];
         const groups: Array<{ label: string; els: HTMLElement[] }> = [];
         const preamble: HTMLElement[] = [];
 
+        // Section label text -> pill label: drop arrows, parenthetical counts and
+        // any trailing stats ("STORAGE 82.2 / 150.0 KB ACCOUNT" -> "STORAGE").
+        const pillLabel = (el: HTMLElement): string => {
+            let raw = (el.textContent ?? "").replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "");
+            const digit = raw.search(/\d/);
+            if (digit > 0) raw = raw.slice(0, digit);
+            return raw.trim();
+        };
+
         for (const el of kids) {
-            const isHeader = el.classList.contains("ebc-section-label")
-                || !!el.querySelector(":scope > .ebc-section-label");
-            if (isHeader) {
-                const raw = (el.textContent ?? "")
-                    .replace(/[▶▼]/g, "")
-                    .replace(/\([^)]*\)/g, "")   // drop counts like "(11 SAVED)"
-                    .trim();
-                groups.push({ label: raw || `Section ${groups.length + 1}`, els: [el] });
+            const self = el.classList.contains("ebc-section-label") ? el : null;
+            const inner = self ? null : el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            const labelEl = self ?? inner;
+
+            if (labelEl) {
+                const label = pillLabel(labelEl) || `Section ${groups.length + 1}`;
+                if (self) {
+                    // Header is its own child - hide it, the following siblings
+                    // are this section's content.
+                    el.style.display = "none";
+                    groups.push({ label, els: [] });
+                } else {
+                    // One wrapper holds header AND content - hide only the inner
+                    // header and keep the wrapper as the section's content, or the
+                    // whole section would vanish.
+                    labelEl.style.display = "none";
+                    for (const sub of Array.from(el.children) as HTMLElement[]) {
+                        if (sub !== labelEl && sub.style.display === "none") sub.style.display = "";
+                    }
+                    groups.push({ label, els: [el] });
+                }
             } else if (groups.length === 0) {
                 preamble.push(el);
             } else {
@@ -16778,14 +16814,13 @@ export class EBCDrawer {
         }
         if (groups.length < 2) return;
 
+        // Force each section's own content open - the pill is the header now, so a
+        // collapsed body inside would just look empty. Only direct children are
+        // touched, so nested UI that is deliberately hidden keeps its own state.
         for (const g of groups) {
-            g.els.forEach((el, i) => {
-                // Hide the header row; force the rest of the section open. Only
-                // direct children are touched, so nested UI that is deliberately
-                // hidden (edit panels, popovers) keeps its own state.
-                if (i === 0) el.style.display = "none";
-                else if (el.style.display === "none") el.style.display = "";
-            });
+            for (const el of g.els) {
+                if (el.style.display === "none") el.style.display = "";
+            }
         }
 
         let active = "";
@@ -16802,14 +16837,16 @@ export class EBCDrawer {
                     (on
                         ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
                         : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
-                for (let j = 1; j < groups[i].els.length; j++) {
-                    groups[i].els[j].style.display = on ? "" : "none";
+                for (const el of groups[i].els) {
+                    el.style.display = on ? "" : "none";
                 }
             }
         };
         for (const g of groups) {
             const pill = document.createElement("button");
-            const short = g.label.length > 14 ? g.label.slice(0, 13) + "…" : g.label;
+            // Labels are short enough to show in full once stats are stripped;
+            // the row wraps rather than truncating mid-word.
+            const short = g.label.length > 22 ? g.label.slice(0, 21) + "…" : g.label;
             pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
             pill.title = g.label;
             pill.addEventListener("click", () => {

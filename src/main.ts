@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 196;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 197;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Fix (pill sections): Colours, Tags and Storage opened empty, and pill labels were cut off mid-word. Two root causes: those sections wrap their header AND content in one element, so hiding the 'header' hid the whole section - the converter now hides just the inner header and keeps the wrapper as content; and several sections build their content lazily, skipping the build entirely while collapsed, so forcing them visible showed an empty panel - the converter now clicks each collapsed header first, running the section's own expand-and-build. Labels also strip trailing stats ('STORAGE 82.2 / 150.0 KB ACCOUNT' -> 'Storage') and the row wraps instead of truncating.",
             "Outfits, Buttons and Anims tabs decluttered too - their stacked sections are now pills, driven by one generic converter that finds each tab's section headers, hides the now-redundant header, opens the content, and builds the pill row. Each tab remembers its own pill. Nested UI that is deliberately hidden (outfit edit panels, popovers) is left alone.",
             "Users tab: the 'People' pill is renamed 'Friends', and the Notes pill now explains how to actually write a note (expand a person's row in Friends or People in Room) instead of looking empty.",
             "Menu layout toggle reworded to 'New layout' / 'Old layout' (DEV → Drawer), defaulting to New.",
