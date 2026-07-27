@@ -12953,6 +12953,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return vars + css;
     }
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
+    // Room occupancy (name -> count/limit), harvested from any ChatRoomSearchResult
+    // that passes by. Friend-presence data carries no counts, so this is the only
+    // source for rooms the player is not standing in. Entries older than 5 minutes
+    // are treated as stale and not shown.
+    const _roomCounts = new Map();
+    const ROOM_COUNT_TTL_MS = 5 * 60 * 1000;
+    function getRoomCount(name) {
+        const e = _roomCounts.get(name.trim().toLowerCase());
+        if (!e || Date.now() - e.ts > ROOM_COUNT_TTL_MS)
+            return null;
+        return { count: e.count, limit: e.limit };
+    }
     const VIP_MEMBERS = {
         130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] }, // Emery  - pink → turquoise
         143776: { label: "Sin", color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] }, // Sin    - light pink → hot pink
@@ -24181,7 +24193,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         rName.title = g.label;
                         const rCnt = document.createElement("span");
                         rCnt.className = "ebc-friend-rooms-cnt";
-                        rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
+                        // Prefer real occupancy: live data for your own room, cached
+                        // search data for others. Fall back to the friend count.
+                        let occ = null;
+                        if (g.current) {
+                            try {
+                                const d = window.ChatRoomData;
+                                if (d && Array.isArray(d.Character) && typeof d.Limit === "number") {
+                                    occ = { count: d.Character.length, limit: d.Limit };
+                                }
+                            }
+                            catch ( /* ignore */_e) { /* ignore */ }
+                            if (!occ)
+                                occ = getRoomCount(myRoomName);
+                        }
+                        else {
+                            occ = getRoomCount(g.label);
+                        }
+                        if (occ) {
+                            rCnt.textContent = `${occ.count}/${occ.limit}`;
+                            rCnt.title = `${occ.count} of ${occ.limit} people in this room`;
+                            if (occ.count >= occ.limit) {
+                                rCnt.style.color = "#e0a0a0";
+                                rCnt.style.borderColor = "rgba(224,160,160,0.45)";
+                                rCnt.title += " (full)";
+                            }
+                        }
+                        else {
+                            rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
+                            rCnt.title = g.current
+                                ? "People in this room"
+                                : `${g.nums.length} friend${g.nums.length === 1 ? "" : "s"} here`;
+                        }
                         headRow.appendChild(rIcon);
                         headRow.appendChild(rName);
                         headRow.appendChild(rCnt);
@@ -24262,7 +24305,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
                 }
-                catch ( /* ignore */_e) { /* ignore */ }
+                catch ( /* ignore */_f) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -25184,7 +25227,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    catch ( /* ignore */_g) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -25202,7 +25245,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_g) { /* ignore */ }
+                        catch ( /* ignore */_h) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -35166,8 +35209,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!(sock === null || sock === void 0 ? void 0 : sock.on))
                     return false;
                 sock.on("ChatRoomSearchResult", (data) => {
+                    var _a;
                     try {
                         const list = Array.isArray(data) ? data : [];
+                        // Cache occupancy for every room the search returned - the Rooms
+                        // section shows it, and friend-presence data carries no counts.
+                        for (const r of list) {
+                            const nm = String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim();
+                            const cnt = r["MemberCount"];
+                            const lim = r["MemberLimit"];
+                            if (nm && typeof cnt === "number" && typeof lim === "number") {
+                                _roomCounts.set(nm.toLowerCase(), { count: cnt, limit: lim, ts: Date.now() });
+                            }
+                        }
                         const found = list.some(r => { var _a; return String((_a = r["Name"]) !== null && _a !== void 0 ? _a : "").trim() === HQ_NAME; });
                         if (found) {
                             // Positive: bypass the timestamp guard - any result that contains
@@ -35198,7 +35252,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         scanSentAt = 0;
                         this._setHQLive(false);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 });
                 listenerReady = true;
                 return true;
@@ -37706,7 +37760,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 198; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 199; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37778,6 +37832,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Rooms section now shows real occupancy (e.g. '4/10') instead of just the friend count, turning red when a room is full. Your own room reads live from the room data so it is always current; other rooms use counts harvested from room searches (BC's friend-presence data carries no occupancy at all), cached for 5 minutes - so their numbers appear once you have browsed the room list, and fall back to the friend count until then.",
                 "Fix (pill sections, Anims): the Anims tab kept a leftover dropdown row above its content and its sections still opened collapsed. Root cause: Anims puts the ▶/▼ chevron in a span BESIDE the label rather than inside it, so the collapse check never saw the arrow and the header row was misread as a content wrapper. Fix: sections are now classified properly - label-only, chevron+label header row, or header+content wrapper - by checking whether anything follows the label inside the element, and the collapsed check reads the whole header's text. Header rows are hidden completely, so no stray dropdown remains.",
                 "Pills enlarged for touch: bigger text, taller hit area (30px minimum) and more spacing, across every pill row - tab sections, Users, Dev and the achievement filters.",
                 "Fix (pill sections): Colours, Tags and Storage opened empty, and pill labels were cut off mid-word. Two root causes: those sections wrap their header AND content in one element, so hiding the 'header' hid the whole section - the converter now hides just the inner header and keeps the wrapper as content; and several sections build their content lazily, skipping the build entirely while collapsed, so forcing them visible showed an empty panel - the converter now clicks each collapsed header first, running the section's own expand-and-build. Labels also strip trailing stats ('STORAGE 82.2 / 150.0 KB ACCOUNT' -> 'Storage') and the row wraps instead of truncating.",
