@@ -3156,7 +3156,13 @@ const CSS = `
 .ebc-free-mode .ebc-header {
     cursor: grab;
     border-radius: 8px 8px 0 0;
+    padding: 5px 8px;
 }
+/* Floating panels are often narrower - drop the subtitle and tighten the
+   header buttons so the title and controls never overlap or half-clip. */
+.ebc-free-mode .ebc-title-sub { display: none; }
+.ebc-free-mode .ebc-icon-btn { padding: 4px 6px; }
+.ebc-free-mode .ebc-header-btns { gap: 3px; }
 .ebc-free-mode .ebc-header:active { cursor: grabbing; }
 .ebc-reset-loc-btn {
     background: transparent;
@@ -4437,12 +4443,14 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
+        titleMain.style.cssText = "flex-shrink:0;white-space:nowrap;";
         this._versionTitleEl = titleMain;
         this._updateVersionTitle();
 
         const titleSub = document.createElement("span");
+        titleSub.className = "ebc-title-sub";
         titleSub.textContent = "EmeryBC";
-        titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+        titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
         title.appendChild(titleMain);
         title.appendChild(titleSub);
@@ -4450,7 +4458,7 @@ export class EBCDrawer {
         if (this.isDev) {
             const devChip = document.createElement("span");
             devChip.textContent = "DEV";
-            devChip.style.cssText = "font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+            devChip.style.cssText = "flex-shrink:0;font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
             title.appendChild(devChip);
         }
 
