@@ -64,6 +64,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "pats",    icon: "🐾", name: "Pat Magnet",    desc: "Get headpatted {n} times",              counter: "pet_recv",  tiers: [5, 25, 250], cls: "received" },
     { id: "hugs",    icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs",                      counter: "hug_recv",  tiers: [5, 25, 100], cls: "received" },
     { id: "kisses",  icon: "💋", name: "Cherished",     desc: "Receive {n} kisses",                    counter: "kiss_recv", tiers: [5, 25, 100], cls: "received" },
+    { id: "booped",  icon: "👃", name: "Boop Target",   desc: "Get your nose booped {n} times",        counter: "boop_recv", tiers: [5, 25, 100], cls: "received" },
     { id: "popular", icon: "🌟", name: "Popular",       desc: "{n} different people do things to you", counter: "people",    tiers: [5, 25, 100], cls: "received" },
     // 🖐 Given - things YOU do to others
     { id: "boops",     icon: "👉", name: "Boop!",          desc: "Boop someone {n} times",    counter: "boop_give",   tiers: [10, 50, 250], cls: "given" },
@@ -170,24 +171,35 @@ function bump(counter: string, by = 1): void {
     save();
 }
 
-/** Feed an activity message: source did actName to target. */
+/** Feed an activity message: source did actName (on actGroup) to target.
+ *  The GROUP matters - BC's "Boop Nose" is the Pet activity on ItemNose, while
+ *  a headpat is the same Pet activity on ItemHead. Without the group the two
+ *  are indistinguishable. */
 export function achievementOnActivity(
     sourceNum: number | undefined,
     targetNum: number | undefined,
     actName: string | undefined,
+    actGroup?: string,
 ): void {
     try {
         if (!isAchievementUser(Player?.MemberNumber) || !actName) return;
         const me = Player.MemberNumber ?? 0;
         const act = actName.toLowerCase();
-        // Diagnostic: shows the exact activity name BC/addons send, so an
+        const grp = (actGroup ?? "").toLowerCase();
+        // Diagnostic: shows the exact activity name + group BC/addons send, so an
         // achievement that never moves can be traced in one step.
-        try { console.debug(`[EBC] activity "${actName}" src=${sourceNum} tgt=${targetNum}`); } catch { /* ignore */ }
+        try { console.debug(`[EBC] activity "${actName}" group="${actGroup ?? "?"}" src=${sourceNum} tgt=${targetNum}`); } catch { /* ignore */ }
+
+        // Boop = the Pet activity aimed at the nose; headpat = Pet anywhere else.
+        const isBoop = act.includes("boop") || (act.includes("pet") && grp.includes("nose"));
+        const isPat  = !isBoop && act.includes("pet");
+        const isHug  = act.includes("hug") || act.includes("cuddle") || act.includes("nuzzle");
 
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             // Done TO you
-            if (act.includes("pet")) bump("pet_recv");
-            if (act.includes("hug") || act.includes("cuddle")) bump("hug_recv");
+            if (isBoop) bump("boop_recv");
+            if (isPat) bump("pet_recv");
+            if (isHug) bump("hug_recv");
             if (act.includes("kiss")) bump("kiss_recv");
             if (sourceNum === EMERY) bump("from_emery");
             // Distinct people who have done anything to you
@@ -203,15 +215,15 @@ export function achievementOnActivity(
         } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
             // Things YOU do to others
             const toEmery = targetNum === EMERY;
-            if (act.includes("boop")) {
+            if (isBoop) {
                 bump("boop_give");
                 if (toEmery) bump("boop_emery");
             }
-            if (act.includes("pet")) {
+            if (isPat) {
                 bump("pet_give");
                 if (toEmery) bump("pet_emery");
             }
-            if (act.includes("hug") || act.includes("cuddle")) {
+            if (isHug) {
                 bump("hug_give");
                 if (toEmery) bump("hug_emery");
             }

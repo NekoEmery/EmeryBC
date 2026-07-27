@@ -6656,6 +6656,7 @@
         { id: "pats", icon: "🐾", name: "Pat Magnet", desc: "Get headpatted {n} times", counter: "pet_recv", tiers: [5, 25, 250], cls: "received" },
         { id: "hugs", icon: "🤗", name: "Hug Collector", desc: "Receive {n} hugs", counter: "hug_recv", tiers: [5, 25, 100], cls: "received" },
         { id: "kisses", icon: "💋", name: "Cherished", desc: "Receive {n} kisses", counter: "kiss_recv", tiers: [5, 25, 100], cls: "received" },
+        { id: "booped", icon: "👃", name: "Boop Target", desc: "Get your nose booped {n} times", counter: "boop_recv", tiers: [5, 25, 100], cls: "received" },
         { id: "popular", icon: "🌟", name: "Popular", desc: "{n} different people do things to you", counter: "people", tiers: [5, 25, 100], cls: "received" },
         // 🖐 Given - things YOU do to others
         { id: "boops", icon: "👉", name: "Boop!", desc: "Boop someone {n} times", counter: "boop_give", tiers: [10, 50, 250], cls: "given" },
@@ -6761,25 +6762,35 @@
         checkUnlocks();
         save();
     }
-    /** Feed an activity message: source did actName to target. */
-    function achievementOnActivity(sourceNum, targetNum, actName) {
+    /** Feed an activity message: source did actName (on actGroup) to target.
+     *  The GROUP matters - BC's "Boop Nose" is the Pet activity on ItemNose, while
+     *  a headpat is the same Pet activity on ItemHead. Without the group the two
+     *  are indistinguishable. */
+    function achievementOnActivity(sourceNum, targetNum, actName, actGroup) {
         var _a;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) || !actName)
                 return;
             const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const act = actName.toLowerCase();
-            // Diagnostic: shows the exact activity name BC/addons send, so an
+            const grp = (actGroup !== null && actGroup !== void 0 ? actGroup : "").toLowerCase();
+            // Diagnostic: shows the exact activity name + group BC/addons send, so an
             // achievement that never moves can be traced in one step.
             try {
-                console.debug(`[EBC] activity "${actName}" src=${sourceNum} tgt=${targetNum}`);
+                console.debug(`[EBC] activity "${actName}" group="${actGroup !== null && actGroup !== void 0 ? actGroup : "?"}" src=${sourceNum} tgt=${targetNum}`);
             }
             catch ( /* ignore */_b) { /* ignore */ }
+            // Boop = the Pet activity aimed at the nose; headpat = Pet anywhere else.
+            const isBoop = act.includes("boop") || (act.includes("pet") && grp.includes("nose"));
+            const isPat = !isBoop && act.includes("pet");
+            const isHug = act.includes("hug") || act.includes("cuddle") || act.includes("nuzzle");
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 // Done TO you
-                if (act.includes("pet"))
+                if (isBoop)
+                    bump("boop_recv");
+                if (isPat)
                     bump("pet_recv");
-                if (act.includes("hug") || act.includes("cuddle"))
+                if (isHug)
                     bump("hug_recv");
                 if (act.includes("kiss"))
                     bump("kiss_recv");
@@ -6801,17 +6812,17 @@
             else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
                 // Things YOU do to others
                 const toEmery = targetNum === EMERY;
-                if (act.includes("boop")) {
+                if (isBoop) {
                     bump("boop_give");
                     if (toEmery)
                         bump("boop_emery");
                 }
-                if (act.includes("pet")) {
+                if (isPat) {
                     bump("pet_give");
                     if (toEmery)
                         bump("pet_emery");
                 }
-                if (act.includes("hug") || act.includes("cuddle")) {
+                if (isHug) {
                     bump("hug_give");
                     if (toEmery)
                         bump("hug_emery");
@@ -37206,7 +37217,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 190; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 191; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37280,6 +37291,7 @@
                 "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
                 "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
                 "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
+                "Fix: the Boop achievements could never unlock, and booping wrongly counted as a headpat. Root cause: BC's 'Boop Nose' is not its own activity - it is the Pet activity performed on the ItemNose group, so the only way to tell a boop from a headpat is the group, which the achievement code ignored. Fix: the activity group is now passed through and used - Pet on ItemNose = boop, Pet anywhere else = headpat. Added a matching 'Boop Target' achievement (get your nose booped 5/25/100 times), and nose-nuzzles now count toward hugs.",
                 "Fix: turning achievements back ON didn't stick - after a relog you were opted out again, which also froze all tracking. Root cause: opting back in DELETED the setting key, but the settings flush only copies keys to the server and never removes them, so the old 'opted out' value survived and was reloaded at login. Fix: the flag is now written as an explicit true/false.",
                 "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
@@ -45867,7 +45879,7 @@
                 const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
                 const content = String((_a = data.Content) !== null && _a !== void 0 ? _a : "");
                 if (actName) {
-                    achievementOnActivity(sourceNum, targetNum, actName);
+                    achievementOnActivity(sourceNum, targetNum, actName, actGroup);
                 }
                 else if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
                     achievementOnItemApply(sourceNum, targetNum, actGroup);

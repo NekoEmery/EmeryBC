@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 190;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 191;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -104,6 +104,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: member 114395 (DJ Rae) added to the crew whitelist.",
             "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
             "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
+            "Fix: the Boop achievements could never unlock, and booping wrongly counted as a headpat. Root cause: BC's 'Boop Nose' is not its own activity - it is the Pet activity performed on the ItemNose group, so the only way to tell a boop from a headpat is the group, which the achievement code ignored. Fix: the activity group is now passed through and used - Pet on ItemNose = boop, Pet anywhere else = headpat. Added a matching 'Boop Target' achievement (get your nose booped 5/25/100 times), and nose-nuzzles now count toward hugs.",
             "Fix: turning achievements back ON didn't stick - after a relog you were opted out again, which also froze all tracking. Root cause: opting back in DELETED the setting key, but the settings flush only copies keys to the server and never removes them, so the old 'opted out' value survived and was reloaded at login. Fix: the flag is now written as an explicit true/false.",
             "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
@@ -8453,7 +8454,7 @@ function init(): void {
             const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
             const content = String(data.Content ?? "");
             if (actName) {
-                achievementOnActivity(sourceNum, targetNum, actName);
+                achievementOnActivity(sourceNum, targetNum, actName, actGroup);
             } else if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
                 achievementOnItemApply(sourceNum, targetNum, actGroup);
             }
