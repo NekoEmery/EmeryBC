@@ -15233,12 +15233,12 @@ export class EBCDrawer {
             if (!VIEWS.some(v => v.id === active)) active = "people";
 
             const nav = document.createElement("div");
-            nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+            nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
             const pills: HTMLButtonElement[] = [];
             const paint = (): void => {
                 for (let i = 0; i < VIEWS.length; i++) {
                     const on = VIEWS[i].id === active;
-                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
                         (on
                             ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
                             : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
@@ -16757,18 +16757,33 @@ export class EBCDrawer {
     private _pillifyTab(body: HTMLElement, lsKey: string): void {
         if (getUsersLayout() !== "tabs") return;
 
+        // Classify a direct child of the tab body:
+        //   "label"   - the element IS the section label (content = later siblings)
+        //   "hdrRow"  - a header ROW wrapping chevron + label, nothing after the
+        //               label (content = later siblings; e.g. the Anims tab)
+        //   "wrapper" - one element holding BOTH header and content, i.e. there is
+        //               a sibling after the label inside it (e.g. Tags, Storage)
+        const classify = (el: HTMLElement): { kind: "label" | "hdrRow" | "wrapper"; labelEl: HTMLElement } | null => {
+            if (el.classList.contains("ebc-section-label")) return { kind: "label", labelEl: el };
+            const inner = el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            if (!inner) return null;
+            return { kind: inner.nextElementSibling ? "wrapper" : "hdrRow", labelEl: inner };
+        };
+
         // Pass 1 - expand every collapsed section by clicking its header. Several
         // sections (Colours, Tags, Storage...) build their content lazily and skip
         // building entirely while collapsed, so merely forcing display would leave
         // an empty panel. Clicking runs their own toggle, which builds the content
-        // and persists the expanded state. "▶" is the collapsed marker everywhere.
+        // and persists the expanded state. "▶" is the collapsed marker; it can sit
+        // in a chevron span beside the label, so the whole element's text is checked.
         for (const el of Array.from(body.children) as HTMLElement[]) {
-            const lbl = el.classList.contains("ebc-section-label")
-                ? el
-                : el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
-            if (lbl && (lbl.textContent ?? "").includes("▶")) {
-                try { lbl.click(); } catch { /* ignore */ }
-            }
+            const info = classify(el);
+            if (!info) continue;
+            const collapsedNow = (el.textContent ?? "").includes("▶");
+            if (!collapsedNow) continue;
+            // Click whatever carries the toggle: the wrapper's own label, or the
+            // header row itself (its handler sits on the row, not the label span).
+            try { (info.kind === "wrapper" ? info.labelEl : el).click(); } catch { /* ignore */ }
         }
 
         const kids = Array.from(body.children) as HTMLElement[];
@@ -16785,24 +16800,22 @@ export class EBCDrawer {
         };
 
         for (const el of kids) {
-            const self = el.classList.contains("ebc-section-label") ? el : null;
-            const inner = self ? null : el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
-            const labelEl = self ?? inner;
+            const info = classify(el);
 
-            if (labelEl) {
-                const label = pillLabel(labelEl) || `Section ${groups.length + 1}`;
-                if (self) {
-                    // Header is its own child - hide it, the following siblings
-                    // are this section's content.
+            if (info) {
+                const label = pillLabel(info.labelEl) || `Section ${groups.length + 1}`;
+                if (info.kind !== "wrapper") {
+                    // The whole element is the header (label, or a chevron+label
+                    // row) - hide it; the following siblings are the content.
                     el.style.display = "none";
                     groups.push({ label, els: [] });
                 } else {
                     // One wrapper holds header AND content - hide only the inner
                     // header and keep the wrapper as the section's content, or the
                     // whole section would vanish.
-                    labelEl.style.display = "none";
+                    info.labelEl.style.display = "none";
                     for (const sub of Array.from(el.children) as HTMLElement[]) {
-                        if (sub !== labelEl && sub.style.display === "none") sub.style.display = "";
+                        if (sub !== info.labelEl && sub.style.display === "none") sub.style.display = "";
                     }
                     groups.push({ label, els: [el] });
                 }
@@ -16828,12 +16841,12 @@ export class EBCDrawer {
         if (!groups.some(g => g.label === active)) active = groups[0].label;
 
         const nav = document.createElement("div");
-        nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+        nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
         const pills: HTMLButtonElement[] = [];
         const paint = (): void => {
             for (let i = 0; i < groups.length; i++) {
                 const on = groups[i].label === active;
-                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 12px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
                     (on
                         ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
                         : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
@@ -19141,12 +19154,12 @@ export class EBCDrawer {
             if (!devSections.some(s => s.label === active)) active = devSections[0].label;
 
             const nav = document.createElement("div");
-            nav.style.cssText = "display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;";
+            nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
             const pills: HTMLButtonElement[] = [];
             const paint = (): void => {
                 for (let i = 0; i < devSections.length; i++) {
                     const on = devSections[i].label === active;
-                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:3px 13px;border-radius:11px;cursor:pointer;transition:all 0.12s;" +
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
                         (on
                             ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
                             : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
