@@ -2627,9 +2627,12 @@
             return [];
         }
     }
-    // -- Special friends ----------------------------------------------------------
-    // Member numbers displayed with a golden gradient highlight in the People in
-    // Room and Friends lists. Stored server-side so it persists across devices.
+    // -- Starred people -----------------------------------------------------------
+    // Member numbers highlighted with a golden star in the People in Room and
+    // Friends lists. This is EBC's own marker and is deliberately independent of
+    // BC's friend list - you can star anyone you meet, friend or not. Stored
+    // server-side so it persists across devices. (Storage key stays "specialFriends"
+    // for backward compatibility with existing saves.)
     function getSpecialFriends() {
         var _a;
         try {
@@ -8590,8 +8593,8 @@
         "users.typeMessage": { en: "Type a message...", de: "Nachricht eingeben...", zh: "输入消息...", fr: "Tapez un message...", es: "Escribe un mensaje...", ru: "Введите сообщение...", ja: "メッセージを入力..." },
         "users.reply": { en: "↩ reply", de: "↩ Antworten", zh: "↩ 回复", fr: "↩ répondre", es: "↩ responder", ru: "↩ ответить", ja: "↩ 返信" },
         "users.noConversation": { en: "No conversation yet.", de: "Noch keine Unterhaltung.", zh: "还没有对话。", fr: "Aucune conversation.", es: "Sin conversación aún.", ru: "Разговора пока нет.", ja: "まだ会話がありません。" },
-        "users.markSpecial": { en: "Mark as special friend (golden highlight)", de: "Als besonderen Freund markieren (goldene Hervorhebung)", zh: "标记为特别好友（金色高亮）", fr: "Marquer comme ami spécial (surbrillance dorée)", es: "Marcar como amigo especial (resaltado dorado)", ru: "Отметить как особого друга (золотая подсветка)", ja: "特別フレンドにマーク（ゴールドハイライト）" },
-        "users.removeSpecial": { en: "Remove from special friends", de: "Aus besonderen Freunden entfernen", zh: "从特别好友中移除", fr: "Retirer des amis spéciaux", es: "Quitar de amigos especiales", ru: "Убрать из особых друзей", ja: "特別フレンドから削除" },
+        "users.markSpecial": { en: "Star this person (golden highlight)", de: "Person mit Stern markieren (goldene Hervorhebung)", zh: "为此人加星标（金色高亮）", fr: "Mettre en favori (surbrillance dorée)", es: "Destacar a esta persona (resaltado dorado)", ru: "Отметить звёздочкой (золотая подсветка)", ja: "この人にスターを付ける（ゴールドハイライト）" },
+        "users.removeSpecial": { en: "Remove star", de: "Stern entfernen", zh: "取消星标", fr: "Retirer le favori", es: "Quitar destacado", ru: "Убрать отметку", ja: "スターを外す" },
         // ─── DEV TAB ───────────────────────────────────────────────────────────
         "dev.characterInspector": { en: "Character Inspector", de: "Charakter-Inspektor", zh: "角色检查器", fr: "Inspecteur de personnage", es: "Inspector de personaje", ru: "Инспектор персонажа", ja: "キャラクター検査ツール" },
         "dev.searchPlaceholder": { en: "Search name or #id…", de: "Name oder #ID suchen…", zh: "搜索名称或 #ID…", fr: "Chercher nom ou #id…", es: "Buscar nombre o #id…", ru: "Поиск по имени или #id…", ja: "名前または #id で検索…" },
@@ -14130,8 +14133,10 @@
             panel.appendChild(langRow);
             panel.appendChild(quickActions);
             panel.appendChild(selfPickPanel);
-            panel.appendChild(safewordRow);
-            panel.appendChild(ebcTagsStrip);
+            // Safewords and EBC Tags are no longer pinned above every tab - they live
+            // in the DEV tab as their own pill sections (see renderDev). They are kept
+            // as detached elements here and re-appended on each DEV render, so all
+            // their existing handlers and refs stay valid.
             panel.appendChild(body);
             panel.appendChild(footer);
             // Move all panel children into the wrapper, then add wrapper to panel.
@@ -15224,15 +15229,13 @@
         }
         /** Show or hide each pinned strip based on the active tab and the stored filter. */
         updatePinnedStrips() {
-            const tab = this.currentTab;
-            if (this.safewordRowEl) {
-                const f = loadStripTabFilter("EBC_swTabFilter");
-                this.safewordRowEl.style.display = (!f || f.has(tab)) ? "flex" : "none";
-            }
-            if (this.ebcTagsStripEl) {
-                const f = loadStripTabFilter("EBC_tagsTabFilter");
-                this.ebcTagsStripEl.style.display = (!f || f.has(tab)) ? "" : "none";
-            }
+            this.currentTab;
+            // Safewords / EBC Tags now live inside the DEV tab, so the old pinned-strip
+            // per-tab filters no longer apply - keep them visible wherever they sit.
+            if (this.safewordRowEl)
+                this.safewordRowEl.style.display = "flex";
+            if (this.ebcTagsStripEl)
+                this.ebcTagsStripEl.style.display = "";
         }
         /**
          * Apply the stored panel opacity to the .ebc-panel element.
@@ -16538,7 +16541,12 @@
             body.appendChild(outfitsBody);
             this.buildRestraintSection(body);
             this.buildScheduleSection(body);
-            this._pillifyTab(body, "EBC_outfitsView");
+            // Fewer, broader pills - eight sections was too many to scan.
+            this._pillifyTab(body, "EBC_outfitsView", [
+                { pill: "Outfits", match: [t("outfits.savedOutfits"), t("outfits.outfitSchedule"), "TAGS", t("outfits.tagsN", { n: 0 })] },
+                { pill: "Restraints", match: [t("dev.activeRestraints"), t("outfits.protectedItems"), t("outfits.savedRestraints")] },
+                { pill: "Colours", match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+            ]);
         }
         // -- Outfit Schedule section ------------------------------------------------
         buildScheduleSection(body) {
@@ -25337,13 +25345,20 @@
         /**
          * Turns a rendered tab into pill sections. Walks the tab's direct children,
          * treats every element carrying an .ebc-section-label as a section header,
-         * and groups the elements after it until the next header. The header itself
-         * is hidden (the pill replaces it) and the section's own content is forced
-         * open, so there is never a redundant dropdown inside a pill.
+         * and groups the elements after it until the next header. Content is forced
+         * open so there is never a redundant dropdown inside a pill.
          * Anything before the first header stays permanently visible.
-         * No-ops in classic layout, or when a tab has fewer than two sections.
+         *
+         * Pass `merge` to put several related sections behind one pill (e.g. all the
+         * restraint sections). A pill covering a single section hides that section's
+         * header - the pill IS the header. A pill covering several keeps their
+         * headers as sub-labels so the grouping still reads clearly. Sections not
+         * named in `merge` simply get their own pill, so a renamed or missing
+         * section degrades gracefully instead of disappearing.
+         *
+         * No-ops in classic layout, or when a tab has fewer than two pills.
          */
-        _pillifyTab(body, lsKey) {
+        _pillifyTab(body, lsKey, merge) {
             var _a, _b;
             if (getUsersLayout() !== "tabs")
                 return;
@@ -25394,46 +25409,72 @@
                     raw = raw.slice(0, digit);
                 return raw.trim();
             };
+            const sections = [];
             for (const el of kids) {
                 const info = classify(el);
                 if (info) {
-                    const label = pillLabel(info.labelEl) || `Section ${groups.length + 1}`;
+                    const label = pillLabel(info.labelEl) || `Section ${sections.length + 1}`;
                     if (info.kind !== "wrapper") {
                         // The whole element is the header (label, or a chevron+label
-                        // row) - hide it; the following siblings are the content.
-                        el.style.display = "none";
-                        groups.push({ label, els: [] });
+                        // row); the following siblings are the content.
+                        sections.push({ label, headerEl: el, els: [] });
                     }
                     else {
-                        // One wrapper holds header AND content - hide only the inner
-                        // header and keep the wrapper as the section's content, or the
-                        // whole section would vanish.
-                        info.labelEl.style.display = "none";
+                        // One wrapper holds header AND content - the wrapper itself is
+                        // the content, and only the inner label acts as the header.
                         for (const sub of Array.from(el.children)) {
                             if (sub !== info.labelEl && sub.style.display === "none")
                                 sub.style.display = "";
                         }
-                        groups.push({ label, els: [el] });
+                        sections.push({ label, headerEl: info.labelEl, els: [el] });
                     }
                 }
-                else if (groups.length === 0) {
+                else if (sections.length === 0) {
                     preamble.push(el);
                 }
                 else {
-                    groups[groups.length - 1].els.push(el);
+                    sections[sections.length - 1].els.push(el);
                 }
             }
-            if (groups.length < 2)
-                return;
-            // Force each section's own content open - the pill is the header now, so a
-            // collapsed body inside would just look empty. Only direct children are
-            // touched, so nested UI that is deliberately hidden keeps its own state.
-            for (const g of groups) {
-                for (const el of g.els) {
+            // Force each section's content open - a collapsed body inside a pill would
+            // just look empty. Only direct children are touched, so nested UI that is
+            // deliberately hidden keeps its own state.
+            for (const sec of sections) {
+                for (const el of sec.els) {
                     if (el.style.display === "none")
                         el.style.display = "";
                 }
             }
+            // Assign sections to pills.
+            const norm = (x) => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
+            const used = new Set();
+            for (const m of merge !== null && merge !== void 0 ? merge : []) {
+                const wanted = m.match.map(norm);
+                const picked = sections.filter(sec => !used.has(sec) && wanted.includes(norm(sec.label)));
+                if (picked.length === 0)
+                    continue;
+                picked.forEach(sec => used.add(sec));
+                const els = [];
+                for (const sec of picked) {
+                    // Several sections share this pill - keep their headers as labels.
+                    if (picked.length > 1 && sec.headerEl)
+                        els.push(sec.headerEl);
+                    else if (sec.headerEl)
+                        sec.headerEl.style.display = "none";
+                    els.push(...sec.els);
+                }
+                groups.push({ label: m.pill, els });
+            }
+            // Anything not merged keeps its own pill, in original order.
+            for (const sec of sections) {
+                if (used.has(sec))
+                    continue;
+                if (sec.headerEl)
+                    sec.headerEl.style.display = "none";
+                groups.push({ label: sec.label, els: sec.els });
+            }
+            if (groups.length < 2)
+                return;
             let active = "";
             try {
                 active = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
@@ -25803,6 +25844,31 @@
                 body.removeChild(body.firstChild);
             const devTabs = getUsersLayout() === "tabs";
             const devSections = [];
+            // Safewords + EBC Tags, moved out of the always-pinned strip. Each gets a
+            // real section header so the pill converter picks them up like any other.
+            {
+                const mkMoved = (labelText, el) => {
+                    if (!el)
+                        return;
+                    el.style.display = labelText === "SAFEWORDS" ? "flex" : "";
+                    if (devTabs) {
+                        // Register as a pill section - the pill acts as the header.
+                        const wrap = document.createElement("div");
+                        wrap.appendChild(el);
+                        devSections.push({ label: labelText, el: wrap });
+                    }
+                    else {
+                        // Classic layout: plain labelled section, stacked like the rest.
+                        const hdr = document.createElement("div");
+                        hdr.className = "ebc-section-label";
+                        hdr.textContent = labelText;
+                        body.appendChild(hdr);
+                        body.appendChild(el);
+                    }
+                };
+                mkMoved("SAFEWORDS", this.safewordRowEl);
+                mkMoved("EBC TAGS", this.ebcTagsStripEl);
+            }
             // ── Menu layout (pill sections vs the original long page) ─────────────
             {
                 const layoutRow = document.createElement("div");
@@ -27818,6 +27884,8 @@
                     [t("dev.copyRestraintsFromMember")]: "Copy",
                     [t("dev.logs")]: "Logs",
                     [t("dev.statEditor")]: "Stats",
+                    "SAFEWORDS": "Safewords",
+                    "EBC TAGS": "EBC tags",
                 };
                 let active = "";
                 try {
@@ -37725,7 +37793,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 199; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 200; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -37797,6 +37865,9 @@
                 "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
                 "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
                 "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+                "Safewords and EBC Tags moved out of the always-pinned strip above the tabs and into the DEV tab as their own pills - the panel gets that vertical space back on every other tab. They keep all their existing controls and handlers (the elements are moved, not rebuilt), and in Classic layout they appear as normal stacked sections.",
+                "Outfits tab consolidated from eight pills to four: Outfits (saved outfits, schedule, tags), Restraints (active, protected, saved sets), Colours and Storage. Merged pills keep their sub-headers so the grouping stays readable; the grouping is matched on translated labels, and any section that doesn't match simply keeps its own pill rather than disappearing.",
+                "Renamed 'special friend' to starred: you can star anyone you meet, friend or not, so calling it a friend marker was misleading. The star, golden highlight and 'Starred first' sorting are unchanged, and existing stars are kept (the stored data is untouched).",
                 "Rooms section now shows real occupancy (e.g. '4/10') instead of just the friend count, turning red when a room is full. Your own room reads live from the room data so it is always current; other rooms use counts harvested from room searches (BC's friend-presence data carries no occupancy at all), cached for 5 minutes - so their numbers appear once you have browsed the room list, and fall back to the friend count until then.",
                 "Fix (pill sections, Anims): the Anims tab kept a leftover dropdown row above its content and its sections still opened collapsed. Root cause: Anims puts the ▶/▼ chevron in a span BESIDE the label rather than inside it, so the collapse check never saw the arrow and the header row was misread as a content wrapper. Fix: sections are now classified properly - label-only, chevron+label header row, or header+content wrapper - by checking whether anything follows the label inside the element, and the collapsed check reads the whole header's text. Header rows are hidden completely, so no stray dropdown remains.",
                 "Pills enlarged for touch: bigger text, taller hit area (30px minimum) and more spacing, across every pill row - tab sections, Users, Dev and the achievement filters.",

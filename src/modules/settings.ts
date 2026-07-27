@@ -170,9 +170,12 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
-// -- Special friends ----------------------------------------------------------
-// Member numbers displayed with a golden gradient highlight in the People in
-// Room and Friends lists. Stored server-side so it persists across devices.
+// -- Starred people -----------------------------------------------------------
+// Member numbers highlighted with a golden star in the People in Room and
+// Friends lists. This is EBC's own marker and is deliberately independent of
+// BC's friend list - you can star anyone you meet, friend or not. Stored
+// server-side so it persists across devices. (Storage key stays "specialFriends"
+// for backward compatibility with existing saves.)
 
 export function getSpecialFriends(): number[] {
     try {

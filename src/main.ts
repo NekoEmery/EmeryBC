@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 199;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 200;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -102,6 +102,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
             "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
             "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Safewords and EBC Tags moved out of the always-pinned strip above the tabs and into the DEV tab as their own pills - the panel gets that vertical space back on every other tab. They keep all their existing controls and handlers (the elements are moved, not rebuilt), and in Classic layout they appear as normal stacked sections.",
+            "Outfits tab consolidated from eight pills to four: Outfits (saved outfits, schedule, tags), Restraints (active, protected, saved sets), Colours and Storage. Merged pills keep their sub-headers so the grouping stays readable; the grouping is matched on translated labels, and any section that doesn't match simply keeps its own pill rather than disappearing.",
+            "Renamed 'special friend' to starred: you can star anyone you meet, friend or not, so calling it a friend marker was misleading. The star, golden highlight and 'Starred first' sorting are unchanged, and existing stars are kept (the stored data is untouched).",
             "Rooms section now shows real occupancy (e.g. '4/10') instead of just the friend count, turning red when a room is full. Your own room reads live from the room data so it is always current; other rooms use counts harvested from room searches (BC's friend-presence data carries no occupancy at all), cached for 5 minutes - so their numbers appear once you have browsed the room list, and fall back to the friend count until then.",
             "Fix (pill sections, Anims): the Anims tab kept a leftover dropdown row above its content and its sections still opened collapsed. Root cause: Anims puts the ▶/▼ chevron in a span BESIDE the label rather than inside it, so the collapse check never saw the arrow and the header row was misread as a content wrapper. Fix: sections are now classified properly - label-only, chevron+label header row, or header+content wrapper - by checking whether anything follows the label inside the element, and the collapsed check reads the whole header's text. Header rows are hidden completely, so no stray dropdown remains.",
             "Pills enlarged for touch: bigger text, taller hit area (30px minimum) and more spacing, across every pill row - tab sections, Users, Dev and the achievement filters.",

@@ -5458,8 +5458,10 @@ export class EBCDrawer {
         panel.appendChild(langRow);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
-        panel.appendChild(safewordRow);
-        panel.appendChild(ebcTagsStrip);
+        // Safewords and EBC Tags are no longer pinned above every tab - they live
+        // in the DEV tab as their own pill sections (see renderDev). They are kept
+        // as detached elements here and re-appended on each DEV render, so all
+        // their existing handlers and refs stay valid.
         panel.appendChild(body);
         panel.appendChild(footer);
 
@@ -6559,14 +6561,10 @@ export class EBCDrawer {
     /** Show or hide each pinned strip based on the active tab and the stored filter. */
     private updatePinnedStrips(): void {
         const tab = this.currentTab;
-        if (this.safewordRowEl) {
-            const f = loadStripTabFilter("EBC_swTabFilter");
-            this.safewordRowEl.style.display = (!f || f.has(tab)) ? "flex" : "none";
-        }
-        if (this.ebcTagsStripEl) {
-            const f = loadStripTabFilter("EBC_tagsTabFilter");
-            this.ebcTagsStripEl.style.display = (!f || f.has(tab)) ? "" : "none";
-        }
+        // Safewords / EBC Tags now live inside the DEV tab, so the old pinned-strip
+        // per-tab filters no longer apply - keep them visible wherever they sit.
+        if (this.safewordRowEl) this.safewordRowEl.style.display = "flex";
+        if (this.ebcTagsStripEl) this.ebcTagsStripEl.style.display = "";
     }
 
     /**
@@ -7847,7 +7845,12 @@ export class EBCDrawer {
 
         this.buildRestraintSection(body);
         this.buildScheduleSection(body);
-        this._pillifyTab(body, "EBC_outfitsView");
+        // Fewer, broader pills - eight sections was too many to scan.
+        this._pillifyTab(body, "EBC_outfitsView", [
+            { pill: "Outfits",    match: [t("outfits.savedOutfits"), t("outfits.outfitSchedule"), "TAGS", t("outfits.tagsN", { n: 0 })] },
+            { pill: "Restraints", match: [t("dev.activeRestraints"), t("outfits.protectedItems"), t("outfits.savedRestraints")] },
+            { pill: "Colours",    match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+        ]);
     }
 
     // -- Outfit Schedule section ------------------------------------------------
@@ -16789,13 +16792,24 @@ export class EBCDrawer {
     /**
      * Turns a rendered tab into pill sections. Walks the tab's direct children,
      * treats every element carrying an .ebc-section-label as a section header,
-     * and groups the elements after it until the next header. The header itself
-     * is hidden (the pill replaces it) and the section's own content is forced
-     * open, so there is never a redundant dropdown inside a pill.
+     * and groups the elements after it until the next header. Content is forced
+     * open so there is never a redundant dropdown inside a pill.
      * Anything before the first header stays permanently visible.
-     * No-ops in classic layout, or when a tab has fewer than two sections.
+     *
+     * Pass `merge` to put several related sections behind one pill (e.g. all the
+     * restraint sections). A pill covering a single section hides that section's
+     * header - the pill IS the header. A pill covering several keeps their
+     * headers as sub-labels so the grouping still reads clearly. Sections not
+     * named in `merge` simply get their own pill, so a renamed or missing
+     * section degrades gracefully instead of disappearing.
+     *
+     * No-ops in classic layout, or when a tab has fewer than two pills.
      */
-    private _pillifyTab(body: HTMLElement, lsKey: string): void {
+    private _pillifyTab(
+        body: HTMLElement,
+        lsKey: string,
+        merge?: Array<{ pill: string; match: string[] }>,
+    ): void {
         if (getUsersLayout() !== "tabs") return;
 
         // Classify a direct child of the tab body:
@@ -16840,42 +16854,68 @@ export class EBCDrawer {
             return raw.trim();
         };
 
+        // Collect the raw sections. Headers are NOT hidden yet - that depends on
+        // whether the section ends up sharing a pill with others.
+        type Section = { label: string; headerEl: HTMLElement | null; els: HTMLElement[] };
+        const sections: Section[] = [];
+
         for (const el of kids) {
             const info = classify(el);
 
             if (info) {
-                const label = pillLabel(info.labelEl) || `Section ${groups.length + 1}`;
+                const label = pillLabel(info.labelEl) || `Section ${sections.length + 1}`;
                 if (info.kind !== "wrapper") {
                     // The whole element is the header (label, or a chevron+label
-                    // row) - hide it; the following siblings are the content.
-                    el.style.display = "none";
-                    groups.push({ label, els: [] });
+                    // row); the following siblings are the content.
+                    sections.push({ label, headerEl: el, els: [] });
                 } else {
-                    // One wrapper holds header AND content - hide only the inner
-                    // header and keep the wrapper as the section's content, or the
-                    // whole section would vanish.
-                    info.labelEl.style.display = "none";
+                    // One wrapper holds header AND content - the wrapper itself is
+                    // the content, and only the inner label acts as the header.
                     for (const sub of Array.from(el.children) as HTMLElement[]) {
                         if (sub !== info.labelEl && sub.style.display === "none") sub.style.display = "";
                     }
-                    groups.push({ label, els: [el] });
+                    sections.push({ label, headerEl: info.labelEl, els: [el] });
                 }
-            } else if (groups.length === 0) {
+            } else if (sections.length === 0) {
                 preamble.push(el);
             } else {
-                groups[groups.length - 1].els.push(el);
+                sections[sections.length - 1].els.push(el);
             }
         }
-        if (groups.length < 2) return;
 
-        // Force each section's own content open - the pill is the header now, so a
-        // collapsed body inside would just look empty. Only direct children are
-        // touched, so nested UI that is deliberately hidden keeps its own state.
-        for (const g of groups) {
-            for (const el of g.els) {
+        // Force each section's content open - a collapsed body inside a pill would
+        // just look empty. Only direct children are touched, so nested UI that is
+        // deliberately hidden keeps its own state.
+        for (const sec of sections) {
+            for (const el of sec.els) {
                 if (el.style.display === "none") el.style.display = "";
             }
         }
+
+        // Assign sections to pills.
+        const norm = (x: string): string => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
+        const used = new Set<Section>();
+        for (const m of merge ?? []) {
+            const wanted = m.match.map(norm);
+            const picked = sections.filter(sec => !used.has(sec) && wanted.includes(norm(sec.label)));
+            if (picked.length === 0) continue;
+            picked.forEach(sec => used.add(sec));
+            const els: HTMLElement[] = [];
+            for (const sec of picked) {
+                // Several sections share this pill - keep their headers as labels.
+                if (picked.length > 1 && sec.headerEl) els.push(sec.headerEl);
+                else if (sec.headerEl) sec.headerEl.style.display = "none";
+                els.push(...sec.els);
+            }
+            groups.push({ label: m.pill, els });
+        }
+        // Anything not merged keeps its own pill, in original order.
+        for (const sec of sections) {
+            if (used.has(sec)) continue;
+            if (sec.headerEl) sec.headerEl.style.display = "none";
+            groups.push({ label: sec.label, els: sec.els });
+        }
+        if (groups.length < 2) return;
 
         let active = "";
         try { active = localStorage.getItem(lsKey) ?? ""; } catch { /* ignore */ }
@@ -17244,6 +17284,30 @@ export class EBCDrawer {
 
         const devTabs = getUsersLayout() === "tabs";
         const devSections: Array<{ label: string; el: HTMLElement }> = [];
+
+        // Safewords + EBC Tags, moved out of the always-pinned strip. Each gets a
+        // real section header so the pill converter picks them up like any other.
+        {
+            const mkMoved = (labelText: string, el: HTMLElement | null): void => {
+                if (!el) return;
+                el.style.display = labelText === "SAFEWORDS" ? "flex" : "";
+                if (devTabs) {
+                    // Register as a pill section - the pill acts as the header.
+                    const wrap = document.createElement("div");
+                    wrap.appendChild(el);
+                    devSections.push({ label: labelText, el: wrap });
+                } else {
+                    // Classic layout: plain labelled section, stacked like the rest.
+                    const hdr = document.createElement("div");
+                    hdr.className = "ebc-section-label";
+                    hdr.textContent = labelText;
+                    body.appendChild(hdr);
+                    body.appendChild(el);
+                }
+            };
+            mkMoved("SAFEWORDS", this.safewordRowEl);
+            mkMoved("EBC TAGS", this.ebcTagsStripEl);
+        }
 
         // ── Menu layout (pill sections vs the original long page) ─────────────
         {
@@ -19189,6 +19253,8 @@ export class EBCDrawer {
                 [t("dev.copyRestraintsFromMember")]: "Copy",
                 [t("dev.logs")]: "Logs",
                 [t("dev.statEditor")]: "Stats",
+                "SAFEWORDS": "Safewords",
+                "EBC TAGS": "EBC tags",
             };
             let active = "";
             try { active = localStorage.getItem("EBC_devView") ?? ""; } catch { /* ignore */ }
