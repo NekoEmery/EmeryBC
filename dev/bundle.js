@@ -6742,6 +6742,59 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
+    // ── Worn badge ────────────────────────────────────────────────────────────────
+    // One unlocked achievement can be "worn" - its icon travels in EBC's presence
+    // broadcast and other EBC users see it next to the name in People-in-Room.
+    let _presenceRefresh = null;
+    /** main.ts registers its presence broadcaster here so badge changes push out. */
+    function setPresenceRefreshCallback(cb) {
+        _presenceRefresh = cb;
+    }
+    function getWornBadgeId() {
+        try {
+            const st = getState();
+            return typeof st.w === "string" && st.w ? st.w : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /** The worn badge's icon, for the presence payload. Null when nothing worn. */
+    function getWornBadgeIcon() {
+        var _a, _b;
+        const id = getWornBadgeId();
+        if (!id)
+            return null;
+        const st = getState();
+        if (!st.u[id])
+            return null; // must actually be unlocked
+        return (_b = (_a = ACHIEVEMENTS.find(a => a.id === id)) === null || _a === void 0 ? void 0 : _a.icon) !== null && _b !== void 0 ? _b : null;
+    }
+    /** Wear an unlocked achievement's badge (null = wear nothing). */
+    function setWornBadge(id) {
+        try {
+            const st = getState();
+            if (id !== null && !st.u[id])
+                return false; // not unlocked
+            if (id === null)
+                delete st.w;
+            else
+                st.w = id;
+            syncSettings();
+            try {
+                _presenceRefresh === null || _presenceRefresh === void 0 ? void 0 : _presenceRefresh();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    /** Cap incoming badge strings from other clients - emoji only, no essays. */
+    function sanitizeBadgeIcon(v) {
+        return typeof v === "string" && v.length > 0 && v.length <= 8 ? v : null;
+    }
     /** Progress rows for the credits-tab UI. */
     function getAchievementProgress() {
         const st = getState();
@@ -23226,7 +23279,8 @@
                                 return "";
                             }
                         })();
-                        // EBC version badge
+                        // EBC version badge + worn achievement badge (both from presence)
+                        let achBadge = null;
                         const ebcVer = (() => {
                             var _a;
                             try {
@@ -23234,6 +23288,7 @@
                                 if (sh && typeof sh === "object") {
                                     const p = sh.presence;
                                     if (p && typeof p === "object") {
+                                        achBadge = sanitizeBadgeIcon(p.badge);
                                         const v = p.version;
                                         const m = p.marker;
                                         if (m === "EBC" && typeof v === "string") {
@@ -23262,6 +23317,13 @@
                             nameRow.appendChild(acctEl);
                         }
                         nameRow.appendChild(numEl);
+                        if (achBadge) {
+                            const ab = document.createElement("span");
+                            ab.textContent = achBadge;
+                            ab.title = "Achievement badge";
+                            ab.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;filter:drop-shadow(0 0 3px rgba(255,215,0,0.5));";
+                            nameRow.appendChild(ab);
+                        }
                         if (relBadge) {
                             const badge = document.createElement("span");
                             badge.textContent = relBadge;
@@ -34426,6 +34488,21 @@
                     row.appendChild(ic);
                     row.appendChild(col);
                     row.appendChild(pr);
+                    if (done) {
+                        const worn = getWornBadgeId() === a.id;
+                        const wearBtn = document.createElement("button");
+                        wearBtn.className = "ebc-flag-chip" + (worn ? " on" : "");
+                        wearBtn.style.flexShrink = "0";
+                        wearBtn.textContent = worn ? "Worn ✓" : "Wear";
+                        wearBtn.title = worn
+                            ? "This badge shows next to your name for other EBC users - click to take it off"
+                            : "Wear this badge - its icon shows next to your name for other EBC users";
+                        wearBtn.addEventListener("click", () => {
+                            setWornBadge(worn ? null : a.id);
+                            this.rerender();
+                        });
+                        row.appendChild(wearBtn);
+                    }
                     achWrap.appendChild(row);
                 }
                 body.appendChild(achWrap);
@@ -36552,7 +36629,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 175; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 176; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -36601,6 +36678,7 @@
                 "Storage: the meter now sits directly above Saved Outfits, and has a 'Manage saved items' list - every outfit and restraint set sorted biggest-first with its size in KB, a ☁/💾 chip to move it between account and device storage, and a 🗑 delete (with confirm). The fastest way to free account space.",
                 "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
                 "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
+                "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
                 "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
                 "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
             ],
@@ -43242,18 +43320,25 @@
     let lastPresenceSyncTime = 0;
     const PRESENCE_SYNC_COOLDOWN_MS = 6000; // 6 s between sends
     function syncPresenceMarker() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
+        const wornBadge = (() => { try {
+            return getWornBadgeIcon();
+        }
+        catch (_a) {
+            return null;
+        } })();
+        const presence = Object.assign(Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } )), (wornBadge ? { badge: wornBadge } : {}));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
         if (settings) {
             const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION
-                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true );
+                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true )
+                && ((_d = settings.presence) === null || _d === void 0 ? void 0 : _d.badge) === (wornBadge !== null && wornBadge !== void 0 ? wornBadge : undefined);
             if (!alreadyStored) {
                 settings.presence = presence;
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -45160,6 +45245,11 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return _r;
         });
+        // Wearing/removing a badge re-broadcasts presence right away (6s rate limit applies).
+        setPresenceRefreshCallback(() => { try {
+            syncPresenceMarker();
+        }
+        catch ( /* ignore */_a) { /* ignore */ } });
         // Achievements feed (credits crew only): watch activities done to/by the
         // player and item applies. Independent of the XToys gates above.
         modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
