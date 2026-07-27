@@ -14698,16 +14698,15 @@
                 btn.style.display = (inLayout && (tabId === locked || !hidden.includes(tabId))) ? "" : "none";
             }
             // DOM tools are merged into the TOYS tab in the grouped layout, so the
-            // separate creator-only DOM tab only exists in the classic layout.
+            // The creator-only DOM tab is its own tab in BOTH layouts.
             const domBtn = this.rootEl.querySelector("#ebc-tab-dom");
             if (domBtn)
-                domBtn.style.display = (!grouped && isDomEnabled()) ? "" : "none";
+                domBtn.style.display = isDomEnabled() ? "" : "none";
             // Fall back to another tab only when the current one is hidden, belongs
             // exclusively to the other layout, or is the DOM tab in the grouped
             // layout. The puppy/kitty tabs exist in both layouts and are left alone.
             const otherSet = grouped ? EBC_USER_TABS : EBC_GROUPED_TABS;
-            const stranded = (!activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab))
-                || (grouped && this.currentTab === "dom");
+            const stranded = !activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab);
             if (stranded || hidden.includes(this.currentTab)) {
                 const mapped = (grouped ? EBC_TAB_TO_GROUPED : EBC_TAB_TO_CLASSIC)[this.currentTab];
                 const usable = (id) => !!id && activeSet.includes(id) && (id === locked || !hidden.includes(id));
@@ -15792,7 +15791,7 @@
             else if (this.currentTab === "dev")
                 this.renderDev();
             else if (this.currentTab === "dom")
-                this.renderDomTools();
+                this.renderDomTools(!isGroupedLayout());
             else if (this.currentTab === "puppy")
                 this.renderPuppy();
             else if (this.currentTab === "kitty")
@@ -15920,24 +15919,10 @@
                 { pill: "Escape", match: [t("grouped.autoEscape")] },
             ]);
         }
-        /** TOYS - Lovense / PiShock / XToys, plus the creator-only Dom tools that
-         *  had their own tab in the classic layout. Still called "Toys". */
+        /** TOYS - Lovense / PiShock / XToys. Dom keeps its own creator-only tab in
+         *  both layouts, so nothing extra is composed in here. */
         renderToysTab() {
             this.renderToys();
-            if (!isGroupedLayout() || !isDomEnabled())
-                return;
-            const body = this.tabBody();
-            if (!body)
-                return;
-            const div = document.createElement("div");
-            div.className = "ebc-divider";
-            body.appendChild(div);
-            const lbl = document.createElement("div");
-            lbl.className = "ebc-section-label";
-            lbl.textContent = t("grouped.domTools");
-            body.appendChild(lbl);
-            // Auto-escape is skipped here - it lives on the SAFETY tab now.
-            this.composeInto(body, () => this.renderDomTools(false));
         }
         /** SETTINGS - drawer prefs, EBC tags, storage, language, dev tools, credits.
          *  renderDev() builds all of it; the grouped flag adds the extra sections. */
@@ -26224,7 +26209,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          * No-ops in classic layout, or when a tab has fewer than two pills.
          */
         _pillifyTab(body, lsKey, merge) {
-            var _a, _b;
+            var _a, _b, _c;
             if (this.noPillify)
                 return; // composing into a grouped tab - it pillifies once at the end
             if (!isGroupedLayout())
@@ -26261,7 +26246,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 try {
                     (info.kind === "wrapper" ? info.labelEl : el).click();
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
             const kids = Array.from(body.children);
             const groups = [];
@@ -26330,7 +26315,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]${hasContent(x) ? "" : " EMPTY"}`).join(" | ") || "(none)");
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             const kept = sections.filter(hasContent);
             sections.length = 0;
             sections.push(...kept);
@@ -26347,10 +26332,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 for (const sec of picked) {
                     // Several sections share this pill - keep their headers as labels.
                     if (picked.length > 1 && sec.headerEl) {
-                        // Some headers are <button> elements (Tags, Storage) which
-                        // otherwise render inset with button padding and sit visibly
-                        // offset from the plain <div> headers next to them.
-                        const h = sec.headerEl;
+                        // Kept as a sub-label inside a shared pill. Replace it with a
+                        // clone so its collapse handler is dropped - by this point the
+                        // section is already expanded, and leaving the toggle live let
+                        // the user re-collapse a section that no longer shows a working
+                        // chevron. cloneNode does not copy event listeners.
+                        const src = sec.headerEl;
+                        const clone = src.cloneNode(true);
+                        clone.textContent = ((_b = clone.textContent) !== null && _b !== void 0 ? _b : "").replace(/[▶▼]/g, "").trim();
+                        clone.style.cursor = "default";
+                        src.replaceWith(clone);
+                        sec.headerEl = clone;
+                        const h = clone;
                         h.style.display = "block";
                         h.style.width = "100%";
                         h.style.boxSizing = "border-box";
@@ -26380,9 +26373,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 return;
             let active = "";
             try {
-                active = (_b = localStorage.getItem(lsKey)) !== null && _b !== void 0 ? _b : "";
+                active = (_c = localStorage.getItem(lsKey)) !== null && _c !== void 0 ? _c : "";
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             if (!groups.some(g => g.label === active))
                 active = groups[0].label;
             const nav = document.createElement("div");
@@ -38821,7 +38814,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 207; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 208; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -38897,6 +38890,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
                 "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
                 "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+                "Dom keeps its own tab in the new layout instead of being folded into Toys, matching the classic layout - it is still creator-only in both. Auto-escape is not duplicated: it shows on the Dom tab in classic, and on Safety in the new layout.",
+                "Fix: section headers kept as sub-labels inside a shared pill (Tags, Storage) were still live collapse buttons, so they could be clicked shut inside a pill that no longer had a working chevron. They are now replaced with a listener-free clone - a plain label with the arrow stripped.",
                 "Storage: every data category can now live on your BC account (synced across devices) or on this device only (browser storage, no account space used). Each row in 'All stored EBC data' has an Account/Device pill; switching shows a confirm naming which copy is about to become the only one, with both sizes, since the other side gets replaced - empty categories switch without nagging. Categories that are usually better kept local (beep history, name cache, people met, last seen, barks) say so in their tooltip, but nothing is moved for you. Implemented purely in the persistence layer: device keys are written to localStorage and nulled on the account, and loaded back into memory at startup, so every existing getter and setter works unchanged. The account size bar now excludes device-stored data.",
                 "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
                 "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
