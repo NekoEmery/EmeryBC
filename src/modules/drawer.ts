@@ -105,6 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
+import { isAchievementUser, getAchievementProgress } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -5866,6 +5867,12 @@ export class EBCDrawer {
             autoExpand: ["btn-new-outfit"],
         },
         {
+            tab: "outfits",
+            label: t("guide.fast.sStor.label"),
+            text: t("guide.fast.sStor.text"),
+            spotlight: ["[data-guide-target='section-storage']"],
+        },
+        {
             tab: "buttons",
             label: t("guide.fast.s2.label"),
             text: t("guide.fast.s2.text"),
@@ -7238,6 +7245,7 @@ export class EBCDrawer {
         const toggleBtn = document.createElement("button");
         toggleBtn.className = "ebc-section-label";
         toggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+        toggleBtn.setAttribute("data-guide-target", "section-storage");
         const paintToggle = (): void => {
             toggleBtn.innerHTML = "";
             const arrow = document.createTextNode((open ? "▼" : "▶") + " STORAGE ");
@@ -7289,6 +7297,80 @@ export class EBCDrawer {
         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#6a4a58;margin-top:4px;line-height:1.4;";
         hint.textContent = "Full bars? Switch outfits to 💾 This device storage or delete unused ones. Crafted items take the most space.";
         content.appendChild(hint);
+
+        // ── Manage saved items - biggest first, move between stores or delete ─
+        let manageOpen = false;
+        const manageBtn = document.createElement("button");
+        manageBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        manageBtn.textContent = "▶ Manage saved items";
+        const manageBody = document.createElement("div");
+        manageBody.style.cssText = "display:none;margin-top:5px;";
+
+        const buildManage = (): void => {
+            while (manageBody.firstChild) manageBody.removeChild(manageBody.firstChild);
+            const jsize = (v: unknown): number => { try { return JSON.stringify(v).length; } catch { return 0; } };
+            const entries = [
+                ...getOutfits().map(o => ({ kind: "outfit" as const, id: o.id, name: o.displayName, isLocal: o.local === true, bytes: jsize(o) })),
+                ...getRestraints().map(r => ({ kind: "set" as const, id: r.id, name: r.displayName, isLocal: r.local === true, bytes: jsize(r) })),
+            ].sort((a, b) => b.bytes - a.bytes);
+            if (entries.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                none.textContent = "Nothing saved yet.";
+                manageBody.appendChild(none);
+                return;
+            }
+            for (const e of entries) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                const kindIc = document.createElement("span");
+                kindIc.style.cssText = "font-size:11px;flex-shrink:0;";
+                kindIc.textContent = e.kind === "outfit" ? "👗" : "⛓";
+                kindIc.title = e.kind === "outfit" ? "Outfit" : "Restraint set";
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                nm.textContent = e.name;
+                const sz = document.createElement("span");
+                sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                sz.textContent = kb(e.bytes) + " KB";
+                const store = document.createElement("button");
+                store.className = "ebc-flag-chip" + (e.isLocal ? " on" : "");
+                store.style.flexShrink = "0";
+                store.textContent = e.isLocal ? "💾" : "☁";
+                store.title = e.isLocal
+                    ? "On this device - click to move to your BC account (uses account storage)"
+                    : "On your BC account - click to move to this device (frees account storage)";
+                store.addEventListener("click", () => {
+                    const ok = e.kind === "outfit" ? setOutfitStorage(e.id, !e.isLocal) : setRestraintStorage(e.id, !e.isLocal);
+                    if (ok) this.rerender();
+                });
+                const del = document.createElement("button");
+                del.className = "ebc-friend-rooms-del";
+                del.style.flexShrink = "0";
+                del.textContent = "🗑";
+                del.title = "Delete";
+                del.addEventListener("click", () => {
+                    showConfirmOverlay(`Delete "${e.name}"? This cannot be undone.`, "Cancel", "Delete", () => {
+                        if (e.kind === "outfit") deleteOutfit(e.id); else deleteRestraint(e.id);
+                        this.rerender();
+                    });
+                });
+                row.appendChild(kindIc);
+                row.appendChild(nm);
+                row.appendChild(sz);
+                row.appendChild(store);
+                row.appendChild(del);
+                manageBody.appendChild(row);
+            }
+        };
+        manageBtn.addEventListener("click", () => {
+            manageOpen = !manageOpen;
+            manageBtn.textContent = (manageOpen ? "▼" : "▶") + " Manage saved items";
+            if (manageOpen) buildManage();
+            manageBody.style.display = manageOpen ? "block" : "none";
+        });
+        content.appendChild(manageBtn);
+        content.appendChild(manageBody);
 
         toggleBtn.addEventListener("click", () => {
             open = !open;
@@ -7354,7 +7436,6 @@ export class EBCDrawer {
         this.renderRestraintInfo(body);
         this.renderOutfitWhitelist(body);
         this.renderPalettes(body);
-        this.renderStorageUsage(body);
 
         // ── Tag management ───────────────────────────────────────────────────────────
         const tagMgmtDiv = document.createElement("div");
@@ -7488,6 +7569,8 @@ export class EBCDrawer {
         // ── Collapsible "Saved Outfits" header ───────────────────────────────────
         let outfitsCollapsed = false;
         try { outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1"; } catch { /* ignore */ }
+
+        this.renderStorageUsage(body);
 
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
@@ -25092,6 +25175,47 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Achievements (credits crew only) ─────────────────────────────────
+        if (isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber)) {
+            const achLbl = document.createElement("div");
+            achLbl.className = "ebc-section-label";
+            achLbl.textContent = "🏆 ACHIEVEMENTS";
+            body.appendChild(achLbl);
+
+            const achWrap = document.createElement("div");
+            achWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:14px;";
+            for (const a of getAchievementProgress()) {
+                const done = a.unlockedAt !== null;
+                const row = document.createElement("div");
+                row.style.cssText =
+                    `display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;` +
+                    `border:1px solid ${done ? (a.rare ? "#8a7010" : "#3a5a40") : "#2a1421"};` +
+                    `background:${done ? (a.rare ? "rgba(60,48,0,0.35)" : "rgba(20,40,25,0.30)") : "rgba(20,8,16,0.4)"};` +
+                    (done ? "" : "opacity:0.78;");
+                const ic = document.createElement("span");
+                ic.style.cssText = "font-size:16px;flex-shrink:0;" + (done ? "" : "filter:grayscale(1);opacity:0.5;");
+                ic.textContent = a.icon;
+                const col = document.createElement("div");
+                col.style.cssText = "flex:1;min-width:0;";
+                const nm = document.createElement("div");
+                nm.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${done ? (a.rare ? "#ffd700" : "#a8e0b0") : "#b090a0"};`;
+                nm.textContent = a.name + (a.rare ? " ★" : "");
+                const ds = document.createElement("div");
+                ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a6878;";
+                ds.textContent = a.desc;
+                col.appendChild(nm);
+                col.appendChild(ds);
+                const pr = document.createElement("span");
+                pr.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10.5px;flex-shrink:0;color:${done ? "#79a885" : "#9a7080"};`;
+                pr.textContent = done ? "✓ unlocked" : `${a.value} / ${a.target}`;
+                row.appendChild(ic);
+                row.appendChild(col);
+                row.appendChild(pr);
+                achWrap.appendChild(row);
+            }
+            body.appendChild(achWrap);
+        }
 
         // ── Creator card (above "Special Thanks") ─────────────────────────────
         const madeLbl = document.createElement("div");

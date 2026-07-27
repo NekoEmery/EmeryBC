@@ -23,10 +23,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
+import { isAchievementUser, achievementOnActivity, achievementOnItemApply } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 174;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 175;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -75,6 +76,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
             "Outfits tab: new collapsible STORAGE meter - progress bars for account outfits (vs 60 KB), account restraint sets (vs 60 KB), and all EBC settings (vs the 150 KB sync cap), plus this-device usage. Bars turn amber at 70% and red at 90%; the header shows the account total even when collapsed.",
             "Fix: the ☁/💾 storage chips from the previous build crashed when clicked - the two mover functions were referenced in the UI but never imported. Now imported (and the build-warning check that let this slip is being watched more carefully).",
+            "Storage: the meter now sits directly above Saved Outfits, and has a 'Manage saved items' list - every outfit and restraint set sorted biggest-first with its size in KB, a ☁/💾 chip to move it between account and device storage, and a 🗑 delete (with confirm). The fastest way to free account space.",
+            "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
+            "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
@@ -8395,6 +8399,41 @@ function init(): void {
                     const pn = Player.MemberNumber;
                     if (targetNum === pn) xtoysActivityEvent(actGroup, actName);
                     else if (sourceNum === pn) xtoysActivityOnOtherEvent(actGroup, actName);
+                }
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
+    // Achievements feed (credits crew only): watch activities done to/by the
+    // player and item applies. Independent of the XToys gates above.
+    modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+        const _r = next(args);
+        try {
+            if (!isAchievementUser(Player.MemberNumber)) return _r;
+            const data = args[0] as Record<string, unknown>;
+            if (data?.Type !== "Activity" && data?.Type !== "Action") return _r;
+            const dict = Array.isArray(data.Dictionary)
+                ? data.Dictionary as Record<string, unknown>[]
+                : [];
+            const { targetNum, sourceNum, actName } = parseXToysActivity(dict);
+            if (actName) {
+                achievementOnActivity(sourceNum, targetNum, actName);
+            } else {
+                const content = String(data.Content ?? "");
+                if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
+                    let src: number | undefined, tgt: number | undefined, grp: string | undefined;
+                    for (const item of dict) {
+                        if (item.Tag === "SourceCharacter" && typeof item.MemberNumber === "number") src = item.MemberNumber;
+                        if ((item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") && typeof item.MemberNumber === "number") tgt = item.MemberNumber;
+                        if (item.Tag === "FocusAssetGroup") {
+                            const g = (item as Record<string, unknown>).FocusGroupName
+                                ?? (item as Record<string, unknown>).GroupName
+                                ?? (item as Record<string, unknown>).AssetGroupName;
+                            if (typeof g === "string") grp = g;
+                        }
+                    }
+                    achievementOnItemApply(src, tgt, grp);
                 }
             }
         } catch { /* ignore */ }
