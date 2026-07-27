@@ -229,45 +229,69 @@ export function achievementOnFeedbackSent(): void {
 }
 
 // ── Sharing ───────────────────────────────────────────────────────────────────
-// An unlocked achievement can be posted to the room chat. The message carries a
-// machine-readable Dictionary entry: EBC clients suppress the plain emote and
-// render a big shiny plaque instead; everyone else sees a normal emote line.
+// An unlocked achievement is shared as a WHISPER to one chosen person - never
+// broadcast to the whole room - with a cooldown so chat can't be spammed. The
+// whisper carries a machine-readable Dictionary entry: the recipient's EBC
+// suppresses the plain whisper text and renders a big shiny plaque instead;
+// recipients without EBC just see a normal whispered emote line.
 
-/** Posts an unlocked achievement to the room chat. */
-export function shareAchievement(id: string): "ok" | "noRoom" | "locked" | "error" {
+const SHARE_COOLDOWN_MS = 60_000;
+let _lastShareTs = 0;
+
+/** Milliseconds until the next share is allowed (0 = ready). */
+export function getShareCooldownMs(): number {
+    return Math.max(0, SHARE_COOLDOWN_MS - (Date.now() - _lastShareTs));
+}
+
+/** Whispers an unlocked achievement to one person in the room. */
+export function shareAchievement(
+    id: string,
+    targetNum: number,
+    targetName: string,
+): "ok" | "noRoom" | "locked" | "cooldown" | "error" {
     try {
         const a = ACHIEVEMENTS.find(x => x.id === id);
         if (!a) return "error";
         const st = getState();
         // Derive the tier from the live counter (exactly like the UI does) - the
-        // announced-unlocks map can lag until the next bump/tick runs checkUnlocks,
-        // which made sharing fail right after login even on maxed achievements.
+        // announced-unlocks map can lag until the next bump/tick runs checkUnlocks.
         const tier = tiersReached(a, st.c[a.counter] ?? 0);
         if (tier <= 0) return "locked";
         if ((window as unknown as Record<string, unknown>).CurrentScreen !== "ChatRoom") return "noRoom";
+        if (getShareCooldownMs() > 0) return "cooldown";
         const tierLabel = a.tiers.length > 1 ? ` ${ROMAN[tier - 1] ?? tier}` : "";
         const desc = a.desc.replace("{n}", String(a.tiers[tier - 1]));
         ServerSend("ChatRoomChat", {
             Content: `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`,
-            Type: "Emote",
+            Type: "Whisper",
+            Target: targetNum,
             Dictionary: [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }],
         } as never);
+        _lastShareTs = Date.now();
+        // Local confirmation plaque for the sender (whispers aren't echoed back).
+        renderSharedPlaque(`you shared with ${targetName}`, a, tier);
         return "ok";
     } catch { return "error"; }
 }
 
+// One plaque per sender per 30s - a hand-crafted whisper flood can't fill the log.
+const _plaqueLastBySender = new Map<number, number>();
+
 /** Detects an incoming achievement share. Renders the plaque and returns true
- *  so the caller suppresses the plain emote. Works for EVERY EBC user. */
+ *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
 export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
     try {
-        if (!data || (data.Type !== "Emote" && data.Type !== "Chat")) return false;
+        if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper")) return false;
         const dict = Array.isArray(data.Dictionary) ? data.Dictionary as Array<Record<string, unknown>> : [];
         const entry = dict.find(d => d?.Tag === "EBCACH");
         if (!entry) return false;
         const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
         if (!a) return false;
-        const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
         const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+        const last = _plaqueLastBySender.get(senderNum) ?? 0;
+        if (Date.now() - last < 30_000) return true; // swallow the spam silently
+        _plaqueLastBySender.set(senderNum, Date.now());
+        const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
         let senderName = `#${senderNum}`;
         try {
             const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
@@ -275,7 +299,7 @@ export function handleAchievementShareMessage(data: Record<string, unknown> | nu
             const c = room?.find(x => x.MemberNumber === senderNum);
             if (c) senderName = (c.Nickname ?? "").trim() || c.Name || senderName;
         } catch { /* ignore */ }
-        return renderSharedPlaque(senderName, a, tier);
+        return renderSharedPlaque(`shared by ${senderName}`, a, tier);
     } catch { return false; }
 }
 
@@ -284,12 +308,13 @@ function ensureShineStyle(): void {
     const st = document.createElement("style");
     st.id = "ebc-ach-shine-style";
     st.textContent = "@keyframes ebcAchShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }";
+    // (The sweep speed is set per-plaque below - keep it slow and subtle.)
     document.head.appendChild(st);
 }
 
 /** Big shiny plaque in the chat log - deliberately larger than normal messages,
  *  like addon update notices, but in EBC's dark + metal style. */
-function renderSharedPlaque(senderName: string, a: AchievementDef, tier: number): boolean {
+function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): boolean {
     try {
         const log = document.getElementById("TextAreaChatLog");
         if (!log) return false;
@@ -307,7 +332,7 @@ function renderSharedPlaque(senderName: string, a: AchievementDef, tier: number)
             `border:2px solid ${metal}`,
             `background:linear-gradient(120deg, rgba(22,10,20,0.97) 30%, ${metal}26 50%, rgba(22,10,20,0.97) 70%)`,
             "background-size:200% 100%",
-            "animation:ebcAchShine 3.4s linear infinite",
+            "animation:ebcAchShine 9s linear infinite",
             `box-shadow:0 0 16px ${metal}44, inset 0 1px 0 rgba(255,255,255,0.10)`,
             "font-family:'Trebuchet MS',serif",
             "text-align:center",
@@ -315,7 +340,7 @@ function renderSharedPlaque(senderName: string, a: AchievementDef, tier: number)
 
         const head = document.createElement("div");
         head.style.cssText = `font-size:10px;letter-spacing:0.2em;color:${metal};text-transform:uppercase;`;
-        head.textContent = `🏆 Achievement · shared by ${senderName}`;
+        head.textContent = `🏆 Achievement · ${byline}`;
         const nameEl = document.createElement("div");
         nameEl.style.cssText = `font-size:18px;font-weight:bold;color:${metal};text-shadow:0 0 10px ${metal}66;margin-top:3px;`;
         nameEl.textContent = a.name + tierLabel + (a.rare ? " ★" : "");

@@ -105,7 +105,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, achievementOnFeedbackSent } from "./achievements";
+import { isAchievementUser, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -858,6 +858,13 @@ const CSS = `
 .ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
+
+/* Achievements popup - same slim pink scrollbar as the panel body */
+.ebc-ach-scroll::-webkit-scrollbar { width: 5px; }
+.ebc-ach-scroll::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb:hover { background: #e890b8; }
+.ebc-ach-scroll { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -16655,16 +16662,24 @@ export class EBCDrawer {
                         const shareBtn = document.createElement("button");
                         shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
                         shareBtn.textContent = "Share";
-                        shareBtn.title = "Show this achievement in the room chat as a shiny plaque";
+                        shareBtn.title = "Whisper this achievement to someone in the room - they see it as a shiny plaque";
                         shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
                         shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
+                        const flashShare = (label: string): void => {
+                            shareBtn.textContent = label;
+                            window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1800);
+                        };
                         shareBtn.addEventListener("click", () => {
-                            const res = shareAchievement(a.id);
-                            shareBtn.textContent =
-                                res === "ok"     ? "Shared ✓" :
-                                res === "noRoom" ? "Join a room first" :
-                                res === "locked" ? "Not unlocked yet" : "Failed";
-                            window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1600);
+                            const cd = getShareCooldownMs();
+                            if (cd > 0) { flashShare(`Wait ${Math.ceil(cd / 1000)}s`); return; }
+                            this.pickAchievementShareTarget((num, name) => {
+                                const res = shareAchievement(a.id, num, name);
+                                flashShare(
+                                    res === "ok"       ? "Shared ✓" :
+                                    res === "noRoom"   ? "Join a room first" :
+                                    res === "locked"   ? "Not unlocked yet" :
+                                    res === "cooldown" ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
+                            });
                         });
                         card.appendChild(shareBtn);
                     }
@@ -16708,6 +16723,55 @@ export class EBCDrawer {
         return outer;
     }
 
+    /** Small picker listing everyone else in the room - used by achievement
+     *  sharing so the plaque goes to ONE person as a whisper, not the room. */
+    private pickAchievementShareTarget(onPick: (memberNumber: number, name: string) => void): void {
+        if (document.getElementById("ebc-ach-share-pick")) return;
+        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+        const me = (Player as { MemberNumber?: number })?.MemberNumber;
+        const people = (room ?? []).filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== me);
+
+        const overlay = document.createElement("div");
+        overlay.id = "ebc-ach-share-pick";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000000;display:flex;align-items:center;justify-content:center;";
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+        const panel = document.createElement("div");
+        panel.style.cssText = "background:#130810;border:2px solid #cf6f98;border-radius:11px;padding:12px 14px;width:min(280px, 90vw);max-height:60vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.85);";
+        const title = document.createElement("div");
+        title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#cf6f98;";
+        title.textContent = "Share with…";
+        panel.appendChild(title);
+        const list = document.createElement("div");
+        list.className = "ebc-ach-scroll";
+        list.style.cssText = "overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:4px;";
+        if (people.length === 0) {
+            const none = document.createElement("div");
+            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px;";
+            none.textContent = "Nobody else is in the room.";
+            list.appendChild(none);
+        }
+        for (const c of people) {
+            const num = c.MemberNumber as number;
+            const name = (c.Nickname ?? "").trim() || c.Name || `#${num}`;
+            const btn = document.createElement("button");
+            btn.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #33283c;background:transparent;color:#c8a0b4;cursor:pointer;transition:all 0.12s;";
+            btn.textContent = `${name} #${num}`;
+            btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; btn.style.background = "#2a1421"; });
+            btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#33283c"; btn.style.background = "transparent"; });
+            btn.addEventListener("click", () => { overlay.remove(); onPick(num, name); });
+            list.appendChild(btn);
+        }
+        panel.appendChild(list);
+        const cancel = document.createElement("button");
+        cancel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 0;border-radius:7px;border:1px solid #33283c;background:transparent;color:#9b8fa6;cursor:pointer;";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", () => overlay.remove());
+        panel.appendChild(cancel);
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+    }
+
     /** Fun popup version of the achievement list, opened from the 🏆 header button. */
     private showAchievementsOverlay(): void {
         if (document.getElementById("ebc-ach-overlay")) return;
@@ -16729,6 +16793,7 @@ export class EBCDrawer {
         head.appendChild(title);
         head.appendChild(closeBtn);
         const scroll = document.createElement("div");
+        scroll.className = "ebc-ach-scroll";
         scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
         scroll.appendChild(this.buildAchievementCards());
         panel.appendChild(head);

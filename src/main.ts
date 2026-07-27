@@ -27,7 +27,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 184;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 185;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -93,6 +93,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
             "Fix: the 🏆 trophy button never appeared in the panel header. Root cause: its crew-only visibility was decided once while the panel was being built - before login finished, when Player.MemberNumber didn't exist yet - so it stayed hidden forever. Fix: the visibility re-checks every 2 s until the player data exists.",
             "Fix: dragging the panel out of the drawer (free-float mode) crushed the header - the DEV pill clipped mid-letter and the title overlapped the buttons on narrow widths. Fix: the version text and DEV pill no longer shrink, the 'EmeryBC' subtitle hides in float mode, and the header buttons compact slightly so everything always fits.",
+            "Achievements popup: the fat default browser scrollbar replaced with EBC's slim pink one (same style as the panel body).",
+            "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
             "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
             "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
         ],
