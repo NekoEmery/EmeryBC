@@ -191,7 +191,7 @@ function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
  * are credited, so meeting one person reads as 2/6 and looks like nothing
  * happened. Naming who is left makes it obvious it registered.
  */
-export function crewRosterStatus(id: string): { done: string[]; left: string[] } | null {
+export function crewRosterStatus(id: string): { done: string[]; left: string[]; all: Array<{ name: string; done: boolean }> } | null {
     const key = id === "crew_met" ? "cm" : id === "crew_pet" ? "cp" : null;
     if (!key) return null;
     try {
@@ -202,8 +202,13 @@ export function crewRosterStatus(id: string): { done: string[]; left: string[] }
         if (isCredited(me)) have.add(me);
         const done: string[] = [];
         const left: string[] = [];
-        for (const p of CREDITED) (have.has(p.num) ? done : left).push(p.name);
-        return { done, left };
+        const all: Array<{ name: string; done: boolean }> = [];
+        for (const p of CREDITED) {
+            const got = have.has(p.num);
+            (got ? done : left).push(p.name);
+            all.push({ name: p.name, done: got });
+        }
+        return { done, left, all };
     } catch { return null; }
 }
 

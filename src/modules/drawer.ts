@@ -18334,18 +18334,25 @@ This cannot be undone.`,
                     // before ds had a parent, which does nothing at all.
                     const roster = crewRosterStatus(a.id);
                     if (roster) {
-                        if (roster.done.length > 0) {
-                            const doneEl = document.createElement("div");
-                            doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;line-height:1.4;";
-                            doneEl.textContent = `✓ ${roster.done.join(", ")}`;
-                            main.appendChild(doneEl);
+                        // One row of everybody, colour-coded, in roster order so
+                        // a name stays put and only changes colour when it lands.
+                        // The tick and cross carry the meaning too - colour alone
+                        // is no good to anyone who cannot separate red from green.
+                        const rosterRow = document.createElement("div");
+                        rosterRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;";
+                        for (const { name, done: got } of roster.all) {
+                            const pill = document.createElement("span");
+                            pill.textContent = `${got ? "✓" : "✕"} ${name}`;
+                            pill.title = got
+                                ? `${name} - done`
+                                : `${name} - still to go`;
+                            pill.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;white-space:nowrap;" +
+                                (got
+                                    ? "background:rgba(58,140,92,0.20);border:1px solid #4f9a6a;color:#9adcb2;"
+                                    : "background:rgba(150,48,60,0.16);border:1px solid #8a4048;color:#e0949c;");
+                            rosterRow.appendChild(pill);
                         }
-                        if (roster.left.length > 0) {
-                            const leftEl = document.createElement("div");
-                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;line-height:1.4;";
-                            leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                            main.appendChild(leftEl);
-                        }
+                        main.appendChild(rosterRow);
                     }
 
                     const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);

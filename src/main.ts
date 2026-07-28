@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 241;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 242;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Crew achievements show everyone as pills - green with a tick for the ones you have, red with a cross for the ones left. Names stay in the same order whatever their state, so one only changes colour when it lands rather than jumping to another line. The tick and cross carry the meaning as well as the colour.",
             "Fix: private room sharing did nothing if you turned it on while already sitting in a private room. Entering a room recorded it as announced before checking whether there was anybody to announce it to, so switching the toggles on afterwards found nothing left to say. Changing who you share with now re-announces immediately. Rooms are also now classified using BC's own private-room test - a room open to admins as well as everyone counted as public before. Each broadcast writes a line to the browser console saying what was sent and to how many people, so it can be checked.",
             "Fix: the crew achievements were supposed to list who you have met and who is left, and showed neither. The lines were built and then inserted next to an element that had not been added to the page yet, which does nothing and reports no error. They appear now.",
             "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
