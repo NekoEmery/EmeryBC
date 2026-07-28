@@ -7831,9 +7831,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 have.add(me);
             const done = [];
             const left = [];
-            for (const p of CREDITED)
-                (have.has(p.num) ? done : left).push(p.name);
-            return { done, left };
+            const all = [];
+            for (const p of CREDITED) {
+                const got = have.has(p.num);
+                (got ? done : left).push(p.name);
+                all.push({ name: p.name, done: got });
+            }
+            return { done, left, all };
         }
         catch (_b) {
             return null;
@@ -28087,18 +28091,25 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // before ds had a parent, which does nothing at all.
                         const roster = crewRosterStatus(a.id);
                         if (roster) {
-                            if (roster.done.length > 0) {
-                                const doneEl = document.createElement("div");
-                                doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;line-height:1.4;";
-                                doneEl.textContent = `✓ ${roster.done.join(", ")}`;
-                                main.appendChild(doneEl);
+                            // One row of everybody, colour-coded, in roster order so
+                            // a name stays put and only changes colour when it lands.
+                            // The tick and cross carry the meaning too - colour alone
+                            // is no good to anyone who cannot separate red from green.
+                            const rosterRow = document.createElement("div");
+                            rosterRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;";
+                            for (const { name, done: got } of roster.all) {
+                                const pill = document.createElement("span");
+                                pill.textContent = `${got ? "✓" : "✕"} ${name}`;
+                                pill.title = got
+                                    ? `${name} - done`
+                                    : `${name} - still to go`;
+                                pill.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;white-space:nowrap;" +
+                                    (got
+                                        ? "background:rgba(58,140,92,0.20);border:1px solid #4f9a6a;color:#9adcb2;"
+                                        : "background:rgba(150,48,60,0.16);border:1px solid #8a4048;color:#e0949c;");
+                                rosterRow.appendChild(pill);
                             }
-                            if (roster.left.length > 0) {
-                                const leftEl = document.createElement("div");
-                                leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;line-height:1.4;";
-                                leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                                main.appendChild(leftEl);
-                            }
+                            main.appendChild(rosterRow);
                         }
                         const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
                         const trough = document.createElement("div");
@@ -40474,7 +40485,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 241; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 242; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40491,6 +40502,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Crew achievements show everyone as pills - green with a tick for the ones you have, red with a cross for the ones left. Names stay in the same order whatever their state, so one only changes colour when it lands rather than jumping to another line. The tick and cross carry the meaning as well as the colour.",
                 "Fix: private room sharing did nothing if you turned it on while already sitting in a private room. Entering a room recorded it as announced before checking whether there was anybody to announce it to, so switching the toggles on afterwards found nothing left to say. Changing who you share with now re-announces immediately. Rooms are also now classified using BC's own private-room test - a room open to admins as well as everyone counted as public before. Each broadcast writes a line to the browser console saying what was sent and to how many people, so it can be checked.",
                 "Fix: the crew achievements were supposed to list who you have met and who is left, and showed neither. The lines were built and then inserted next to an element that had not been added to the page yet, which does nothing and reports no error. They appear now.",
                 "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
