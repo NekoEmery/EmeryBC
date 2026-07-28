@@ -7349,7 +7349,15 @@
             const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
             const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const el = document.createElement("div");
-            el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
+            // Clickable: it used to be pointer-events:none, so the only way past it
+            // was to wait out the full six seconds.
+            el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 26px 12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;cursor:pointer;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
+            el.title = "Click to dismiss";
+            el.addEventListener("click", () => el.remove());
+            const toastClose = document.createElement("div");
+            toastClose.textContent = "×";
+            toastClose.style.cssText = `position:absolute;top:3px;right:8px;font-size:14px;line-height:1;color:${col}99;`;
+            el.appendChild(toastClose);
             const head = document.createElement("div");
             head.style.cssText = `font-size:10.5px;color:${col};letter-spacing:0.15em;margin-bottom:3px;`;
             head.textContent = a.tiers.length > 1 && !maxed ? "🏆 ACHIEVEMENT TIER UP" : "🏆 ACHIEVEMENT UNLOCKED";
@@ -7572,7 +7580,7 @@
     /** Detects an incoming achievement share. Renders the plaque and returns true
      *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
     function handleAchievementShareMessage(data) {
-        var _a, _b;
+        var _a, _b, _c;
         try {
             if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper"))
                 return false;
@@ -7588,7 +7596,13 @@
             if (!a)
                 return false;
             const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
-            const last = (_a = _plaqueLastBySender.get(senderNum)) !== null && _a !== void 0 ? _a : 0;
+            // Our own room share comes straight back to us, and shareAchievement has
+            // already drawn the nicer "you shared with the room" plaque. Without this
+            // the sharer saw the same achievement twice, once as themselves and once
+            // as "shared by <own name>".
+            if (senderNum && senderNum === ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1))
+                return true;
+            const last = (_b = _plaqueLastBySender.get(senderNum)) !== null && _b !== void 0 ? _b : 0;
             if (Date.now() - last < 30000)
                 return true; // swallow the spam silently
             _plaqueLastBySender.set(senderNum, Date.now());
@@ -7598,12 +7612,12 @@
                 const room = window.ChatRoomCharacter;
                 const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === senderNum);
                 if (c)
-                    senderName = ((_b = c.Nickname) !== null && _b !== void 0 ? _b : "").trim() || c.Name || senderName;
+                    senderName = ((_c = c.Nickname) !== null && _c !== void 0 ? _c : "").trim() || c.Name || senderName;
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return renderSharedPlaque(`shared by ${senderName}`, a, tier);
         }
-        catch (_d) {
+        catch (_e) {
             return false;
         }
     }
@@ -7634,13 +7648,27 @@
                 "padding:7px 12px",
                 "border-radius:8px",
                 `border:1px solid ${metal}99`,
-                `background:linear-gradient(120deg, rgba(22,10,20,0.96) 35%, ${metal}14 50%, rgba(22,10,20,0.96) 65%)`,
+                // The sweep is an overlay on top of a solid base. It used to be one
+                // gradient whose middle stop was the metal at 8% alpha, which made
+                // the plaque nearly see-through there - on BC's default light chat
+                // log that read as a glaring white band rather than a metal sheen.
+                "background-color:rgba(22,10,20,0.96)",
+                `background-image:linear-gradient(120deg, transparent 42%, ${metal}1c 50%, transparent 58%)`,
                 "background-size:200% 100%",
                 "animation:ebcAchShine 14s linear infinite",
                 `box-shadow:inset 0 1px 0 rgba(255,255,255,0.06)`,
                 "font-family:'Trebuchet MS',serif",
                 "text-align:center",
+                "position:relative",
             ].join(";");
+            // Plaques stay in the log forever, so give people a way out of one.
+            const close = document.createElement("div");
+            close.textContent = "×";
+            close.title = "Dismiss this achievement";
+            close.style.cssText = `position:absolute;top:2px;right:7px;font-size:14px;line-height:1;color:${metal}88;cursor:pointer;padding:2px 4px;`;
+            close.addEventListener("mouseenter", () => { close.style.color = metal; });
+            close.addEventListener("mouseleave", () => { close.style.color = `${metal}88`; });
+            close.addEventListener("click", (ev) => { ev.stopPropagation(); plaque.remove(); });
             const head = document.createElement("div");
             head.style.cssText = `font-size:8.5px;letter-spacing:0.14em;color:${metal}bb;text-transform:uppercase;`;
             head.textContent = `Achievement · ${byline}`;
@@ -7650,6 +7678,7 @@
             const descEl = document.createElement("div");
             descEl.style.cssText = "font-size:10.5px;color:#c0aec4;margin-top:1px;";
             descEl.textContent = desc;
+            plaque.appendChild(close);
             plaque.appendChild(head);
             plaque.appendChild(nameEl);
             plaque.appendChild(descEl);
@@ -39424,7 +39453,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 220; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 221; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39441,6 +39470,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
+                "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
+                "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",
                 "CREDITS is its own tab again on the new layout instead of being a collapsed section at the bottom of SETTINGS. Both layouts now have the same CREDITS tab, so switching layout keeps you on it. You can still hide it from the tab list in SETTINGS -> Drawer if you would rather not see it.",
                 "Fix (reported by Julia): typing in the friends search no longer makes the room list reappear above your results. Root cause: the search, clear, sort and filter controls all redrew the friends list without telling it where the Rooms section lives, and the renderer falls back to drawing rooms inline when it is not told - so the whole room list landed on top of the friends section every keystroke. All four now keep Rooms in its own pill.",
                 "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
