@@ -6840,7 +6840,7 @@ export class EBCDrawer {
         else if (this.currentTab === "toys")     this.renderToysTab();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
-        else if (this.currentTab === "dom")      this.renderDomTools(!isGroupedLayout());
+        else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
         // Grouped layout - each of these composes existing renderX() methods.
@@ -6943,14 +6943,14 @@ export class EBCDrawer {
         this.renderRestraintInfo(body);    // ACTIVE RESTRAINTS (+ timers)
         this.renderOutfitWhitelist(body);  // PROTECTED ITEMS
         this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
-        this.addLabelledSection(body, t("grouped.autoEscape"),
-            this.buildFlatSection(c => this.buildAutoEscapeSection(c)));
+        // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
+        // which is creator-gated in both layouts - the grouped layout used to
+        // surface it on SAFETY, which exposed it to everyone.
 
         this._pillifyTab(body, "EBC_safetyView", [
             { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
             { pill: "Protected", match: [t("outfits.protectedItems")] },
             { pill: "Safewords", match: [t("grouped.safewords")] },
-            { pill: "Escape",    match: [t("grouped.autoEscape")] },
         ]);
     }
 
@@ -18088,21 +18088,31 @@ This cannot be undone.`,
         // ── Menu layout (pill sections vs the original long page) ─────────────
         {
             const layoutRow = document.createElement("div");
-            layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const layoutLbl = document.createElement("span");
-            layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+            layoutRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 9px;margin-bottom:8px;border:1px solid #3a1e2e;border-radius:6px;background:rgba(20,8,16,0.5);";
+            const layoutText = document.createElement("div");
+            layoutText.style.cssText = "flex:1;min-width:0;";
+            const layoutLbl = document.createElement("div");
+            layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:#f0dbe6;";
             layoutLbl.textContent = "Menu layout";
+            const layoutDesc = document.createElement("div");
+            layoutDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;line-height:1.4;margin-top:1px;";
+            layoutText.appendChild(layoutLbl);
+            layoutText.appendChild(layoutDesc);
             const layoutBtn = document.createElement("button");
             const paintLayout = (): void => {
                 const tabs = getUsersLayout() === "tabs";
-                layoutBtn.textContent = tabs ? "New layout" : "Old layout";
-                layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
-                    (tabs
-                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
-                        : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                // The line reads as the current state, the button reads as the
+                // action. It used to be one small pill saying "New layout",
+                // which meant both equally - you could not tell whether you were
+                // on that layout or about to switch to it.
+                layoutDesc.textContent = tabs
+                    ? "Now using NEW - six tabs, each split into pill sections"
+                    : "Now using CLASSIC - eight tabs, every section stacked on one page";
+                layoutBtn.textContent = tabs ? "Switch to Classic" : "Switch to New";
+                layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 13px;border-radius:6px;cursor:pointer;flex-shrink:0;white-space:nowrap;background:#3a1028;border:1px solid #cf6f98;color:#f0a8c4;";
                 layoutBtn.title = tabs
-                    ? "New: tabs are split into pill sections (default) - click to use the old stacked layout"
-                    : "Old: every section stacked on one long page - click to use the new pill layout";
+                    ? "Go back to the original eight-tab layout. Nothing is lost - you can switch back any time."
+                    : "Use the six-tab layout with pill sections. Nothing is lost - you can switch back any time.";
             };
             paintLayout();
             layoutBtn.addEventListener("click", () => {
@@ -18115,7 +18125,7 @@ This cannot be undone.`,
                 this.applyLayoutMode();
                 this.rerender();
             });
-            layoutRow.appendChild(layoutLbl);
+            layoutRow.appendChild(layoutText);
             layoutRow.appendChild(layoutBtn);
             body.appendChild(layoutRow);
 
@@ -27280,14 +27290,12 @@ This cannot be undone.`,
         body.appendChild(aeCard);
     }
 
-    /** @param includeAutoEscape false when the grouped layout has already put the
-     *  auto-escape card on the SAFETY tab. */
-    private renderDomTools(includeAutoEscape = true): void {
+    private renderDomTools(): void {
         const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        if (includeAutoEscape) this.buildAutoEscapeSection(body);
+        this.buildAutoEscapeSection(body);
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {

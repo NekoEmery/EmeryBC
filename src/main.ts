@@ -29,7 +29,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 217;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 218;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
+            "Fix: the auto-escape room emote now fills in its tokens whether you wrote them with braces or square brackets ({item} or [item]), and a token can be used more than once. Text saved with square brackets was being sent to the room literally.",
+            "Menu layout toggle is clearer: it now says which layout you are on and the button says what pressing it does (\"Switch to Classic\" / \"Switch to New\"), instead of one small pill reading \"New layout\" that meant both equally.",
             "Fix: emote-style action buttons, anims and outfit announcements send your text literally again. Routing them through BC's own emote function in the last update also handed BC your text as chat SYNTAX, so a button starting with a number and a percent sign (\"100% done~\") was turned into an attempt dice roll with the text rewritten, and text already wrapped in asterisks came out with a stray one. Now the asterisk is only added when it is missing, and dropped entirely when keeping it would trigger the roll. Rule addons still see every emote.",
             "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
             "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
