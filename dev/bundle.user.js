@@ -55,6 +55,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // deliberately NOT routed through here. It is addon-to-addon sync, not the
     // person speaking, and putting it through the speech pipeline would both
     // mangle it and make unrelated rules break EBC's internals.
+    // True only while sendBeepViaBC is inside ServerSendBeepMessage. main.ts hooks
+    // that function to catch beeps sent through BC's OWN ui (/beep, the friend list
+    // button) which EBC would otherwise never see. Once EBC started routing its own
+    // beeps through it as well, that hook began logging them too - on top of the
+    // entry sendBeep already writes - so every sent message appeared twice.
+    let _ebcOriginated = false;
+    function isEbcOriginatedBeep() { return _ebcOriginated; }
     /**
      * Sends a beep, honouring any rule addon hooked onto ServerSendBeepMessage.
      *
@@ -76,6 +83,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const log = w.FriendListBeepLog;
         const before = Array.isArray(log) ? log.length : -1;
         try {
+            _ebcOriginated = true;
             viaBC(target, message, { includeRoom });
         }
         catch (_a) {
@@ -83,6 +91,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // whether it meant to block us, and guessing "send it anyway" would put
             // the bypass straight back. Report undelivered instead.
             return false;
+        }
+        finally {
+            _ebcOriginated = false;
         }
         if (before < 0)
             return true; // no log to compare against
@@ -6785,6 +6796,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             history.splice(0, history.length - MAX_ENTRIES$2);
         store.beepHistory = history;
         sync();
+    }
+    /**
+     * One-time repair for history doubled by the send path being logged twice.
+     * Both copies were written microseconds apart, so a 2 second window with an
+     * identical sender, recipient and text is safe: a person cannot send the same
+     * message to the same person twice that fast, and the deliberate case (sending
+     * something twice on purpose) takes longer than that to type or click.
+     * Only messages you SENT are considered - incoming beeps were never affected.
+     */
+    function dedupeSentBeeps() {
+        var _a;
+        try {
+            const store = getSettings();
+            if (store.beepDedupeDone === true)
+                return 0;
+            const history = getBeepHistory();
+            const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const kept = [];
+            let removed = 0;
+            for (const e of history) {
+                const dupe = e.from === self && kept.some(k => k.from === e.from && k.to === e.to && k.message === e.message &&
+                    Math.abs(k.ts - e.ts) < 2000);
+                if (dupe) {
+                    removed++;
+                    continue;
+                }
+                kept.push(e);
+            }
+            store.beepDedupeDone = true;
+            if (removed > 0)
+                store.beepHistory = kept;
+            syncSettings();
+            return removed;
+        }
+        catch (_b) {
+            return 0;
+        }
     }
     function getConversation(memberNumber) {
         var _a;
@@ -39793,7 +39841,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 227; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 228; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39810,6 +39858,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
                 "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
                 "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
                 "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
@@ -47242,6 +47291,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 migratePeopleMetToLocal();
             }
             catch ( /* ignore */_e) { /* ignore */ }
+            try {
+                const n = dedupeSentBeeps();
+                if (n > 0)
+                    console.info(`[EBC] Removed ${n} duplicated sent beep${n === 1 ? "" : "s"} from history.`);
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
             // Seed default badge settings for first-time users.
             window.setTimeout(() => { try {
                 seedDefaultBadgeSettings();
@@ -48148,6 +48203,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
             var _a;
             try {
+                // sendBeep records its own message and handles its own window
+                // refresh. This hook exists purely for beeps EBC did not send.
+                if (isEbcOriginatedBeep())
+                    return next(args);
                 const [target, msg] = args;
                 const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
                 if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {
@@ -48267,7 +48326,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_g) { /* ignore */ }
         // Initial query — fire 3 s after load so the connection is settled, then every
         // 30 s to stay current. (Previously was 60 s with no initial query, so the list
         // could stay stale for a full minute if BC's own query burst got deduplicated.)
