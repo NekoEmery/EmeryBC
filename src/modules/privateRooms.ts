@@ -15,6 +15,15 @@
 import { getSettings, syncSettings } from "./bcUtils";
 import { getSpecialFriends } from "./settings";
 
+/**
+ * Master switch. Off while the feature is still being worked out: the UI is
+ * hidden and nothing is sent or accepted, so anyone who already turned the
+ * settings on stops broadcasting rather than quietly carrying on. Everything
+ * below is left intact - flipping this back to true is the only change needed
+ * to resume, and the stored settings are still there.
+ */
+export const PRIVATE_ROOM_SHARING_ENABLED = false;
+
 const RECEIVED_TTL_MS = 15 * 60 * 1000;   // a shared name older than this is stale
 
 function s(): Record<string, unknown> {
@@ -113,6 +122,7 @@ export function isSharingEnabled(): boolean {
 const received = new Map<number, { name: string; space: string; ts: number }>();
 
 export function noteSharedRoom(from: number, name: string, space = ""): void {
+    if (!PRIVATE_ROOM_SHARING_ENABLED) return;
     if (!getReceiveShared() || !from) return;
     if (!name) { received.delete(from); return; }
     received.set(from, { name, space, ts: Date.now() });
@@ -182,6 +192,7 @@ export function resetShareState(): void {
  *   and create an import cycle.
  */
 export function broadcastRoom(send: (to: number, msg: string) => void): void {
+    if (!PRIVATE_ROOM_SHARING_ENABLED) return;
     lastSender = send;
     try {
         const w = window as unknown as Record<string, unknown>;

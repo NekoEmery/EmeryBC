@@ -65,7 +65,7 @@ import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
 import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
          getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
-         shareRecipients, shareRecipientsDetailed } from "./privateRooms";
+         shareRecipients, shareRecipientsDetailed, PRIVATE_ROOM_SHARING_ENABLED } from "./privateRooms";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
@@ -16214,7 +16214,8 @@ This cannot be undone.`,
             // Tabs: one pill row, one section visible at a time. The single-section
             // pills hide their now-redundant collapsible header.
             if (userNotesHeaderRow) userNotesHeaderRow.style.display = "none";
-            this.buildPrivateRoomSharing(secSettings);
+            // Hidden while the feature is unfinished - see PRIVATE_ROOM_SHARING_ENABLED.
+        if (PRIVATE_ROOM_SHARING_ENABLED) this.buildPrivateRoomSharing(secSettings);
 
         const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
                 { id: "people",   label: "Friends",  el: secPeople },
