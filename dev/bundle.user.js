@@ -2283,6 +2283,162 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
 
+    // Curse storage - runs on the TARGET's client.
+    //
+    // A curse marks an appearance GROUP as un-removable. Both InventoryRemove and
+    // ChatRoomSyncItem are hooked in main.ts to refuse removals for a cursed group,
+    // so neither the wearer nor anyone else can take the item off through the normal
+    // BC menus. State lives in localStorage keyed by member number, so it survives a
+    // refresh and is not shared between accounts on the same browser.
+    //
+    // This used to be a set of closures inside main.ts. It is a module now because
+    // the safeword and the drawer both have to be able to release a curse - a
+    // restriction the wearer cannot lift themselves is a trap, not a scene. A player
+    // reported being stuck in a leg restraint for two days with no way out except
+    // disabling the addon entirely.
+    const key = () => { var _a; return `EBC_curses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+    const itemKey = () => { var _a; return `EBC_curseItems_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+    const pauseKey = () => { var _a; return `EBC_curse_pauses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+    const expiryKey = () => { var _a; return `EBC_curse_expiry_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+    function getCursePauses() {
+        try {
+            const r = localStorage.getItem(pauseKey());
+            return r ? JSON.parse(r) : {};
+        }
+        catch (_a) {
+            return {};
+        }
+    }
+    function saveCursePauses(p) {
+        try {
+            localStorage.setItem(pauseKey(), JSON.stringify(p));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function isCursePaused(group) {
+        const p = getCursePauses();
+        return !!(p[group] && Date.now() < p[group]);
+    }
+    function getCurseExpiry() {
+        try {
+            const r = localStorage.getItem(expiryKey());
+            return r ? parseInt(r) : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    function saveCurseExpiry(ts) {
+        try {
+            if (ts == null)
+                localStorage.removeItem(expiryKey());
+            else
+                localStorage.setItem(expiryKey(), String(ts));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCursedGroups() {
+        try {
+            const raw = localStorage.getItem(key());
+            if (!raw)
+                return new Set();
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed))
+                return new Set(parsed.filter((v) => typeof v === "string"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return new Set();
+    }
+    function saveCursedGroups(groups) {
+        try {
+            localStorage.setItem(key(), JSON.stringify([...groups]));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCurseItemMap() {
+        try {
+            const raw = localStorage.getItem(itemKey());
+            return raw ? JSON.parse(raw) : {};
+        }
+        catch (_a) {
+            return {};
+        }
+    }
+    function saveCurseItemMap(map) {
+        try {
+            localStorage.setItem(itemKey(), JSON.stringify(map));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /**
+     * Wipes every curse on this account. This is the safety release - it is what the
+     * safeword calls and what the "lift" control in the panel calls. It must never
+     * depend on the person who applied the curse still being around, still being a
+     * friend, or still running EBC.
+     *
+     * Returns the number of groups that were released, so callers can stay quiet
+     * when there was nothing to lift.
+     */
+    function releaseAllCurses() {
+        const n = getCursedGroups().size;
+        saveCursedGroups(new Set());
+        saveCurseItemMap({});
+        saveCursePauses({});
+        saveCurseExpiry(null);
+        return n;
+    }
+    /** Human-readable slot names for the release notice, e.g. "Legs, ArmsLeft". */
+    function describeCursedGroups() {
+        return [...getCursedGroups()].map(g => g.replace(/^Item/, "")).join(", ");
+    }
+    /** Applies an [EBC-CURSE:...] payload received from another player. */
+    function handleCurseCommand(msg) {
+        const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
+        const current = getCursedGroups();
+        if (inner.startsWith("apply:")) {
+            const itemMap = getCurseItemMap();
+            for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
+                if (g === "expiry") {
+                    saveCurseExpiry(parseInt(val) || null);
+                    continue;
+                }
+                if (g) {
+                    current.add(g);
+                    if (val)
+                        itemMap[g] = val;
+                }
+            }
+            saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
+        }
+        else if (inner.startsWith("pause:")) {
+            const pauses = getCursePauses();
+            for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
+                const eqIdx = entry.indexOf("=");
+                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
+                const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
+                if (g && ms > 0)
+                    pauses[g] = Date.now() + ms;
+            }
+            saveCursePauses(pauses);
+        }
+        else if (inner === "clear") {
+            releaseAllCurses();
+        }
+        else if (inner.startsWith("clear:")) {
+            const itemMap = getCurseItemMap();
+            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
+                current.delete(g);
+                delete itemMap[g];
+            }
+            saveCursedGroups(current);
+            saveCurseItemMap(itemMap);
+        }
+    }
+
     // BC pose application and user-configurable pose combos.
     // Poses require matching equipped items to visually render — BC handles
     // validation server-side and silently ignores inapplicable poses.
@@ -7591,6 +7747,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_g) { /* ignore */ }
     }, TICK_MS);
 
+    function appendLocalLogLine(text, color = UI.accent) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const msg = document.createElement("div");
+            msg.style.cssText = `
+            background: ${UI.cardMuted};
+            color: ${color};
+            border-left: 3px solid ${UI.accent};
+            padding: 4px 8px;
+            margin: 2px 0;
+            font-style: italic;
+            font-size: 12px;
+        `;
+            msg.textContent = text;
+            log.appendChild(msg);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend()) {
+            window.setTimeout(() => doAppend(), 300);
+        }
+    }
+
     // Safeword system — two-word safety protocol.
     // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
     // Red:    same as yellow + announces departure + leaves the room after 800 ms.
@@ -7833,6 +8014,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const cfg = getSafewordConfig();
         if (!cfg.enabled)
             return;
+        // Curses go first, and unconditionally - not behind cfg.redRelease. A curse
+        // is the one thing in EBC that nobody else can take off you, so if the
+        // safeword does not clear it the safeword does not work. Someone was stuck
+        // in a cursed leg slot for two days because red never touched this.
+        try {
+            const slots = describeCursedGroups();
+            if (releaseAllCurses() > 0) {
+                appendLocalLogLine(`[EBC] ⛓ Safeword lifted your curses: ${slots}`, UI.accent);
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         if (cfg.redRelease)
             releaseBindingRestraints();
         if (cfg.redGrace)
@@ -7848,7 +8040,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     ],
                 });
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
         }
         // Apply outfit before leaving
         if (cfg.redOutfitId) {
@@ -9482,31 +9674,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         return str;
-    }
-
-    function appendLocalLogLine(text, color = UI.accent) {
-        const doAppend = () => {
-            const log = document.getElementById("TextAreaChatLog");
-            if (!log)
-                return false;
-            const msg = document.createElement("div");
-            msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${color};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-            msg.textContent = text;
-            log.appendChild(msg);
-            log.scrollTop = log.scrollHeight;
-            return true;
-        };
-        if (!doAppend()) {
-            window.setTimeout(() => doAppend(), 300);
-        }
     }
 
     /**
@@ -13709,6 +13876,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
              * directly so the new tab always starts at the top.
              */
             this._rerenderTimer = null;
+            // -- Timer -----------------------------------------------------------------
+            /** Timestamp until which a second click on the footer lift actually lifts. */
+            this._curseLiftArmedUntil = 0;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -16964,7 +17134,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 updateEbcTagsCollapse();
             });
         }
-        // -- Timer -----------------------------------------------------------------
         updateTimer() {
             if (!this.timerEl)
                 return;
@@ -16976,31 +17145,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
             if (bound)
                 text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
+            this.timerEl.textContent = text;
+            // Cursed slots, plus the way out. A curse blocks removal for everyone
+            // including the wearer, so without a release here the only escape was
+            // disabling EBC entirely - one player sat stuck in a leg restraint for
+            // two days before working that out. Two clicks so it cannot happen by
+            // accident, but it never depends on whoever applied it still being here.
             try {
-                const mn = Player.MemberNumber;
-                if (mn) {
-                    const curseRaw = localStorage.getItem(`EBC_curses_${mn}`);
-                    const isCursed = curseRaw ? JSON.parse(curseRaw).length > 0 : false;
-                    if (isCursed) {
-                        const expiryRaw = localStorage.getItem(`EBC_curse_expiry_${mn}`);
-                        if (expiryRaw) {
-                            const rem = parseInt(expiryRaw) - Date.now();
-                            if (rem > 0) {
-                                const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
-                                text += `  🔒 Cursed: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
-                            }
-                            else {
-                                text += `  🔒 Cursed`;
-                            }
-                        }
-                        else {
-                            text += `  🔒 Cursed`;
-                        }
+                if (getCursedGroups().size > 0) {
+                    const expiry = getCurseExpiry();
+                    const rem = expiry === null ? -1 : expiry - Date.now();
+                    let when = "";
+                    if (rem > 0) {
+                        const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
+                        when = `: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
                     }
+                    const label = document.createElement("span");
+                    label.textContent = `  🔒 Cursed${when} (${describeCursedGroups()})  `;
+                    this.timerEl.appendChild(label);
+                    const armed = Date.now() < this._curseLiftArmedUntil;
+                    const lift = document.createElement("span");
+                    lift.textContent = armed ? "click again to lift" : "lift";
+                    lift.title = armed
+                        ? "Releases every curse on you right now"
+                        : "Safety release - frees the cursed slots so you can undress normally";
+                    lift.style.cssText = "cursor:pointer;text-decoration:underline;font-weight:bold;color:"
+                        + (armed ? "#e08a8a" : "#cf6f98") + ";";
+                    lift.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        if (Date.now() >= this._curseLiftArmedUntil) {
+                            this._curseLiftArmedUntil = Date.now() + 5000;
+                            this.updateTimer();
+                            return;
+                        }
+                        this._curseLiftArmedUntil = 0;
+                        const slots = describeCursedGroups();
+                        if (releaseAllCurses() > 0) {
+                            appendLocalLogLine(`[EBC] \u26d3 You lifted your curses: ${slots}`, UI.accent);
+                        }
+                        this.updateTimer();
+                    });
+                    this.timerEl.appendChild(lift);
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            this.timerEl.textContent = text;
             try {
                 checkAndApplySchedules();
             }
@@ -39241,7 +39429,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 215; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 216; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39258,6 +39446,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
                 "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
                 "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
                 "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
@@ -47145,127 +47334,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
-        // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
-        const getCurseKey = () => { var _a; return `EBC_curses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
-        const getCurseItemKey = () => { var _a; return `EBC_curseItems_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
-        const getCursePauseKey = () => { var _a; return `EBC_curse_pauses_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
-        const getCursePauses = () => {
-            try {
-                const r = localStorage.getItem(getCursePauseKey());
-                return r ? JSON.parse(r) : {};
-            }
-            catch (_a) {
-                return {};
-            }
-        };
-        const saveCursePauses = (p) => {
-            try {
-                localStorage.setItem(getCursePauseKey(), JSON.stringify(p));
-            }
-            catch (_a) { }
-        };
-        const isCursePaused = (group) => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
-        const getCurseExpiryKey = () => { var _a; return `EBC_curse_expiry_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
-        const getCurseExpiry = () => {
-            try {
-                const r = localStorage.getItem(getCurseExpiryKey());
-                return r ? parseInt(r) : null;
-            }
-            catch (_a) {
-                return null;
-            }
-        };
-        const saveCurseExpiry = (ts) => {
-            try {
-                if (ts == null)
-                    localStorage.removeItem(getCurseExpiryKey());
-                else
-                    localStorage.setItem(getCurseExpiryKey(), String(ts));
-            }
-            catch (_a) { }
-        };
-        const getCursedGroups = () => {
-            try {
-                const raw = localStorage.getItem(getCurseKey());
-                if (!raw)
-                    return new Set();
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed))
-                    return new Set(parsed.filter((v) => typeof v === "string"));
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            return new Set();
-        };
-        const saveCursedGroups = (groups) => {
-            try {
-                localStorage.setItem(getCurseKey(), JSON.stringify([...groups]));
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        };
-        const getCurseItemMap = () => {
-            try {
-                const raw = localStorage.getItem(getCurseItemKey());
-                return raw ? JSON.parse(raw) : {};
-            }
-            catch (_a) {
-                return {};
-            }
-        };
-        const saveCurseItemMap = (map) => {
-            try {
-                localStorage.setItem(getCurseItemKey(), JSON.stringify(map));
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        };
-        const handleCurseCommand = (msg) => {
-            const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
-            const current = getCursedGroups();
-            if (inner.startsWith("apply:")) {
-                const itemMap = getCurseItemMap();
-                for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
-                    const eqIdx = entry.indexOf("=");
-                    const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                    const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
-                    if (g === "expiry") {
-                        saveCurseExpiry(parseInt(val) || null);
-                        continue;
-                    }
-                    if (g) {
-                        current.add(g);
-                        if (val)
-                            itemMap[g] = val;
-                    }
-                }
-                saveCursedGroups(current);
-                saveCurseItemMap(itemMap);
-            }
-            else if (inner.startsWith("pause:")) {
-                const pauses = getCursePauses();
-                for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
-                    const eqIdx = entry.indexOf("=");
-                    const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                    const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
-                    if (g && ms > 0)
-                        pauses[g] = Date.now() + ms;
-                }
-                saveCursePauses(pauses);
-            }
-            else if (inner === "clear") {
-                saveCursedGroups(new Set());
-                saveCurseItemMap({});
-                saveCursePauses({});
-                saveCurseExpiry(null);
-            }
-            else if (inner.startsWith("clear:")) {
-                const itemMap = getCurseItemMap();
-                for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
-                    current.delete(g);
-                    delete itemMap[g];
-                }
-                saveCursedGroups(current);
-                saveCurseItemMap(itemMap);
-            }
-        };
         // Auto-lift timed curses when expiry is reached (checked every 30s)
         window.setInterval(() => {
             var _a;
