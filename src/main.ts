@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 234;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 235;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Layout: Tags, Protected and IRL toys use the width they have instead of a few small pills in the corner. Tags and protected items are cards in a grid that fills the page, with the colour swatch and full name readable; the 'current restraints' list under Protected now opens by default, since it is the only way to add anything there and hiding it made the page look empty. Each IRL toy integration is a card with a line explaining what it actually is, so the page reads without opening all three.",
             "A blocked beep is now a proper notice under the message rather than a line of small grey text, and it names BCX when BCX is what is loaded. It says whether the rule is on you or on them, and reminds you that only you can see it.",
             "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
             "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",

@@ -18063,16 +18063,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // ── Existing tags as interactive chips ────────────────────────────
                 if (tags.length) {
                     const chipsWrap = document.createElement("div");
-                    chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;";
+                    chipsWrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;margin-bottom:9px;";
                     for (const tag of tags) {
                         const chip = document.createElement("div");
-                        chip.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:3px 7px 3px 5px;border-radius:20px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 1px 3px rgba(0,0,0,0.35);`;
+                        chip.style.cssText = `display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:9px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 2px 5px rgba(0,0,0,0.35);min-width:0;`;
                         // Color dot = native color input styled as a dot
                         const colorDot = document.createElement("input");
                         colorDot.type = "color";
                         colorDot.value = tag.color;
                         colorDot.title = "Change color";
-                        colorDot.style.cssText = "width:10px;height:10px;padding:0;border:1px solid rgba(255,255,255,0.35);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
+                        colorDot.style.cssText = "width:16px;height:16px;padding:0;border:1px solid rgba(255,255,255,0.45);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
                         colorDot.addEventListener("input", () => {
                             updateOutfitTag(tag.id, tag.name, colorDot.value);
                             tag.color = colorDot.value;
@@ -18080,7 +18080,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         });
                         const nameSpan = document.createElement("span");
                         nameSpan.textContent = tag.name;
-                        nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                         const delSpan = document.createElement("span");
                         delSpan.textContent = "×";
                         delSpan.title = "Delete tag (click twice)";
@@ -18755,7 +18755,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // ── Active chips ──────────────────────────────────────────────────
                 if (current.length) {
                     const chipsWrap = document.createElement("div");
-                    chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
+                    chipsWrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:9px;";
                     for (const group of current) {
                         // Resolve a readable label: try current worn item, fallback to cleaned group name
                         let chipLabel = group.replace(/^Item/, "");
@@ -18773,13 +18773,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             }
                         }
                         catch ( /* ignore */_c) { /* ignore */ }
-                        const chip = document.createElement("span");
-                        chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;";
+                        const chip = document.createElement("div");
+                        chip.style.cssText = "display:flex;align-items:center;gap:6px;background:#1a0c16;border:1px solid #3a1928;border-left:3px solid #79a885;border-radius:7px;padding:7px 9px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;min-width:0;";
                         const chipTxt = document.createElement("span");
+                        chipTxt.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;";
                         chipTxt.textContent = chipLabel;
+                        chipTxt.title = chipLabel;
                         const rmBtn = document.createElement("span");
                         rmBtn.textContent = "×";
-                        rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:11px;line-height:1;";
+                        rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:14px;line-height:1;flex-shrink:0;padding:0 2px;";
                         rmBtn.title = "Remove from protected items";
                         rmBtn.addEventListener("mouseenter", () => { rmBtn.style.color = "#cf6f98"; });
                         rmBtn.addEventListener("mouseleave", () => { rmBtn.style.color = "#8a6070"; });
@@ -18801,16 +18803,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     inner.appendChild(empty);
                 }
                 // ── Currently wearing picker (collapsible) ────────────────────────
-                let wornOpen = false;
+                // Open unless explicitly closed: this list is the only way to add
+                // anything here, so hiding it by default left the page looking empty.
+                let wornOpen = true;
                 try {
-                    wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") === "1";
+                    wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") !== "0";
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
                 const wornToggle = document.createElement("div");
                 wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
                 const wornBody = document.createElement("div");
-                wornBody.style.display = wornOpen ? "flex" : "none";
-                wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
+                wornBody.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;";
+                wornBody.style.display = wornOpen ? "grid" : "none";
                 const updateWornToggle = () => {
                     wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints - click to protect";
                 };
@@ -34154,11 +34158,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const card = mk("div");
             card.className = "ebc-card ebc-toys-card";
             // Build a collapsible section with ON/OFF toggle in the header
-            const mkSection = (icon, title, enabledKey, collapseKey) => {
+            const mkSection = (icon, title, enabledKey, collapseKey, blurb = "") => {
                 const enabled = s[enabledKey] === true;
                 const collapsed = localStorage.getItem(collapseKey) === "1";
-                const wrap = mk("div");
-                const hRow = mk("div", "display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;");
+                const wrap = mk("div", "border:1px solid var(--ebc-border);border-radius:9px;padding:7px 10px;margin-bottom:8px;background:rgba(20,8,16,0.45);");
+                const hRow = mk("div", "display:flex;align-items:center;gap:8px;padding:2px 0;cursor:pointer;user-select:none;");
                 const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
                 chevron.textContent = collapsed ? "▶" : "▼";
                 const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
@@ -34170,8 +34174,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     syncSettings();
                     this.renderToys();
                 });
+                const titleWrap = mk("div", "flex:1;min-width:0;");
+                titleWrap.appendChild(titleEl);
+                if (blurb) {
+                    const blurbEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.4;margin-top:2px;`);
+                    blurbEl.textContent = blurb;
+                    titleWrap.appendChild(blurbEl);
+                }
+                titleEl.style.flex = "";
                 hRow.appendChild(chevron);
-                hRow.appendChild(titleEl);
+                hRow.appendChild(titleWrap);
                 hRow.appendChild(eBtn);
                 const content = mk("div", `display:${collapsed ? "none" : "block"};`);
                 hRow.addEventListener("click", () => {
@@ -34188,7 +34200,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 return { wrap, content };
             };
             const lovEnabled = s.lovenseEnabled === true;
-            const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open");
+            const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open", "Connect Lovense toys through their Remote app so people in the room can control them.");
             if (!lovEnabled) {
                 const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
                 offNote.textContent = t("toys.enableAbove");
@@ -35713,7 +35725,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             card.appendChild(lovWrap);
             // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
             if (typeof Player !== "undefined" && ((Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === EMERY_MEMBER || (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === 147036)) {
-                const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
+                const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open", "PiShock shockers, driven by share codes. Shock, vibrate and beep modes.");
                 const psEnabled = s["psEnabled"] === true;
                 if (!psEnabled) {
                     const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
@@ -36296,7 +36308,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const _xMn = Player.MemberNumber;
             if (isXToysUser(_xMn)) {
                 card.appendChild(sep());
-                const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open");
+                const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open", "Bridges to xtoys.app, which drives a much wider range of hardware than the built-in options.");
                 if (s.xtoysEnabled !== true) {
                     const note = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
                     note.textContent = t("toys.enableAbove");
@@ -39950,7 +39962,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 234; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 235; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39967,6 +39979,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Layout: Tags, Protected and IRL toys use the width they have instead of a few small pills in the corner. Tags and protected items are cards in a grid that fills the page, with the colour swatch and full name readable; the 'current restraints' list under Protected now opens by default, since it is the only way to add anything there and hiding it made the page look empty. Each IRL toy integration is a card with a line explaining what it actually is, so the page reads without opening all three.",
                 "A blocked beep is now a proper notice under the message rather than a line of small grey text, and it names BCX when BCX is what is loaded. It says whether the rule is on you or on them, and reminds you that only you can see it.",
                 "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
                 "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
