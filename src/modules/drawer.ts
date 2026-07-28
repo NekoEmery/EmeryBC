@@ -3967,10 +3967,10 @@ const EBC_TAB_LABELS: Record<string, string> = {
 // The same features, regrouped behind six broader tabs. Nothing is removed:
 // every old renderX() still exists and the classic 8-tab set is restored the
 // moment the user flips "Menu layout" back to the old layout in DEV -> Drawer.
-const EBC_GROUPED_TABS   = ["me", "safety", "social", "buttons", "toys", "settings"] as const;
+const EBC_GROUPED_TABS   = ["me", "safety", "social", "buttons", "toys", "settings", "thanks"] as const;
 const EBC_GROUPED_TAB_LABELS: Record<string, string> = {
     me: "ME", safety: "SAFETY", social: "SOCIAL",
-    buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS",
+    buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS", thanks: "CREDITS",
 };
 
 // The 9 user-facing colour slots. All derived colours are computed from these.
@@ -4202,12 +4202,12 @@ function isGroupedLayout(): boolean {
 /** Nearest grouped-layout tab for a classic tab id, and vice versa. Used when
  *  the layout is switched while sitting on a tab the other layout lacks. */
 const EBC_TAB_TO_GROUPED: Record<string, DrawerTab> = {
-    outfits: "me", anims: "me", notes: "social", thanks: "settings",
+    outfits: "me", anims: "me", notes: "social", thanks: "thanks",
     dev: "settings", dom: "toys", buttons: "buttons", toys: "toys",
 };
 const EBC_TAB_TO_CLASSIC: Record<string, DrawerTab> = {
     me: "outfits", safety: "outfits", social: "notes", settings: "dev",
-    buttons: "buttons", toys: "toys",
+    buttons: "buttons", toys: "toys", thanks: "thanks",
 };
 
 // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
@@ -5775,7 +5775,7 @@ export class EBCDrawer {
         // Re-order the tab bar. appendChild moves existing nodes, so no button is
         // ever recreated and every click handler stays attached.
         const order = grouped
-            ? ["me", "safety", "social", "buttons", "toys", "settings", "dom", "puppy", "kitty"]
+            ? ["me", "safety", "social", "buttons", "toys", "settings", "thanks", "dom", "puppy", "kitty"]
             : ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev", "dom", "puppy", "kitty",
                "me", "safety", "social", "settings"];
         if (bar) {
@@ -20102,13 +20102,8 @@ This cannot be undone.`,
             });
         }
 
-        // Credits close out the grouped SETTINGS tab - the classic layout keeps
-        // its own CREDITS tab, so this only runs in the grouped layout.
-        if (grouped) {
-            makeSection(t("tabs.credits"), "EBC_settingsCreditsCollapsed", false, (cnt) => {
-                this.composeInto(cnt, () => this.renderThanks());
-            });
-        }
+        // Credits has its own CREDITS tab in both layouts - it used to be buried
+        // at the bottom of the grouped SETTINGS tab.
 
         // Auto-refresh every 1.5 s while the DEV / SETTINGS tab is open.
         // Room History always refreshes (cheap read). Message log only if logging is on.

@@ -13506,10 +13506,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // The same features, regrouped behind six broader tabs. Nothing is removed:
     // every old renderX() still exists and the classic 8-tab set is restored the
     // moment the user flips "Menu layout" back to the old layout in DEV -> Drawer.
-    const EBC_GROUPED_TABS = ["me", "safety", "social", "buttons", "toys", "settings"];
+    const EBC_GROUPED_TABS = ["me", "safety", "social", "buttons", "toys", "settings", "thanks"];
     const EBC_GROUPED_TAB_LABELS = {
         me: "ME", safety: "SAFETY", social: "SOCIAL",
-        buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS",
+        buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS", thanks: "CREDITS",
     };
     const DEFAULT_COLORS = {
         bg: "#1b0d17", // main panel + most element backgrounds
@@ -13699,12 +13699,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     /** Nearest grouped-layout tab for a classic tab id, and vice versa. Used when
      *  the layout is switched while sitting on a tab the other layout lacks. */
     const EBC_TAB_TO_GROUPED = {
-        outfits: "me", anims: "me", notes: "social", thanks: "settings",
+        outfits: "me", anims: "me", notes: "social", thanks: "thanks",
         dev: "settings", dom: "toys", buttons: "buttons", toys: "toys",
     };
     const EBC_TAB_TO_CLASSIC = {
         me: "outfits", safety: "outfits", social: "notes", settings: "dev",
-        buttons: "buttons", toys: "toys",
+        buttons: "buttons", toys: "toys", thanks: "thanks",
     };
     // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
     // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
@@ -15135,7 +15135,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Re-order the tab bar. appendChild moves existing nodes, so no button is
             // ever recreated and every click handler stays attached.
             const order = grouped
-                ? ["me", "safety", "social", "buttons", "toys", "settings", "dom", "puppy", "kitty"]
+                ? ["me", "safety", "social", "buttons", "toys", "settings", "thanks", "dom", "puppy", "kitty"]
                 : ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev", "dom", "puppy", "kitty",
                     "me", "safety", "social", "settings"];
             if (bar) {
@@ -29440,13 +29440,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     cnt.appendChild(applyBtn);
                 });
             }
-            // Credits close out the grouped SETTINGS tab - the classic layout keeps
-            // its own CREDITS tab, so this only runs in the grouped layout.
-            if (grouped) {
-                makeSection(t("tabs.credits"), "EBC_settingsCreditsCollapsed", false, (cnt) => {
-                    this.composeInto(cnt, () => this.renderThanks());
-                });
-            }
+            // Credits has its own CREDITS tab in both layouts - it used to be buried
+            // at the bottom of the grouped SETTINGS tab.
             // Auto-refresh every 1.5 s while the DEV / SETTINGS tab is open.
             // Room History always refreshes (cheap read). Message log only if logging is on.
             this.stopDevLogPoller();
@@ -39464,7 +39459,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 219; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 220; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39481,6 +39476,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "CREDITS is its own tab again on the new layout instead of being a collapsed section at the bottom of SETTINGS. Both layouts now have the same CREDITS tab, so switching layout keeps you on it. You can still hide it from the tab list in SETTINGS -> Drawer if you would rather not see it.",
                 "Fix (reported by Julia): typing in the friends search no longer makes the room list reappear above your results. Root cause: the search, clear, sort and filter controls all redrew the friends list without telling it where the Rooms section lives, and the renderer falls back to drawing rooms inline when it is not told - so the whole room list landed on top of the friends section every keystroke. All four now keep Rooms in its own pill.",
                 "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
                 "Fix: the auto-escape room emote now fills in its tokens whether you wrote them with braces or square brackets ({item} or [item]), and a token can be used more than once. Text saved with square brackets was being sent to the room literally.",
