@@ -3730,6 +3730,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Written explicitly rather than deleted: the settings flush only ever
         // copies keys to the server, so a deleted key keeps its old value there.
         s()[key] = v;
+        // Any change to who is included has to re-open the question of what they
+        // have been told - otherwise turning sharing on while already sitting in a
+        // private room did nothing until you left and came back.
+        resetShareState();
         syncSettings();
     }
     const getShareWithAllFriends = () => flag("privRoomShareAll");
@@ -3747,10 +3751,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (!memberNumber || getShareList().includes(memberNumber))
             return;
         s().privRoomShareList = [...getShareList(), memberNumber];
+        resetShareState();
         syncSettings();
     }
     function removeFromShareList(memberNumber) {
         s().privRoomShareList = getShareList().filter(n => n !== memberNumber);
+        resetShareState();
         syncSettings();
     }
     /** Everyone who should be told, from all three sources combined. */
@@ -3845,7 +3851,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             : { name: body, space: "" };
     }
     // -- Sending -------------------------------------------------------------------
-    let lastSentRoom = "";
+    let lastSentRoom = null;
+    // Held from the first broadcast so a settings change can re-announce without
+    // the settings code needing to know how beeps are sent.
+    let lastSender = null;
+    /**
+     * Forgets what was last announced and re-announces straight away. Called
+     * whenever the recipient set changes: clearing the flag alone was not enough,
+     * because nothing broadcasts again until the room next changes, so turning
+     * sharing on while already in a private room stayed silent until you left.
+     */
+    function resetShareState() {
+        lastSentRoom = null;
+        if (lastSender) {
+            const send = lastSender;
+            window.setTimeout(() => { try {
+                broadcastRoom(send);
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 0);
+        }
+    }
     /**
      * Tells the chosen people which private room you are in, or that you have left
      * one. Only fires when the room actually changed, so moving around does not
@@ -3856,22 +3881,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      */
     function broadcastRoom(send) {
         var _a, _b, _c;
+        lastSender = send;
         try {
             const w = window;
             const data = w.ChatRoomData;
             const name = String((_a = data === null || data === void 0 ? void 0 : data.Name) !== null && _a !== void 0 ? _a : "");
-            // "Private" here means anyone who is not already allowed to see it in the
-            // room list - exactly the case where the friend query strips the name.
-            const vis = Array.isArray(data === null || data === void 0 ? void 0 : data.Visibility) ? (_b = data === null || data === void 0 ? void 0 : data.Visibility) !== null && _b !== void 0 ? _b : [] : [];
-            const isPrivate = !!name && !vis.includes("All");
+            // Use BC's own test where it exists. Visibility is a role list and a room
+            // can be ["All","Admin"], which contains "All" but is still restricted -
+            // checking for "All" ourselves called those public.
+            const isPrivateFn = w.ChatRoomDataIsPrivate;
+            let isPrivate = false;
+            if (name) {
+                if (typeof isPrivateFn === "function" && data) {
+                    try {
+                        isPrivate = isPrivateFn(data);
+                    }
+                    catch (_d) {
+                        isPrivate = false;
+                    }
+                }
+                else {
+                    const vis = Array.isArray(data === null || data === void 0 ? void 0 : data.Visibility) ? (_b = data === null || data === void 0 ? void 0 : data.Visibility) !== null && _b !== void 0 ? _b : [] : [];
+                    isPrivate = !(vis.length === 1 && vis[0] === "All");
+                }
+            }
             const payload = isPrivate ? name : "";
+            const targets = shareRecipients();
+            // Order matters: bail on "nothing to do" BEFORE recording what was sent.
+            // Recording first meant entering a room with sharing off marked it as
+            // already announced, so switching sharing on stayed silent.
+            if (targets.length === 0) {
+                // Still forget it, so enabling sharing re-announces.
+                lastSentRoom = null;
+                return;
+            }
             if (payload === lastSentRoom)
                 return;
             lastSentRoom = payload;
-            const targets = shareRecipients();
-            if (targets.length === 0)
-                return;
             const msg = buildShareMessage(payload, String((_c = data === null || data === void 0 ? void 0 : data.Space) !== null && _c !== void 0 ? _c : ""));
+            try {
+                console.info(`[EBC] Private room share: ${payload ? `"${payload}"` : "(left private room)"} -> ${targets.length} recipient(s)`);
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
             targets.forEach((n, i) => {
                 // Staggered so a long list never trips the server's rate limiter.
                 window.setTimeout(() => { try {
@@ -3880,7 +3931,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_a) { /* ignore */ } }, i * 250);
             });
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_f) { /* ignore */ }
     }
 
     // BC pose application and user-configurable pose combos.
@@ -40423,7 +40474,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 240; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 241; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40440,6 +40491,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: private room sharing did nothing if you turned it on while already sitting in a private room. Entering a room recorded it as announced before checking whether there was anybody to announce it to, so switching the toggles on afterwards found nothing left to say. Changing who you share with now re-announces immediately. Rooms are also now classified using BC's own private-room test - a room open to admins as well as everyone counted as public before. Each broadcast writes a line to the browser console saying what was sent and to how many people, so it can be checked.",
                 "Fix: the crew achievements were supposed to list who you have met and who is left, and showed neither. The lines were built and then inserted next to an element that had not been added to the page yet, which does nothing and reports no error. They appear now.",
                 "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
                 "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
