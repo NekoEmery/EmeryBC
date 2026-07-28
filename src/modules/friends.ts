@@ -712,6 +712,36 @@ export function addBeepEntry(entry: BeepEntry): void {
     sync();
 }
 
+/**
+ * One-time repair for history doubled by the send path being logged twice.
+ * Both copies were written microseconds apart, so a 2 second window with an
+ * identical sender, recipient and text is safe: a person cannot send the same
+ * message to the same person twice that fast, and the deliberate case (sending
+ * something twice on purpose) takes longer than that to type or click.
+ * Only messages you SENT are considered - incoming beeps were never affected.
+ */
+export function dedupeSentBeeps(): number {
+    try {
+        const store = getSettings();
+        if ((store as Record<string, unknown>).beepDedupeDone === true) return 0;
+        const history = getBeepHistory();
+        const self = Player.MemberNumber ?? 0;
+        const kept: BeepEntry[] = [];
+        let removed = 0;
+        for (const e of history) {
+            const dupe = e.from === self && kept.some(k =>
+                k.from === e.from && k.to === e.to && k.message === e.message &&
+                Math.abs(k.ts - e.ts) < 2000);
+            if (dupe) { removed++; continue; }
+            kept.push(e);
+        }
+        (store as Record<string, unknown>).beepDedupeDone = true;
+        if (removed > 0) store.beepHistory = kept;
+        syncSettings();
+        return removed;
+    } catch { return 0; }
+}
+
 export function getConversation(memberNumber: number): BeepEntry[] {
     const self = Player.MemberNumber ?? 0;
     return getBeepHistory().filter(e =>

@@ -2,7 +2,7 @@
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
-import { sendBeepViaBC, sendEmoteViaBC } from "./modules/bcSpeech";
+import { sendBeepViaBC, sendEmoteViaBC, isEbcOriginatedBeep } from "./modules/bcSpeech";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
@@ -17,7 +17,7 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine } from "./modules/notify";
 import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
-import { addBeepEntry, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 227;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 228;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
             "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
             "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
             "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
@@ -7472,6 +7473,10 @@ function init(): void {
         // One-time migration: copy existing server peopleMet into localStorage
         // so the user's history isn't lost on the first run of the hybrid model.
         try { migratePeopleMetToLocal(); } catch { /* ignore */ }
+        try {
+            const n = dedupeSentBeeps();
+            if (n > 0) console.info(`[EBC] Removed ${n} duplicated sent beep${n === 1 ? "" : "s"} from history.`);
+        } catch { /* ignore */ }
         // Seed default badge settings for first-time users.
         window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
         // Register online-notification callback so friends.ts can trigger toasts.
@@ -8217,6 +8222,9 @@ function init(): void {
     // so they are invisible to EBC's IM window unless we hook here.
     tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
         try {
+            // sendBeep records its own message and handles its own window
+            // refresh. This hook exists purely for beeps EBC did not send.
+            if (isEbcOriginatedBeep()) return next(args);
             const [target, msg] = args as [number, string | undefined, unknown];
             const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
             if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {

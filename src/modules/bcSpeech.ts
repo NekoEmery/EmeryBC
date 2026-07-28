@@ -20,6 +20,14 @@
 
 type WinFns = Record<string, unknown>;
 
+// True only while sendBeepViaBC is inside ServerSendBeepMessage. main.ts hooks
+// that function to catch beeps sent through BC's OWN ui (/beep, the friend list
+// button) which EBC would otherwise never see. Once EBC started routing its own
+// beeps through it as well, that hook began logging them too - on top of the
+// entry sendBeep already writes - so every sent message appeared twice.
+let _ebcOriginated = false;
+export function isEbcOriginatedBeep(): boolean { return _ebcOriginated; }
+
 /**
  * Sends a beep, honouring any rule addon hooked onto ServerSendBeepMessage.
  *
@@ -44,12 +52,15 @@ export function sendBeepViaBC(target: number, message: string, includeRoom: bool
     const log = w.FriendListBeepLog as unknown[] | undefined;
     const before = Array.isArray(log) ? log.length : -1;
     try {
+        _ebcOriginated = true;
         viaBC(target, message, { includeRoom });
     } catch {
         // Deliberately no raw-send fallback here. If a hook threw we cannot tell
         // whether it meant to block us, and guessing "send it anyway" would put
         // the bypass straight back. Report undelivered instead.
         return false;
+    } finally {
+        _ebcOriginated = false;
     }
     if (before < 0) return true;              // no log to compare against
     return (log as unknown[]).length > before;
