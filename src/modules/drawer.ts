@@ -6913,7 +6913,11 @@ export class EBCDrawer {
 
         this._pillifyTab(body, "EBC_meView", [
             { pill: "Outfits",     match: [t("grouped.nicknameTitle"), t("outfits.savedOutfits"),
-                                           "TAGS", t("outfits.tagsN", { n: 0 }), t("outfits.outfitSchedule")] },
+                                           t("outfits.outfitSchedule")] },
+            // Tags get their own pill rather than sitting under Outfits. On its
+            // own it is a single-section pill, so the header is hidden entirely
+            // and the chips show directly - no dropdown inside the pill.
+            { pill: "Tags",        match: ["TAGS", t("outfits.tagsN", { n: 0 })] },
             { pill: "Restraints",  match: [t("outfits.savedRestraints")] },
             { pill: "Poses",       match: [t("anims.poses"), t("anims.poseCombos")] },
             { pill: "Scenes",      match: [t("anims.scenes")] },
