@@ -4087,9 +4087,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const customEmote = getEscapeEmoteText();
                     let text;
                     if (customEmote.trim()) {
+                        // Square brackets are accepted alongside braces - the hint
+                        // and the placeholder have not always agreed, so saved text
+                        // exists in both forms. Global so a token can repeat.
                         text = customEmote
-                            .replace("{item}", itemName)
-                            .replace("{restrainer}", restrainer !== null && restrainer !== void 0 ? restrainer : "");
+                            .replace(/[{[]item[}\]]/g, itemName)
+                            .replace(/[{[]restrainer[}\]]/g, restrainer !== null && restrainer !== void 0 ? restrainer : "");
                     }
                     else {
                         text = restrainer
@@ -9538,7 +9541,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "guide.fast.s6.text": { en: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", de: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", zh: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", fr: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", es: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ru: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ja: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))" },
         // Guide step shared by both tours - how to get the old menu layout back
         "guide.layout.label": { en: "Menu Layout", de: "Menü-Layout", zh: "菜单布局", fr: "Disposition du menu", es: "Diseño del menú", ru: "Макет меню", ja: "メニューレイアウト" },
-        "guide.layout.text": { en: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", de: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", zh: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", fr: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", es: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", ru: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way.", ja: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and pick [[Old layout]] - nothing is lost either way." },
+        "guide.layout.text": { en: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", de: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", zh: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", fr: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", es: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", ru: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", ja: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way." },
         // Guide indepth step labels (translated)
         "guide.deep.s1.label": { en: "Welcome to EBC", de: "Willkommen bei EBC", zh: "欢迎来到 EBC", fr: "Bienvenue dans EBC", es: "Bienvenido a EBC", ru: "Добро пожаловать в EBC", ja: "EBC へようこそ" },
         "guide.deep.s2.label": { en: "Moving & Resizing", de: "Bewegen & Skalieren", zh: "移动与调整大小", fr: "Déplacer & Redimensionner", es: "Mover y Redimensionar", ru: "Перемещение и изменение размера", ja: "移動 & リサイズ" },
@@ -16195,7 +16198,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             else if (this.currentTab === "dev")
                 this.renderDev();
             else if (this.currentTab === "dom")
-                this.renderDomTools(!isGroupedLayout());
+                this.renderDomTools();
             else if (this.currentTab === "puppy")
                 this.renderPuppy();
             else if (this.currentTab === "kitty")
@@ -16315,12 +16318,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.renderRestraintInfo(body); // ACTIVE RESTRAINTS (+ timers)
             this.renderOutfitWhitelist(body); // PROTECTED ITEMS
             this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
-            this.addLabelledSection(body, t("grouped.autoEscape"), this.buildFlatSection(c => this.buildAutoEscapeSection(c)));
+            // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
+            // which is creator-gated in both layouts - the grouped layout used to
+            // surface it on SAFETY, which exposed it to everyone.
             this._pillifyTab(body, "EBC_safetyView", [
                 { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
                 { pill: "Protected", match: [t("outfits.protectedItems")] },
                 { pill: "Safewords", match: [t("grouped.safewords")] },
-                { pill: "Escape", match: [t("grouped.autoEscape")] },
             ]);
         }
         /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
@@ -27351,21 +27355,31 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // ── Menu layout (pill sections vs the original long page) ─────────────
             {
                 const layoutRow = document.createElement("div");
-                layoutRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-                const layoutLbl = document.createElement("span");
-                layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+                layoutRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 9px;margin-bottom:8px;border:1px solid #3a1e2e;border-radius:6px;background:rgba(20,8,16,0.5);";
+                const layoutText = document.createElement("div");
+                layoutText.style.cssText = "flex:1;min-width:0;";
+                const layoutLbl = document.createElement("div");
+                layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:#f0dbe6;";
                 layoutLbl.textContent = "Menu layout";
+                const layoutDesc = document.createElement("div");
+                layoutDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;line-height:1.4;margin-top:1px;";
+                layoutText.appendChild(layoutLbl);
+                layoutText.appendChild(layoutDesc);
                 const layoutBtn = document.createElement("button");
                 const paintLayout = () => {
                     const tabs = getUsersLayout() === "tabs";
-                    layoutBtn.textContent = tabs ? "New layout" : "Old layout";
-                    layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
-                        (tabs
-                            ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
-                            : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                    // The line reads as the current state, the button reads as the
+                    // action. It used to be one small pill saying "New layout",
+                    // which meant both equally - you could not tell whether you were
+                    // on that layout or about to switch to it.
+                    layoutDesc.textContent = tabs
+                        ? "Now using NEW - six tabs, each split into pill sections"
+                        : "Now using CLASSIC - eight tabs, every section stacked on one page";
+                    layoutBtn.textContent = tabs ? "Switch to Classic" : "Switch to New";
+                    layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 13px;border-radius:6px;cursor:pointer;flex-shrink:0;white-space:nowrap;background:#3a1028;border:1px solid #cf6f98;color:#f0a8c4;";
                     layoutBtn.title = tabs
-                        ? "New: tabs are split into pill sections (default) - click to use the old stacked layout"
-                        : "Old: every section stacked on one long page - click to use the new pill layout";
+                        ? "Go back to the original eight-tab layout. Nothing is lost - you can switch back any time."
+                        : "Use the six-tab layout with pill sections. Nothing is lost - you can switch back any time.";
                 };
                 paintLayout();
                 layoutBtn.addEventListener("click", () => {
@@ -27378,7 +27392,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     this.applyLayoutMode();
                     this.rerender();
                 });
-                layoutRow.appendChild(layoutLbl);
+                layoutRow.appendChild(layoutText);
                 layoutRow.appendChild(layoutBtn);
                 body.appendChild(layoutRow);
                 // Where the Release / Remove locks / restraint picker strip lives.
@@ -37540,16 +37554,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             aeCard.appendChild(aeEmoteHint);
             body.appendChild(aeCard);
         }
-        /** @param includeAutoEscape false when the grouped layout has already put the
-         *  auto-escape card on the SAFETY tab. */
-        renderDomTools(includeAutoEscape = true) {
+        renderDomTools() {
             const body = this.tabBody();
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            if (includeAutoEscape)
-                this.buildAutoEscapeSection(body);
+            this.buildAutoEscapeSection(body);
             // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
@@ -39440,7 +39451,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 217; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 218; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39457,6 +39468,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
+                "Fix: the auto-escape room emote now fills in its tokens whether you wrote them with braces or square brackets ({item} or [item]), and a token can be used more than once. Text saved with square brackets was being sent to the room literally.",
+                "Menu layout toggle is clearer: it now says which layout you are on and the button says what pressing it does (\"Switch to Classic\" / \"Switch to New\"), instead of one small pill reading \"New layout\" that meant both equally.",
                 "Fix: emote-style action buttons, anims and outfit announcements send your text literally again. Routing them through BC's own emote function in the last update also handed BC your text as chat SYNTAX, so a button starting with a number and a percent sign (\"100% done~\") was turned into an attempt dice roll with the text rewritten, and text already wrapped in asterisks came out with a stray one. Now the asterisk is only added when it is missing, and dropped entirely when keeping it would trigger the roll. Rule addons still see every emote.",
                 "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
                 "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
