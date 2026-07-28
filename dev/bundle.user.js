@@ -2513,376 +2513,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     /** Everyone who tracks and can see achievements. */
     const ACHIEVEMENT_MEMBERS = [...CREDITED_NUMS, ...EXTRA_CREW];
 
-    // BC pose application and user-configurable pose combos.
-    // Poses require matching equipped items to visually render — BC handles
-    // validation server-side and silently ignores inapplicable poses.
-    // Well-known BC pose names grouped by type.
-    // Body and arm poses can be freely combined (e.g. Kneel + BackCuffs).
-    const KNOWN_POSES = [
-        {
-            group: "Body",
-            poses: [
-                { key: "", label: "Stand", announceText: "stands up straight" },
-                { key: "LegsClosed", label: "Legs Closed", announceText: "closes their legs" },
-                { key: "Kneel", label: "Kneel", announceText: "kneels down" },
-                { key: "KneelingSpread", label: "Kneel Wide", announceText: "kneels with their legs spread wide" },
-                { key: "AllFours", label: "All Fours", announceText: "gets down on all fours" },
-                { key: "Hogtied", label: "Hogtied", announceText: "lies hogtied" },
-                { key: "Spread", label: "Spread", announceText: "spreads their legs wide" },
-            ],
-        },
-        {
-            group: "Arms",
-            poses: [
-                { key: "", label: "Relaxed", announceText: "relaxes their arms" },
-                { key: "OverTheHead", label: "Arms Up", announceText: "raises their arms above their head" },
-                { key: "BackCuffs", label: "Arms Back", announceText: "puts their arms behind their back" },
-                { key: "BackElbowTouch", label: "Tight Back", announceText: "pulls their arms tight behind their back" },
-                { key: "BackBoxTie", label: "Box Tie", announceText: "crosses their arms behind their back" },
-                { key: "Yoked", label: "Yoked", announceText: "holds their arms in a yoked position" },
-            ],
-        },
-    ];
-    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
-    /**
-     * Whether BC will actually let the player take this pose right now.
-     *
-     * Reported: clicking a pose in the Body menu while restrained still emoted that
-     * you were doing it, even though the pose never changed. EBC forces the pose
-     * mapping directly, so it never consulted BC's own permission check.
-     *
-     * Poses reachable by struggling (BC's kneel/stand minigame) still count as
-     * allowed - those are things you genuinely can do to yourself. Only NEVER and
-     * NEVER_WITHOUT_AID are refused. On a BC build that exposes neither helper we
-     * return true, so an unknown version loses the guard rather than the feature.
-     */
-    function canTakePose(poseKey) {
-        var _a;
-        if (!poseKey)
-            return true; // clearing a pose is always allowed
-        try {
-            const w = window;
-            const statusFn = w.PoseCanChangeUnaidedStatus;
-            if (typeof statusFn === "function") {
-                // 0 NEVER, 1 NEVER_WITHOUT_AID, 2 ALWAYS_WITH_STRUGGLE, 3 ALWAYS
-                return statusFn(Player, poseKey) >= 2;
-            }
-            const avail = w.PoseAvailable;
-            const findName = w.AssetPoseFindName;
-            if (typeof avail === "function" && typeof findName === "function") {
-                const cat = (_a = findName(poseKey)) === null || _a === void 0 ? void 0 : _a.Category;
-                if (cat)
-                    return avail(Player, cat, poseKey) !== false;
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-        return true;
-    }
-    function applyPoses(poses) {
-        // An explicit empty string ("") in the list means "Relaxed arms" —
-        // clear any active arm pose from the result set.
-        const safeList = Array.isArray(poses) ? poses : [];
-        const wantsRelaxed = safeList.includes("");
-        const filtered = safeList.filter(Boolean);
-        const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
-        const win = window;
-        const psa = win.PoseSetActive;
-        const pfn = win.AssetPoseFindName;
-        // 1a. PoseSetActive (BC R107+) — sets ActivePoseMapping the canonical way.
-        if (typeof psa === "function") {
-            try {
-                if (result.length === 0) {
-                    psa(Player, null, true, false);
-                }
-                else if (wantsRelaxed) {
-                    // "Relaxed arms" path — nuke all poses, re-add body-only poses, then
-                    // explicitly set "BaseUpper" (BC's internal name for arms-at-sides).
-                    // Without setting BaseUpper the BodyUpper category stays empty and BC
-                    // does NOT automatically fall back to the relaxed rendering.
-                    psa(Player, null, true, false);
-                    for (const p of result) {
-                        psa(Player, p, true, false);
-                    }
-                    // Set BaseUpper if it's a valid pose in this BC build
-                    if (!pfn || pfn("BaseUpper") != null) {
-                        try {
-                            psa(Player, "BaseUpper", true, false);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    }
-                }
-                else {
-                    psa(Player, result[0], true, false);
-                    for (let i = 1; i < result.length; i++) {
-                        psa(Player, result[i], false, false);
-                    }
-                }
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-        }
-        // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
-        //     This is the critical belt-and-suspenders step: PoseSetActive can silently
-        //     return early (e.g. pose not found) without throwing, leaving the mapping
-        //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
-        //     from that unchanged (empty) mapping and wipes the pose we tried to set.
-        //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
-        //     correct categories regardless of whether PoseSetActive succeeded.
-        if (typeof pfn === "function") {
-            try {
-                const mapping = {};
-                for (const p of result) {
-                    const data = pfn(p);
-                    if (data === null || data === void 0 ? void 0 : data.Category)
-                        mapping[data.Category] = p;
-                }
-                Player.ActivePoseMapping =
-                    result.length === 0 ? {} : mapping;
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
-        }
-        else if (typeof psa !== "function") {
-            // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
-            try {
-                Player.ActivePose =
-                    result.length > 0 ? result : null;
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-        }
-        // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
-        //     ActivePoseMapping canonically; we only mirror ActivePose for the small
-        //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
-        //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
-        //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
-        try {
-            Player.ActivePose =
-                result.length > 0 ? result : null;
-        }
-        catch ( /* ignore */_e) { /* ignore */ }
-        // 2. Local visual refresh — Push=false, we push below.
-        callBC(() => CharacterRefresh(Player, false));
-        // 3. Push to room via direct ServerSend (same approach as sequence runner in
-        //    actionButtons.ts which is known to work).
-        try {
-            if (Player.OnlineID != null) {
-                ServerSend("ChatRoomCharacterUpdate", {
-                    ID: Player.OnlineID,
-                    ActivePose: result.length > 0 ? result : null,
-                    Appearance: ServerAppearanceBundle(Player.Appearance),
-                });
-            }
-        }
-        catch ( /* ignore */_f) { /* ignore */ }
-    }
-    // Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
-    //
-    // "BaseUpper" is BC's explicit internal name for the default / relaxed upper-body
-    // state.  Relaxed is NOT the absence of an arm pose — BC requires "BaseUpper" to
-    // be set in the BodyUpper category; leaving the category empty causes BC to render
-    // the arms incorrectly or leave them stuck in the previous pose.
-    //
-    // All earlier attempts removed arm entries from ActivePoseMapping/ActivePose but
-    // did not call PoseSetActive("BaseUpper"), so BC never applied the relaxed state.
-    function clearArmPose() {
-        try {
-            const p = Player;
-            const win = window;
-            const psa = win.PoseSetActive;
-            const pfn = win.AssetPoseFindName;
-            if (typeof psa === "function") {
-                // Check whether "BaseUpper" is a valid pose in this BC build.
-                // If pfn isn't available, assume it is — psa no-ops silently on unknown poses.
-                const baseValid = typeof pfn === "function" ? pfn("BaseUpper") != null : true;
-                if (baseValid) {
-                    // Set the BodyUpper category to its relaxed/default state.
-                    // force=true → always set (never toggle off); push=false → we push below.
-                    psa(Player, "BaseUpper", true, false);
-                }
-                else {
-                    // "BaseUpper" doesn't exist in this BC build — nuke-and-readd body poses.
-                    const bodyPoses = getCurrentPoses().filter(x => !ARM_POSES.includes(x));
-                    psa(Player, null, true, false);
-                    for (const bp of bodyPoses) {
-                        psa(Player, bp, true, false);
-                    }
-                }
-            }
-            else {
-                // No PoseSetActive — direct mutation across all three fields (very old BC).
-                const rawPose = p.Pose;
-                if (Array.isArray(rawPose))
-                    p.Pose = rawPose.filter(x => !ARM_POSES.includes(x));
-                const mapping = p.ActivePoseMapping;
-                if (mapping) {
-                    for (const k of Object.keys(mapping)) {
-                        if (ARM_POSES.includes(mapping[k]))
-                            delete mapping[k];
-                    }
-                }
-                const ap = p.ActivePose;
-                if (Array.isArray(ap)) {
-                    const next = ap.filter(x => !ARM_POSES.includes(x));
-                    p.ActivePose = next.length > 0 ? next : null;
-                }
-            }
-            // psa already called CharacterRefresh internally; read back the resulting state.
-            const ap2 = p.ActivePose;
-            const m2 = p.ActivePoseMapping;
-            const poseList = Array.isArray(ap2) && ap2.length > 0
-                ? [...ap2]
-                : Object.values(m2 !== null && m2 !== void 0 ? m2 : {}).filter(Boolean);
-            // Ensure local canvas is refreshed (idempotent if psa already did it).
-            callBC(() => CharacterRefresh(Player, false));
-            // Push to room.
-            if (Player.OnlineID != null) {
-                ServerSend("ChatRoomCharacterUpdate", {
-                    ID: Player.OnlineID,
-                    ActivePose: poseList.length > 0 ? poseList : null,
-                    Appearance: ServerAppearanceBundle(Player.Appearance),
-                });
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // Apply poses one-by-one in the given order with a delay between each step.
-    // Each entry in `poses` is one step:
-    //   - a body-pose key ("Kneel", "AllFours", …) → replaces the body slot
-    //   - an arm-pose key ("BackBoxTie", "Yoked", …) → replaces the arm slot
-    //   - ""  (Relaxed marker)                       → clears the arm slot
-    // State is cumulative: every step passes the full [body?, arm?] snapshot to
-    // applyPoses, so the animation builds up correctly regardless of which steps
-    // include a Relaxed ("") entry.
-    function applyPosesSequential(poses, stepDelayMs = 420) {
-        var _a;
-        const safeList = Array.isArray(poses) ? poses : [];
-        if (safeList.length === 0) {
-            applyPoses([]);
-            return;
-        }
-        // Build a concrete pose-state snapshot for each step.
-        let bodyPose = null;
-        let armPose = null;
-        const steps = [];
-        for (const p of safeList) {
-            if (p === "") {
-                armPose = null; // Relaxed: clear arm slot
-            }
-            else if (ARM_POSES.includes(p)) {
-                armPose = p; // replace arm pose
-            }
-            else {
-                bodyPose = p; // replace body pose
-            }
-            steps.push([
-                ...(bodyPose !== null ? [bodyPose] : []),
-                ...(armPose !== null ? [armPose] : []),
-            ]);
-        }
-        if (steps.length <= 1) {
-            applyPoses((_a = steps[0]) !== null && _a !== void 0 ? _a : []);
-            return;
-        }
-        for (let i = 0; i < steps.length; i++) {
-            window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
-        }
-    }
-    function getCurrentPoses() {
-        var _a;
-        try {
-            const ap = (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [];
-            if (ap.length > 0)
-                return [...ap];
-            // In newer BC, PoseSetActive writes to ActivePoseMapping rather than ActivePose.
-            // Fall back to the mapping values so callers always see the real current pose set.
-            const mapping = Player.ActivePoseMapping;
-            if (mapping && typeof mapping === "object") {
-                const vals = Object.values(mapping).filter(Boolean);
-                if (vals.length > 0)
-                    return vals;
-            }
-            return [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    // -- Combo storage -------------------------------------------------------
-    function uid$4() { return Math.random().toString(36).slice(2, 9); }
-    function load$1() {
-        const list = getSettings().poseCombos;
-        if (!Array.isArray(list))
-            return [];
-        // Sanitize each combo — old data may have undefined/null poses array
-        return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
-    }
-    function saveCombos(list) {
-        getSettings().poseCombos = list;
-        syncSettings();
-    }
-    function getPoseCombos() { return load$1(); }
-    function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const combo = {
-            id: uid$4(),
-            name: name.trim() || "Combo",
-            poses: poses.filter(p => p != null), // keep "" (Relaxed arms marker)
-            stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
-            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
-            announceText: announceText.trim() || undefined,
-        };
-        saveCombos([...load$1(), combo]);
-        return combo;
-    }
-    function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const list = load$1();
-        const combo = list.find(c => c.id === id);
-        if (!combo)
-            return;
-        combo.name = name.trim() || combo.name;
-        combo.poses = poses.filter(p => p != null); // keep "" (Relaxed arms marker)
-        combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
-        combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
-        combo.announceText = announceText.trim() || undefined;
-        saveCombos(list);
-    }
-    function deleteCombo(id) {
-        saveCombos(load$1().filter(c => c.id !== id));
-    }
-    // Apply a combo (animation + announce text). Used by both the chat command handler
-    // and the ▶ apply button in the drawer so announce always fires either way.
-    function applyCombo(combo) {
-        var _a, _b, _c;
-        const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
-        applyPosesSequential((_b = combo.poses) !== null && _b !== void 0 ? _b : [], delay);
-        const poseCount = Array.isArray(combo.poses) ? combo.poses.length : 0;
-        const totalMs = poseCount > 1 ? (poseCount - 1) * delay + 80 : 80;
-        if ((_c = combo.announceText) === null || _c === void 0 ? void 0 : _c.trim()) {
-            window.setTimeout(() => {
-                try {
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: getDisplayName$1() + " " + combo.announceText.trim(),
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            }, totalMs);
-        }
-    }
-    // Handle a chat command and apply the matching pose combo if found.
-    function handlePoseComboCommand(inputValue) {
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const combo = load$1().find(c => c.command && c.command.toLowerCase() === command);
-        if (!combo)
-            return false;
-        applyCombo(combo);
-        return true;
-    }
-
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
     // -- Emery Versioning (SAL sub-version display) --------------------------------
     // When on, shows the internal build counter "(s3)" next to the EBC version in
@@ -4073,6 +3703,527 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return false;
         }
         _mutedBeepMembers.add(num);
+        return true;
+    }
+
+    // Private room sharing.
+    //
+    // BC's server never tells you the name of a private room a friend is in - the
+    // friend query returns Private:true with the name stripped. So this is not a
+    // lookup, it is a broadcast: while you are in a private room your client beeps
+    // the room name to people you have chosen, and their client fills it in where
+    // it would otherwise say "in a private room".
+    //
+    // Because it publishes where you are, everything here is off until you turn it
+    // on, and sending and receiving are separate switches - you can do either, both
+    // or neither. Recipients are the UNION of three sources so the common cases
+    // (everyone, just the people I starred, plus a couple of specific others) can be
+    // combined rather than forcing one model.
+    const RECEIVED_TTL_MS = 15 * 60 * 1000; // a shared name older than this is stale
+    function s() {
+        return getSettings();
+    }
+    function flag(key) {
+        return s()[key] === true;
+    }
+    function setFlag(key, v) {
+        // Written explicitly rather than deleted: the settings flush only ever
+        // copies keys to the server, so a deleted key keeps its old value there.
+        s()[key] = v;
+        syncSettings();
+    }
+    const getShareWithAllFriends = () => flag("privRoomShareAll");
+    const setShareWithAllFriends = (v) => setFlag("privRoomShareAll", v);
+    const getShareWithStarred = () => flag("privRoomShareStarred");
+    const setShareWithStarred = (v) => setFlag("privRoomShareStarred", v);
+    /** Receiving is independent of sharing - either can be on alone. */
+    const getReceiveShared = () => flag("privRoomReceive");
+    const setReceiveShared = (v) => setFlag("privRoomReceive", v);
+    function getShareList() {
+        const v = s().privRoomShareList;
+        return Array.isArray(v) ? v.filter((n) => typeof n === "number") : [];
+    }
+    function addToShareList(memberNumber) {
+        if (!memberNumber || getShareList().includes(memberNumber))
+            return;
+        s().privRoomShareList = [...getShareList(), memberNumber];
+        syncSettings();
+    }
+    function removeFromShareList(memberNumber) {
+        s().privRoomShareList = getShareList().filter(n => n !== memberNumber);
+        syncSettings();
+    }
+    /** Everyone who should be told, from all three sources combined. */
+    function shareRecipients() {
+        var _a;
+        const out = new Set();
+        try {
+            // Read the friend list straight from Player rather than through
+            // friends.ts - that module imports this one, and a cycle here would be
+            // fragile for no benefit.
+            const fl = Array.isArray(Player === null || Player === void 0 ? void 0 : Player.FriendList) ? Player.FriendList : [];
+            if (getShareWithAllFriends())
+                for (const n of fl)
+                    out.add(n);
+            if (getShareWithStarred())
+                for (const n of getSpecialFriends())
+                    out.add(n);
+            for (const n of getShareList())
+                out.add(n);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        out.delete((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1);
+        return [...out];
+    }
+    // -- Received names ------------------------------------------------------------
+    // Memory only. A room name someone shared is theirs, not ours to persist across
+    // sessions, and it goes stale the moment they move.
+    const received = new Map();
+    function noteSharedRoom(from, name, space = "") {
+        if (!getReceiveShared() || !from)
+            return;
+        if (!name) {
+            received.delete(from);
+            return;
+        }
+        received.set(from, { name, space, ts: Date.now() });
+    }
+    /** The private room this person shared with us, or null. */
+    function getSharedRoom(memberNumber) {
+        const e = received.get(memberNumber);
+        if (!e)
+            return null;
+        if (Date.now() - e.ts > RECEIVED_TTL_MS) {
+            received.delete(memberNumber);
+            return null;
+        }
+        return { name: e.name, space: e.space };
+    }
+    // -- Protocol ------------------------------------------------------------------
+    const PREFIX = "[EBC-PRIVROOM:";
+    // Unit separator - a control character, so it can never collide with a real
+    // room name. Written as an escape: a raw control byte in source does not
+    // survive editors, copy/paste or encoding changes.
+    const SEP = "\u001f";
+    function buildShareMessage(name, space) {
+        return `${PREFIX}${name}${SEP}${space}]`;
+    }
+    /** Parses an incoming share. Returns null when the message is not one. */
+    function parseShareMessage(msg) {
+        if (!msg.startsWith(PREFIX) || !msg.endsWith("]"))
+            return null;
+        const body = msg.slice(PREFIX.length, -1);
+        const sep = body.indexOf(SEP);
+        return sep >= 0
+            ? { name: body.slice(0, sep), space: body.slice(sep + 1) }
+            : { name: body, space: "" };
+    }
+    // -- Sending -------------------------------------------------------------------
+    let lastSentRoom = "";
+    /**
+     * Tells the chosen people which private room you are in, or that you have left
+     * one. Only fires when the room actually changed, so moving around does not
+     * spam a beep per sync.
+     *
+     * @param send - injected so this module does not depend on friends.ts's sender
+     *   and create an import cycle.
+     */
+    function broadcastRoom(send) {
+        var _a, _b, _c;
+        try {
+            const w = window;
+            const data = w.ChatRoomData;
+            const name = String((_a = data === null || data === void 0 ? void 0 : data.Name) !== null && _a !== void 0 ? _a : "");
+            // "Private" here means anyone who is not already allowed to see it in the
+            // room list - exactly the case where the friend query strips the name.
+            const vis = Array.isArray(data === null || data === void 0 ? void 0 : data.Visibility) ? (_b = data === null || data === void 0 ? void 0 : data.Visibility) !== null && _b !== void 0 ? _b : [] : [];
+            const isPrivate = !!name && !vis.includes("All");
+            const payload = isPrivate ? name : "";
+            if (payload === lastSentRoom)
+                return;
+            lastSentRoom = payload;
+            const targets = shareRecipients();
+            if (targets.length === 0)
+                return;
+            const msg = buildShareMessage(payload, String((_c = data === null || data === void 0 ? void 0 : data.Space) !== null && _c !== void 0 ? _c : ""));
+            targets.forEach((n, i) => {
+                // Staggered so a long list never trips the server's rate limiter.
+                window.setTimeout(() => { try {
+                    send(n, msg);
+                }
+                catch ( /* ignore */_a) { /* ignore */ } }, i * 250);
+            });
+        }
+        catch ( /* ignore */_d) { /* ignore */ }
+    }
+
+    // BC pose application and user-configurable pose combos.
+    // Poses require matching equipped items to visually render — BC handles
+    // validation server-side and silently ignores inapplicable poses.
+    // Well-known BC pose names grouped by type.
+    // Body and arm poses can be freely combined (e.g. Kneel + BackCuffs).
+    const KNOWN_POSES = [
+        {
+            group: "Body",
+            poses: [
+                { key: "", label: "Stand", announceText: "stands up straight" },
+                { key: "LegsClosed", label: "Legs Closed", announceText: "closes their legs" },
+                { key: "Kneel", label: "Kneel", announceText: "kneels down" },
+                { key: "KneelingSpread", label: "Kneel Wide", announceText: "kneels with their legs spread wide" },
+                { key: "AllFours", label: "All Fours", announceText: "gets down on all fours" },
+                { key: "Hogtied", label: "Hogtied", announceText: "lies hogtied" },
+                { key: "Spread", label: "Spread", announceText: "spreads their legs wide" },
+            ],
+        },
+        {
+            group: "Arms",
+            poses: [
+                { key: "", label: "Relaxed", announceText: "relaxes their arms" },
+                { key: "OverTheHead", label: "Arms Up", announceText: "raises their arms above their head" },
+                { key: "BackCuffs", label: "Arms Back", announceText: "puts their arms behind their back" },
+                { key: "BackElbowTouch", label: "Tight Back", announceText: "pulls their arms tight behind their back" },
+                { key: "BackBoxTie", label: "Box Tie", announceText: "crosses their arms behind their back" },
+                { key: "Yoked", label: "Yoked", announceText: "holds their arms in a yoked position" },
+            ],
+        },
+    ];
+    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
+    /**
+     * Whether BC will actually let the player take this pose right now.
+     *
+     * Reported: clicking a pose in the Body menu while restrained still emoted that
+     * you were doing it, even though the pose never changed. EBC forces the pose
+     * mapping directly, so it never consulted BC's own permission check.
+     *
+     * Poses reachable by struggling (BC's kneel/stand minigame) still count as
+     * allowed - those are things you genuinely can do to yourself. Only NEVER and
+     * NEVER_WITHOUT_AID are refused. On a BC build that exposes neither helper we
+     * return true, so an unknown version loses the guard rather than the feature.
+     */
+    function canTakePose(poseKey) {
+        var _a;
+        if (!poseKey)
+            return true; // clearing a pose is always allowed
+        try {
+            const w = window;
+            const statusFn = w.PoseCanChangeUnaidedStatus;
+            if (typeof statusFn === "function") {
+                // 0 NEVER, 1 NEVER_WITHOUT_AID, 2 ALWAYS_WITH_STRUGGLE, 3 ALWAYS
+                return statusFn(Player, poseKey) >= 2;
+            }
+            const avail = w.PoseAvailable;
+            const findName = w.AssetPoseFindName;
+            if (typeof avail === "function" && typeof findName === "function") {
+                const cat = (_a = findName(poseKey)) === null || _a === void 0 ? void 0 : _a.Category;
+                if (cat)
+                    return avail(Player, cat, poseKey) !== false;
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return true;
+    }
+    function applyPoses(poses) {
+        // An explicit empty string ("") in the list means "Relaxed arms" —
+        // clear any active arm pose from the result set.
+        const safeList = Array.isArray(poses) ? poses : [];
+        const wantsRelaxed = safeList.includes("");
+        const filtered = safeList.filter(Boolean);
+        const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
+        const win = window;
+        const psa = win.PoseSetActive;
+        const pfn = win.AssetPoseFindName;
+        // 1a. PoseSetActive (BC R107+) — sets ActivePoseMapping the canonical way.
+        if (typeof psa === "function") {
+            try {
+                if (result.length === 0) {
+                    psa(Player, null, true, false);
+                }
+                else if (wantsRelaxed) {
+                    // "Relaxed arms" path — nuke all poses, re-add body-only poses, then
+                    // explicitly set "BaseUpper" (BC's internal name for arms-at-sides).
+                    // Without setting BaseUpper the BodyUpper category stays empty and BC
+                    // does NOT automatically fall back to the relaxed rendering.
+                    psa(Player, null, true, false);
+                    for (const p of result) {
+                        psa(Player, p, true, false);
+                    }
+                    // Set BaseUpper if it's a valid pose in this BC build
+                    if (!pfn || pfn("BaseUpper") != null) {
+                        try {
+                            psa(Player, "BaseUpper", true, false);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }
+                }
+                else {
+                    psa(Player, result[0], true, false);
+                    for (let i = 1; i < result.length; i++) {
+                        psa(Player, result[i], false, false);
+                    }
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
+        //     This is the critical belt-and-suspenders step: PoseSetActive can silently
+        //     return early (e.g. pose not found) without throwing, leaving the mapping
+        //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
+        //     from that unchanged (empty) mapping and wipes the pose we tried to set.
+        //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
+        //     correct categories regardless of whether PoseSetActive succeeded.
+        if (typeof pfn === "function") {
+            try {
+                const mapping = {};
+                for (const p of result) {
+                    const data = pfn(p);
+                    if (data === null || data === void 0 ? void 0 : data.Category)
+                        mapping[data.Category] = p;
+                }
+                Player.ActivePoseMapping =
+                    result.length === 0 ? {} : mapping;
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        else if (typeof psa !== "function") {
+            // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
+            try {
+                Player.ActivePose =
+                    result.length > 0 ? result : null;
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+        }
+        // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
+        //     ActivePoseMapping canonically; we only mirror ActivePose for the small
+        //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
+        //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
+        //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
+        try {
+            Player.ActivePose =
+                result.length > 0 ? result : null;
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
+        // 2. Local visual refresh — Push=false, we push below.
+        callBC(() => CharacterRefresh(Player, false));
+        // 3. Push to room via direct ServerSend (same approach as sequence runner in
+        //    actionButtons.ts which is known to work).
+        try {
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: result.length > 0 ? result : null,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
+        }
+        catch ( /* ignore */_f) { /* ignore */ }
+    }
+    // Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
+    //
+    // "BaseUpper" is BC's explicit internal name for the default / relaxed upper-body
+    // state.  Relaxed is NOT the absence of an arm pose — BC requires "BaseUpper" to
+    // be set in the BodyUpper category; leaving the category empty causes BC to render
+    // the arms incorrectly or leave them stuck in the previous pose.
+    //
+    // All earlier attempts removed arm entries from ActivePoseMapping/ActivePose but
+    // did not call PoseSetActive("BaseUpper"), so BC never applied the relaxed state.
+    function clearArmPose() {
+        try {
+            const p = Player;
+            const win = window;
+            const psa = win.PoseSetActive;
+            const pfn = win.AssetPoseFindName;
+            if (typeof psa === "function") {
+                // Check whether "BaseUpper" is a valid pose in this BC build.
+                // If pfn isn't available, assume it is — psa no-ops silently on unknown poses.
+                const baseValid = typeof pfn === "function" ? pfn("BaseUpper") != null : true;
+                if (baseValid) {
+                    // Set the BodyUpper category to its relaxed/default state.
+                    // force=true → always set (never toggle off); push=false → we push below.
+                    psa(Player, "BaseUpper", true, false);
+                }
+                else {
+                    // "BaseUpper" doesn't exist in this BC build — nuke-and-readd body poses.
+                    const bodyPoses = getCurrentPoses().filter(x => !ARM_POSES.includes(x));
+                    psa(Player, null, true, false);
+                    for (const bp of bodyPoses) {
+                        psa(Player, bp, true, false);
+                    }
+                }
+            }
+            else {
+                // No PoseSetActive — direct mutation across all three fields (very old BC).
+                const rawPose = p.Pose;
+                if (Array.isArray(rawPose))
+                    p.Pose = rawPose.filter(x => !ARM_POSES.includes(x));
+                const mapping = p.ActivePoseMapping;
+                if (mapping) {
+                    for (const k of Object.keys(mapping)) {
+                        if (ARM_POSES.includes(mapping[k]))
+                            delete mapping[k];
+                    }
+                }
+                const ap = p.ActivePose;
+                if (Array.isArray(ap)) {
+                    const next = ap.filter(x => !ARM_POSES.includes(x));
+                    p.ActivePose = next.length > 0 ? next : null;
+                }
+            }
+            // psa already called CharacterRefresh internally; read back the resulting state.
+            const ap2 = p.ActivePose;
+            const m2 = p.ActivePoseMapping;
+            const poseList = Array.isArray(ap2) && ap2.length > 0
+                ? [...ap2]
+                : Object.values(m2 !== null && m2 !== void 0 ? m2 : {}).filter(Boolean);
+            // Ensure local canvas is refreshed (idempotent if psa already did it).
+            callBC(() => CharacterRefresh(Player, false));
+            // Push to room.
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: poseList.length > 0 ? poseList : null,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Apply poses one-by-one in the given order with a delay between each step.
+    // Each entry in `poses` is one step:
+    //   - a body-pose key ("Kneel", "AllFours", …) → replaces the body slot
+    //   - an arm-pose key ("BackBoxTie", "Yoked", …) → replaces the arm slot
+    //   - ""  (Relaxed marker)                       → clears the arm slot
+    // State is cumulative: every step passes the full [body?, arm?] snapshot to
+    // applyPoses, so the animation builds up correctly regardless of which steps
+    // include a Relaxed ("") entry.
+    function applyPosesSequential(poses, stepDelayMs = 420) {
+        var _a;
+        const safeList = Array.isArray(poses) ? poses : [];
+        if (safeList.length === 0) {
+            applyPoses([]);
+            return;
+        }
+        // Build a concrete pose-state snapshot for each step.
+        let bodyPose = null;
+        let armPose = null;
+        const steps = [];
+        for (const p of safeList) {
+            if (p === "") {
+                armPose = null; // Relaxed: clear arm slot
+            }
+            else if (ARM_POSES.includes(p)) {
+                armPose = p; // replace arm pose
+            }
+            else {
+                bodyPose = p; // replace body pose
+            }
+            steps.push([
+                ...(bodyPose !== null ? [bodyPose] : []),
+                ...(armPose !== null ? [armPose] : []),
+            ]);
+        }
+        if (steps.length <= 1) {
+            applyPoses((_a = steps[0]) !== null && _a !== void 0 ? _a : []);
+            return;
+        }
+        for (let i = 0; i < steps.length; i++) {
+            window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
+        }
+    }
+    function getCurrentPoses() {
+        var _a;
+        try {
+            const ap = (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [];
+            if (ap.length > 0)
+                return [...ap];
+            // In newer BC, PoseSetActive writes to ActivePoseMapping rather than ActivePose.
+            // Fall back to the mapping values so callers always see the real current pose set.
+            const mapping = Player.ActivePoseMapping;
+            if (mapping && typeof mapping === "object") {
+                const vals = Object.values(mapping).filter(Boolean);
+                if (vals.length > 0)
+                    return vals;
+            }
+            return [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    // -- Combo storage -------------------------------------------------------
+    function uid$4() { return Math.random().toString(36).slice(2, 9); }
+    function load$1() {
+        const list = getSettings().poseCombos;
+        if (!Array.isArray(list))
+            return [];
+        // Sanitize each combo — old data may have undefined/null poses array
+        return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
+    }
+    function saveCombos(list) {
+        getSettings().poseCombos = list;
+        syncSettings();
+    }
+    function getPoseCombos() { return load$1(); }
+    function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
+        const combo = {
+            id: uid$4(),
+            name: name.trim() || "Combo",
+            poses: poses.filter(p => p != null), // keep "" (Relaxed arms marker)
+            stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
+            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
+            announceText: announceText.trim() || undefined,
+        };
+        saveCombos([...load$1(), combo]);
+        return combo;
+    }
+    function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
+        const list = load$1();
+        const combo = list.find(c => c.id === id);
+        if (!combo)
+            return;
+        combo.name = name.trim() || combo.name;
+        combo.poses = poses.filter(p => p != null); // keep "" (Relaxed arms marker)
+        combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
+        combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
+        combo.announceText = announceText.trim() || undefined;
+        saveCombos(list);
+    }
+    function deleteCombo(id) {
+        saveCombos(load$1().filter(c => c.id !== id));
+    }
+    // Apply a combo (animation + announce text). Used by both the chat command handler
+    // and the ▶ apply button in the drawer so announce always fires either way.
+    function applyCombo(combo) {
+        var _a, _b, _c;
+        const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
+        applyPosesSequential((_b = combo.poses) !== null && _b !== void 0 ? _b : [], delay);
+        const poseCount = Array.isArray(combo.poses) ? combo.poses.length : 0;
+        const totalMs = poseCount > 1 ? (poseCount - 1) * delay + 80 : 80;
+        if ((_c = combo.announceText) === null || _c === void 0 ? void 0 : _c.trim()) {
+            window.setTimeout(() => {
+                try {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: getDisplayName$1() + " " + combo.announceText.trim(),
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, totalMs);
+        }
+    }
+    // Handle a chat command and apply the matching pose combo if found.
+    function handlePoseComboCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const combo = load$1().find(c => c.command && c.command.toLowerCase() === command);
+        if (!combo)
+            return false;
+        applyCombo(combo);
         return true;
     }
 
@@ -6546,7 +6697,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             persistOfflineQueue();
     }
     function getFriendOnlineInfo(memberNumber) {
-        return onlineInfo.get(memberNumber);
+        const info = onlineInfo.get(memberNumber);
+        if (!info)
+            return info;
+        // The server strips the name of a private room. If they chose to share it
+        // with us, fill it in here so every list picks it up rather than each
+        // display site having to know about sharing.
+        if (info.isPrivate && !info.roomName) {
+            const shared = getSharedRoom(memberNumber);
+            if (shared === null || shared === void 0 ? void 0 : shared.name) {
+                return Object.assign(Object.assign({}, info), { roomName: shared.name, roomSpace: shared.space || info.roomSpace, sharedPrivate: true });
+            }
+        }
+        return info;
     }
     function getFriendStatus(memberNumber) {
         try {
@@ -25624,6 +25787,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // pills hide their now-redundant collapsible header.
                 if (userNotesHeaderRow)
                     userNotesHeaderRow.style.display = "none";
+                this.buildPrivateRoomSharing(secSettings);
                 const VIEWS = [
                     { id: "people", label: "Friends", el: secPeople },
                     { id: "rooms", label: "Rooms", el: secRooms },
@@ -25755,9 +25919,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                     const info = getFriendOnlineInfo(num);
                     if (info === null || info === void 0 ? void 0 : info.roomName) {
-                        const arr = (_a = publicRooms.get(info.roomName)) !== null && _a !== void 0 ? _a : [];
+                        // Shared private rooms are grouped separately so the list
+                        // does not imply they are open to everyone.
+                        const key = info.sharedPrivate ? `\u0000${info.roomName}` : info.roomName;
+                        const arr = (_a = publicRooms.get(key)) !== null && _a !== void 0 ? _a : [];
                         arr.push(num);
-                        publicRooms.set(info.roomName, arr);
+                        publicRooms.set(key, arr);
                     }
                     else if (info === null || info === void 0 ? void 0 : info.isPrivate) {
                         privateNums.push(num);
@@ -25784,7 +25951,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 [...publicRooms.entries()]
                     .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
-                    .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
+                    .forEach(([rName, nums]) => {
+                    const shared = rName.startsWith("\u0000");
+                    const label = shared ? rName.slice(1) : rName;
+                    groups.push({ label, nums, joinable: true, icon: shared ? "🔓" : "📍" });
+                });
                 if (privateNums.length > 0)
                     groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
                 if (lobbyNums.length > 0)
@@ -27205,6 +27376,131 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             return char.Nickname || char.Name || "Unknown";
         }
+        /**
+         * Private room sharing. BC never tells anyone the name of a private room you
+         * are in, so this is a broadcast, not a lookup: turning it on means your
+         * client tells the people you pick where you are whenever you are somewhere
+         * private. Everything defaults to off, and receiving is independent of
+         * sharing so you can do either alone.
+         */
+        buildPrivateRoomSharing(host) {
+            const FONT = "font-family:'Trebuchet MS',serif;";
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-section-label";
+            hdr.textContent = "PRIVATE ROOM SHARING";
+            host.appendChild(hdr);
+            const card = document.createElement("div");
+            card.style.cssText = "border:1px solid #3a1e2e;border-radius:8px;padding:9px 10px;margin-bottom:8px;background:rgba(20,8,16,0.45);display:flex;flex-direction:column;gap:7px;";
+            const blurb = document.createElement("div");
+            blurb.style.cssText = `${FONT}font-size:10.5px;color:#9a8290;line-height:1.5;`;
+            blurb.textContent = "The game never reveals the name of a private room, so this works by telling people directly. While you are in a private room your client sends the room name to whoever you pick below, and their EBC shows it instead of \"in a private room\". Only people running EBC can receive it.";
+            card.appendChild(blurb);
+            const rowOf = (title, desc, get, set) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:9px;";
+                const txt = document.createElement("div");
+                txt.style.cssText = "flex:1;min-width:0;";
+                const t1 = document.createElement("div");
+                t1.style.cssText = `${FONT}font-size:11.5px;font-weight:bold;color:#f0dbe6;`;
+                t1.textContent = title;
+                const t2 = document.createElement("div");
+                t2.style.cssText = `${FONT}font-size:10px;color:#9a7888;line-height:1.4;margin-top:1px;`;
+                t2.textContent = desc;
+                txt.appendChild(t1);
+                txt.appendChild(t2);
+                const btn = document.createElement("button");
+                const paint = () => {
+                    const on = get();
+                    btn.textContent = on ? "ON" : "OFF";
+                    btn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:3px 13px;border-radius:5px;cursor:pointer;flex-shrink:0;` +
+                        (on ? "border:1px solid #cf6f98;background:#3a1028;color:#f0a8c4;"
+                            : "border:1px solid #4a3040;background:transparent;color:#9a8290;");
+                };
+                paint();
+                btn.addEventListener("click", () => { set(!get()); paint(); this.rerender(120); });
+                row.appendChild(txt);
+                row.appendChild(btn);
+                return row;
+            };
+            card.appendChild(rowOf("Share with all friends", "Everyone on your BC friends list is told.", getShareWithAllFriends, setShareWithAllFriends));
+            card.appendChild(rowOf("Share with starred friends", "Only people you have starred in EBC.", getShareWithStarred, setShareWithStarred));
+            card.appendChild(rowOf("See others' private rooms", "Show rooms other people share with you. Separate from sharing your own.", getReceiveShared, setReceiveShared));
+            // Extra people, on top of whichever toggles are on.
+            const listLbl = document.createElement("div");
+            listLbl.style.cssText = `${FONT}font-size:10.5px;color:#9a7888;margin-top:2px;`;
+            listLbl.textContent = "Also share with these member numbers:";
+            card.appendChild(listLbl);
+            const chips = document.createElement("div");
+            chips.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+            const renderChips = () => {
+                while (chips.firstChild)
+                    chips.removeChild(chips.firstChild);
+                const list = getShareList();
+                if (list.length === 0) {
+                    const none = document.createElement("span");
+                    none.style.cssText = `${FONT}font-size:10px;color:#6a5060;font-style:italic;`;
+                    none.textContent = "Nobody added.";
+                    chips.appendChild(none);
+                }
+                for (const n of list) {
+                    const chip = document.createElement("span");
+                    chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;${FONT}font-size:11px;background:#1a0c16;border:1px solid #3a1928;border-radius:14px;padding:3px 8px;color:#c48aa8;`;
+                    const nm = document.createElement("span");
+                    nm.textContent = `${resolveName(n)} #${n}`;
+                    const x = document.createElement("span");
+                    x.textContent = "\u00d7";
+                    x.style.cssText = "cursor:pointer;color:#8a6070;font-size:13px;line-height:1;";
+                    x.addEventListener("click", () => { removeFromShareList(n); renderChips(); paintWho(); });
+                    chip.appendChild(nm);
+                    chip.appendChild(x);
+                    chips.appendChild(chip);
+                }
+            };
+            card.appendChild(chips);
+            const addRow = document.createElement("div");
+            addRow.style.cssText = "display:flex;gap:6px;";
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.className = "ebc-form-input";
+            inp.placeholder = "Member number";
+            inp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:3px 8px;";
+            inp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+            const addBtn = document.createElement("button");
+            addBtn.textContent = "+ Add";
+            addBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:5px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;`;
+            const doAdd = () => {
+                const n = parseInt(inp.value.trim(), 10);
+                if (!n)
+                    return;
+                addToShareList(n);
+                inp.value = "";
+                renderChips();
+                paintWho();
+            };
+            addBtn.addEventListener("click", doAdd);
+            inp.addEventListener("keydown", (e) => { if (e.key === "Enter") {
+                e.preventDefault();
+                doAdd();
+            } });
+            addRow.appendChild(inp);
+            addRow.appendChild(addBtn);
+            card.appendChild(addRow);
+            // Say plainly how many people this currently reaches - the three sources
+            // combine, so the total is not obvious from the toggles alone.
+            const who = document.createElement("div");
+            who.style.cssText = `${FONT}font-size:10px;line-height:1.5;padding-top:2px;border-top:1px solid #2a1421;`;
+            const paintWho = () => {
+                const n = shareRecipients().length;
+                who.textContent = n === 0
+                    ? "Not sharing with anyone right now."
+                    : `Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
+                who.style.color = n === 0 ? "#7a5a6a" : "#e0a0b8";
+            };
+            renderChips();
+            paintWho();
+            card.appendChild(who);
+            host.appendChild(card);
+        }
         buildNoteRow(memberNumber, displayName, currentNote, isSelf = false) {
             const hasNote = !!currentNote.trim();
             const vip = VIP_MEMBERS[memberNumber];
@@ -27673,12 +27969,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // Roster achievements name who is outstanding - the bare
                         // count is confusing when you are on the list yourself.
                         const roster = crewRosterStatus(a.id);
-                        if (roster && roster.left.length > 0) {
-                            const leftEl = document.createElement("div");
-                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:2px;";
-                            leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                            leftEl.title = roster.done.length ? `Already done: ${roster.done.join(", ")}` : "";
-                            ds.after(leftEl);
+                        if (roster) {
+                            // Both halves on screen, not one of them behind a hover:
+                            // seeing a name move from one line to the other is the
+                            // whole confirmation that something registered.
+                            let anchor = ds;
+                            if (roster.done.length > 0) {
+                                const doneEl = document.createElement("div");
+                                doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;";
+                                doneEl.textContent = `✓ ${roster.done.join(", ")}`;
+                                anchor.after(doneEl);
+                                anchor = doneEl;
+                            }
+                            if (roster.left.length > 0) {
+                                const leftEl = document.createElement("div");
+                                leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;";
+                                leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
+                                anchor.after(leftEl);
+                            }
                         }
                         main.appendChild(ds);
                         const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
@@ -40055,7 +40363,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 237; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 238; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40072,6 +40380,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
+                "'Met the Crew' and 'Crew Cuddler' now show who you have already got as well as who is left, so a name visibly moves from one line to the other when it registers.",
                 "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
                 "Fix (reported by Julia): the Body menu now keeps up when something else changes your pose. Being forced into a pose by a restraint, or posed by someone else, left the old highlight in place until you clicked something - the grid only repainted on your own clicks. It now follows the real pose while the page is open.",
                 "Tags and protected items are back to being sized to their text. The previous version stretched them across the full width, which turned three tags into three enormous slabs.",
@@ -47510,6 +47820,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 onRoomSync();
                 detectNewJoins();
                 achievementScanRoom();
+                shareRoomIfEnabled();
             }
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
@@ -47650,9 +47961,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             catch ( /* ignore */_k) { /* ignore */ }
             try {
-                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                shareRoomIfEnabled();
             }
             catch ( /* ignore */_l) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+            }
+            catch ( /* ignore */_m) { /* ignore */ }
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -47669,7 +47984,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                 }
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -47693,7 +48008,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // if nothing else triggers syncSettings() before the session ends.
                 flushNameCache();
             }
-            catch ( /* ignore */_o) { /* ignore */ }
+            catch ( /* ignore */_p) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -47995,8 +48310,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     achievementScanRoom();
                 }
                 catch ( /* ignore */_c) { /* ignore */ }
+                try {
+                    shareRoomIfEnabled();
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
@@ -48209,9 +48528,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             catch ( /* ignore */_f) { /* ignore */ }
             return next(args);
         });
+        /** Tells the people you chose which private room you are in. No-ops when
+         *  you have not turned sharing on for anyone. */
+        const shareRoomIfEnabled = () => {
+            try {
+                broadcastRoom((to, msg) => sendBeep(to, msg));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        };
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f;
             try {
                 const [beep] = args;
                 // Silent kitty commands from Lucy — checked first so BeepType "Beep" (used by
@@ -48222,6 +48549,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     handleKittyCommand(beep.Message);
                     return; // suppress notification
                 }
+                // A friend telling us which private room they are in. Silent, and
+                // only accepted from people on our friend list - an unknown sender
+                // has no business writing into our room display.
+                if (typeof beep.Message === "string" && beep.Message.startsWith("[EBC-PRIVROOM:")) {
+                    const fromNum3 = typeof beep.MemberNumber === "number"
+                        ? beep.MemberNumber
+                        : (parseInt(String(beep.MemberNumber), 10) || 0);
+                    const fl3 = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                    if (fromNum3 && fl3.includes(fromNum3)) {
+                        const parsed3 = parseShareMessage(beep.Message);
+                        if (parsed3)
+                            noteSharedRoom(fromNum3, parsed3.name, parsed3.space);
+                    }
+                    return; // silent either way
+                }
                 // EBC protocol messages are always silent - never shown in IM or BC notification.
                 // Curse commands only processed if sender is a friend (to prevent abuse).
                 if (typeof beep.Message === "string" &&
@@ -48229,7 +48571,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const senderNum = typeof beep.MemberNumber === "number"
                         ? beep.MemberNumber
                         : (parseInt(String(beep.MemberNumber), 10) || 0);
-                    const friendList2 = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                    const friendList2 = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
                     if (senderNum && friendList2.includes(senderNum)) {
                         handleCurseCommand(beep.Message);
                         const senderName = typeof beep.MemberName === "string" && beep.MemberName ? beep.MemberName : `#${senderNum}`;
@@ -48268,7 +48610,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         try {
                             markLastSentBlocked(fromNum2);
                         }
-                        catch ( /* ignore */_f) { /* ignore */ }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     }
                 }
                 // Skip non-IM beep types (grief reports, game invites, etc.).
@@ -48292,29 +48634,29 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 // Non-friend beeps (addon bots, update notices, etc.) always pass through
                 // to BC's native handler so they stay visible regardless of suppress setting.
-                const friendList = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
+                const friendList = (_c = Player.FriendList) !== null && _c !== void 0 ? _c : [];
                 const isFriendBeep = friendList.includes(fromNum);
                 // AFK auto-reply — runs for all plain beeps before any early-return
                 try {
                     if (isFriendBeep && getAfkEnabled()
                         && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
-                        && Date.now() - ((_c = afkBeepCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0) > AFK_REPLY_COOLDOWN_MS) {
+                        && Date.now() - ((_d = afkBeepCooldown.get(fromNum)) !== null && _d !== void 0 ? _d : 0) > AFK_REPLY_COOLDOWN_MS) {
                         afkBeepCooldown.set(fromNum, Date.now());
                         const replyMsg = `[AFK] ${getAfkMessage()}`;
                         // An auto-reply is still this player sending a beep, so it
                         // goes through BC's function and a rule can refuse it.
                         if (sendBeepViaBC(fromNum, replyMsg, false)) {
-                            addBeepEntry({ from: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                            addBeepEntry({ from: (_e = Player.MemberNumber) !== null && _e !== void 0 ? _e : 0, to: fromNum, message: replyMsg, ts: Date.now() });
                             const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
                             appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
                             try {
                                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                             }
-                            catch ( /* ignore */_g) { /* ignore */ }
+                            catch ( /* ignore */_h) { /* ignore */ }
                         }
                     }
                 }
-                catch ( /* ignore */_h) { /* ignore */ }
+                catch ( /* ignore */_j) { /* ignore */ }
                 if (!isFriendBeep)
                     return next(args);
                 // Strip metadata and add to IM — isolated in its own try so any
@@ -48329,27 +48671,27 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_j) { /* ignore */ }
+                            catch ( /* ignore */_k) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingGroupBeep(grpTag.id, grpTag.name, fromNum, grpTag.members);
                         }
-                        catch ( /* ignore */_k) { /* ignore */ }
+                        catch ( /* ignore */_l) { /* ignore */ }
                         return; // suppress BC native popup for group messages
                     }
                     const msg = stripBeepMetadata(rawMsg);
                     if (msg) {
-                        addBeepEntry({ from: fromNum, to: (_e = Player.MemberNumber) !== null && _e !== void 0 ? _e : 0, message: msg, ts: Date.now() });
+                        addBeepEntry({ from: fromNum, to: (_f = Player.MemberNumber) !== null && _f !== void 0 ? _f : 0, message: msg, ts: Date.now() });
                         if (!getUseNativeBeepSound() && !getBeepMuted() && !isBeepMemberMuted(fromNum)) {
                             try {
                                 playBeepSound();
                             }
-                            catch ( /* ignore */_l) { /* ignore */ }
+                            catch ( /* ignore */_m) { /* ignore */ }
                         }
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                         }
-                        catch ( /* ignore */_m) { /* ignore */ }
+                        catch ( /* ignore */_o) { /* ignore */ }
                         // Room invite messages are handled entirely by EBC's invite card in the
                         // IM window — always suppress BC's native beep popup for these so the
                         // raw "📍 Room invite: …" text never appears in the chat notification area.
@@ -48359,7 +48701,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             return;
                     }
                 }
-                catch ( /* ignore */_o) { /* ignore */ }
+                catch ( /* ignore */_p) { /* ignore */ }
                 // Suppress EBC's own sound already ran above. Call next() so other mods in
                 // the chain (LianChat, WCE, etc.) still see this beep, but set a flag first
                 // so the low-priority sentinel hook below can block BC's native notification
@@ -48374,7 +48716,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                 }
             }
-            catch ( /* ignore */_p) { /* ignore */ }
+            catch ( /* ignore */_q) { /* ignore */ }
             return next(args);
         });
         // Sentinel hook at priority 0 (runs just before BC native). When _ebcBlockBeepNative
