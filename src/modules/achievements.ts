@@ -12,6 +12,23 @@ import { getRestraintMs } from "./timer";
 export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
 const EMERY = 130267;
 
+// Everyone named on the CREDITS tab. This drives the two "whole crew"
+// achievements below, and their thresholds are its length - so adding a person
+// to the credits means adding them HERE too, or the achievement silently keeps
+// asking for the old number. Not the same list as ACHIEVEMENT_MEMBERS: that one
+// also covers crew who are not credited.
+export const CREDITED_MEMBERS: Array<{ num: number; name: string }> = [
+    { num: 130267, name: "Emery" },
+    { num: 143776, name: "Sin"   },
+    { num: 230466, name: "Lucy"  },
+    { num: 124264, name: "Lara"  },
+    { num: 80,     name: "Sybil" },
+];
+const CREDITED_NUMS = CREDITED_MEMBERS.map(p => p.num);
+function isCredited(n: number | undefined): boolean {
+    return typeof n === "number" && CREDITED_NUMS.includes(n);
+}
+
 /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
  *  itself, so someone who opted out can find their way back). */
 export function isAchievementCrewMember(memberNumber: number | null | undefined): boolean {
@@ -120,12 +137,19 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
     { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
     { id: "hq_visitor",    icon: "⭐", name: "HQ Regular",       desc: "Spend {n} hours in EBC HQ",    counter: "hq_h",       tiers: [1], cls: "emery", rare: true },
+    // Thresholds track the roster length so they stay right if it grows. If you
+    // are credited yourself you count toward your own total - you already know
+    // who you are - so everyone needs the same number.
+    { id: "crew_met", icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
+    { id: "crew_pet", icon: "⭐", name: "Crew Groomer",  desc: "Headpat all {n} credited EBC people",           counter: "crew_pet", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
 ];
 
 interface AchState {
     c: Record<string, number>;  // counters
     u: Record<string, number>;  // announced tier count per achievement id
     p?: number[];               // distinct member numbers who acted on you (capped)
+    cm?: number[];              // credited people you have shared a room with
+    cp?: number[];              // credited people you have headpatted
 }
 
 function getState(): AchState {
@@ -156,6 +180,41 @@ function save(): void {
 }
 
 const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
+
+/**
+ * Records one credited person against a roster achievement and keeps its counter
+ * in step. `key` is the AchState field, `counter` the achievement counter.
+ * Your own number is seeded on first use when you are credited, so a credited
+ * player is never chasing a total they cannot reach.
+ */
+function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
+    if (!isCredited(num)) return;
+    const st = getState();
+    let list = st[key];
+    if (!Array.isArray(list)) {
+        list = [];
+        st[key] = list;
+        const me = Player?.MemberNumber ?? 0;
+        if (isCredited(me)) list.push(me);
+    }
+    if (list.includes(num)) return;
+    list.push(num);
+    st.c[counter] = list.length;
+    checkUnlocks();
+    save();
+}
+
+/** Marks every credited person currently in the room as met. Called from the
+ *  room-sync hooks rather than polled, so a brief visit still counts. */
+export function achievementScanRoom(): void {
+    try {
+        if (!isAchievementUser(Player?.MemberNumber)) return;
+        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number }> | undefined;
+        if (!Array.isArray(room)) return;
+        for (const c of room) collectCredited("cm", "crew_met", c.MemberNumber ?? -1);
+    } catch { /* ignore */ }
+}
 
 function tiersReached(def: AchievementDef, count: number): number {
     let n = 0;
@@ -265,6 +324,7 @@ export function achievementOnActivity(
             if (isPat) {
                 bump("pet_give");
                 if (toEmery) bump("pet_emery");
+                collectCredited("cp", "crew_pet", targetNum);
             }
             if (isHug) {
                 bump("hug_give");

@@ -7238,6 +7238,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Crew whitelist - only these members track or see achievements.
     const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
     const EMERY = 130267;
+    // Everyone named on the CREDITS tab. This drives the two "whole crew"
+    // achievements below, and their thresholds are its length - so adding a person
+    // to the credits means adding them HERE too, or the achievement silently keeps
+    // asking for the old number. Not the same list as ACHIEVEMENT_MEMBERS: that one
+    // also covers crew who are not credited.
+    const CREDITED_MEMBERS = [
+        { num: 130267, name: "Emery" },
+        { num: 143776, name: "Sin" },
+        { num: 230466, name: "Lucy" },
+        { num: 124264, name: "Lara" },
+        { num: 80, name: "Sybil" },
+    ];
+    const CREDITED_NUMS = CREDITED_MEMBERS.map(p => p.num);
+    function isCredited(n) {
+        return typeof n === "number" && CREDITED_NUMS.includes(n);
+    }
     /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
      *  itself, so someone who opted out can find their way back). */
     function isAchievementCrewMember(memberNumber) {
@@ -7336,6 +7352,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
         { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
         { id: "hq_visitor", icon: "⭐", name: "HQ Regular", desc: "Spend {n} hours in EBC HQ", counter: "hq_h", tiers: [1], cls: "emery", rare: true },
+        // Thresholds track the roster length so they stay right if it grows. If you
+        // are credited yourself you count toward your own total - you already know
+        // who you are - so everyone needs the same number.
+        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
+        { id: "crew_pet", icon: "⭐", name: "Crew Groomer", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -7370,6 +7391,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }, 3000);
     }
     const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, gold
+    /**
+     * Records one credited person against a roster achievement and keeps its counter
+     * in step. `key` is the AchState field, `counter` the achievement counter.
+     * Your own number is seeded on first use when you are credited, so a credited
+     * player is never chasing a total they cannot reach.
+     */
+    function collectCredited(key, counter, num) {
+        var _a;
+        if (!isCredited(num))
+            return;
+        const st = getState();
+        let list = st[key];
+        if (!Array.isArray(list)) {
+            list = [];
+            st[key] = list;
+            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            if (isCredited(me))
+                list.push(me);
+        }
+        if (list.includes(num))
+            return;
+        list.push(num);
+        st.c[counter] = list.length;
+        checkUnlocks();
+        save();
+    }
+    /** Marks every credited person currently in the room as met. Called from the
+     *  room-sync hooks rather than polled, so a brief visit still counts. */
+    function achievementScanRoom() {
+        var _a;
+        try {
+            if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
+                return;
+            const room = window.ChatRoomCharacter;
+            if (!Array.isArray(room))
+                return;
+            for (const c of room)
+                collectCredited("cm", "crew_met", (_a = c.MemberNumber) !== null && _a !== void 0 ? _a : -1);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     function tiersReached(def, count) {
         let n = 0;
         for (const t of def.tiers)
@@ -7488,6 +7550,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     bump("pet_give");
                     if (toEmery)
                         bump("pet_emery");
+                    collectCredited("cp", "crew_pet", targetNum);
                 }
                 if (isHug) {
                     bump("hug_give");
@@ -39488,7 +39551,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 221; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 222; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39505,6 +39568,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
                 "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
                 "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
                 "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",
@@ -46919,6 +46983,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             window.setTimeout(() => { try {
                 onRoomSync();
                 detectNewJoins();
+                achievementScanRoom();
             }
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
@@ -47049,9 +47114,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             catch ( /* ignore */_j) { /* ignore */ }
             try {
-                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                achievementScanRoom();
             }
             catch ( /* ignore */_k) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+            }
+            catch ( /* ignore */_l) { /* ignore */ }
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
@@ -47068,7 +47137,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                 }
             }
-            catch ( /* ignore */_l) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -47092,7 +47161,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // if nothing else triggers syncSettings() before the session ends.
                 flushNameCache();
             }
-            catch ( /* ignore */_m) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -47390,8 +47459,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     detectNewJoins();
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
+                try {
+                    achievementScanRoom();
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
