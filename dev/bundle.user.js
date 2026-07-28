@@ -14099,9 +14099,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._rerenderTimer = null;
             /** True while _pillifyTab is synthesising header clicks. */
             this._pillifying = false;
-            // -- Timer -----------------------------------------------------------------
-            /** Timestamp until which a second click on the footer lift actually lifts. */
-            this._curseLiftArmedUntil = 0;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -17367,6 +17364,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 updateEbcTagsCollapse();
             });
         }
+        // -- Timer -----------------------------------------------------------------
         updateTimer() {
             if (!this.timerEl)
                 return;
@@ -17379,11 +17377,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (bound)
                 text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
             this.timerEl.textContent = text;
-            // Cursed slots, plus the way out. A curse blocks removal for everyone
-            // including the wearer, so without a release here the only escape was
-            // disabling EBC entirely - one player sat stuck in a leg restraint for
-            // two days before working that out. Two clicks so it cannot happen by
-            // accident, but it never depends on whoever applied it still being here.
+            // Cursed slots. Read-only on purpose: a curse the wearer can undo is not
+            // a curse, so there is no lift control here. The red safeword still
+            // clears them - that is the emergency exit, not a convenience button.
             try {
                 if (getCursedGroups().size > 0) {
                     const expiry = getCurseExpiry();
@@ -17394,31 +17390,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         when = `: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
                     }
                     const label = document.createElement("span");
-                    label.textContent = `  🔒 Cursed${when} (${describeCursedGroups()})  `;
+                    label.textContent = `  \u{1F512} Cursed${when} (${describeCursedGroups()})`;
+                    label.title = "These slots cannot be removed until whoever cursed them lifts it.";
                     this.timerEl.appendChild(label);
-                    const armed = Date.now() < this._curseLiftArmedUntil;
-                    const lift = document.createElement("span");
-                    lift.textContent = armed ? "click again to lift" : "lift";
-                    lift.title = armed
-                        ? "Releases every curse on you right now"
-                        : "Safety release - frees the cursed slots so you can undress normally";
-                    lift.style.cssText = "cursor:pointer;text-decoration:underline;font-weight:bold;color:"
-                        + (armed ? "#e08a8a" : "#cf6f98") + ";";
-                    lift.addEventListener("click", (ev) => {
-                        ev.stopPropagation();
-                        if (Date.now() >= this._curseLiftArmedUntil) {
-                            this._curseLiftArmedUntil = Date.now() + 5000;
-                            this.updateTimer();
-                            return;
-                        }
-                        this._curseLiftArmedUntil = 0;
-                        const slots = describeCursedGroups();
-                        if (releaseAllCurses() > 0) {
-                            appendLocalLogLine(`[EBC] \u26d3 You lifted your curses: ${slots}`, UI.accent);
-                        }
-                        this.updateTimer();
-                    });
-                    this.timerEl.appendChild(lift);
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -39331,7 +39305,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 setDomCurseExpiry(id, expiry);
                 const roomItems = getRoomMemberItems(id);
                 const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
-                const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+                // Send the FULL set, not just what was ticked this time. The target
+                // applies these additively, so resending existing ones costs nothing
+                // and it keeps both sides in step - previously the dom's list could
+                // hold groups the target no longer had, which is how a slot nobody
+                // had just cursed kept reappearing in Active Curses.
+                const beepEntries = merged.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
                 if (expiry)
                     beepEntries.push(`expiry=${expiry}`);
                 sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
@@ -39373,7 +39352,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             activeCursesList.style.cssText = "display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto;";
             activeCursesEl.appendChild(activeCursesList);
             const rebuildActiveCurses = () => {
-                var _a;
                 while (activeCursesList.firstChild)
                     activeCursesList.removeChild(activeCursesList.firstChild);
                 const id = parseInt(qtSel.value, 10);
@@ -39400,7 +39378,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     for (const it of getRoomMemberItems(id))
                         nameMap.set(it.group, it.craftName ? `${it.craftName} (${it.name})` : it.name);
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
                 for (const group of groups) {
                     const wrap = document.createElement("div");
                     wrap.style.cssText = "display:flex;flex-direction:column;";
@@ -39408,8 +39386,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 8px 4px 10px;border-radius:6px;background:rgba(22,6,16,0.8);border:1px solid #2a1022;border-left:3px solid #6a2040;";
                     const nm = document.createElement("span");
                     nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-                    nm.textContent = (_a = nameMap.get(group)) !== null && _a !== void 0 ? _a : group.replace("Item", "");
-                    nm.title = group;
+                    const known = nameMap.get(group);
+                    // A group with no matching item is a leftover from an earlier
+                    // curse, not something on them now. Say so rather than printing
+                    // a bare slot name that reads as a curse appearing from nowhere.
+                    nm.textContent = known !== null && known !== void 0 ? known : `${group.replace("Item", "")} - slot empty`;
+                    if (!known)
+                        nm.style.color = "#8a7080";
+                    nm.title = known
+                        ? group
+                        : `${group}: still cursed, but they are not wearing anything there. Lift it with ✕ if it is stale.`;
                     const pauseBtn = document.createElement("button");
                     pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
                     pauseBtn.textContent = "⏱";
@@ -39841,7 +39827,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 228; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 229; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39858,6 +39844,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
+                "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
                 "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
                 "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
                 "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
