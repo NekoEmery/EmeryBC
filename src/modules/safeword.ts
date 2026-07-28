@@ -7,6 +7,9 @@
 import { applyOutfit, getOutfits, RESTRAINT_GROUPS } from "./outfitManager";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { callBC, getSettings, syncSettings } from "./bcUtils";
+import { releaseAllCurses, describeCursedGroups } from "./curse";
+import { appendLocalLogLine } from "./notify";
+import { UI } from "./ui";
 
 export interface SafewordConfig {
     enabled: boolean;
@@ -283,6 +286,16 @@ export function triggerYellow(): void {
 export function triggerRed(): void {
     const cfg = getSafewordConfig();
     if (!cfg.enabled) return;
+    // Curses go first, and unconditionally - not behind cfg.redRelease. A curse
+    // is the one thing in EBC that nobody else can take off you, so if the
+    // safeword does not clear it the safeword does not work. Someone was stuck
+    // in a cursed leg slot for two days because red never touched this.
+    try {
+        const slots = describeCursedGroups();
+        if (releaseAllCurses() > 0) {
+            appendLocalLogLine(`[EBC] ⛓ Safeword lifted your curses: ${slots}`, UI.accent);
+        }
+    } catch { /* ignore */ }
     if (cfg.redRelease)  releaseBindingRestraints();
     if (cfg.redGrace)    startGrace(cfg.graceDurationMs);
     if (cfg.redAnnounce) {

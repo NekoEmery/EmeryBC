@@ -16,6 +16,7 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine } from "./modules/notify";
+import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
 import { addBeepEntry, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
@@ -28,7 +29,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 215;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 216;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
             "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
             "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
             "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
@@ -7817,84 +7819,6 @@ function init(): void {
         try { timerCheckRestraints(); } catch { /* ignore */ }
         return next(args);
     });
-
-    // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
-    const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
-    const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
-    const getCursePauseKey = (): string => `EBC_curse_pauses_${Player.MemberNumber ?? ""}`;
-    const getCursePauses = (): Record<string, number> => {
-        try { const r = localStorage.getItem(getCursePauseKey()); return r ? JSON.parse(r) as Record<string, number> : {}; } catch { return {}; }
-    };
-    const saveCursePauses = (p: Record<string, number>): void => {
-        try { localStorage.setItem(getCursePauseKey(), JSON.stringify(p)); } catch {}
-    };
-    const isCursePaused = (group: string): boolean => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
-    const getCurseExpiryKey = (): string => `EBC_curse_expiry_${Player.MemberNumber ?? ""}`;
-    const getCurseExpiry = (): number | null => {
-        try { const r = localStorage.getItem(getCurseExpiryKey()); return r ? parseInt(r) : null; } catch { return null; }
-    };
-    const saveCurseExpiry = (ts: number | null): void => {
-        try { if (ts == null) localStorage.removeItem(getCurseExpiryKey()); else localStorage.setItem(getCurseExpiryKey(), String(ts)); } catch {}
-    };
-    const getCursedGroups = (): Set<string> => {
-        try {
-            const raw = localStorage.getItem(getCurseKey());
-            if (!raw) return new Set();
-            const parsed = JSON.parse(raw) as unknown;
-            if (Array.isArray(parsed)) return new Set(parsed.filter((v): v is string => typeof v === "string"));
-        } catch { /* ignore */ }
-        return new Set();
-    };
-    const saveCursedGroups = (groups: Set<string>): void => {
-        try { localStorage.setItem(getCurseKey(), JSON.stringify([...groups])); } catch { /* ignore */ }
-    };
-    const getCurseItemMap = (): Record<string, string> => {
-        try {
-            const raw = localStorage.getItem(getCurseItemKey());
-            return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-        } catch { return {}; }
-    };
-    const saveCurseItemMap = (map: Record<string, string>): void => {
-        try { localStorage.setItem(getCurseItemKey(), JSON.stringify(map)); } catch { /* ignore */ }
-    };
-    const handleCurseCommand = (msg: string): void => {
-        const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
-        const current = getCursedGroups();
-        if (inner.startsWith("apply:")) {
-            const itemMap = getCurseItemMap();
-            for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
-                const eqIdx = entry.indexOf("=");
-                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
-                if (g === "expiry") { saveCurseExpiry(parseInt(val) || null); continue; }
-                if (g) { current.add(g); if (val) itemMap[g] = val; }
-            }
-            saveCursedGroups(current);
-            saveCurseItemMap(itemMap);
-        } else if (inner.startsWith("pause:")) {
-            const pauses = getCursePauses();
-            for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
-                const eqIdx = entry.indexOf("=");
-                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
-                if (g && ms > 0) pauses[g] = Date.now() + ms;
-            }
-            saveCursePauses(pauses);
-        } else if (inner === "clear") {
-            saveCursedGroups(new Set());
-            saveCurseItemMap({});
-            saveCursePauses({});
-            saveCurseExpiry(null);
-        } else if (inner.startsWith("clear:")) {
-            const itemMap = getCurseItemMap();
-            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
-                current.delete(g);
-                delete itemMap[g];
-            }
-            saveCursedGroups(current);
-            saveCurseItemMap(itemMap);
-        }
-    };
 
     // Auto-lift timed curses when expiry is reached (checked every 30s)
     window.setInterval(() => {

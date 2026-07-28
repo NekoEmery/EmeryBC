@@ -61,6 +61,7 @@ import {
     OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
+import { getCursedGroups, getCurseExpiry, releaseAllCurses, describeCursedGroups } from "./curse";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
@@ -7749,6 +7750,9 @@ export class EBCDrawer {
 
     // -- Timer -----------------------------------------------------------------
 
+    /** Timestamp until which a second click on the footer lift actually lifts. */
+    private _curseLiftArmedUntil = 0;
+
     private updateTimer(): void {
         if (!this.timerEl) return;
         const online = getOnlineTime();
@@ -7757,28 +7761,51 @@ export class EBCDrawer {
         let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
         if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
         if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
+        this.timerEl.textContent = text;
+
+        // Cursed slots, plus the way out. A curse blocks removal for everyone
+        // including the wearer, so without a release here the only escape was
+        // disabling EBC entirely - one player sat stuck in a leg restraint for
+        // two days before working that out. Two clicks so it cannot happen by
+        // accident, but it never depends on whoever applied it still being here.
         try {
-            const mn = (Player as { MemberNumber?: number }).MemberNumber;
-            if (mn) {
-                const curseRaw = localStorage.getItem(`EBC_curses_${mn}`);
-                const isCursed = curseRaw ? (JSON.parse(curseRaw) as unknown[]).length > 0 : false;
-                if (isCursed) {
-                    const expiryRaw = localStorage.getItem(`EBC_curse_expiry_${mn}`);
-                    if (expiryRaw) {
-                        const rem = parseInt(expiryRaw) - Date.now();
-                        if (rem > 0) {
-                            const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
-                            text += `  🔒 Cursed: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
-                        } else {
-                            text += `  🔒 Cursed`;
-                        }
-                    } else {
-                        text += `  🔒 Cursed`;
-                    }
+            if (getCursedGroups().size > 0) {
+                const expiry = getCurseExpiry();
+                const rem = expiry === null ? -1 : expiry - Date.now();
+                let when = "";
+                if (rem > 0) {
+                    const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
+                    when = `: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
                 }
+                const label = document.createElement("span");
+                label.textContent = `  🔒 Cursed${when} (${describeCursedGroups()})  `;
+                this.timerEl.appendChild(label);
+
+                const armed = Date.now() < this._curseLiftArmedUntil;
+                const lift = document.createElement("span");
+                lift.textContent = armed ? "click again to lift" : "lift";
+                lift.title = armed
+                    ? "Releases every curse on you right now"
+                    : "Safety release - frees the cursed slots so you can undress normally";
+                lift.style.cssText = "cursor:pointer;text-decoration:underline;font-weight:bold;color:"
+                    + (armed ? "#e08a8a" : "#cf6f98") + ";";
+                lift.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    if (Date.now() >= this._curseLiftArmedUntil) {
+                        this._curseLiftArmedUntil = Date.now() + 5000;
+                        this.updateTimer();
+                        return;
+                    }
+                    this._curseLiftArmedUntil = 0;
+                    const slots = describeCursedGroups();
+                    if (releaseAllCurses() > 0) {
+                        appendLocalLogLine(`[EBC] \u26d3 You lifted your curses: ${slots}`, UI.accent);
+                    }
+                    this.updateTimer();
+                });
+                this.timerEl.appendChild(lift);
             }
         } catch { /* ignore */ }
-        this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
 
