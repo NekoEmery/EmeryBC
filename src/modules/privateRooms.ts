@@ -29,6 +29,10 @@ function setFlag(key: string, v: boolean): void {
     // Written explicitly rather than deleted: the settings flush only ever
     // copies keys to the server, so a deleted key keeps its old value there.
     s()[key] = v;
+    // Any change to who is included has to re-open the question of what they
+    // have been told - otherwise turning sharing on while already sitting in a
+    // private room did nothing until you left and came back.
+    resetShareState();
     syncSettings();
 }
 
@@ -50,11 +54,13 @@ export function getShareList(): number[] {
 export function addToShareList(memberNumber: number): void {
     if (!memberNumber || getShareList().includes(memberNumber)) return;
     s().privRoomShareList = [...getShareList(), memberNumber];
+    resetShareState();
     syncSettings();
 }
 
 export function removeFromShareList(memberNumber: number): void {
     s().privRoomShareList = getShareList().filter(n => n !== memberNumber);
+    resetShareState();
     syncSettings();
 }
 
@@ -148,7 +154,24 @@ export function parseShareMessage(msg: string): { name: string; space: string } 
 
 // -- Sending -------------------------------------------------------------------
 
-let lastSentRoom = "";
+let lastSentRoom: string | null = null;
+// Held from the first broadcast so a settings change can re-announce without
+// the settings code needing to know how beeps are sent.
+let lastSender: ((to: number, msg: string) => void) | null = null;
+
+/**
+ * Forgets what was last announced and re-announces straight away. Called
+ * whenever the recipient set changes: clearing the flag alone was not enough,
+ * because nothing broadcasts again until the room next changes, so turning
+ * sharing on while already in a private room stayed silent until you left.
+ */
+export function resetShareState(): void {
+    lastSentRoom = null;
+    if (lastSender) {
+        const send = lastSender;
+        window.setTimeout(() => { try { broadcastRoom(send); } catch { /* ignore */ } }, 0);
+    }
+}
 
 /**
  * Tells the chosen people which private room you are in, or that you have left
@@ -159,22 +182,41 @@ let lastSentRoom = "";
  *   and create an import cycle.
  */
 export function broadcastRoom(send: (to: number, msg: string) => void): void {
+    lastSender = send;
     try {
         const w = window as unknown as Record<string, unknown>;
         const data = w.ChatRoomData as { Name?: string; Space?: string; Visibility?: string[] } | null | undefined;
         const name = String(data?.Name ?? "");
-        // "Private" here means anyone who is not already allowed to see it in the
-        // room list - exactly the case where the friend query strips the name.
-        const vis = Array.isArray(data?.Visibility) ? data?.Visibility ?? [] : [];
-        const isPrivate = !!name && !vis.includes("All");
+        // Use BC's own test where it exists. Visibility is a role list and a room
+        // can be ["All","Admin"], which contains "All" but is still restricted -
+        // checking for "All" ourselves called those public.
+        const isPrivateFn = w.ChatRoomDataIsPrivate as ((room: unknown) => boolean) | undefined;
+        let isPrivate = false;
+        if (name) {
+            if (typeof isPrivateFn === "function" && data) {
+                try { isPrivate = isPrivateFn(data); } catch { isPrivate = false; }
+            } else {
+                const vis = Array.isArray(data?.Visibility) ? data?.Visibility ?? [] : [];
+                isPrivate = !(vis.length === 1 && vis[0] === "All");
+            }
+        }
         const payload = isPrivate ? name : "";
 
+        const targets = shareRecipients();
+        // Order matters: bail on "nothing to do" BEFORE recording what was sent.
+        // Recording first meant entering a room with sharing off marked it as
+        // already announced, so switching sharing on stayed silent.
+        if (targets.length === 0) {
+            // Still forget it, so enabling sharing re-announces.
+            lastSentRoom = null;
+            return;
+        }
         if (payload === lastSentRoom) return;
         lastSentRoom = payload;
-
-        const targets = shareRecipients();
-        if (targets.length === 0) return;
         const msg = buildShareMessage(payload, String(data?.Space ?? ""));
+        try {
+            console.info(`[EBC] Private room share: ${payload ? `"${payload}"` : "(left private room)"} -> ${targets.length} recipient(s)`);
+        } catch { /* ignore */ }
         targets.forEach((n, i) => {
             // Staggered so a long list never trips the server's rate limiter.
             window.setTimeout(() => { try { send(n, msg); } catch { /* ignore */ } }, i * 250);
