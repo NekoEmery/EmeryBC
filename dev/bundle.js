@@ -3740,6 +3740,32 @@
         out.delete((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1);
         return [...out];
     }
+    /**
+     * The same recipients, but saying which toggle put each one there. Three sources
+     * combine into one list, so "why is this person on here" is otherwise guesswork.
+     */
+    function shareRecipientsDetailed() {
+        var _a;
+        const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1;
+        const fl = Array.isArray(Player === null || Player === void 0 ? void 0 : Player.FriendList) ? Player.FriendList : [];
+        const all = getShareWithAllFriends() ? new Set(fl) : new Set();
+        const starred = getShareWithStarred() ? new Set(getSpecialFriends()) : new Set();
+        const listed = new Set(getShareList());
+        const out = [];
+        for (const num of shareRecipients()) {
+            if (num === me)
+                continue;
+            const via = [];
+            if (all.has(num))
+                via.push("friend");
+            if (starred.has(num))
+                via.push("starred");
+            if (listed.has(num))
+                via.push("added");
+            out.push({ num, via });
+        }
+        return out;
+    }
     // -- Received names ------------------------------------------------------------
     // Memory only. A room name someone shared is theirs, not ours to persist across
     // sessions, and it goes stale the moment they move.
@@ -27454,16 +27480,52 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // combine, so the total is not obvious from the toggles alone.
             const who = document.createElement("div");
             who.style.cssText = `${FONT}font-size:10px;line-height:1.5;padding-top:2px;border-top:1px solid #2a1421;`;
+            const whoList = document.createElement("div");
+            whoList.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:4px;max-height:180px;overflow-y:auto;";
+            let whoOpen = false;
             const paintWho = () => {
-                const n = shareRecipients().length;
+                const people = shareRecipientsDetailed();
+                const n = people.length;
                 who.textContent = n === 0
                     ? "Not sharing with anyone right now."
-                    : `Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
+                    : `${whoOpen ? "▼" : "▶"} Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
                 who.style.color = n === 0 ? "#7a5a6a" : "#e0a0b8";
+                who.style.cursor = n === 0 ? "default" : "pointer";
+                who.title = n === 0 ? "" : "Click to see exactly who";
+                // Naming them matters: three toggles combine into one list, and
+                // "8 people" is not something you can check against your intent.
+                while (whoList.firstChild)
+                    whoList.removeChild(whoList.firstChild);
+                for (const p of people) {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:5px;background:rgba(30,12,24,0.6);border:1px solid #2a1421;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = `flex:1;min-width:0;${FONT}font-size:11px;color:#e8c8d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                    nm.textContent = resolveName(p.num);
+                    const id = document.createElement("span");
+                    id.style.cssText = `${FONT}font-size:10px;color:#9a7080;flex-shrink:0;`;
+                    id.textContent = `#${p.num}`;
+                    const via = document.createElement("span");
+                    via.style.cssText = `${FONT}font-size:9px;color:#8a7080;flex-shrink:0;border:1px solid #3a2030;border-radius:8px;padding:1px 6px;`;
+                    via.textContent = p.via.join(" + ") || "?";
+                    via.title = "Which setting includes this person";
+                    r.appendChild(nm);
+                    r.appendChild(id);
+                    r.appendChild(via);
+                    whoList.appendChild(r);
+                }
+                whoList.style.display = whoOpen && n > 0 ? "flex" : "none";
             };
+            who.addEventListener("click", () => {
+                if (shareRecipients().length === 0)
+                    return;
+                whoOpen = !whoOpen;
+                paintWho();
+            });
             renderChips();
             paintWho();
             card.appendChild(who);
+            card.appendChild(whoList);
             host.appendChild(card);
         }
         buildNoteRow(memberNumber, displayName, currentNote, isSelf = false) {
@@ -40328,7 +40390,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 238; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 239; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40345,6 +40407,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
                 "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
                 "'Met the Crew' and 'Crew Cuddler' now show who you have already got as well as who is left, so a name visibly moves from one line to the other when it registers.",
                 "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
