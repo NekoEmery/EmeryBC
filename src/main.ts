@@ -29,7 +29,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 216;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 217;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: emote-style action buttons, anims and outfit announcements send your text literally again. Routing them through BC's own emote function in the last update also handed BC your text as chat SYNTAX, so a button starting with a number and a percent sign (\"100% done~\") was turned into an attempt dice roll with the text rewritten, and text already wrapped in asterisks came out with a stray one. Now the asterisk is only added when it is missing, and dropped entirely when keeping it would trigger the roll. Rule addons still see every emote.",
             "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
             "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
             "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",

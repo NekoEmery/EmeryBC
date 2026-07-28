@@ -67,7 +67,18 @@ export function sendEmoteViaBC(content: string): void {
     const viaBC = w.ChatRoomSendEmote as ((msg: string) => void) | undefined;
     if (typeof viaBC === "function") {
         try {
-            viaBC("*" + content);
+            // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
+            // text, and two of its rules rewrite what we give it:
+            //   "*NN%rest"  -> an attempt roll, replacing the text with a dice
+            //                  result. The digit count is 0-2, so even "%x" hits it.
+            //   a doubled leading "*" survives one strip and shows in the message.
+            // Button and announce text is already-final content the person
+            // configured, never something they typed, so neither rewrite is
+            // wanted. Prepend the "*" only when it is absent, and drop it
+            // entirely when keeping it would turn the emote into a roll.
+            const starred = content.startsWith("*") ? content : "*" + content;
+            const wouldRoll = /^(\*|\/attempt )(\d{0,2}|100)%(.+)/.test(starred);
+            viaBC(wouldRoll ? content.replace(/^\*/, "") : starred);
             return;
         } catch { /* fall through to the direct send below */ }
         // Unlike beeps, falling back here is safe: an emote rule that meant to
