@@ -17908,6 +17908,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 catch ( /* ignore */_a) { /* ignore */ }
                 renderTagMgmt();
             });
+            // Build the contents NOW, not on first expand. Collapsing should only
+            // hide them. Building lazily meant that whenever the section was already
+            // marked open - which is exactly what happens once anyone has expanded it
+            // once - nothing ever called this, so the chips and the add-tag row were
+            // simply absent. Inside a pill, where the header is hidden, that left an
+            // empty category with no way to create a tag at all.
+            renderTagMgmt();
             tagMgmtDiv.appendChild(tagToggleBtn);
             tagMgmtDiv.appendChild(tagMgmtBody);
             body.appendChild(tagMgmtDiv);
@@ -39572,7 +39579,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 225; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 226; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39589,6 +39596,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
                 "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
                 "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
                 "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",

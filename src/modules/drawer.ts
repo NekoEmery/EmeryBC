@@ -8411,6 +8411,14 @@ This cannot be undone.`,
             renderTagMgmt();
         });
 
+        // Build the contents NOW, not on first expand. Collapsing should only
+        // hide them. Building lazily meant that whenever the section was already
+        // marked open - which is exactly what happens once anyone has expanded it
+        // once - nothing ever called this, so the chips and the add-tag row were
+        // simply absent. Inside a pill, where the header is hidden, that left an
+        // empty category with no way to create a tag at all.
+        renderTagMgmt();
+
         tagMgmtDiv.appendChild(tagToggleBtn);
         tagMgmtDiv.appendChild(tagMgmtBody);
         body.appendChild(tagMgmtDiv);
