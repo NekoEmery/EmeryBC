@@ -74,6 +74,28 @@ export function shareRecipients(): number[] {
     return [...out];
 }
 
+/**
+ * The same recipients, but saying which toggle put each one there. Three sources
+ * combine into one list, so "why is this person on here" is otherwise guesswork.
+ */
+export function shareRecipientsDetailed(): Array<{ num: number; via: string[] }> {
+    const me = Player?.MemberNumber ?? -1;
+    const fl = Array.isArray(Player?.FriendList) ? Player.FriendList as number[] : [];
+    const all = getShareWithAllFriends() ? new Set(fl) : new Set<number>();
+    const starred = getShareWithStarred() ? new Set(getSpecialFriends()) : new Set<number>();
+    const listed = new Set(getShareList());
+    const out: Array<{ num: number; via: string[] }> = [];
+    for (const num of shareRecipients()) {
+        if (num === me) continue;
+        const via: string[] = [];
+        if (all.has(num)) via.push("friend");
+        if (starred.has(num)) via.push("starred");
+        if (listed.has(num)) via.push("added");
+        out.push({ num, via });
+    }
+    return out;
+}
+
 export function isSharingEnabled(): boolean {
     return shareRecipients().length > 0;
 }

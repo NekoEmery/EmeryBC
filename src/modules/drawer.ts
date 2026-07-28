@@ -65,7 +65,7 @@ import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
 import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
          getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
-         shareRecipients } from "./privateRooms";
+         shareRecipients, shareRecipientsDetailed } from "./privateRooms";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
@@ -17820,16 +17820,49 @@ This cannot be undone.`,
         // combine, so the total is not obvious from the toggles alone.
         const who = document.createElement("div");
         who.style.cssText = `${FONT}font-size:10px;line-height:1.5;padding-top:2px;border-top:1px solid #2a1421;`;
+        const whoList = document.createElement("div");
+        whoList.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:4px;max-height:180px;overflow-y:auto;";
+        let whoOpen = false;
         const paintWho = (): void => {
-            const n = shareRecipients().length;
+            const people = shareRecipientsDetailed();
+            const n = people.length;
             who.textContent = n === 0
                 ? "Not sharing with anyone right now."
-                : `Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
+                : `${whoOpen ? "▼" : "▶"} Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
             who.style.color = n === 0 ? "#7a5a6a" : "#e0a0b8";
+            who.style.cursor = n === 0 ? "default" : "pointer";
+            who.title = n === 0 ? "" : "Click to see exactly who";
+
+            // Naming them matters: three toggles combine into one list, and
+            // "8 people" is not something you can check against your intent.
+            while (whoList.firstChild) whoList.removeChild(whoList.firstChild);
+            for (const p of people) {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:5px;background:rgba(30,12,24,0.6);border:1px solid #2a1421;";
+                const nm = document.createElement("span");
+                nm.style.cssText = `flex:1;min-width:0;${FONT}font-size:11px;color:#e8c8d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                nm.textContent = resolveName(p.num);
+                const id = document.createElement("span");
+                id.style.cssText = `${FONT}font-size:10px;color:#9a7080;flex-shrink:0;`;
+                id.textContent = `#${p.num}`;
+                const via = document.createElement("span");
+                via.style.cssText = `${FONT}font-size:9px;color:#8a7080;flex-shrink:0;border:1px solid #3a2030;border-radius:8px;padding:1px 6px;`;
+                via.textContent = p.via.join(" + ") || "?";
+                via.title = "Which setting includes this person";
+                r.appendChild(nm); r.appendChild(id); r.appendChild(via);
+                whoList.appendChild(r);
+            }
+            whoList.style.display = whoOpen && n > 0 ? "flex" : "none";
         };
+        who.addEventListener("click", () => {
+            if (shareRecipients().length === 0) return;
+            whoOpen = !whoOpen;
+            paintWho();
+        });
         renderChips();
         paintWho();
         card.appendChild(who);
+        card.appendChild(whoList);
         host.appendChild(card);
     }
 
