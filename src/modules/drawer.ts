@@ -16009,6 +16009,19 @@ This cannot be undone.`,
         }, 80);
     }
 
+    /**
+     * Redraws the friends list in response to a control inside it - search,
+     * clear, sort, filter - keeping the Rooms section wherever it currently
+     * lives. Calling renderFriendRows(body) directly here is a trap: with no
+     * rooms target it renders the whole room list INTO the friends section, so
+     * typing in the search box made the rooms list reappear above the results.
+     * In classic layout _roomsSectionEl is null, which restores the inline
+     * behaviour that layout wants.
+     */
+    private refreshFriendRowsInPlace(body: HTMLElement): void {
+        this.renderFriendRows(body, this._roomsSectionEl ?? undefined);
+    }
+
     /** Renders the friends list. When roomsTarget is given, the Rooms section is
      *  rendered there instead (its own pill in the tabbed Users layout). */
     private renderFriendRows(body: HTMLElement, roomsTarget?: HTMLElement): void {
@@ -16512,7 +16525,7 @@ This cannot be undone.`,
             sortSel.addEventListener("change", () => {
                 this.friendSort = sortSel.value;
                 try { localStorage.setItem("EBC_friendSort", this.friendSort); } catch { /* ignore */ }
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
             });
             lblF.appendChild(sortSel);
 
@@ -16527,7 +16540,7 @@ This cannot be undone.`,
                 markReadBtn.addEventListener("click", () => {
                     this.beepUnread.clear();
                     this.refreshTabDot();
-                    try { this.renderFriendRows(body); } catch { /* ignore */ }
+                    try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 });
                 lblF.appendChild(markReadBtn);
             }
@@ -16550,7 +16563,7 @@ This cannot be undone.`,
                 this.friendSearch = searchInput.value;
                 // Capture cursor position before the rebuild destroys this element
                 const sel: [number, number] = [searchInput.selectionStart ?? 0, searchInput.selectionEnd ?? 0];
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 // Restore focus + cursor to the freshly-created search input
                 const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
                 if (reborn) {
@@ -16566,7 +16579,7 @@ This cannot be undone.`,
             clearSearchBtn.addEventListener("mouseleave", () => { clearSearchBtn.style.color = "#7a5a6a"; clearSearchBtn.style.borderColor = "#3a1928"; });
             clearSearchBtn.addEventListener("click", () => {
                 this.friendSearch = "";
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
                 if (reborn) reborn.focus();
             });
