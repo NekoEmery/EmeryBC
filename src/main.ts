@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 229;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 230;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: two achievements could not realistically be earned. 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for - it is a running total that persists now. 'Settled In' and 'Comfy Captive' measured their streaks the same way, so refreshing wiped however long you had been sitting somewhere; they now measure from a stored arrival time, and only a real absence of more than fifteen minutes breaks the streak.",
+            "'Crew Groomer' renamed to 'Crew Cuddler'.",
             "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
             "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
             "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
@@ -58,7 +60,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
             "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
             "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
-            "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
+            "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all of them, and 'Crew Cuddler' for headpatting all of them. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
             "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
             "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
             "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",

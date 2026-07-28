@@ -7480,7 +7480,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
         { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
-        { id: "crew_pet", icon: "⭐", name: "Crew Groomer", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
+        { id: "crew_pet", icon: "⭐", name: "Crew Cuddler", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -7931,12 +7931,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // HQ. No-op for non-achievement users; cheap enough to just run.
     const TICK_MS = 5 * 60 * 1000;
     const HQ_ROOM = "emerybc (ebc) hq";
-    let _lastRoom = "";
-    let _roomBoundMs = 0; // time bound without leaving the current room
-    let _roomMs = 0; // time in the current room, restraints irrelevant
-    let _hqMs = 0; // accumulated time spent in HQ
+    // A streak survives a refresh but not an absence. Three missed ticks (15 min)
+    // is well past any reload and well short of a real visit.
+    const STREAK_GAP_MS = TICK_MS * 3;
     setInterval(() => {
-        var _a, _b, _c, _d, _e, _f;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
@@ -7947,34 +7946,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const hours = Math.floor(getRestraintMs() / 3600000);
             if (hours > ((_c = st.c["bound_h"]) !== null && _c !== void 0 ? _c : 0))
                 st.c["bound_h"] = hours;
-            // Plain time in one room - resets only when the room changes.
-            if (room && room === _lastRoom)
-                _roomMs += TICK_MS;
-            else
-                _roomMs = 0;
-            const roomMin = Math.floor(_roomMs / 60000);
-            if (roomMin > ((_d = st.c["room_min"]) !== null && _d !== void 0 ? _d : 0))
-                st.c["room_min"] = roomMin;
-            // Bound AND staying put - resets when the room changes or you get free.
-            if (room && room === _lastRoom && getRestraintMs() > 0)
-                _roomBoundMs += TICK_MS;
-            else
-                _roomBoundMs = 0;
-            _lastRoom = room;
-            const roomBoundH = Math.floor(_roomBoundMs / 3600000);
-            if (roomBoundH > ((_e = st.c["room_bound_h"]) !== null && _e !== void 0 ? _e : 0))
-                st.c["room_bound_h"] = roomBoundH;
-            // Time spent in the EBC HQ support room (accumulates across visits).
+            const now = Date.now();
+            // Plain time in one room. Measured from a stored arrival time, so a page
+            // refresh no longer resets it - counting ticks in memory made the 24
+            // hour tier all but impossible for anyone who ever reloaded.
+            const roomBroke = !room || ((_d = st.roomStreak) === null || _d === void 0 ? void 0 : _d.room) !== room
+                || now - ((_f = (_e = st.roomStreak) === null || _e === void 0 ? void 0 : _e.at) !== null && _f !== void 0 ? _f : 0) > STREAK_GAP_MS;
+            if (!room)
+                st.roomStreak = undefined;
+            else if (roomBroke)
+                st.roomStreak = { room, since: now, at: now };
+            if (st.roomStreak) {
+                st.roomStreak.at = now;
+                const mins = Math.floor((now - st.roomStreak.since) / 60000);
+                if (mins > ((_g = st.c["room_min"]) !== null && _g !== void 0 ? _g : 0))
+                    st.c["room_min"] = mins;
+            }
+            // Bound AND staying put - same treatment, and also ends if you get free.
+            const bound = getRestraintMs() > 0;
+            const boundBroke = !room || !bound || ((_h = st.boundStreak) === null || _h === void 0 ? void 0 : _h.room) !== room
+                || now - ((_k = (_j = st.boundStreak) === null || _j === void 0 ? void 0 : _j.at) !== null && _k !== void 0 ? _k : 0) > STREAK_GAP_MS;
+            if (!room || !bound)
+                st.boundStreak = undefined;
+            else if (boundBroke)
+                st.boundStreak = { room, since: now, at: now };
+            if (st.boundStreak) {
+                st.boundStreak.at = now;
+                const h = Math.floor((now - st.boundStreak.since) / 3600000);
+                if (h > ((_l = st.c["room_bound_h"]) !== null && _l !== void 0 ? _l : 0))
+                    st.c["room_bound_h"] = h;
+            }
+            // Total time in the EBC HQ support room. A TOTAL, not a streak, so it has
+            // to persist - it used to live in a module variable, which meant two
+            // forty-minute visits never added up to the one hour the tier asks for.
             if (room.trim().toLowerCase() === HQ_ROOM) {
-                _hqMs += TICK_MS;
-                const hqH = Math.floor(_hqMs / 3600000);
-                if (hqH > ((_f = st.c["hq_h"]) !== null && _f !== void 0 ? _f : 0))
-                    st.c["hq_h"] = hqH;
+                st.hqMin = ((_m = st.hqMin) !== null && _m !== void 0 ? _m : 0) + TICK_MS / 60000;
+                st.c["hq_h"] = Math.floor(st.hqMin / 60);
             }
             checkUnlocks();
             save();
         }
-        catch ( /* ignore */_g) { /* ignore */ }
+        catch ( /* ignore */_o) { /* ignore */ }
     }, TICK_MS);
 
     function appendLocalLogLine(text, color = UI.accent) {
@@ -39827,7 +39839,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 229; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 230; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39844,6 +39856,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: two achievements could not realistically be earned. 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for - it is a running total that persists now. 'Settled In' and 'Comfy Captive' measured their streaks the same way, so refreshing wiped however long you had been sitting somewhere; they now measure from a stored arrival time, and only a real absence of more than fifteen minutes breaks the streak.",
+                "'Crew Groomer' renamed to 'Crew Cuddler'.",
                 "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
                 "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
                 "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
@@ -39853,7 +39867,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
                 "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
                 "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
-                "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
+                "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all of them, and 'Crew Cuddler' for headpatting all of them. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
                 "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
                 "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
                 "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",
