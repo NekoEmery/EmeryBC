@@ -13956,6 +13956,8 @@
              * directly so the new tab always starts at the top.
              */
             this._rerenderTimer = null;
+            /** True while _pillifyTab is synthesising header clicks. */
+            this._pillifying = false;
             // -- Timer -----------------------------------------------------------------
             /** Timestamp until which a second click on the footer lift actually lifts. */
             this._curseLiftArmedUntil = 0;
@@ -16723,7 +16725,12 @@
                 window.clearTimeout(this._rerenderTimer);
                 this._rerenderTimer = null;
             }
-            if (delay > 0)
+            // Never render synchronously while pillifying. _pillifyTab clicks
+            // collapsed headers to materialise their content, and a header handler
+            // that rerenders would otherwise re-enter the render it is running
+            // inside. Deferring converges: the second pass finds the sections
+            // already open, so it clicks nothing.
+            if (delay > 0 || this._pillifying)
                 this._rerenderTimer = window.setTimeout(doRender, delay);
             else
                 doRender();
@@ -26852,7 +26859,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          * No-ops in classic layout, or when a tab has fewer than two pills.
          */
         _pillifyTab(body, lsKey, merge) {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             if (this.noPillify)
                 return; // composing into a grouped tab - it pillifies once at the end
             if (!isGroupedLayout())
@@ -26889,7 +26896,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 try {
                     (info.kind === "wrapper" ? info.labelEl : el).click();
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
             }
             const kids = Array.from(body.children);
             const groups = [];
@@ -26934,11 +26941,30 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // Force each section's content open - a collapsed body inside a pill would
             // just look empty. Only direct children are touched, so nested UI that is
             // deliberately hidden keeps its own state.
-            for (const sec of sections) {
-                for (const el of sec.els) {
-                    if (el.style.display === "none")
-                        el.style.display = "";
+            //
+            // Sections whose header still shows a collapsed chevron are opened by
+            // clicking it rather than by setting display, because several of them
+            // (TAGS above all) do not BUILD their content until that first click.
+            // Un-hiding an empty body leaves nothing on screen, and for a section
+            // merged into a shared pill the click handler is replaced below - so it
+            // was stranded as a dead label that could never be opened again.
+            this._pillifying = true;
+            try {
+                for (const sec of sections) {
+                    if (sec.headerEl && ((_b = sec.headerEl.textContent) !== null && _b !== void 0 ? _b : "").includes("▶")) {
+                        try {
+                            sec.headerEl.click();
+                        }
+                        catch ( /* ignore */_f) { /* ignore */ }
+                    }
+                    for (const el of sec.els) {
+                        if (el.style.display === "none")
+                            el.style.display = "";
+                    }
                 }
+            }
+            finally {
+                this._pillifying = false;
             }
             // Drop sections that render nothing - an empty pill is worse than no pill.
             // "Nothing" means every content element is devoid of text and children.
@@ -26958,7 +26984,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]${hasContent(x) ? "" : " EMPTY"}`).join(" | ") || "(none)");
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             const kept = sections.filter(hasContent);
             sections.length = 0;
             sections.push(...kept);
@@ -26982,7 +27008,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // chevron. cloneNode does not copy event listeners.
                         const src = sec.headerEl;
                         const clone = src.cloneNode(true);
-                        clone.textContent = ((_b = clone.textContent) !== null && _b !== void 0 ? _b : "").replace(/[▶▼]/g, "").trim();
+                        clone.textContent = ((_c = clone.textContent) !== null && _c !== void 0 ? _c : "").replace(/[▶▼]/g, "").trim();
                         clone.style.cursor = "default";
                         src.replaceWith(clone);
                         sec.headerEl = clone;
@@ -27016,9 +27042,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 return;
             let active = "";
             try {
-                active = (_c = localStorage.getItem(lsKey)) !== null && _c !== void 0 ? _c : "";
+                active = (_d = localStorage.getItem(lsKey)) !== null && _d !== void 0 ? _d : "";
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             if (!groups.some(g => g.label === active))
                 active = groups[0].label;
             const nav = document.createElement("div");
@@ -39507,7 +39533,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 223; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 224; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39524,6 +39550,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
                 "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
                 "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
                 "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",

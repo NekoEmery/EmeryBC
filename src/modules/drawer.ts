@@ -7261,6 +7261,8 @@ export class EBCDrawer {
      * directly so the new tab always starts at the top.
      */
     private _rerenderTimer: number | null = null;
+    /** True while _pillifyTab is synthesising header clicks. */
+    private _pillifying = false;
 
     private rerender(delay = 0): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
@@ -7278,7 +7280,12 @@ export class EBCDrawer {
             window.clearTimeout(this._rerenderTimer);
             this._rerenderTimer = null;
         }
-        if (delay > 0) this._rerenderTimer = window.setTimeout(doRender, delay);
+        // Never render synchronously while pillifying. _pillifyTab clicks
+        // collapsed headers to materialise their content, and a header handler
+        // that rerenders would otherwise re-enter the render it is running
+        // inside. Deferring converges: the second pass finds the sections
+        // already open, so it clicks nothing.
+        if (delay > 0 || this._pillifying) this._rerenderTimer = window.setTimeout(doRender, delay);
         else doRender();
     }
 
@@ -17616,10 +17623,25 @@ This cannot be undone.`,
         // Force each section's content open - a collapsed body inside a pill would
         // just look empty. Only direct children are touched, so nested UI that is
         // deliberately hidden keeps its own state.
-        for (const sec of sections) {
-            for (const el of sec.els) {
-                if (el.style.display === "none") el.style.display = "";
+        //
+        // Sections whose header still shows a collapsed chevron are opened by
+        // clicking it rather than by setting display, because several of them
+        // (TAGS above all) do not BUILD their content until that first click.
+        // Un-hiding an empty body leaves nothing on screen, and for a section
+        // merged into a shared pill the click handler is replaced below - so it
+        // was stranded as a dead label that could never be opened again.
+        this._pillifying = true;
+        try {
+            for (const sec of sections) {
+                if (sec.headerEl && (sec.headerEl.textContent ?? "").includes("▶")) {
+                    try { sec.headerEl.click(); } catch { /* ignore */ }
+                }
+                for (const el of sec.els) {
+                    if (el.style.display === "none") el.style.display = "";
+                }
             }
+        } finally {
+            this._pillifying = false;
         }
 
         // Drop sections that render nothing - an empty pill is worse than no pill.

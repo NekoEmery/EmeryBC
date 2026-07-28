@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 223;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 224;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
             "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
             "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
             "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
