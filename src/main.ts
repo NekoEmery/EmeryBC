@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 226;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 227;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
             "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
             "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
             "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",

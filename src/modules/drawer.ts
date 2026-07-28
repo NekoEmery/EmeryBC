@@ -100,7 +100,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -8182,6 +8182,14 @@ export class EBCDrawer {
                     });
                 });
 
+                const exp = document.createElement("button");
+                exp.textContent = "Save";
+                exp.title = `Download a backup file of your ${cat.label.toLowerCase()} data`;
+                exp.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #3f5a48;background:transparent;color:#8ab898;cursor:pointer;transition:background 0.12s,color 0.12s;";
+                exp.addEventListener("mouseenter", () => { exp.style.background = "#2a4030"; exp.style.color = "#c0e8cc"; });
+                exp.addEventListener("mouseleave", () => { exp.style.background = "transparent"; exp.style.color = "#8ab898"; });
+                exp.addEventListener("click", () => { this.downloadBackup(exportDataCategories([cat]), cat.label); });
+
                 const del = document.createElement("button");
                 del.textContent = "Clear";
                 del.title = `Delete all ${cat.label.toLowerCase()} data`;
@@ -8200,6 +8208,7 @@ This cannot be undone.`,
                 row.appendChild(nm);
                 row.appendChild(sz);
                 row.appendChild(locBtn);
+                row.appendChild(exp);
                 row.appendChild(del);
                 dataBody.appendChild(row);
             }
@@ -8215,6 +8224,131 @@ This cannot be undone.`,
         content.appendChild(dataBtn);
         content.appendChild(dataBody);
 
+        // ── Backup: take everything with you, restore it anywhere ─────────
+        // Deliberately storage-agnostic. A backup holds whatever you have,
+        // account-synced or device-only alike, and restoring puts each category
+        // wherever THIS device is set to keep it - so it survives clearing your
+        // browser data and moves cleanly between machines.
+        let backupOpen = false;
+        try { backupOpen = localStorage.getItem("EBC_storageBackupOpen") === "1"; } catch { /* ignore */ }
+        const backupBtn = document.createElement("button");
+        backupBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        const backupBody = document.createElement("div");
+        backupBody.style.cssText = "margin-top:5px;display:flex;flex-direction:column;gap:6px;";
+        const paintBackupBtn = (): void => {
+            backupBtn.textContent = (backupOpen ? "\u25bc" : "\u25b6") + " Backup - export & import";
+            backupBody.style.display = backupOpen ? "flex" : "none";
+        };
+
+        const status = document.createElement("div");
+        status.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;min-height:13px;";
+        const say = (msg: string, ok = true): void => {
+            status.textContent = msg;
+            status.style.color = ok ? "#8ab898" : "#c08a8a";
+        };
+
+        const runImport = (text: string): void => {
+            let label = "this backup";
+            try {
+                const meta = JSON.parse(text) as { categories?: string[] };
+                if (Array.isArray(meta.categories) && meta.categories.length) {
+                    label = meta.categories.join(", ");
+                }
+            } catch {
+                say("That is not valid JSON - copy the whole file, including the braces.", false);
+                return;
+            }
+            showConfirmOverlay(
+                `Import ${label}?\n\nAnything you already have in those categories is replaced. Everything else is left alone.`,
+                "Cancel", "Import",
+                () => {
+                    try {
+                        const r = importDataBackup(text);
+                        if (r.keys === 0) { say("Nothing imported - that backup held no EBC data.", false); return; }
+                        const extra = r.skipped.length ? ` ${r.skipped.length} unrecognised entr${r.skipped.length === 1 ? "y was" : "ies were"} ignored.` : "";
+                        say(`Restored ${r.categories.length} categor${r.categories.length === 1 ? "y" : "ies"}: ${r.categories.join(", ")}.${extra}`);
+                        window.setTimeout(() => this.rerender(), 2500);
+                    } catch (err) {
+                        say(`Could not read that backup: ${(err as Error).message}`, false);
+                    }
+                },
+            );
+        };
+
+        const buildBackup = (): void => {
+            while (backupBody.firstChild) backupBody.removeChild(backupBody.firstChild);
+
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;";
+            hint.textContent = "Saves a file with everything EBC stores for you - whether it lives on your account or only on this browser. Keep it before clearing your browser data, or use it to move to another device. Importing puts each category wherever this device is set to keep it, so it does not matter where it came from. Use Save on a single row above to back up just that one.";
+            backupBody.appendChild(hint);
+
+            const btnRow = document.createElement("div");
+            btnRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+
+            const allBtn = document.createElement("button");
+            allBtn.textContent = "\u2193 Export everything";
+            allBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #79a885;background:transparent;color:#98d0a8;cursor:pointer;";
+            allBtn.addEventListener("click", () => {
+                const json = exportAllData();
+                this.downloadBackup(json, "all-data");
+                say(`Exported ${Math.round(json.length / 1024)} KB. Keep the file somewhere safe.`);
+            });
+
+            const fileBtn = document.createElement("button");
+            fileBtn.textContent = "\u2191 Import from file";
+            fileBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;";
+            const filePick = document.createElement("input");
+            filePick.type = "file";
+            filePick.accept = "application/json,.json";
+            filePick.style.display = "none";
+            filePick.addEventListener("change", () => {
+                const f = filePick.files?.[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = () => { runImport(String(reader.result ?? "")); filePick.value = ""; };
+                reader.onerror = () => { say("Could not read that file.", false); filePick.value = ""; };
+                reader.readAsText(f);
+            });
+            fileBtn.addEventListener("click", () => filePick.click());
+
+            btnRow.appendChild(allBtn);
+            btnRow.appendChild(fileBtn);
+            backupBody.appendChild(btnRow);
+            backupBody.appendChild(filePick);
+
+            const ta = document.createElement("textarea");
+            ta.className = "ebc-form-input";
+            ta.placeholder = "…or paste a backup here";
+            ta.style.cssText = "width:100%;box-sizing:border-box;height:52px;resize:vertical;font-size:10px;font-family:monospace;";
+            // Keep BC's document-level key handler out of the textarea, or
+            // typing here moves the character and swallows characters.
+            ta.addEventListener("keydown", (e) => { e.stopPropagation(); });
+            ta.addEventListener("keyup",   (e) => { e.stopPropagation(); });
+            const pasteBtn = document.createElement("button");
+            pasteBtn.textContent = "Import pasted text";
+            pasteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;padding:4px 10px;border-radius:6px;border:1px solid #4a2038;background:transparent;color:#9a7080;cursor:pointer;align-self:flex-start;";
+            pasteBtn.addEventListener("click", () => {
+                const text = ta.value.trim();
+                if (!text) { say("Paste a backup into the box first.", false); return; }
+                runImport(text);
+            });
+            backupBody.appendChild(ta);
+            backupBody.appendChild(pasteBtn);
+            backupBody.appendChild(status);
+        };
+
+        backupBtn.addEventListener("click", () => {
+            backupOpen = !backupOpen;
+            try { localStorage.setItem("EBC_storageBackupOpen", backupOpen ? "1" : "0"); } catch { /* ignore */ }
+            if (backupOpen) buildBackup();
+            paintBackupBtn();
+        });
+        paintBackupBtn();
+        if (backupOpen) buildBackup();
+        content.appendChild(backupBtn);
+        content.appendChild(backupBody);
+
         toggleBtn.addEventListener("click", () => {
             open = !open;
             try { localStorage.setItem("EBC_storageOpen", open ? "1" : "0"); } catch { /* ignore */ }
@@ -8225,6 +8359,25 @@ This cannot be undone.`,
         wrap.appendChild(toggleBtn);
         wrap.appendChild(content);
         body.appendChild(wrap);
+    }
+
+    /** Offers a JSON string to the browser as a download. Used for backups -
+     *  a file is what survives clearing your browser data, which is the whole
+     *  point of the feature. */
+    private downloadBackup(json: string, label: string): void {
+        try {
+            const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
+            const day = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ebc-${slug}-${day}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } catch { /* ignore */ }
     }
 
     // -- Sections shared by the classic OUTFITS tab and the grouped ME tab -----

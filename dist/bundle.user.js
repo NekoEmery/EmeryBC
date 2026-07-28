@@ -3403,6 +3403,64 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "Restraint timers", keys: ["restraintTimers"] },
         { label: "Dom config", keys: ["domConfig"] },
     ];
+    /** Serialises the given categories. Keys holding nothing are skipped. */
+    function exportDataCategories(cats) {
+        const store = getSettings();
+        const data = {};
+        const labels = [];
+        for (const cat of cats) {
+            let any = false;
+            for (const k of cat.keys) {
+                const v = store[k];
+                if (v === undefined || v === null)
+                    continue;
+                data[k] = v;
+                any = true;
+            }
+            if (any)
+                labels.push(cat.label);
+        }
+        const backup = { ebcBackup: 1, ts: Date.now(), categories: labels, data };
+        return JSON.stringify(backup);
+    }
+    function exportAllData() {
+        return exportDataCategories(EBC_DATA_CATEGORIES);
+    }
+    /**
+     * Restores a backup. Only keys belonging to a known category are written - a
+     * pasted file can never introduce settings EBC does not already define.
+     * Returns what was restored, and which keys were ignored, so the UI can be
+     * honest about a partial import rather than claiming success.
+     */
+    function importDataBackup(json) {
+        const parsed = JSON.parse(json);
+        if (!parsed || parsed.ebcBackup !== 1 || typeof parsed.data !== "object" || parsed.data === null) {
+            throw new Error("Not an EBC backup file.");
+        }
+        const known = new Map();
+        for (const cat of EBC_DATA_CATEGORIES)
+            for (const k of cat.keys)
+                known.set(k, cat);
+        const store = getSettings();
+        const touched = new Set();
+        const skipped = [];
+        let keys = 0;
+        for (const [k, v] of Object.entries(parsed.data)) {
+            const cat = known.get(k);
+            if (!cat) {
+                skipped.push(k);
+                continue;
+            }
+            if (v === undefined)
+                continue;
+            store[k] = v;
+            touched.add(cat.label);
+            keys++;
+        }
+        if (keys > 0)
+            syncSettings();
+        return { categories: [...touched], keys, skipped };
+    }
     /** Serialized size (chars ~ bytes) of one category's data. */
     function getDataCategorySize(cat) {
         try {
@@ -17684,6 +17742,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             this.rerender();
                         });
                     });
+                    const exp = document.createElement("button");
+                    exp.textContent = "Save";
+                    exp.title = `Download a backup file of your ${cat.label.toLowerCase()} data`;
+                    exp.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #3f5a48;background:transparent;color:#8ab898;cursor:pointer;transition:background 0.12s,color 0.12s;";
+                    exp.addEventListener("mouseenter", () => { exp.style.background = "#2a4030"; exp.style.color = "#c0e8cc"; });
+                    exp.addEventListener("mouseleave", () => { exp.style.background = "transparent"; exp.style.color = "#8ab898"; });
+                    exp.addEventListener("click", () => { this.downloadBackup(exportDataCategories([cat]), cat.label); });
                     const del = document.createElement("button");
                     del.textContent = "Clear";
                     del.title = `Delete all ${cat.label.toLowerCase()} data`;
@@ -17698,6 +17763,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     row.appendChild(nm);
                     row.appendChild(sz);
                     row.appendChild(locBtn);
+                    row.appendChild(exp);
                     row.appendChild(del);
                     dataBody.appendChild(row);
                 }
@@ -17717,6 +17783,135 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 buildData();
             content.appendChild(dataBtn);
             content.appendChild(dataBody);
+            // ── Backup: take everything with you, restore it anywhere ─────────
+            // Deliberately storage-agnostic. A backup holds whatever you have,
+            // account-synced or device-only alike, and restoring puts each category
+            // wherever THIS device is set to keep it - so it survives clearing your
+            // browser data and moves cleanly between machines.
+            let backupOpen = false;
+            try {
+                backupOpen = localStorage.getItem("EBC_storageBackupOpen") === "1";
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            const backupBtn = document.createElement("button");
+            backupBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+            const backupBody = document.createElement("div");
+            backupBody.style.cssText = "margin-top:5px;display:flex;flex-direction:column;gap:6px;";
+            const paintBackupBtn = () => {
+                backupBtn.textContent = (backupOpen ? "\u25bc" : "\u25b6") + " Backup - export & import";
+                backupBody.style.display = backupOpen ? "flex" : "none";
+            };
+            const status = document.createElement("div");
+            status.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;min-height:13px;";
+            const say = (msg, ok = true) => {
+                status.textContent = msg;
+                status.style.color = ok ? "#8ab898" : "#c08a8a";
+            };
+            const runImport = (text) => {
+                let label = "this backup";
+                try {
+                    const meta = JSON.parse(text);
+                    if (Array.isArray(meta.categories) && meta.categories.length) {
+                        label = meta.categories.join(", ");
+                    }
+                }
+                catch (_a) {
+                    say("That is not valid JSON - copy the whole file, including the braces.", false);
+                    return;
+                }
+                showConfirmOverlay(`Import ${label}?\n\nAnything you already have in those categories is replaced. Everything else is left alone.`, "Cancel", "Import", () => {
+                    try {
+                        const r = importDataBackup(text);
+                        if (r.keys === 0) {
+                            say("Nothing imported - that backup held no EBC data.", false);
+                            return;
+                        }
+                        const extra = r.skipped.length ? ` ${r.skipped.length} unrecognised entr${r.skipped.length === 1 ? "y was" : "ies were"} ignored.` : "";
+                        say(`Restored ${r.categories.length} categor${r.categories.length === 1 ? "y" : "ies"}: ${r.categories.join(", ")}.${extra}`);
+                        window.setTimeout(() => this.rerender(), 2500);
+                    }
+                    catch (err) {
+                        say(`Could not read that backup: ${err.message}`, false);
+                    }
+                });
+            };
+            const buildBackup = () => {
+                while (backupBody.firstChild)
+                    backupBody.removeChild(backupBody.firstChild);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;";
+                hint.textContent = "Saves a file with everything EBC stores for you - whether it lives on your account or only on this browser. Keep it before clearing your browser data, or use it to move to another device. Importing puts each category wherever this device is set to keep it, so it does not matter where it came from. Use Save on a single row above to back up just that one.";
+                backupBody.appendChild(hint);
+                const btnRow = document.createElement("div");
+                btnRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+                const allBtn = document.createElement("button");
+                allBtn.textContent = "\u2193 Export everything";
+                allBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #79a885;background:transparent;color:#98d0a8;cursor:pointer;";
+                allBtn.addEventListener("click", () => {
+                    const json = exportAllData();
+                    this.downloadBackup(json, "all-data");
+                    say(`Exported ${Math.round(json.length / 1024)} KB. Keep the file somewhere safe.`);
+                });
+                const fileBtn = document.createElement("button");
+                fileBtn.textContent = "\u2191 Import from file";
+                fileBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;";
+                const filePick = document.createElement("input");
+                filePick.type = "file";
+                filePick.accept = "application/json,.json";
+                filePick.style.display = "none";
+                filePick.addEventListener("change", () => {
+                    var _a;
+                    const f = (_a = filePick.files) === null || _a === void 0 ? void 0 : _a[0];
+                    if (!f)
+                        return;
+                    const reader = new FileReader();
+                    reader.onload = () => { var _a; runImport(String((_a = reader.result) !== null && _a !== void 0 ? _a : "")); filePick.value = ""; };
+                    reader.onerror = () => { say("Could not read that file.", false); filePick.value = ""; };
+                    reader.readAsText(f);
+                });
+                fileBtn.addEventListener("click", () => filePick.click());
+                btnRow.appendChild(allBtn);
+                btnRow.appendChild(fileBtn);
+                backupBody.appendChild(btnRow);
+                backupBody.appendChild(filePick);
+                const ta = document.createElement("textarea");
+                ta.className = "ebc-form-input";
+                ta.placeholder = "…or paste a backup here";
+                ta.style.cssText = "width:100%;box-sizing:border-box;height:52px;resize:vertical;font-size:10px;font-family:monospace;";
+                // Keep BC's document-level key handler out of the textarea, or
+                // typing here moves the character and swallows characters.
+                ta.addEventListener("keydown", (e) => { e.stopPropagation(); });
+                ta.addEventListener("keyup", (e) => { e.stopPropagation(); });
+                const pasteBtn = document.createElement("button");
+                pasteBtn.textContent = "Import pasted text";
+                pasteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;padding:4px 10px;border-radius:6px;border:1px solid #4a2038;background:transparent;color:#9a7080;cursor:pointer;align-self:flex-start;";
+                pasteBtn.addEventListener("click", () => {
+                    const text = ta.value.trim();
+                    if (!text) {
+                        say("Paste a backup into the box first.", false);
+                        return;
+                    }
+                    runImport(text);
+                });
+                backupBody.appendChild(ta);
+                backupBody.appendChild(pasteBtn);
+                backupBody.appendChild(status);
+            };
+            backupBtn.addEventListener("click", () => {
+                backupOpen = !backupOpen;
+                try {
+                    localStorage.setItem("EBC_storageBackupOpen", backupOpen ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                if (backupOpen)
+                    buildBackup();
+                paintBackupBtn();
+            });
+            paintBackupBtn();
+            if (backupOpen)
+                buildBackup();
+            content.appendChild(backupBtn);
+            content.appendChild(backupBody);
             toggleBtn.addEventListener("click", () => {
                 open = !open;
                 try {
@@ -17729,6 +17924,25 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             wrap.appendChild(toggleBtn);
             wrap.appendChild(content);
             body.appendChild(wrap);
+        }
+        /** Offers a JSON string to the browser as a download. Used for backups -
+         *  a file is what survives clearing your browser data, which is the whole
+         *  point of the feature. */
+        downloadBackup(json, label) {
+            try {
+                const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
+                const day = new Date().toISOString().slice(0, 10);
+                const blob = new Blob([json], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ebc-${slug}-${day}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Sections shared by the classic OUTFITS tab and the grouped ME tab -----
         // These were inline inside renderOutfits(); they are pure moves so the
@@ -39579,7 +39793,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 226; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 227; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39596,6 +39810,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
                 "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
                 "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
                 "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",

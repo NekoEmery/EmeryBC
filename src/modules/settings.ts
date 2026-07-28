@@ -475,6 +475,74 @@ export const EBC_DATA_CATEGORIES: DataCategory[] = [
     { label: "Dom config",           keys: ["domConfig"] },
 ];
 
+// ── Backup: export / import ──────────────────────────────────────────────────
+// Storage-agnostic on purpose. Export reads the in-memory store, which already
+// holds device-stored keys (they are pulled in at login), so a backup covers
+// cache and account data alike. Import writes back into the same store and lets
+// the normal flush decide where each key belongs on THIS device - so a backup
+// taken with everything in cache restores correctly on a machine that keeps the
+// same categories on the account, and the other way round.
+
+export interface EBCBackup {
+    ebcBackup: 1;
+    ts: number;
+    categories: string[];
+    data: Record<string, unknown>;
+}
+
+/** Serialises the given categories. Keys holding nothing are skipped. */
+export function exportDataCategories(cats: DataCategory[]): string {
+    const store = getSettings() as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    const labels: string[] = [];
+    for (const cat of cats) {
+        let any = false;
+        for (const k of cat.keys) {
+            const v = store[k];
+            if (v === undefined || v === null) continue;
+            data[k] = v;
+            any = true;
+        }
+        if (any) labels.push(cat.label);
+    }
+    const backup: EBCBackup = { ebcBackup: 1, ts: Date.now(), categories: labels, data };
+    return JSON.stringify(backup);
+}
+
+export function exportAllData(): string {
+    return exportDataCategories(EBC_DATA_CATEGORIES);
+}
+
+/**
+ * Restores a backup. Only keys belonging to a known category are written - a
+ * pasted file can never introduce settings EBC does not already define.
+ * Returns what was restored, and which keys were ignored, so the UI can be
+ * honest about a partial import rather than claiming success.
+ */
+export function importDataBackup(json: string): { categories: string[]; keys: number; skipped: string[] } {
+    const parsed = JSON.parse(json) as Partial<EBCBackup>;
+    if (!parsed || parsed.ebcBackup !== 1 || typeof parsed.data !== "object" || parsed.data === null) {
+        throw new Error("Not an EBC backup file.");
+    }
+    const known = new Map<string, DataCategory>();
+    for (const cat of EBC_DATA_CATEGORIES) for (const k of cat.keys) known.set(k, cat);
+
+    const store = getSettings() as Record<string, unknown>;
+    const touched = new Set<string>();
+    const skipped: string[] = [];
+    let keys = 0;
+    for (const [k, v] of Object.entries(parsed.data as Record<string, unknown>)) {
+        const cat = known.get(k);
+        if (!cat) { skipped.push(k); continue; }
+        if (v === undefined) continue;
+        store[k] = v;
+        touched.add(cat.label);
+        keys++;
+    }
+    if (keys > 0) syncSettings();
+    return { categories: [...touched], keys, skipped };
+}
+
 /** Serialized size (chars ~ bytes) of one category's data. */
 export function getDataCategorySize(cat: DataCategory): number {
     try {
