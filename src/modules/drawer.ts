@@ -61,7 +61,7 @@ import {
     OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
-import { getCursedGroups, getCurseExpiry, releaseAllCurses, describeCursedGroups } from "./curse";
+import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
 import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
@@ -7761,9 +7761,6 @@ export class EBCDrawer {
 
     // -- Timer -----------------------------------------------------------------
 
-    /** Timestamp until which a second click on the footer lift actually lifts. */
-    private _curseLiftArmedUntil = 0;
-
     private updateTimer(): void {
         if (!this.timerEl) return;
         const online = getOnlineTime();
@@ -7774,11 +7771,9 @@ export class EBCDrawer {
         if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
         this.timerEl.textContent = text;
 
-        // Cursed slots, plus the way out. A curse blocks removal for everyone
-        // including the wearer, so without a release here the only escape was
-        // disabling EBC entirely - one player sat stuck in a leg restraint for
-        // two days before working that out. Two clicks so it cannot happen by
-        // accident, but it never depends on whoever applied it still being here.
+        // Cursed slots. Read-only on purpose: a curse the wearer can undo is not
+        // a curse, so there is no lift control here. The red safeword still
+        // clears them - that is the emergency exit, not a convenience button.
         try {
             if (getCursedGroups().size > 0) {
                 const expiry = getCurseExpiry();
@@ -7789,32 +7784,9 @@ export class EBCDrawer {
                     when = `: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
                 }
                 const label = document.createElement("span");
-                label.textContent = `  🔒 Cursed${when} (${describeCursedGroups()})  `;
+                label.textContent = `  \u{1F512} Cursed${when} (${describeCursedGroups()})`;
+                label.title = "These slots cannot be removed until whoever cursed them lifts it.";
                 this.timerEl.appendChild(label);
-
-                const armed = Date.now() < this._curseLiftArmedUntil;
-                const lift = document.createElement("span");
-                lift.textContent = armed ? "click again to lift" : "lift";
-                lift.title = armed
-                    ? "Releases every curse on you right now"
-                    : "Safety release - frees the cursed slots so you can undress normally";
-                lift.style.cssText = "cursor:pointer;text-decoration:underline;font-weight:bold;color:"
-                    + (armed ? "#e08a8a" : "#cf6f98") + ";";
-                lift.addEventListener("click", (ev) => {
-                    ev.stopPropagation();
-                    if (Date.now() >= this._curseLiftArmedUntil) {
-                        this._curseLiftArmedUntil = Date.now() + 5000;
-                        this.updateTimer();
-                        return;
-                    }
-                    this._curseLiftArmedUntil = 0;
-                    const slots = describeCursedGroups();
-                    if (releaseAllCurses() > 0) {
-                        appendLocalLogLine(`[EBC] \u26d3 You lifted your curses: ${slots}`, UI.accent);
-                    }
-                    this.updateTimer();
-                });
-                this.timerEl.appendChild(lift);
             }
         } catch { /* ignore */ }
         try { checkAndApplySchedules(); } catch { /* ignore */ }
@@ -28812,7 +28784,12 @@ This cannot be undone.`,
             setDomCurseExpiry(id, expiry);
             const roomItems = getRoomMemberItems(id);
             const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
-            const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+            // Send the FULL set, not just what was ticked this time. The target
+            // applies these additively, so resending existing ones costs nothing
+            // and it keeps both sides in step - previously the dom's list could
+            // hold groups the target no longer had, which is how a slot nobody
+            // had just cursed kept reappearing in Active Curses.
+            const beepEntries = merged.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
             if (expiry) beepEntries.push(`expiry=${expiry}`);
             sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
             const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
@@ -28881,8 +28858,15 @@ This cannot be undone.`,
 
                 const nm = document.createElement("span");
                 nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-                nm.textContent = nameMap.get(group) ?? group.replace("Item", "");
-                nm.title = group;
+                const known = nameMap.get(group);
+                // A group with no matching item is a leftover from an earlier
+                // curse, not something on them now. Say so rather than printing
+                // a bare slot name that reads as a curse appearing from nowhere.
+                nm.textContent = known ?? `${group.replace("Item", "")} - slot empty`;
+                if (!known) nm.style.color = "#8a7080";
+                nm.title = known
+                    ? group
+                    : `${group}: still cursed, but they are not wearing anything there. Lift it with ✕ if it is stale.`;
 
                 const pauseBtn = document.createElement("button");
                 pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;

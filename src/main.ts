@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 228;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 229;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
+            "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
             "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
             "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
             "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
