@@ -7391,17 +7391,6 @@
     function isAchievementUser(memberNumber) {
         return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
     }
-    /** Minutes -> "20 min" / "1 hour" / "2 days" for readable thresholds. */
-    function fmtMinutes(n) {
-        if (n < 60)
-            return `${n} min`;
-        if (n < 1440) {
-            const h = Math.round(n / 60);
-            return `${h} hour${h === 1 ? "" : "s"}`;
-        }
-        const d = Math.round(n / 1440);
-        return `${d} day${d === 1 ? "" : "s"}`;
-    }
     /** Fills {n} in a description, honouring the def's formatter. */
     function achievementDesc(a, n) {
         return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
@@ -7431,8 +7420,6 @@
         { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100], cls: "bondage" },
         { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
-        { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room", counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
-        { id: "settled", icon: "🛋", name: "Settled In", desc: "Stay in one room for {n} straight", counter: "room_min", tiers: [20, 60, 1440], cls: "received", fmtN: fmtMinutes },
         // ⭐ Emery - rare single golden unlocks
         { id: "pat_the_dev", icon: "⭐", name: "Pat the Kitty", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
         { id: "boop_the_dev", icon: "⭐", name: "Boop the Kitty", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
@@ -7896,11 +7883,8 @@
     // HQ. No-op for non-achievement users; cheap enough to just run.
     const TICK_MS = 5 * 60 * 1000;
     const HQ_ROOM = "emerybc (ebc) hq";
-    // A streak survives a refresh but not an absence. Three missed ticks (15 min)
-    // is well past any reload and well short of a real visit.
-    const STREAK_GAP_MS = TICK_MS * 3;
     setInterval(() => {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+        var _a, _b, _c, _d;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
@@ -7911,47 +7895,16 @@
             const hours = Math.floor(getRestraintMs() / 3600000);
             if (hours > ((_c = st.c["bound_h"]) !== null && _c !== void 0 ? _c : 0))
                 st.c["bound_h"] = hours;
-            const now = Date.now();
-            // Plain time in one room. Measured from a stored arrival time, so a page
-            // refresh no longer resets it - counting ticks in memory made the 24
-            // hour tier all but impossible for anyone who ever reloaded.
-            const roomBroke = !room || ((_d = st.roomStreak) === null || _d === void 0 ? void 0 : _d.room) !== room
-                || now - ((_f = (_e = st.roomStreak) === null || _e === void 0 ? void 0 : _e.at) !== null && _f !== void 0 ? _f : 0) > STREAK_GAP_MS;
-            if (!room)
-                st.roomStreak = undefined;
-            else if (roomBroke)
-                st.roomStreak = { room, since: now, at: now };
-            if (st.roomStreak) {
-                st.roomStreak.at = now;
-                const mins = Math.floor((now - st.roomStreak.since) / 60000);
-                if (mins > ((_g = st.c["room_min"]) !== null && _g !== void 0 ? _g : 0))
-                    st.c["room_min"] = mins;
-            }
-            // Bound AND staying put - same treatment, and also ends if you get free.
-            const bound = getRestraintMs() > 0;
-            const boundBroke = !room || !bound || ((_h = st.boundStreak) === null || _h === void 0 ? void 0 : _h.room) !== room
-                || now - ((_k = (_j = st.boundStreak) === null || _j === void 0 ? void 0 : _j.at) !== null && _k !== void 0 ? _k : 0) > STREAK_GAP_MS;
-            if (!room || !bound)
-                st.boundStreak = undefined;
-            else if (boundBroke)
-                st.boundStreak = { room, since: now, at: now };
-            if (st.boundStreak) {
-                st.boundStreak.at = now;
-                const h = Math.floor((now - st.boundStreak.since) / 3600000);
-                if (h > ((_l = st.c["room_bound_h"]) !== null && _l !== void 0 ? _l : 0))
-                    st.c["room_bound_h"] = h;
-            }
-            // Total time in the EBC HQ support room. A TOTAL, not a streak, so it has
-            // to persist - it used to live in a module variable, which meant two
-            // forty-minute visits never added up to the one hour the tier asks for.
+            // Total time in the EBC HQ support room. A total, not a streak, so it
+            // persists across sessions - two half-hour visits add up.
             if (room.trim().toLowerCase() === HQ_ROOM) {
-                st.hqMin = ((_m = st.hqMin) !== null && _m !== void 0 ? _m : 0) + TICK_MS / 60000;
+                st.hqMin = ((_d = st.hqMin) !== null && _d !== void 0 ? _d : 0) + TICK_MS / 60000;
                 st.c["hq_h"] = Math.floor(st.hqMin / 60);
             }
             checkUnlocks();
             save();
         }
-        catch ( /* ignore */_o) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
     }, TICK_MS);
 
     function appendLocalLogLine(text, color = UI.accent) {
@@ -39816,7 +39769,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 231; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 232; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39833,8 +39786,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Removed the 'Settled In' and 'Comfy Captive' achievements. Time spent sitting in one room could not be measured reliably - reloading, reconnecting or BC dropping the room state all looked identical to leaving, so progress was inconsistent and there was no honest way to fix that. The rest of the bondage achievements, including 'Living in Rope' for a continuous bound streak, are unaffected.",
                 "Fix: sections inside a pill were squeezed into a small scrolling box with a screen of empty space beneath them. The height cap on those strips exists for the classic layout, where they sit pinned above every tab and would otherwise push the footer off screen - inside a pill they own the whole page, so the cap is dropped and the panel scrolls normally.",
-                "Fix: two achievements could not realistically be earned. 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for - it is a running total that persists now. 'Settled In' and 'Comfy Captive' measured their streaks the same way, so refreshing wiped however long you had been sitting somewhere; they now measure from a stored arrival time, and only a real absence of more than fifteen minutes breaks the streak.",
+                "Fix: 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for. It is a running total that persists now.",
                 "'Crew Groomer' renamed to 'Crew Cuddler'.",
                 "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
                 "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
