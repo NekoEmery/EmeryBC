@@ -25180,6 +25180,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
             }, 80);
         }
+        /**
+         * Redraws the friends list in response to a control inside it - search,
+         * clear, sort, filter - keeping the Rooms section wherever it currently
+         * lives. Calling renderFriendRows(body) directly here is a trap: with no
+         * rooms target it renders the whole room list INTO the friends section, so
+         * typing in the search box made the rooms list reappear above the results.
+         * In classic layout _roomsSectionEl is null, which restores the inline
+         * behaviour that layout wants.
+         */
+        refreshFriendRowsInPlace(body) {
+            var _a;
+            this.renderFriendRows(body, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
+        }
         /** Renders the friends list. When roomsTarget is given, the Rooms section is
          *  rendered there instead (its own pill in the tabbed Users layout). */
         renderFriendRows(body, roomsTarget) {
@@ -25719,7 +25732,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                     try {
-                        this.renderFriendRows(body);
+                        this.refreshFriendRowsInPlace(body);
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                 });
@@ -25735,7 +25748,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         this.beepUnread.clear();
                         this.refreshTabDot();
                         try {
-                            this.renderFriendRows(body);
+                            this.refreshFriendRowsInPlace(body);
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                     });
@@ -25760,7 +25773,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     // Capture cursor position before the rebuild destroys this element
                     const sel = [(_a = searchInput.selectionStart) !== null && _a !== void 0 ? _a : 0, (_b = searchInput.selectionEnd) !== null && _b !== void 0 ? _b : 0];
                     try {
-                        this.renderFriendRows(body);
+                        this.refreshFriendRowsInPlace(body);
                     }
                     catch ( /* ignore */_c) { /* ignore */ }
                     // Restore focus + cursor to the freshly-created search input
@@ -25782,7 +25795,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 clearSearchBtn.addEventListener("click", () => {
                     this.friendSearch = "";
                     try {
-                        this.renderFriendRows(body);
+                        this.refreshFriendRowsInPlace(body);
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                     const reborn = body.querySelector('[data-ebc-role="friend-search"]');
@@ -39451,7 +39464,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 218; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 219; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39468,6 +39481,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Julia): typing in the friends search no longer makes the room list reappear above your results. Root cause: the search, clear, sort and filter controls all redrew the friends list without telling it where the Rooms section lives, and the renderer falls back to drawing rooms inline when it is not told - so the whole room list landed on top of the friends section every keystroke. All four now keep Rooms in its own pill.",
                 "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
                 "Fix: the auto-escape room emote now fills in its tokens whether you wrote them with braces or square brackets ({item} or [item]), and a token can be used more than once. Text saved with square brackets was being sent to the room literally.",
                 "Menu layout toggle is clearer: it now says which layout you are on and the button says what pressing it does (\"Switch to Classic\" / \"Switch to New\"), instead of one small pill reading \"New layout\" that meant both equally.",
