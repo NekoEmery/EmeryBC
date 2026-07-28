@@ -75,14 +75,6 @@ export interface AchievementDef {
     fmtN?: (n: number) => string;
 }
 
-/** Minutes -> "20 min" / "1 hour" / "2 days" for readable thresholds. */
-function fmtMinutes(n: number): string {
-    if (n < 60) return `${n} min`;
-    if (n < 1440) { const h = Math.round(n / 60); return `${h} hour${h === 1 ? "" : "s"}`; }
-    const d = Math.round(n / 1440);
-    return `${d} day${d === 1 ? "" : "s"}`;
-}
-
 /** Fills {n} in a description, honouring the def's formatter. */
 export function achievementDesc(a: AchievementDef, n: number): string {
     return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
@@ -114,8 +106,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
     { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
-    { id: "roomstay", icon: "🏠", name: "Comfy Captive", desc: "Spend {n} hours bound in one room",     counter: "room_bound_h", tiers: [1, 5, 24], cls: "bondage" },
-    { id: "settled",  icon: "🛋", name: "Settled In",    desc: "Stay in one room for {n} straight",     counter: "room_min",     tiers: [20, 60, 1440], cls: "received", fmtN: fmtMinutes },
     // ⭐ Emery - rare single golden unlocks
     { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
     { id: "boop_the_dev",  icon: "⭐", name: "Boop the Kitty",  desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
@@ -137,12 +127,9 @@ interface AchState {
     p?: number[];               // distinct member numbers who acted on you (capped)
     cm?: number[];              // credited people you have shared a room with
     cp?: number[];              // credited people you have headpatted
-    // Streaks and totals live here rather than in module variables so they are
-    // not wiped by a page reload. `at` is the last tick that saw the streak
-    // alive - a gap longer than a few ticks means you were away, not refreshing.
-    hqMin?: number;                                       // total minutes in EBC HQ, all sessions
-    roomStreak?: { room: string; since: number; at: number };
-    boundStreak?: { room: string; since: number; at: number };
+    // Kept in state rather than a module variable so a page reload does not
+    // reset it - this is a lifetime total, not a per-session one.
+    hqMin?: number;             // total minutes in EBC HQ, all sessions
 }
 
 function getState(): AchState {
@@ -575,9 +562,6 @@ export function getAchievementProgress(): AchievementProgress[] {
 // HQ. No-op for non-achievement users; cheap enough to just run.
 const TICK_MS = 5 * 60 * 1000;
 const HQ_ROOM = "emerybc (ebc) hq";
-// A streak survives a refresh but not an absence. Three missed ticks (15 min)
-// is well past any reload and well short of a real visit.
-const STREAK_GAP_MS = TICK_MS * 3;
 
 setInterval(() => {
     try {
@@ -590,36 +574,8 @@ setInterval(() => {
         const hours = Math.floor(getRestraintMs() / 3_600_000);
         if (hours > (st.c["bound_h"] ?? 0)) st.c["bound_h"] = hours;
 
-        const now = Date.now();
-
-        // Plain time in one room. Measured from a stored arrival time, so a page
-        // refresh no longer resets it - counting ticks in memory made the 24
-        // hour tier all but impossible for anyone who ever reloaded.
-        const roomBroke = !room || st.roomStreak?.room !== room
-            || now - (st.roomStreak?.at ?? 0) > STREAK_GAP_MS;
-        if (!room) st.roomStreak = undefined;
-        else if (roomBroke) st.roomStreak = { room, since: now, at: now };
-        if (st.roomStreak) {
-            st.roomStreak.at = now;
-            const mins = Math.floor((now - st.roomStreak.since) / 60_000);
-            if (mins > (st.c["room_min"] ?? 0)) st.c["room_min"] = mins;
-        }
-
-        // Bound AND staying put - same treatment, and also ends if you get free.
-        const bound = getRestraintMs() > 0;
-        const boundBroke = !room || !bound || st.boundStreak?.room !== room
-            || now - (st.boundStreak?.at ?? 0) > STREAK_GAP_MS;
-        if (!room || !bound) st.boundStreak = undefined;
-        else if (boundBroke) st.boundStreak = { room, since: now, at: now };
-        if (st.boundStreak) {
-            st.boundStreak.at = now;
-            const h = Math.floor((now - st.boundStreak.since) / 3_600_000);
-            if (h > (st.c["room_bound_h"] ?? 0)) st.c["room_bound_h"] = h;
-        }
-
-        // Total time in the EBC HQ support room. A TOTAL, not a streak, so it has
-        // to persist - it used to live in a module variable, which meant two
-        // forty-minute visits never added up to the one hour the tier asks for.
+        // Total time in the EBC HQ support room. A total, not a streak, so it
+        // persists across sessions - two half-hour visits add up.
         if (room.trim().toLowerCase() === HQ_ROOM) {
             st.hqMin = (st.hqMin ?? 0) + TICK_MS / 60_000;
             st.c["hq_h"] = Math.floor(st.hqMin / 60);

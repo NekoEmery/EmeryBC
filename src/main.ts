@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 231;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 232;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,8 +49,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Removed the 'Settled In' and 'Comfy Captive' achievements. Time spent sitting in one room could not be measured reliably - reloading, reconnecting or BC dropping the room state all looked identical to leaving, so progress was inconsistent and there was no honest way to fix that. The rest of the bondage achievements, including 'Living in Rope' for a continuous bound streak, are unaffected.",
             "Fix: sections inside a pill were squeezed into a small scrolling box with a screen of empty space beneath them. The height cap on those strips exists for the classic layout, where they sit pinned above every tab and would otherwise push the footer off screen - inside a pill they own the whole page, so the cap is dropped and the panel scrolls normally.",
-            "Fix: two achievements could not realistically be earned. 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for - it is a running total that persists now. 'Settled In' and 'Comfy Captive' measured their streaks the same way, so refreshing wiped however long you had been sitting somewhere; they now measure from a stored arrival time, and only a real absence of more than fifteen minutes breaks the streak.",
+            "Fix: 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for. It is a running total that persists now.",
             "'Crew Groomer' renamed to 'Crew Cuddler'.",
             "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
             "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
