@@ -838,7 +838,12 @@ const CSS = `
     -webkit-overflow-scrolling: touch; /* momentum scroll - needed on some Android builds */
 }
 
-/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) --
+   The cap exists for the CLASSIC layout, where this strip is pinned above every
+   tab and must not push the footer off screen. Inside a pill it owns the whole
+   page, so the cap only produced a small scrollbox with a screen of dead space
+   under it - .ebc-full-height opts out and lets the panel do the scrolling. */
+.ebc-full-height { max-height: none !important; }
 .ebc-tags-body {
     max-height: 210px;
     overflow-y: auto;
@@ -18238,6 +18243,12 @@ This cannot be undone.`,
                 }
                 if (hdr2) hdr2.style.display = "none";
                 if (devTabs) {
+                    // Inside a pill this content has the full page to itself, so
+                    // drop the height caps that exist for the pinned-strip layout.
+                    try {
+                        el.querySelectorAll<HTMLElement>(".ebc-tags-body")
+                          .forEach(n => n.classList.add("ebc-full-height"));
+                    } catch { /* ignore */ }
                     // Register as a pill section - the pill acts as the header.
                     const wrap = document.createElement("div");
                     wrap.appendChild(el);
