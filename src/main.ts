@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 236;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 237;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
             "Fix (reported by Julia): the Body menu now keeps up when something else changes your pose. Being forced into a pose by a restraint, or posed by someone else, left the old highlight in place until you clicked something - the grid only repainted on your own clicks. It now follows the real pose while the page is open.",
             "Tags and protected items are back to being sized to their text. The previous version stretched them across the full width, which turned three tags into three enormous slabs.",
             "Layout: Tags, Protected and IRL toys use the width they have instead of a few small pills in the corner. Tags and protected items are cards in a grid that fills the page, with the colour swatch and full name readable; the 'current restraints' list under Protected now opens by default, since it is the only way to add anything there and hiding it made the page look empty. Each IRL toy integration is a card with a line explaining what it actually is, so the page reads without opening all three.",

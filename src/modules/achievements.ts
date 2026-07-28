@@ -184,6 +184,29 @@ function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
     save();
 }
 
+/**
+ * Who still counts against a roster achievement, by name.
+ *
+ * Without this the counter is opaque: you count toward your own total if you
+ * are credited, so meeting one person reads as 2/6 and looks like nothing
+ * happened. Naming who is left makes it obvious it registered.
+ */
+export function crewRosterStatus(id: string): { done: string[]; left: string[] } | null {
+    const key = id === "crew_met" ? "cm" : id === "crew_pet" ? "cp" : null;
+    if (!key) return null;
+    try {
+        const st = getState();
+        const have = new Set(Array.isArray(st[key]) ? st[key] as number[] : []);
+        const me = Player?.MemberNumber ?? 0;
+        // Seeded lazily on first collection, so reflect it before that happens.
+        if (isCredited(me)) have.add(me);
+        const done: string[] = [];
+        const left: string[] = [];
+        for (const p of CREDITED) (have.has(p.num) ? done : left).push(p.name);
+        return { done, left };
+    } catch { return null; }
+}
+
 /** Marks every credited person currently in the room as met. Called from the
  *  room-sync hooks rather than polled, so a brief visit still counts. */
 export function achievementScanRoom(): void {

@@ -7570,6 +7570,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         checkUnlocks();
         save();
     }
+    /**
+     * Who still counts against a roster achievement, by name.
+     *
+     * Without this the counter is opaque: you count toward your own total if you
+     * are credited, so meeting one person reads as 2/6 and looks like nothing
+     * happened. Naming who is left makes it obvious it registered.
+     */
+    function crewRosterStatus(id) {
+        var _a;
+        const key = id === "crew_met" ? "cm" : id === "crew_pet" ? "cp" : null;
+        if (!key)
+            return null;
+        try {
+            const st = getState();
+            const have = new Set(Array.isArray(st[key]) ? st[key] : []);
+            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            // Seeded lazily on first collection, so reflect it before that happens.
+            if (isCredited(me))
+                have.add(me);
+            const done = [];
+            const left = [];
+            for (const p of CREDITED)
+                (have.has(p.num) ? done : left).push(p.name);
+            return { done, left };
+        }
+        catch (_b) {
+            return null;
+        }
+    }
     /** Marks every credited person currently in the room as met. Called from the
      *  room-sync hooks rather than polled, so a brief visit still counts. */
     function achievementScanRoom() {
@@ -27641,6 +27670,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         const ds = document.createElement("div");
                         ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                         ds.textContent = a.descNow;
+                        // Roster achievements name who is outstanding - the bare
+                        // count is confusing when you are on the list yourself.
+                        const roster = crewRosterStatus(a.id);
+                        if (roster && roster.left.length > 0) {
+                            const leftEl = document.createElement("div");
+                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:2px;";
+                            leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
+                            leftEl.title = roster.done.length ? `Already done: ${roster.done.join(", ")}` : "";
+                            ds.after(leftEl);
+                        }
                         main.appendChild(ds);
                         const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
                         const trough = document.createElement("div");
@@ -40016,7 +40055,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 236; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 237; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40033,6 +40072,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
                 "Fix (reported by Julia): the Body menu now keeps up when something else changes your pose. Being forced into a pose by a restraint, or posed by someone else, left the old highlight in place until you clicked something - the grid only repainted on your own clicks. It now follows the real pose while the page is open.",
                 "Tags and protected items are back to being sized to their text. The previous version stretched them across the full width, which turned three tags into three enormous slabs.",
                 "Layout: Tags, Protected and IRL toys use the width they have instead of a few small pills in the corner. Tags and protected items are cards in a grid that fills the page, with the colour swatch and full name readable; the 'current restraints' list under Protected now opens by default, since it is the only way to add anything there and hiding it made the page look empty. Each IRL toy integration is a card with a line explaining what it actually is, so the page reads without opening all three.",

@@ -108,7 +108,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, type ShareMode } from "./achievements";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -18149,6 +18149,16 @@ This cannot be undone.`,
                     const ds = document.createElement("div");
                     ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                     ds.textContent = a.descNow;
+                    // Roster achievements name who is outstanding - the bare
+                    // count is confusing when you are on the list yourself.
+                    const roster = crewRosterStatus(a.id);
+                    if (roster && roster.left.length > 0) {
+                        const leftEl = document.createElement("div");
+                        leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:2px;";
+                        leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
+                        leftEl.title = roster.done.length ? `Already done: ${roster.done.join(", ")}` : "";
+                        ds.after(leftEl);
+                    }
                     main.appendChild(ds);
 
                     const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
