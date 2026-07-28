@@ -65,7 +65,18 @@
         const viaBC = w.ChatRoomSendEmote;
         if (typeof viaBC === "function") {
             try {
-                viaBC("*" + content);
+                // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
+                // text, and two of its rules rewrite what we give it:
+                //   "*NN%rest"  -> an attempt roll, replacing the text with a dice
+                //                  result. The digit count is 0-2, so even "%x" hits it.
+                //   a doubled leading "*" survives one strip and shows in the message.
+                // Button and announce text is already-final content the person
+                // configured, never something they typed, so neither rewrite is
+                // wanted. Prepend the "*" only when it is absent, and drop it
+                // entirely when keeping it would turn the emote into a roll.
+                const starred = content.startsWith("*") ? content : "*" + content;
+                const wouldRoll = /^(\*|\/attempt )(\d{0,2}|100)%(.+)/.test(starred);
+                viaBC(wouldRoll ? content.replace(/^\*/, "") : starred);
                 return;
             }
             catch ( /* fall through to the direct send below */_a) { /* fall through to the direct send below */ }
@@ -39394,7 +39405,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 216; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 217; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39411,6 +39422,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: emote-style action buttons, anims and outfit announcements send your text literally again. Routing them through BC's own emote function in the last update also handed BC your text as chat SYNTAX, so a button starting with a number and a percent sign (\"100% done~\") was turned into an attempt dice roll with the text rewritten, and text already wrapped in asterisks came out with a stray one. Now the asterisk is only added when it is missing, and dropped entirely when keeping it would trigger the roll. Rule addons still see every emote.",
                 "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
                 "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
                 "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
