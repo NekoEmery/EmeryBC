@@ -7286,6 +7286,9 @@ export class EBCDrawer {
      * Tab *switches* intentionally bypass this and call renderCurrentTab()
      * directly so the new tab always starts at the top.
      */
+    /** Interval keeping the pose grid in step with poses set elsewhere. */
+    private _poseWatch: number | null = null;
+
     private _rerenderTimer: number | null = null;
     /** True while _pillifyTab is synthesising header clicks. */
     private _pillifying = false;
@@ -8484,17 +8487,17 @@ This cannot be undone.`,
             // ── Existing tags as interactive chips ────────────────────────────
             if (tags.length) {
                 const chipsWrap = document.createElement("div");
-                chipsWrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;margin-bottom:9px;";
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;align-items:flex-start;";
                 for (const tag of tags) {
                     const chip = document.createElement("div");
-                    chip.style.cssText = `display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:9px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 2px 5px rgba(0,0,0,0.35);min-width:0;`;
+                    chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 7px;border-radius:16px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 1px 3px rgba(0,0,0,0.35);max-width:190px;`;
 
                     // Color dot = native color input styled as a dot
                     const colorDot = document.createElement("input");
                     colorDot.type = "color";
                     colorDot.value = tag.color;
                     colorDot.title = "Change color";
-                    colorDot.style.cssText = "width:16px;height:16px;padding:0;border:1px solid rgba(255,255,255,0.45);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
+                    colorDot.style.cssText = "width:13px;height:13px;padding:0;border:1px solid rgba(255,255,255,0.45);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
                     colorDot.addEventListener("input", () => {
                         updateOutfitTag(tag.id, tag.name, colorDot.value);
                         tag.color = colorDot.value;
@@ -8503,7 +8506,7 @@ This cannot be undone.`,
 
                     const nameSpan = document.createElement("span");
                     nameSpan.textContent = tag.name;
-                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
                     const delSpan = document.createElement("span");
                     delSpan.textContent = "×";
@@ -9183,7 +9186,7 @@ This cannot be undone.`,
             // ── Active chips ──────────────────────────────────────────────────
             if (current.length) {
                 const chipsWrap = document.createElement("div");
-                chipsWrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:9px;";
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;align-items:flex-start;";
                 for (const group of current) {
                     // Resolve a readable label: try current worn item, fallback to cleaned group name
                     let chipLabel = group.replace(/^Item/, "");
@@ -9199,9 +9202,9 @@ This cannot be undone.`,
                     } catch { /* ignore */ }
 
                     const chip = document.createElement("div");
-                    chip.style.cssText = "display:flex;align-items:center;gap:6px;background:#1a0c16;border:1px solid #3a1928;border-left:3px solid #79a885;border-radius:7px;padding:7px 9px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;min-width:0;";
+                    chip.style.cssText = "display:inline-flex;align-items:center;gap:6px;background:#1a0c16;border:1px solid #3a1928;border-left:3px solid #79a885;border-radius:6px;padding:5px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;max-width:230px;";
                     const chipTxt = document.createElement("span");
-                    chipTxt.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;";
+                    chipTxt.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;";
                     chipTxt.textContent = chipLabel;
                     chipTxt.title = chipLabel;
                     const rmBtn = document.createElement("span");
@@ -9235,8 +9238,8 @@ This cannot be undone.`,
             const wornToggle = document.createElement("div");
             wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
             const wornBody = document.createElement("div");
-            wornBody.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;";
-            wornBody.style.display = wornOpen ? "grid" : "none";
+            wornBody.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;";
+            wornBody.style.display = wornOpen ? "flex" : "none";
 
             const updateWornToggle = (): void => {
                 wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints - click to protect";
@@ -11674,6 +11677,11 @@ This cannot be undone.`,
             blocked ? "Your restraints stop you from taking this pose"
             : key ? `Set ${grp.toLowerCase()} pose: ${key}`
             : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
+        // Poses change without the panel being touched - a restraint can force
+        // one, and someone else can pose you. Nothing told the grid, so the
+        // highlight kept showing whatever you last picked. Poll while the grid
+        // is on screen and stop as soon as it is replaced.
+        if (this._poseWatch !== null) { window.clearInterval(this._poseWatch); this._poseWatch = null; }
         const refreshPoseBtns = (): void => {
             const live = getCurrentPoses();
             const armKeys2 = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
@@ -11690,6 +11698,15 @@ This cannot be undone.`,
                 ref.btn.title = poseTitle(ref.key, ref.group, blocked);
             }
         };
+
+        this._poseWatch = window.setInterval(() => {
+            if (!document.body.contains(posesCnt)) {
+                if (this._poseWatch !== null) window.clearInterval(this._poseWatch);
+                this._poseWatch = null;
+                return;
+            }
+            refreshPoseBtns();
+        }, 1000);
 
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");
