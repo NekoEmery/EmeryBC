@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 233;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 234;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "A blocked beep is now a proper notice under the message rather than a line of small grey text, and it names BCX when BCX is what is loaded. It says whether the rule is on you or on them, and reminds you that only you can see it.",
             "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
             "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
             "Notes now show the note itself under each name instead of just a list of names, with a search box that looks through the note text as well as the names, and a two-step delete on each row.",

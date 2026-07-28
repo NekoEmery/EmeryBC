@@ -8,7 +8,7 @@
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design!
  */
-import { sendEmoteViaBC } from "./bcSpeech";
+import { sendEmoteViaBC, ruleAddonName } from "./bcSpeech";
 import {
     getOutfits,
     applyOutfit,
@@ -14520,21 +14520,30 @@ This cannot be undone.`,
                     pRow.appendChild(pCancel);
                     wrap.appendChild(pRow);
                 } else if (isSent && isBeepBlocked(e)) {
-                    // Never left. Whose rule stopped it changes what you can do
-                    // about it, so the two cases read differently.
+                    // A proper block, not a footnote. This is the difference
+                    // between a message that went and one that never left, so it
+                    // is worth more than nine grey pixels under the bubble.
                     const blockedBy = isBeepBlocked(e);
-                    bubble.style.opacity = "0.72";
+                    const addon = ruleAddonName();
+                    bubble.style.opacity = "0.55";
                     const bRow = document.createElement("div");
-                    bRow.style.cssText = "padding:1px 3px 0;";
-                    const bLbl = document.createElement("span");
-                    bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
-                    bLbl.textContent = blockedBy === "you"
-                        ? "⛔ Not sent - a rule on you blocks beeping them"
-                        : "⛔ Not delivered - their rules block beeps from you";
-                    bLbl.title = blockedBy === "you"
-                        ? "One of your own rules (BCX or similar) forbids beeping this person. Only you can see this."
-                        : "They run a rule that refuses beeps from you. Only you can see this.";
-                    bRow.appendChild(bLbl);
+                    bRow.style.cssText = "margin:3px 0 2px;padding:6px 9px;border-radius:7px;border:1px solid #7a3040;border-left:3px solid #c04858;background:rgba(70,14,26,0.45);max-width:100%;box-sizing:border-box;";
+                    const bHead = document.createElement("div");
+                    bHead.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;color:#e88a96;text-transform:uppercase;";
+                    bHead.textContent = addon === "BCX"
+                        ? "⛔ Blocked by BCX"
+                        : "⛔ Blocked by a rule";
+                    const bWhy = document.createElement("div");
+                    bWhy.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#d0a8b0;line-height:1.45;margin-top:2px;";
+                    bWhy.textContent = blockedBy === "you"
+                        ? `A ${addon} rule on you forbids beeping them, so this was never sent.`
+                        : `They have a ${addon} rule that refuses beeps from you, so this never reached them.`;
+                    const bWho = document.createElement("div");
+                    bWho.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7884;font-style:italic;margin-top:3px;";
+                    bWho.textContent = "Only you can see this.";
+                    bRow.appendChild(bHead);
+                    bRow.appendChild(bWhy);
+                    bRow.appendChild(bWho);
                     wrap.appendChild(bRow);
                 }
 

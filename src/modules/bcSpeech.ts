@@ -29,6 +29,21 @@ let _ebcOriginated = false;
 export function isEbcOriginatedBeep(): boolean { return _ebcOriginated; }
 
 /**
+ * The rule addon most likely responsible for a blocked send, named only when it
+ * is actually loaded. BCX is the usual one but not the only thing that can hook
+ * these functions, so an unknown blocker is described rather than misattributed.
+ */
+export function ruleAddonName(): string {
+    try {
+        const sdk = (window as unknown as Record<string, unknown>).bcModSdk as
+            { getModsInfo?: () => Array<{ name?: string }> } | undefined;
+        const mods = sdk?.getModsInfo?.();
+        if (Array.isArray(mods) && mods.some(m => (m.name ?? "").toUpperCase() === "BCX")) return "BCX";
+    } catch { /* ignore */ }
+    return "a rule addon";
+}
+
+/**
  * Sends a beep, honouring any rule addon hooked onto ServerSendBeepMessage.
  *
  * Returns false when a hook swallowed the beep, so callers can skip recording
