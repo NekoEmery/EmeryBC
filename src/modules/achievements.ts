@@ -7,27 +7,14 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 import { getRestraintMs } from "./timer";
+import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited } from "./crew";
 
 // Crew whitelist - only these members track or see achievements.
-export const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
+// The roster lives in crew.ts so the credits cards, the VIP gradients, the
+// crew-only tools and these achievements can never disagree about who counts.
+// Re-exported because drawer.ts already imports the whitelist from here.
+export { ACHIEVEMENT_MEMBERS } from "./crew";
 const EMERY = 130267;
-
-// Everyone named on the CREDITS tab. This drives the two "whole crew"
-// achievements below, and their thresholds are its length - so adding a person
-// to the credits means adding them HERE too, or the achievement silently keeps
-// asking for the old number. Not the same list as ACHIEVEMENT_MEMBERS: that one
-// also covers crew who are not credited.
-export const CREDITED_MEMBERS: Array<{ num: number; name: string }> = [
-    { num: 130267, name: "Emery" },
-    { num: 143776, name: "Sin"   },
-    { num: 230466, name: "Lucy"  },
-    { num: 124264, name: "Lara"  },
-    { num: 80,     name: "Sybil" },
-];
-const CREDITED_NUMS = CREDITED_MEMBERS.map(p => p.num);
-function isCredited(n: number | undefined): boolean {
-    return typeof n === "number" && CREDITED_NUMS.includes(n);
-}
 
 /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
  *  itself, so someone who opted out can find their way back). */
@@ -140,8 +127,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
-    { id: "crew_met", icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
-    { id: "crew_pet", icon: "⭐", name: "Crew Groomer",  desc: "Headpat all {n} credited EBC people",           counter: "crew_pet", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
+    { id: "crew_met", icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "crew_pet", icon: "⭐", name: "Crew Groomer",  desc: "Headpat all {n} credited EBC people",           counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
 ];
 
 interface AchState {

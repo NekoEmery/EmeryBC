@@ -62,6 +62,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { getCursedGroups, getCurseExpiry, releaseAllCurses, describeCursedGroups } from "./curse";
+import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
@@ -4109,13 +4110,12 @@ function getRoomCount(name: string): { count: number; limit: number } | null {
     return { count: e.count, limit: e.limit };
 }
 
-const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {
-    130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] },  // Emery  - pink → turquoise
-    143776: { label: "Sin",     color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] },  // Sin    - light pink → hot pink
-    124264: { label: "Lara",    color: "#d898f0", gradient: ["#d898f0", "#8840d0"] },  // Lara   - lilac → deep purple
-    230466: { label: "Lucy",    color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] },  // Lucy   - light teal → dark teal
-        80: { label: "Sybil",   color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] },  // Sybil  - mint → forest green
-};
+// Built straight from the credits roster, so anyone added there gets their
+// animated name everywhere it appears without a second list to remember.
+const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {};
+for (const _p of CREDITED) {
+    VIP_MEMBERS[_p.num] = { label: _p.vipLabel ?? _p.name, color: _p.color, gradient: _p.gradient };
+}
 
 /** Apply an animated flowing gradient as text fill colour to an element. */
 function applyGradientText(el: HTMLElement, from: string, to: string): void {
@@ -19800,8 +19800,7 @@ This cannot be undone.`,
         }, "section-dev-logs");
 
         // ── Stat Editor (credited members only) ───────────────────────────────
-        const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
-        if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
+        if (isCredited(Player.MemberNumber)) {
             makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                 const FONT = "font-family:'Trebuchet MS',serif;";
 
@@ -27053,12 +27052,13 @@ This cannot be undone.`,
         madeLbl.textContent = t("credits.madeBy");
         body.appendChild(madeLbl);
 
+        const _creator = CREDITED.find(p => p.creator);
         const creatorPerson = {
-            emoji: "🐾",
-            name: "Emery",
-            memberId: 130267,
-            reason: t("credits.emery"),
-            heart: "🐾",
+            emoji:    _creator?.emoji ?? "🐾",
+            name:     _creator?.name ?? "Emery",
+            memberId: _creator?.num ?? 130267,
+            reason:   t(_creator?.blurbKey ?? "credits.emery"),
+            heart:    _creator?.heart ?? "🐾",
         };
         (() => {
             const p = creatorPerson;
@@ -27129,36 +27129,17 @@ This cannot be undone.`,
         intro.appendChild(introSub);
         body.appendChild(intro);
 
-        const people = [
-            {
-                emoji: "🎀",
-                name: "Sin",
-                memberId: 143776,
-                reason: t("credits.sin"),
-                heart: "💗",
-            },
-            {
-                emoji: "🌙",
-                name: "Lucy",
-                memberId: 230466,
-                reason: t("credits.lucy"),
-                heart: "💜",
-            },
-            {
-                emoji: "🌸",
-                name: "Lara",
-                memberId: 124264,
-                reason: t("credits.lara"),
-                heart: "💖",
-            },
-            {
-                emoji: "✨",
-                name: "Sybil",
-                memberId: 80,
-                reason: t("credits.sybil"),
-                heart: "💛",
-            },
-        ];
+        // Cards come straight from the credits roster in crew.ts - the same list
+        // that drives the VIP name gradients, the crew-only tools and the
+        // 'whole crew' achievements, so a new credited person appears in all of
+        // them at once. Only their credits.<key> blurb needs adding to i18n.ts.
+        const people = CREDITED_THANKS.map(p => ({
+            emoji:    p.emoji,
+            name:     p.name,
+            memberId: p.num,
+            reason:   t(p.blurbKey),
+            heart:    p.heart,
+        }));
 
         for (const p of people) {
             const card = document.createElement("div");

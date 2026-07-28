@@ -2415,6 +2415,42 @@
         }
     }
 
+    // The one roster of credited people.
+    //
+    // Adding someone to the CREDITS tab used to mean editing five separate lists -
+    // the credits cards, the VIP name gradients, the stat-editor gate, the
+    // achievement crew whitelist and the achievement roster - and missing any of
+    // them left the new person half-credited with no error to notice. Everything
+    // now derives from CREDITED below: add one entry (plus its i18n blurb) and they
+    // get the card, the gradient name, the tools and the achievements at once.
+    //
+    // The only other thing a new credited person needs is a `credits.<key>` string
+    // in i18n.ts, named by `blurbKey` here.
+    const CREDITED = [
+        { num: 130267, name: "Emery", emoji: "🐾", heart: "🐾", blurbKey: "credits.emery", creator: true,
+            vipLabel: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] }, // pink -> turquoise
+        { num: 143776, name: "Sin", emoji: "🎀", heart: "💗", blurbKey: "credits.sin",
+            color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] }, // light pink -> hot pink
+        { num: 230466, name: "Lucy", emoji: "🌙", heart: "💜", blurbKey: "credits.lucy",
+            color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] }, // light teal -> dark teal
+        { num: 124264, name: "Lara", emoji: "🌸", heart: "💖", blurbKey: "credits.lara",
+            color: "#d898f0", gradient: ["#d898f0", "#8840d0"] }, // lilac -> deep purple
+        { num: 80, name: "Sybil", emoji: "✨", heart: "💛", blurbKey: "credits.sybil",
+            color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] }, // mint -> forest green
+        { num: 235962, name: "Julia", emoji: "🔍", heart: "💙", blurbKey: "credits.julia",
+            color: "#7fb8f0", gradient: ["#7fb8f0", "#3060c8"] }, // sky blue -> deep blue
+    ];
+    const CREDITED_NUMS = CREDITED.map(p => p.num);
+    /** Credited people other than the creator - the Special Thanks cards. */
+    const CREDITED_THANKS = CREDITED.filter(p => !p.creator);
+    function isCredited(n) {
+        return typeof n === "number" && CREDITED_NUMS.includes(n);
+    }
+    /** Crew who track achievements but are not on the credits list. */
+    const EXTRA_CREW = [114395];
+    /** Everyone who tracks and can see achievements. */
+    const ACHIEVEMENT_MEMBERS = [...CREDITED_NUMS, ...EXTRA_CREW];
+
     // BC pose application and user-configurable pose combos.
     // Poses require matching equipped items to visually render — BC handles
     // validation server-side and silently ignores inapplicable poses.
@@ -4461,7 +4497,7 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
-    var _a, _b;
+    var _a$1, _b;
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
@@ -4901,7 +4937,7 @@
         const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
         if (_saved) {
             const _p = JSON.parse(_saved);
-            sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, (_a = _p.x) !== null && _a !== void 0 ? _a : SIDEBAR_DEFAULT_X));
+            sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, (_a$1 = _p.x) !== null && _a$1 !== void 0 ? _a$1 : SIDEBAR_DEFAULT_X));
             sidebarY = Math.max(GRIP_H + 2, Math.min(900, (_b = _p.y) !== null && _b !== void 0 ? _b : SIDEBAR_DEFAULT_Y));
         }
     }
@@ -7200,25 +7236,7 @@
     // (pats, hugs, kisses, being tied...), things the player DOES (boops, pats,
     // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
     // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
-    // Crew whitelist - only these members track or see achievements.
-    const ACHIEVEMENT_MEMBERS = [130267, 143776, 124264, 230466, 80, 114395, 235962];
     const EMERY = 130267;
-    // Everyone named on the CREDITS tab. This drives the two "whole crew"
-    // achievements below, and their thresholds are its length - so adding a person
-    // to the credits means adding them HERE too, or the achievement silently keeps
-    // asking for the old number. Not the same list as ACHIEVEMENT_MEMBERS: that one
-    // also covers crew who are not credited.
-    const CREDITED_MEMBERS = [
-        { num: 130267, name: "Emery" },
-        { num: 143776, name: "Sin" },
-        { num: 230466, name: "Lucy" },
-        { num: 124264, name: "Lara" },
-        { num: 80, name: "Sybil" },
-    ];
-    const CREDITED_NUMS = CREDITED_MEMBERS.map(p => p.num);
-    function isCredited(n) {
-        return typeof n === "number" && CREDITED_NUMS.includes(n);
-    }
     /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
      *  itself, so someone who opted out can find their way back). */
     function isAchievementCrewMember(memberNumber) {
@@ -7320,8 +7338,8 @@
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
-        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
-        { id: "crew_pet", icon: "⭐", name: "Crew Groomer", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED_MEMBERS.length], cls: "emery", rare: true },
+        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
+        { id: "crew_pet", icon: "⭐", name: "Crew Groomer", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -9387,6 +9405,7 @@
         "credits.lara": { en: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~", de: "Hält meine freche Seite in Schach, unendliche Unterstützung und Inspiration, und ist einfach die beste Freundin, die man sich hier wünschen könnte~", zh: "约束住我那淘气的一面，给予无尽的支持和灵感，是这里任何人都梦寐以求的最好朋友~", fr: "Garde mon côté espiègle en check, un soutien et une inspiration sans fin, et tout simplement la meilleure amie qu'on puisse espérer ici~", es: "Mantiene mi lado travieso a raya, apoyo e inspiración infinitos, y simplemente siendo la mejor amiga que alguien podría pedir por aquí~", ru: "Держит мою шаловливую сторону в узде, бесконечная поддержка и вдохновение, лучшая подруга~", ja: "わがままな一面を抑えてくれて、無限のサポートとインスピレーションを与えてくれる、ここで誰もが望む最高のフレンド~" },
         "credits.lucy": { en: "Lost count of the hours a long time ago - what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.", de: "Hat die Stunden längst verloren — was als eine lange späte Nacht begann, wurde zu etwas viel Größerem, und sie war bei allem dabei. Jede Idee, jedes Problem, jede Version. Sie hat es wirklich Spaß gemacht.", zh: "早就数不清有多少小时了——从一个漫长的深夜开始，演变成了更大的事情，而她一直在场。每一个想法，每一个问题，每一个版本。她让这一切变得真的很有趣。", fr: "A perdu le compte des heures — ce qui a commencé par une longue nuit est devenu bien plus grand, et elle était là pour tout. Chaque idée, chaque problème, chaque version. Elle a rendu ça vraiment fun.", es: "Perdió la cuenta de las horas hace mucho — lo que empezó como una noche larga se convirtió en algo mucho más grande, y estuvo en todo. Cada idea, cada problema, cada versión. Hizo que construirlo fuera genuinamente divertido.", ru: "Давно сбилась со счёта часов — рядом с первой долгой ночи до сих пор. Каждая идея, каждая версия. Сделала это по-настоящему увлекательным.", ja: "もうずっと前から時間を数えるのを止めた — 長い深夜から始まったことがずっと大きなものになり、彼女はすべてにいました。すべてのアイデア、すべての問題、すべてのバージョン。本当に楽しく作れるようにしてくれました。" },
         "credits.sybil": { en: "Brilliant ideas, patient testing, and a genuinely kind presence - Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~", de: "Brillante Ideen, geduldiges Testen und eine aufrichtig freundliche Präsenz — Sybil hat dieses Addon auf vielfache Weise geprägt, und ihre schönen Beiträge zum Club machen ihn für alle reicher. Großen Dank~", zh: "出色的想法、耐心的测试和真诚温暖的存在——Sybil 以多种方式塑造了这个插件，她对俱乐部的贡献让每个人的体验都更加丰富。非常感谢~", fr: "Des idées brillantes, des tests patients et une présence vraiment bienveillante — Sybil a façonné cet addon de bien des manières, et ses belles contributions au club en font un endroit plus riche. Grand merci~", es: "Ideas brillantes, pruebas pacientes y una presencia genuinamente amable — Sybil ha dado forma a este addon de muchas maneras, y sus contribuciones hacen el club más rico para todos. ¡Muchas gracias~", ru: "Блестящие идеи, терпеливое тестирование и искренняя доброта — Sybil сформировала этот аддон во многих отношениях. Большое спасибо~", ja: "素晴らしいアイデア、忍耐強いテスト、そして真に親切な存在 — Sybilはこのアドオンを様々な形で形作り、クラブへの美しい貢献がすべての人をより豊かにしています。本当にありがとう~" },
+        "credits.julia": { en: "Has a knack for finding the bugs everyone else walks straight past, and writes them up so clearly they are half fixed before I start. A lot of what runs smoothly here runs smoothly because Julia noticed~", de: "Hat ein Gespür dafür, die Fehler zu finden, an denen alle anderen vorbeigehen, und beschreibt sie so klar, dass sie halb behoben sind, bevor ich anfange. Vieles läuft hier rund, weil Julia es bemerkt hat~", zh: "总能发现别人一眼掠过的问题，而且描述得如此清楚，还没动手就已经修好一半了。这里很多顺畅运行的地方，都是因为 Julia 注意到了~", fr: "A le don de trouver les bugs que tout le monde ignore, et les décrit si clairement qu'ils sont à moitié corrigés avant que je commence. Beaucoup de choses fonctionnent bien ici parce que Julia les a remarquées~", es: "Tiene un don para encontrar los fallos que todos los demás pasan por alto, y los describe tan claramente que están medio arreglados antes de que empiece. Muchas cosas funcionan bien aquí porque Julia se dio cuenta~", ru: "Умеет находить ошибки, мимо которых проходят все остальные, и описывает их так ясно, что они наполовину исправлены ещё до начала работы. Многое здесь работает хорошо потому, что Julia заметила~", ja: "他の人が見過ごしてしまうバグを見つける才能があり、とても分かりやすく報告してくれるので、取りかかる前から半分直っているようなものです。ここがうまく動いているのは、Juliaが気づいてくれたおかげです~" },
         // ─── FOOTER ────────────────────────────────────────────────────────────────
         "footer.uiInspired": { en: "EBC v{v} · UI inspired by CRABS by Sin", de: "EBC v{v} · UI inspiriert von CRABS von Sin", zh: "EBC v{v} · UI 灵感来自 Sin 的 CRABS", fr: "EBC v{v} · UI inspirée de CRABS par Sin", es: "EBC v{v} · UI inspirada en CRABS de Sin", ru: "EBC v{v} · UI вдохновлён CRABS от Sin", ja: "EBC v{v} · UIはSinのCRABSにインスパイア" },
         "footer.onlineLabel": { en: "Online", de: "Online", zh: "在线", fr: "En ligne", es: "En línea", ru: "В сети", ja: "オンライン" },
@@ -9747,16 +9766,7 @@
         return str;
     }
 
-    /**
-     * EmeryBC Drawer
-     *
-     * CRABS-inspired sliding panel aligned to the right edge of the chat log,
-     * positioned 10% down from the top (just below CRABS's own tab).
-     * Tabs: Outfits | Buttons
-     *
-     * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
-     * Thank you Sin for the open design!
-     */
+    var _a;
     // -- Shared UI helpers ---------------------------------------------------------
     function showQuickConfirm(message, onConfirm) {
         const overlay = document.createElement("div");
@@ -13678,13 +13688,12 @@
             return null;
         return { count: e.count, limit: e.limit };
     }
-    const VIP_MEMBERS = {
-        130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] }, // Emery  - pink → turquoise
-        143776: { label: "Sin", color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] }, // Sin    - light pink → hot pink
-        124264: { label: "Lara", color: "#d898f0", gradient: ["#d898f0", "#8840d0"] }, // Lara   - lilac → deep purple
-        230466: { label: "Lucy", color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] }, // Lucy   - light teal → dark teal
-        80: { label: "Sybil", color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] }, // Sybil  - mint → forest green
-    };
+    // Built straight from the credits roster, so anyone added there gets their
+    // animated name everywhere it appears without a second list to remember.
+    const VIP_MEMBERS = {};
+    for (const _p of CREDITED) {
+        VIP_MEMBERS[_p.num] = { label: (_a = _p.vipLabel) !== null && _a !== void 0 ? _a : _p.name, color: _p.color, gradient: _p.gradient };
+    }
     /** Apply an animated flowing gradient as text fill colour to an element. */
     function applyGradientText(el, from, to) {
         el.style.background = `linear-gradient(90deg, ${from}, ${to}, ${from})`;
@@ -29206,8 +29215,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 });
             }, "section-dev-logs");
             // ── Stat Editor (credited members only) ───────────────────────────────
-            const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
-            if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
+            if (isCredited(Player.MemberNumber)) {
                 makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                     var _a, _b;
                     const FONT = "font-family:'Trebuchet MS',serif;";
@@ -37384,6 +37392,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         // ─────────────────────────────────────────────────────────────────────────────
         renderThanks() {
+            var _a, _b, _c, _d, _e;
             const body = this.tabBody();
             if (!body)
                 return;
@@ -37394,12 +37403,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             madeLbl.className = "ebc-section-label";
             madeLbl.textContent = t("credits.madeBy");
             body.appendChild(madeLbl);
+            const _creator = CREDITED.find(p => p.creator);
             const creatorPerson = {
-                emoji: "🐾",
-                name: "Emery",
-                memberId: 130267,
-                reason: t("credits.emery"),
-                heart: "🐾",
+                emoji: (_a = _creator === null || _creator === void 0 ? void 0 : _creator.emoji) !== null && _a !== void 0 ? _a : "🐾",
+                name: (_b = _creator === null || _creator === void 0 ? void 0 : _creator.name) !== null && _b !== void 0 ? _b : "Emery",
+                memberId: (_c = _creator === null || _creator === void 0 ? void 0 : _creator.num) !== null && _c !== void 0 ? _c : 130267,
+                reason: t((_d = _creator === null || _creator === void 0 ? void 0 : _creator.blurbKey) !== null && _d !== void 0 ? _d : "credits.emery"),
+                heart: (_e = _creator === null || _creator === void 0 ? void 0 : _creator.heart) !== null && _e !== void 0 ? _e : "🐾",
             };
             (() => {
                 const p = creatorPerson;
@@ -37460,36 +37470,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             introSub.textContent = "EmeryBC";
             intro.appendChild(introSub);
             body.appendChild(intro);
-            const people = [
-                {
-                    emoji: "🎀",
-                    name: "Sin",
-                    memberId: 143776,
-                    reason: t("credits.sin"),
-                    heart: "💗",
-                },
-                {
-                    emoji: "🌙",
-                    name: "Lucy",
-                    memberId: 230466,
-                    reason: t("credits.lucy"),
-                    heart: "💜",
-                },
-                {
-                    emoji: "🌸",
-                    name: "Lara",
-                    memberId: 124264,
-                    reason: t("credits.lara"),
-                    heart: "💖",
-                },
-                {
-                    emoji: "✨",
-                    name: "Sybil",
-                    memberId: 80,
-                    reason: t("credits.sybil"),
-                    heart: "💛",
-                },
-            ];
+            // Cards come straight from the credits roster in crew.ts - the same list
+            // that drives the VIP name gradients, the crew-only tools and the
+            // 'whole crew' achievements, so a new credited person appears in all of
+            // them at once. Only their credits.<key> blurb needs adding to i18n.ts.
+            const people = CREDITED_THANKS.map(p => ({
+                emoji: p.emoji,
+                name: p.name,
+                memberId: p.num,
+                reason: t(p.blurbKey),
+                heart: p.heart,
+            }));
             for (const p of people) {
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
@@ -39516,7 +39507,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 222; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 223; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39533,6 +39524,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
+                "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
                 "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all five of them, and 'Crew Groomer' for headpatting all five. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
                 "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
                 "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
