@@ -28,6 +28,22 @@
     let _ebcOriginated = false;
     function isEbcOriginatedBeep() { return _ebcOriginated; }
     /**
+     * The rule addon most likely responsible for a blocked send, named only when it
+     * is actually loaded. BCX is the usual one but not the only thing that can hook
+     * these functions, so an unknown blocker is described rather than misattributed.
+     */
+    function ruleAddonName() {
+        var _a;
+        try {
+            const sdk = window.bcModSdk;
+            const mods = (_a = sdk === null || sdk === void 0 ? void 0 : sdk.getModsInfo) === null || _a === void 0 ? void 0 : _a.call(sdk);
+            if (Array.isArray(mods) && mods.some(m => { var _a; return ((_a = m.name) !== null && _a !== void 0 ? _a : "").toUpperCase() === "BCX"; }))
+                return "BCX";
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        return "a rule addon";
+    }
+    /**
      * Sends a beep, honouring any rule addon hooked onto ServerSendBeepMessage.
      *
      * Returns false when a hook swallowed the beep, so callers can skip recording
@@ -23927,21 +23943,30 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         wrap.appendChild(pRow);
                     }
                     else if (isSent && isBeepBlocked(e)) {
-                        // Never left. Whose rule stopped it changes what you can do
-                        // about it, so the two cases read differently.
+                        // A proper block, not a footnote. This is the difference
+                        // between a message that went and one that never left, so it
+                        // is worth more than nine grey pixels under the bubble.
                         const blockedBy = isBeepBlocked(e);
-                        bubble.style.opacity = "0.72";
+                        const addon = ruleAddonName();
+                        bubble.style.opacity = "0.55";
                         const bRow = document.createElement("div");
-                        bRow.style.cssText = "padding:1px 3px 0;";
-                        const bLbl = document.createElement("span");
-                        bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
-                        bLbl.textContent = blockedBy === "you"
-                            ? "⛔ Not sent - a rule on you blocks beeping them"
-                            : "⛔ Not delivered - their rules block beeps from you";
-                        bLbl.title = blockedBy === "you"
-                            ? "One of your own rules (BCX or similar) forbids beeping this person. Only you can see this."
-                            : "They run a rule that refuses beeps from you. Only you can see this.";
-                        bRow.appendChild(bLbl);
+                        bRow.style.cssText = "margin:3px 0 2px;padding:6px 9px;border-radius:7px;border:1px solid #7a3040;border-left:3px solid #c04858;background:rgba(70,14,26,0.45);max-width:100%;box-sizing:border-box;";
+                        const bHead = document.createElement("div");
+                        bHead.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;color:#e88a96;text-transform:uppercase;";
+                        bHead.textContent = addon === "BCX"
+                            ? "⛔ Blocked by BCX"
+                            : "⛔ Blocked by a rule";
+                        const bWhy = document.createElement("div");
+                        bWhy.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#d0a8b0;line-height:1.45;margin-top:2px;";
+                        bWhy.textContent = blockedBy === "you"
+                            ? `A ${addon} rule on you forbids beeping them, so this was never sent.`
+                            : `They have a ${addon} rule that refuses beeps from you, so this never reached them.`;
+                        const bWho = document.createElement("div");
+                        bWho.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7884;font-style:italic;margin-top:3px;";
+                        bWho.textContent = "Only you can see this.";
+                        bRow.appendChild(bHead);
+                        bRow.appendChild(bWhy);
+                        bRow.appendChild(bWho);
                         wrap.appendChild(bRow);
                     }
                     // Reply button - only show on received messages
@@ -39925,7 +39950,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 233; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 234; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39942,6 +39967,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "A blocked beep is now a proper notice under the message rather than a line of small grey text, and it names BCX when BCX is what is loaded. It says whether the rule is on you or on them, and reminds you that only you can see it.",
                 "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
                 "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
                 "Notes now show the note itself under each name instead of just a list of names, with a search box that looks through the note text as well as the names, and a two-step delete on each row.",
