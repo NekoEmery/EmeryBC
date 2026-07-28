@@ -4,6 +4,7 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 import { sendBeepViaBC } from "./bcSpeech";
+import { getSharedRoom } from "./privateRooms";
 
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
@@ -159,6 +160,8 @@ export interface FriendOnlineInfo {
     roomName?: string;   // non-empty = public room name; undefined = private or lobby
     roomSpace?: string;  // non-empty = public room space; undefined = private or lobby
     isPrivate?: boolean; // true = friend is in a private/restricted room
+    /** roomName came from the friend sharing it, not from the server. */
+    sharedPrivate?: boolean;
 }
 
 // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
@@ -409,7 +412,18 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
 }
 
 export function getFriendOnlineInfo(memberNumber: number): FriendOnlineInfo | undefined {
-    return onlineInfo.get(memberNumber);
+    const info = onlineInfo.get(memberNumber);
+    if (!info) return info;
+    // The server strips the name of a private room. If they chose to share it
+    // with us, fill it in here so every list picks it up rather than each
+    // display site having to know about sharing.
+    if (info.isPrivate && !info.roomName) {
+        const shared = getSharedRoom(memberNumber);
+        if (shared?.name) {
+            return { ...info, roomName: shared.name, roomSpace: shared.space || info.roomSpace, sharedPrivate: true };
+        }
+    }
+    return info;
 }
 
 export type FriendStatus = "room" | "online" | "away";

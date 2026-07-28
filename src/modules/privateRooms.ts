@@ -14,7 +14,6 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 import { getSpecialFriends } from "./settings";
-import { getFriendList } from "./friends";
 
 const RECEIVED_TTL_MS = 15 * 60 * 1000;   // a shared name older than this is stale
 
@@ -63,7 +62,11 @@ export function removeFromShareList(memberNumber: number): void {
 export function shareRecipients(): number[] {
     const out = new Set<number>();
     try {
-        if (getShareWithAllFriends()) for (const n of getFriendList()) out.add(n);
+        // Read the friend list straight from Player rather than through
+        // friends.ts - that module imports this one, and a cycle here would be
+        // fragile for no benefit.
+        const fl = Array.isArray(Player?.FriendList) ? Player.FriendList as number[] : [];
+        if (getShareWithAllFriends()) for (const n of fl) out.add(n);
         if (getShareWithStarred()) for (const n of getSpecialFriends()) out.add(n);
         for (const n of getShareList()) out.add(n);
     } catch { /* ignore */ }

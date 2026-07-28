@@ -63,6 +63,9 @@ import {
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
 import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
+import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
+         getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
+         shareRecipients } from "./privateRooms";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
@@ -16211,7 +16214,9 @@ This cannot be undone.`,
             // Tabs: one pill row, one section visible at a time. The single-section
             // pills hide their now-redundant collapsible header.
             if (userNotesHeaderRow) userNotesHeaderRow.style.display = "none";
-            const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
+            this.buildPrivateRoomSharing(secSettings);
+
+        const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
                 { id: "people",   label: "Friends",  el: secPeople },
                 { id: "rooms",    label: "Rooms",    el: secRooms },
                 { id: "notes",    label: "Notes",    el: secNotes },
@@ -16319,9 +16324,12 @@ This cannot be undone.`,
                 if (status === "room") { myRoomNums.push(num); continue; }
                 const info = getFriendOnlineInfo(num);
                 if (info?.roomName) {
-                    const arr = publicRooms.get(info.roomName) ?? [];
+                    // Shared private rooms are grouped separately so the list
+                    // does not imply they are open to everyone.
+                    const key = info.sharedPrivate ? `\u0000${info.roomName}` : info.roomName;
+                    const arr = publicRooms.get(key) ?? [];
                     arr.push(num);
-                    publicRooms.set(info.roomName, arr);
+                    publicRooms.set(key, arr);
                 } else if (info?.isPrivate) {
                     privateNums.push(num);
                 } else {
@@ -16346,7 +16354,11 @@ This cannot be undone.`,
             }
             [...publicRooms.entries()]
                 .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
-                .forEach(([rName, nums]) => groups.push({ label: rName, nums, joinable: true, icon: "📍" }));
+                .forEach(([rName, nums]) => {
+                    const shared = rName.startsWith("\u0000");
+                    const label = shared ? rName.slice(1) : rName;
+                    groups.push({ label, nums, joinable: true, icon: shared ? "🔓" : "📍" });
+                });
             if (privateNums.length > 0) groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
             if (lobbyNums.length > 0)   groups.push({ label: "Lobby / hidden",    nums: lobbyNums,   joinable: false, icon: "🏛" });
 
@@ -17690,6 +17702,137 @@ This cannot be undone.`,
         return (char as unknown as Record<string, unknown>).Nickname as string || char.Name || "Unknown";
     }
 
+    /**
+     * Private room sharing. BC never tells anyone the name of a private room you
+     * are in, so this is a broadcast, not a lookup: turning it on means your
+     * client tells the people you pick where you are whenever you are somewhere
+     * private. Everything defaults to off, and receiving is independent of
+     * sharing so you can do either alone.
+     */
+    private buildPrivateRoomSharing(host: HTMLElement): void {
+        const FONT = "font-family:'Trebuchet MS',serif;";
+        const hdr = document.createElement("div");
+        hdr.className = "ebc-section-label";
+        hdr.textContent = "PRIVATE ROOM SHARING";
+        host.appendChild(hdr);
+
+        const card = document.createElement("div");
+        card.style.cssText = "border:1px solid #3a1e2e;border-radius:8px;padding:9px 10px;margin-bottom:8px;background:rgba(20,8,16,0.45);display:flex;flex-direction:column;gap:7px;";
+
+        const blurb = document.createElement("div");
+        blurb.style.cssText = `${FONT}font-size:10.5px;color:#9a8290;line-height:1.5;`;
+        blurb.textContent = "The game never reveals the name of a private room, so this works by telling people directly. While you are in a private room your client sends the room name to whoever you pick below, and their EBC shows it instead of \"in a private room\". Only people running EBC can receive it.";
+        card.appendChild(blurb);
+
+        const rowOf = (title: string, desc: string, get: () => boolean, set: (v: boolean) => void): HTMLElement => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:9px;";
+            const txt = document.createElement("div");
+            txt.style.cssText = "flex:1;min-width:0;";
+            const t1 = document.createElement("div");
+            t1.style.cssText = `${FONT}font-size:11.5px;font-weight:bold;color:#f0dbe6;`;
+            t1.textContent = title;
+            const t2 = document.createElement("div");
+            t2.style.cssText = `${FONT}font-size:10px;color:#9a7888;line-height:1.4;margin-top:1px;`;
+            t2.textContent = desc;
+            txt.appendChild(t1); txt.appendChild(t2);
+            const btn = document.createElement("button");
+            const paint = (): void => {
+                const on = get();
+                btn.textContent = on ? "ON" : "OFF";
+                btn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:3px 13px;border-radius:5px;cursor:pointer;flex-shrink:0;` +
+                    (on ? "border:1px solid #cf6f98;background:#3a1028;color:#f0a8c4;"
+                        : "border:1px solid #4a3040;background:transparent;color:#9a8290;");
+            };
+            paint();
+            btn.addEventListener("click", () => { set(!get()); paint(); this.rerender(120); });
+            row.appendChild(txt); row.appendChild(btn);
+            return row;
+        };
+
+        card.appendChild(rowOf("Share with all friends",
+            "Everyone on your BC friends list is told.",
+            getShareWithAllFriends, setShareWithAllFriends));
+        card.appendChild(rowOf("Share with starred friends",
+            "Only people you have starred in EBC.",
+            getShareWithStarred, setShareWithStarred));
+        card.appendChild(rowOf("See others' private rooms",
+            "Show rooms other people share with you. Separate from sharing your own.",
+            getReceiveShared, setReceiveShared));
+
+        // Extra people, on top of whichever toggles are on.
+        const listLbl = document.createElement("div");
+        listLbl.style.cssText = `${FONT}font-size:10.5px;color:#9a7888;margin-top:2px;`;
+        listLbl.textContent = "Also share with these member numbers:";
+        card.appendChild(listLbl);
+
+        const chips = document.createElement("div");
+        chips.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+        const renderChips = (): void => {
+            while (chips.firstChild) chips.removeChild(chips.firstChild);
+            const list = getShareList();
+            if (list.length === 0) {
+                const none = document.createElement("span");
+                none.style.cssText = `${FONT}font-size:10px;color:#6a5060;font-style:italic;`;
+                none.textContent = "Nobody added.";
+                chips.appendChild(none);
+            }
+            for (const n of list) {
+                const chip = document.createElement("span");
+                chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;${FONT}font-size:11px;background:#1a0c16;border:1px solid #3a1928;border-radius:14px;padding:3px 8px;color:#c48aa8;`;
+                const nm = document.createElement("span");
+                nm.textContent = `${resolveName(n)} #${n}`;
+                const x = document.createElement("span");
+                x.textContent = "\u00d7";
+                x.style.cssText = "cursor:pointer;color:#8a6070;font-size:13px;line-height:1;";
+                x.addEventListener("click", () => { removeFromShareList(n); renderChips(); paintWho(); });
+                chip.appendChild(nm); chip.appendChild(x);
+                chips.appendChild(chip);
+            }
+        };
+        card.appendChild(chips);
+
+        const addRow = document.createElement("div");
+        addRow.style.cssText = "display:flex;gap:6px;";
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "ebc-form-input";
+        inp.placeholder = "Member number";
+        inp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:3px 8px;";
+        inp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "+ Add";
+        addBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:5px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;`;
+        const doAdd = (): void => {
+            const n = parseInt(inp.value.trim(), 10);
+            if (!n) return;
+            addToShareList(n);
+            inp.value = "";
+            renderChips();
+            paintWho();
+        };
+        addBtn.addEventListener("click", doAdd);
+        inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+        addRow.appendChild(inp); addRow.appendChild(addBtn);
+        card.appendChild(addRow);
+
+        // Say plainly how many people this currently reaches - the three sources
+        // combine, so the total is not obvious from the toggles alone.
+        const who = document.createElement("div");
+        who.style.cssText = `${FONT}font-size:10px;line-height:1.5;padding-top:2px;border-top:1px solid #2a1421;`;
+        const paintWho = (): void => {
+            const n = shareRecipients().length;
+            who.textContent = n === 0
+                ? "Not sharing with anyone right now."
+                : `Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
+            who.style.color = n === 0 ? "#7a5a6a" : "#e0a0b8";
+        };
+        renderChips();
+        paintWho();
+        card.appendChild(who);
+        host.appendChild(card);
+    }
+
     private buildNoteRow(memberNumber: number, displayName: string, currentNote: string, isSelf = false): HTMLElement {
         const hasNote = !!currentNote.trim();
         const vip = VIP_MEMBERS[memberNumber];
@@ -18152,12 +18295,24 @@ This cannot be undone.`,
                     // Roster achievements name who is outstanding - the bare
                     // count is confusing when you are on the list yourself.
                     const roster = crewRosterStatus(a.id);
-                    if (roster && roster.left.length > 0) {
-                        const leftEl = document.createElement("div");
-                        leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:2px;";
-                        leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                        leftEl.title = roster.done.length ? `Already done: ${roster.done.join(", ")}` : "";
-                        ds.after(leftEl);
+                    if (roster) {
+                        // Both halves on screen, not one of them behind a hover:
+                        // seeing a name move from one line to the other is the
+                        // whole confirmation that something registered.
+                        let anchor: HTMLElement = ds;
+                        if (roster.done.length > 0) {
+                            const doneEl = document.createElement("div");
+                            doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;";
+                            doneEl.textContent = `✓ ${roster.done.join(", ")}`;
+                            anchor.after(doneEl);
+                            anchor = doneEl;
+                        }
+                        if (roster.left.length > 0) {
+                            const leftEl = document.createElement("div");
+                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;";
+                            leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
+                            anchor.after(leftEl);
+                        }
                     }
                     main.appendChild(ds);
 

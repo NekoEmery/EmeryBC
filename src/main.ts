@@ -17,7 +17,8 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine } from "./modules/notify";
 import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
-import { addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
+import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -29,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 237;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 238;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
+            "'Met the Crew' and 'Crew Cuddler' now show who you have already got as well as who is left, so a name visibly moves from one line to the other when it registers.",
             "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
             "Fix (reported by Julia): the Body menu now keeps up when something else changes your pose. Being forced into a pose by a restraint, or posed by someone else, left the old highlight in place until you clicked something - the grid only repainted on your own clicks. It now follows the real pose while the page is open.",
             "Tags and protected items are back to being sized to their text. The previous version stretched them across the full width, which turned three tags into three enormous slabs.",
@@ -7482,7 +7485,7 @@ function init(): void {
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
         // Bootstrap room history in case the addon loaded while already in a room
         // (ChatRoomSync won't fire again so we seed the current visit manually).
-        window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); achievementScanRoom(); } catch { /* ignore */ } }, 600);
+        window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); achievementScanRoom(); shareRoomIfEnabled(); } catch { /* ignore */ } }, 600);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
         // One-time migration: copy existing server peopleMet into localStorage
@@ -7579,6 +7582,7 @@ function init(): void {
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
         try { achievementScanRoom();        } catch { /* ignore */ }
+        try { shareRoomIfEnabled();         } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
@@ -7848,6 +7852,7 @@ function init(): void {
             }
             try { detectNewJoins(); } catch { /* ignore */ }
             try { achievementScanRoom(); } catch { /* ignore */ }
+            try { shareRoomIfEnabled(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
@@ -8053,6 +8058,12 @@ function init(): void {
         return next(args);
     });
 
+    /** Tells the people you chose which private room you are in. No-ops when
+     *  you have not turned sharing on for anyone. */
+    const shareRoomIfEnabled = (): void => {
+        try { broadcastRoom((to, msg) => sendBeep(to, msg)); } catch { /* ignore */ }
+    };
+
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
@@ -8064,6 +8075,20 @@ function init(): void {
                 beep.Message.startsWith("[EBC-KITTY:")) {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
+            }
+            // A friend telling us which private room they are in. Silent, and
+            // only accepted from people on our friend list - an unknown sender
+            // has no business writing into our room display.
+            if (typeof beep.Message === "string" && beep.Message.startsWith("[EBC-PRIVROOM:")) {
+                const fromNum3 = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                const fl3 = (Player.FriendList as number[] | undefined) ?? [];
+                if (fromNum3 && fl3.includes(fromNum3)) {
+                    const parsed3 = parseShareMessage(beep.Message);
+                    if (parsed3) noteSharedRoom(fromNum3, parsed3.name, parsed3.space);
+                }
+                return; // silent either way
             }
             // EBC protocol messages are always silent - never shown in IM or BC notification.
             // Curse commands only processed if sender is a friend (to prevent abuse).
