@@ -18325,29 +18325,28 @@ This cannot be undone.`,
                     const ds = document.createElement("div");
                     ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                     ds.textContent = a.descNow;
-                    // Roster achievements name who is outstanding - the bare
-                    // count is confusing when you are on the list yourself.
+                    main.appendChild(ds);
+
+                    // Roster achievements name who is done and who is left. Both
+                    // on screen rather than one behind a hover: seeing a name
+                    // move between the lines is the confirmation that it landed.
+                    // Appended to `main` - an earlier version called ds.after()
+                    // before ds had a parent, which does nothing at all.
                     const roster = crewRosterStatus(a.id);
                     if (roster) {
-                        // Both halves on screen, not one of them behind a hover:
-                        // seeing a name move from one line to the other is the
-                        // whole confirmation that something registered.
-                        let anchor: HTMLElement = ds;
                         if (roster.done.length > 0) {
                             const doneEl = document.createElement("div");
-                            doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;";
+                            doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;line-height:1.4;";
                             doneEl.textContent = `✓ ${roster.done.join(", ")}`;
-                            anchor.after(doneEl);
-                            anchor = doneEl;
+                            main.appendChild(doneEl);
                         }
                         if (roster.left.length > 0) {
                             const leftEl = document.createElement("div");
-                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;";
+                            leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;line-height:1.4;";
                             leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                            anchor.after(leftEl);
+                            main.appendChild(leftEl);
                         }
                     }
-                    main.appendChild(ds);
 
                     const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
                     const trough = document.createElement("div");

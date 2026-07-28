@@ -27993,29 +27993,27 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         const ds = document.createElement("div");
                         ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                         ds.textContent = a.descNow;
-                        // Roster achievements name who is outstanding - the bare
-                        // count is confusing when you are on the list yourself.
+                        main.appendChild(ds);
+                        // Roster achievements name who is done and who is left. Both
+                        // on screen rather than one behind a hover: seeing a name
+                        // move between the lines is the confirmation that it landed.
+                        // Appended to `main` - an earlier version called ds.after()
+                        // before ds had a parent, which does nothing at all.
                         const roster = crewRosterStatus(a.id);
                         if (roster) {
-                            // Both halves on screen, not one of them behind a hover:
-                            // seeing a name move from one line to the other is the
-                            // whole confirmation that something registered.
-                            let anchor = ds;
                             if (roster.done.length > 0) {
                                 const doneEl = document.createElement("div");
-                                doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;";
+                                doneEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8ab898;margin-top:2px;line-height:1.4;";
                                 doneEl.textContent = `✓ ${roster.done.join(", ")}`;
-                                anchor.after(doneEl);
-                                anchor = doneEl;
+                                main.appendChild(doneEl);
                             }
                             if (roster.left.length > 0) {
                                 const leftEl = document.createElement("div");
-                                leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;";
+                                leftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;margin-top:1px;line-height:1.4;";
                                 leftEl.textContent = `Still need: ${roster.left.join(", ")}`;
-                                anchor.after(leftEl);
+                                main.appendChild(leftEl);
                             }
                         }
-                        main.appendChild(ds);
                         const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
                         const trough = document.createElement("div");
                         trough.className = "ebc-ach-bar";
@@ -40390,7 +40388,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 239; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 240; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40407,6 +40405,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: the crew achievements were supposed to list who you have met and who is left, and showed neither. The lines were built and then inserted next to an element that had not been added to the page yet, which does nothing and reports no error. They appear now.",
                 "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
                 "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
                 "'Met the Crew' and 'Crew Cuddler' now show who you have already got as well as who is left, so a name visibly moves from one line to the other when it registers.",
