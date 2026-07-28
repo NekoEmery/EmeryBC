@@ -66,7 +66,7 @@ import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
-import { getNotes, saveNote, type CharacterNote } from "./notes";
+import { getNotes, saveNote, deleteNote, type CharacterNote } from "./notes";
 import {
     getButtons,
     getSlotCount,
@@ -4922,18 +4922,28 @@ export class EBCDrawer {
         langRow.className = "ebc-lang-row";
 
         const langPills: HTMLButtonElement[] = [];
+        const langNameEls: HTMLElement[] = [];
+        // Two shapes for one row. Pinned under the tab bar in the classic layout
+        // it must stay a thin strip, but inside the SETTINGS pill it has a whole
+        // page to itself - so there it becomes a grid of cards that name each
+        // language, rather than seven tiny codes floating in empty space.
         const refreshLangPills = (): void => {
             const cur = getLanguage();
-            for (const pill of langPills) {
+            const grid = isGroupedLayout();
+            langRow.style.cssText = grid
+                ? "display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;padding:3px 0;"
+                : "";
+            for (let i = 0; i < langPills.length; i++) {
+                const pill = langPills[i];
                 const active = pill.dataset.lang === cur;
+                langNameEls[i].style.display = grid ? "block" : "none";
                 pill.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:11px",
-                    "padding:4px 10px",
-                    "border-radius:12px",
                     "cursor:pointer",
-                    "flex-shrink:0",
                     "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                    grid
+                        ? "font-size:12px;padding:9px 8px;border-radius:9px;text-align:center;line-height:1.3;"
+                        : "font-size:11px;padding:4px 10px;border-radius:12px;flex-shrink:0;",
                     active
                         ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;font-weight:bold;"
                         : "border:1px solid #3a1928;background:transparent;color:#8a5070;",
@@ -4944,13 +4954,20 @@ export class EBCDrawer {
             const pill = document.createElement("button");
             pill.dataset.lang = code;
             pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-            pill.textContent = LANG_LABELS[code];
+            const codeEl = document.createElement("div");
+            codeEl.textContent = LANG_LABELS[code];
+            const nameEl = document.createElement("div");
+            nameEl.textContent = LANG_NAMES[code];
+            nameEl.style.cssText = "font-size:9.5px;font-weight:normal;opacity:0.72;margin-top:2px;";
+            pill.appendChild(codeEl);
+            pill.appendChild(nameEl);
             pill.title = LANG_NAMES[code]; // full name on hover
             pill.addEventListener("click", () => {
                 setLanguage(code);
                 refreshLangPills();
             });
             langPills.push(pill);
+            langNameEls.push(nameEl);
             langRow.appendChild(pill);
         }
         refreshLangPills();
@@ -8184,6 +8201,31 @@ This cannot be undone.`,
                 });
                 row.appendChild(nm);
                 row.appendChild(sz);
+                // Click rather than hover: a tooltip is unreachable on a phone,
+                // and these labels are jargon unless you already know them.
+                if (cat.help) {
+                    const q = document.createElement("button");
+                    q.textContent = "?";
+                    q.title = "What is this?";
+                    q.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;width:18px;height:18px;padding:0;border-radius:50%;border:1px solid #4a3040;background:transparent;color:#9a7080;cursor:pointer;transition:all 0.12s;";
+                    q.addEventListener("mouseenter", () => { q.style.borderColor = "#cf6f98"; q.style.color = "#cf6f98"; });
+                    q.addEventListener("mouseleave", () => { q.style.borderColor = "#4a3040"; q.style.color = "#9a7080"; });
+                    const helpEl = document.createElement("div");
+                    helpEl.style.cssText = "display:none;font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;padding:2px 4px 6px 4px;border-bottom:1px solid rgba(42,20,33,0.6);";
+                    helpEl.textContent = cat.help;
+                    q.addEventListener("click", () => {
+                        const open = helpEl.style.display === "none";
+                        helpEl.style.display = open ? "block" : "none";
+                        q.style.background = open ? "#3a1028" : "transparent";
+                    });
+                    row.appendChild(q);
+                    row.appendChild(locBtn);
+                    row.appendChild(exp);
+                    row.appendChild(del);
+                    dataBody.appendChild(row);
+                    dataBody.appendChild(helpEl);
+                    continue;
+                }
                 row.appendChild(locBtn);
                 row.appendChild(exp);
                 row.appendChild(del);
@@ -14478,13 +14520,20 @@ This cannot be undone.`,
                     pRow.appendChild(pCancel);
                     wrap.appendChild(pRow);
                 } else if (isSent && isBeepBlocked(e)) {
-                    // Their rules refused this one - it never reached them.
+                    // Never left. Whose rule stopped it changes what you can do
+                    // about it, so the two cases read differently.
+                    const blockedBy = isBeepBlocked(e);
                     bubble.style.opacity = "0.72";
                     const bRow = document.createElement("div");
                     bRow.style.cssText = "padding:1px 3px 0;";
                     const bLbl = document.createElement("span");
                     bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
-                    bLbl.textContent = "⛔ Not delivered - their rules block beeps from you";
+                    bLbl.textContent = blockedBy === "you"
+                        ? "⛔ Not sent - a rule on you blocks beeping them"
+                        : "⛔ Not delivered - their rules block beeps from you";
+                    bLbl.title = blockedBy === "you"
+                        ? "One of your own rules (BCX or similar) forbids beeping this person. Only you can see this."
+                        : "They run a rule that refuses beeps from you. Only you can see this.";
                     bRow.appendChild(bLbl);
                     wrap.appendChild(bRow);
                 }
@@ -15886,8 +15935,40 @@ This cannot be undone.`,
         // ── Saved notes only ─────────────────────────────────────────────────
         const savedEntries = Object.entries(notes);
         if (savedEntries.length > 0) {
+            // Search covers the note text as well as the name - the reason to
+            // keep notes is finding the one that mentioned a thing.
+            const rows: Array<{ el: HTMLElement; hay: string }> = [];
+            if (savedEntries.length > 4) {
+                const searchWrap = document.createElement("div");
+                searchWrap.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px;";
+                const searchInp = document.createElement("input");
+                searchInp.type = "text";
+                searchInp.className = "ebc-form-input";
+                searchInp.placeholder = "Search names and notes...";
+                searchInp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
+                searchInp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+                const hits = document.createElement("span");
+                hits.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                const applyFilter = (): void => {
+                    const q = searchInp.value.trim().toLowerCase();
+                    let shown = 0;
+                    for (const r of rows) {
+                        const on = !q || r.hay.includes(q);
+                        r.el.style.display = on ? "" : "none";
+                        if (on) shown++;
+                    }
+                    hits.textContent = q ? `${shown}/${rows.length}` : `${rows.length}`;
+                };
+                searchInp.addEventListener("input", applyFilter);
+                searchWrap.appendChild(searchInp);
+                searchWrap.appendChild(hits);
+                userNotesBody.appendChild(searchWrap);
+                window.setTimeout(applyFilter, 0);
+            }
             for (const [key, data] of savedEntries) {
-                userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
+                const row = this.buildNoteRow(parseInt(key), data.name, data.note);
+                rows.push({ el: row, hay: `${data.name} ${data.note} #${key}`.toLowerCase() });
+                userNotesBody.appendChild(row);
             }
         } else {
             const empty = document.createElement("div");
@@ -17628,6 +17709,19 @@ This cannot be undone.`,
             return container;
         }
 
+        // A one-line preview of the note itself. Without it the list was only
+        // names, so you had to open every row to remember why you noted someone.
+        const preview = document.createElement("div");
+        preview.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.45;padding:0 8px 5px 18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;";
+        const paintPreview = (txt: string): void => {
+            const one = txt.replace(/\s+/g, " ").trim();
+            preview.textContent = one || "No note yet - click to write one";
+            preview.style.fontStyle = one ? "normal" : "italic";
+            preview.style.color = one ? "#9a8290" : "#6a5060";
+        };
+        paintPreview(currentNote);
+        container.appendChild(preview);
+
         const editor = document.createElement("div");
         editor.className = "ebc-notes-editor";
 
@@ -17645,10 +17739,39 @@ This cannot be undone.`,
         editor.appendChild(hint);
         container.appendChild(editor);
 
-        header.addEventListener("click", () => {
+        const toggleEditor = (): void => {
             const open = editor.classList.toggle("open");
+            preview.style.display = open ? "none" : "";
             if (open) textarea.focus();
+        };
+        header.addEventListener("click", toggleEditor);
+        preview.addEventListener("click", toggleEditor);
+
+        // Deleting is per-row and two-step, so a mis-click never silently drops
+        // something you wrote about someone.
+        const del = document.createElement("span");
+        del.textContent = "\u2715";
+        del.title = "Delete this note";
+        del.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;flex-shrink:0;transition:color 0.12s;";
+        let armed = false;
+        del.addEventListener("mouseenter", () => { del.style.color = "#d06878"; });
+        del.addEventListener("mouseleave", () => { if (!armed) del.style.color = "#7a5060"; });
+        del.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            if (!armed) {
+                armed = true;
+                del.textContent = "Delete?";
+                del.style.color = "#e08a8a";
+                window.setTimeout(() => {
+                    if (!armed) return;
+                    armed = false; del.textContent = "\u2715"; del.style.color = "#7a5060";
+                }, 3000);
+                return;
+            }
+            try { deleteNote(memberNumber); } catch { /* ignore */ }
+            container.remove();
         });
+        header.appendChild(del);
 
         let saveTimer: ReturnType<typeof window.setTimeout> | null = null;
         textarea.addEventListener("input", () => {
@@ -17656,6 +17779,7 @@ This cannot be undone.`,
             hint.textContent = "saving...";
             saveTimer = window.setTimeout(() => {
                 saveNote(memberNumber, displayName, textarea.value);
+                paintPreview(textarea.value);
                 dot.className = "ebc-notes-dot" + (textarea.value.trim() ? " has-note" : "");
                 hint.textContent = textarea.value.trim() ? "saved" : "saves automatically";
                 window.setTimeout(() => { hint.textContent = "saves automatically"; }, 1500);

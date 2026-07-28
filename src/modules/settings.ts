@@ -445,34 +445,36 @@ export function setToastDurationSec(value: number): void {
 // Every category of data EBC keeps on the account, so the Storage panel can show
 // what is taking up space and let the user clear any of it.
 
-export interface DataCategory { label: string; keys: string[] }
+export interface DataCategory {
+    /** Plain-English explanation shown behind the ? in the storage list. */
+    help?: string; label: string; keys: string[] }
 
 export const EBC_DATA_CATEGORIES: DataCategory[] = [
-    { label: "Outfits",              keys: ["outfits"] },
-    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"] },
-    { label: "Action buttons",       keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"] },
-    { label: "Pose combos",          keys: ["poseCombos"] },
-    { label: "Scenes",               keys: ["scenes"] },
-    { label: "Expression presets",   keys: ["expressionPresets", "defaultExprPresetId"] },
-    { label: "Expression sequences", keys: ["expressionSequences"] },
-    { label: "Expression triggers",  keys: ["expressionTriggers"] },
-    { label: "Outfit tags",          keys: ["outfitTags"] },
-    { label: "Outfit schedules",     keys: ["outfitSchedules"] },
-    { label: "Colour palettes",      keys: ["palettes", "customColors"] },
-    { label: "User notes",           keys: ["characterNotes"] },
-    { label: "Friend tags",          keys: ["friendTags"] },
-    { label: "Name cache",           keys: ["friendNames", "friendAccountNames"] },
-    { label: "Beep history",         keys: ["beepHistory"] },
-    { label: "Beep groups",          keys: ["groups"] },
-    { label: "Quick replies",        keys: ["quickReplies"] },
-    { label: "People met",           keys: ["peopleMet"] },
-    { label: "Last seen / since",    keys: ["lastSeen", "friendSince", "lastSeenMigrated"] },
-    { label: "Stars & watchlist",    keys: ["specialFriends", "pinnedFriends", "onlineWatchList"] },
-    { label: "Achievements",         keys: ["achievements"] },
-    { label: "Barks",                keys: ["barks"] },
-    { label: "Favorite rooms",       keys: ["favoriteRooms"] },
-    { label: "Restraint timers",     keys: ["restraintTimers"] },
-    { label: "Dom config",           keys: ["domConfig"] },
+    { label: "Outfits",              keys: ["outfits"], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
+    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
+    { label: "Action buttons",       keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"], help: "Your custom chat buttons, their categories, and how many slots you show." },
+    { label: "Pose combos",          keys: ["poseCombos"], help: "Saved pose sequences you can play back." },
+    { label: "Scenes",               keys: ["scenes"], help: "Saved scenes - scripted sequences of poses, expressions and messages." },
+    { label: "Expression presets",   keys: ["expressionPresets", "defaultExprPresetId"], help: "Saved faces you can apply, plus which one is your default." },
+    { label: "Expression sequences", keys: ["expressionSequences"], help: "Saved expression animations that play over time." },
+    { label: "Expression triggers",  keys: ["expressionTriggers"], help: "Rules that change your face automatically when something happens." },
+    { label: "Outfit tags",          keys: ["outfitTags"], help: "The coloured labels you use to sort outfits, and their colours." },
+    { label: "Outfit schedules",     keys: ["outfitSchedules"], help: "Outfits set to apply automatically at a time of day." },
+    { label: "Colour palettes",      keys: ["palettes", "customColors"], help: "Saved colour sets and any custom colours you mixed." },
+    { label: "User notes",           keys: ["characterNotes"], help: "Private notes you have written about other people. Only you can ever see these." },
+    { label: "Friend tags",          keys: ["friendTags"], help: "The labels you have put on people in your friends list." },
+    { label: "Name cache",           keys: ["friendNames", "friendAccountNames"], help: "Remembered names for member numbers, so people show as names instead of numbers. Rebuilds itself as you play - safe to clear." },
+    { label: "Beep history",         keys: ["beepHistory"], help: "Your saved conversations in EBC's messenger. Clearing this deletes those chats." },
+    { label: "Beep groups",          keys: ["groups"], help: "Group chats you have set up in the messenger." },
+    { label: "Quick replies",        keys: ["quickReplies"], help: "The canned replies that sit above the message box." },
+    { label: "People met",           keys: ["peopleMet"], help: "A log of everyone you have shared a room with, and when." },
+    { label: "Last seen / since",    keys: ["lastSeen", "friendSince", "lastSeenMigrated"], help: "When you last saw each friend online, and how long you have been friends." },
+    { label: "Stars & watchlist",    keys: ["specialFriends", "pinnedFriends", "onlineWatchList"], help: "Who you have starred, pinned, or asked to be told about when they come online." },
+    { label: "Achievements",         keys: ["achievements"], help: "Your achievement progress and which ones you have already been told about." },
+    { label: "Barks",                keys: ["barks"], help: "Saved bark phrases." },
+    { label: "Favorite rooms",       keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
+    { label: "Restraint timers",     keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
+    { label: "Dom config",           keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
 ];
 
 // ── Backup: export / import ──────────────────────────────────────────────────

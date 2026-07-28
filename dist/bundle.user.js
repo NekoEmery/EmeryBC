@@ -3388,31 +3388,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const EBC_DATA_CATEGORIES = [
-        { label: "Outfits", keys: ["outfits"] },
-        { label: "Restraint sets", keys: ["restraints", "restraintPresets"] },
-        { label: "Action buttons", keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"] },
-        { label: "Pose combos", keys: ["poseCombos"] },
-        { label: "Scenes", keys: ["scenes"] },
-        { label: "Expression presets", keys: ["expressionPresets", "defaultExprPresetId"] },
-        { label: "Expression sequences", keys: ["expressionSequences"] },
-        { label: "Expression triggers", keys: ["expressionTriggers"] },
-        { label: "Outfit tags", keys: ["outfitTags"] },
-        { label: "Outfit schedules", keys: ["outfitSchedules"] },
-        { label: "Colour palettes", keys: ["palettes", "customColors"] },
-        { label: "User notes", keys: ["characterNotes"] },
-        { label: "Friend tags", keys: ["friendTags"] },
-        { label: "Name cache", keys: ["friendNames", "friendAccountNames"] },
-        { label: "Beep history", keys: ["beepHistory"] },
-        { label: "Beep groups", keys: ["groups"] },
-        { label: "Quick replies", keys: ["quickReplies"] },
-        { label: "People met", keys: ["peopleMet"] },
-        { label: "Last seen / since", keys: ["lastSeen", "friendSince", "lastSeenMigrated"] },
-        { label: "Stars & watchlist", keys: ["specialFriends", "pinnedFriends", "onlineWatchList"] },
-        { label: "Achievements", keys: ["achievements"] },
-        { label: "Barks", keys: ["barks"] },
-        { label: "Favorite rooms", keys: ["favoriteRooms"] },
-        { label: "Restraint timers", keys: ["restraintTimers"] },
-        { label: "Dom config", keys: ["domConfig"] },
+        { label: "Outfits", keys: ["outfits"], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
+        { label: "Restraint sets", keys: ["restraints", "restraintPresets"], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
+        { label: "Action buttons", keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"], help: "Your custom chat buttons, their categories, and how many slots you show." },
+        { label: "Pose combos", keys: ["poseCombos"], help: "Saved pose sequences you can play back." },
+        { label: "Scenes", keys: ["scenes"], help: "Saved scenes - scripted sequences of poses, expressions and messages." },
+        { label: "Expression presets", keys: ["expressionPresets", "defaultExprPresetId"], help: "Saved faces you can apply, plus which one is your default." },
+        { label: "Expression sequences", keys: ["expressionSequences"], help: "Saved expression animations that play over time." },
+        { label: "Expression triggers", keys: ["expressionTriggers"], help: "Rules that change your face automatically when something happens." },
+        { label: "Outfit tags", keys: ["outfitTags"], help: "The coloured labels you use to sort outfits, and their colours." },
+        { label: "Outfit schedules", keys: ["outfitSchedules"], help: "Outfits set to apply automatically at a time of day." },
+        { label: "Colour palettes", keys: ["palettes", "customColors"], help: "Saved colour sets and any custom colours you mixed." },
+        { label: "User notes", keys: ["characterNotes"], help: "Private notes you have written about other people. Only you can ever see these." },
+        { label: "Friend tags", keys: ["friendTags"], help: "The labels you have put on people in your friends list." },
+        { label: "Name cache", keys: ["friendNames", "friendAccountNames"], help: "Remembered names for member numbers, so people show as names instead of numbers. Rebuilds itself as you play - safe to clear." },
+        { label: "Beep history", keys: ["beepHistory"], help: "Your saved conversations in EBC's messenger. Clearing this deletes those chats." },
+        { label: "Beep groups", keys: ["groups"], help: "Group chats you have set up in the messenger." },
+        { label: "Quick replies", keys: ["quickReplies"], help: "The canned replies that sit above the message box." },
+        { label: "People met", keys: ["peopleMet"], help: "A log of everyone you have shared a room with, and when." },
+        { label: "Last seen / since", keys: ["lastSeen", "friendSince", "lastSeenMigrated"], help: "When you last saw each friend online, and how long you have been friends." },
+        { label: "Stars & watchlist", keys: ["specialFriends", "pinnedFriends", "onlineWatchList"], help: "Who you have starred, pinned, or asked to be told about when they come online." },
+        { label: "Achievements", keys: ["achievements"], help: "Your achievement progress and which ones you have already been told about." },
+        { label: "Barks", keys: ["barks"], help: "Saved bark phrases." },
+        { label: "Favorite rooms", keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
+        { label: "Restraint timers", keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
+        { label: "Dom config", keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
     ];
     /** Serialises the given categories. Keys holding nothing are skipped. */
     function exportDataCategories(cats) {
@@ -4595,6 +4595,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             else {
                 delete notes[key];
             }
+            store.characterNotes = notes;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function deleteNote(memberNumber) {
+        try {
+            const store = getSettings();
+            const notes = getNotes();
+            delete notes[String(memberNumber)];
             store.characterNotes = notes;
             syncSettings();
         }
@@ -6965,32 +6975,43 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const BLOCKED_LS = "EBC_blockedBeeps";
     const MAX_BLOCKED = 300;
     let _blocked = null;
-    function blockedSet() {
+    function blockedMap() {
         if (_blocked)
             return _blocked;
-        _blocked = new Set();
+        _blocked = new Map();
         try {
             const raw = localStorage.getItem(BLOCKED_LS);
-            if (raw)
-                for (const n of JSON.parse(raw)) {
-                    if (typeof n === "number")
-                        _blocked.add(n);
+            const parsed = raw ? JSON.parse(raw) : [];
+            for (const item of parsed) {
+                // Older builds stored a bare list of timestamps, all of which meant
+                // "the recipient refused it" - that was the only case back then.
+                if (typeof item === "number")
+                    _blocked.set(item, "them");
+                else if (Array.isArray(item) && typeof item[0] === "number") {
+                    _blocked.set(item[0], item[1] === "you" ? "you" : "them");
                 }
+            }
         }
         catch ( /* ignore */_a) { /* ignore */ }
         return _blocked;
     }
     function saveBlocked() {
         try {
-            const all = [...blockedSet()].sort((a, b) => b - a).slice(0, MAX_BLOCKED);
-            _blocked = new Set(all);
+            const all = [...blockedMap().entries()].sort((a, b) => b[0] - a[0]).slice(0, MAX_BLOCKED);
+            _blocked = new Map(all);
             localStorage.setItem(BLOCKED_LS, JSON.stringify(all));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    /** True when this sent message was refused by the recipient's rules. */
+    /** Who refused this sent message, or null if it went through. */
     function isBeepBlocked(entry) {
-        return blockedSet().has(entry.ts);
+        var _a;
+        return (_a = blockedMap().get(entry.ts)) !== null && _a !== void 0 ? _a : null;
+    }
+    /** Records that a message we just wrote to history never left. */
+    function markBeepBlocked(ts, by) {
+        blockedMap().set(ts, by);
+        saveBlocked();
     }
     /**
      * Flags the newest message we sent this person as refused, and drops any queued
@@ -7005,9 +7026,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const e = convo[i];
             if (e.from !== self || e.to !== memberNumber)
                 continue;
-            if (blockedSet().has(e.ts))
+            if (blockedMap().has(e.ts))
                 return false; // already flagged, don't walk further back
-            blockedSet().add(e.ts);
+            blockedMap().set(e.ts, "them");
             saveBlocked();
             try {
                 cancelPendingMessage(memberNumber, stripBeepMetadata(e.message));
@@ -7019,7 +7040,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
-        var _a;
+        var _a, _b;
         // Protocol payloads are addon sync, not speech. They keep the direct socket
         // so rules never mangle EBC's internals, and they stay out of the IM window
         // and the offline queue. Everything the person actually typed goes through
@@ -7029,24 +7050,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return;
         }
         let delivered = true;
         try {
             delivered = sendBeepViaBC(memberNumber, message, true);
         }
-        catch ( /* ignore */_c) { /* ignore */ }
-        // A rule blocked it - don't queue it, don't file it in history as sent.
-        // The rule addon shows its own explanation, so EBC stays quiet here.
-        if (!delivered)
+        catch ( /* ignore */_d) { /* ignore */ }
+        const ts = Date.now();
+        // A rule of YOUR OWN stopped this one. Keep it in the conversation rather
+        // than letting it vanish out of the box with no trace, but mark it as never
+        // sent and never queue it - the rule will refuse it again just the same.
+        if (!delivered) {
+            addBeepEntry({ from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, to: memberNumber, message, ts });
+            markBeepBlocked(ts, "you");
             return;
+        }
         markPendingMessage(memberNumber, message);
         addBeepEntry({
-            from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
+            from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0,
             to: memberNumber,
             message,
-            ts: Date.now(),
+            ts,
         });
     }
     // In-session group message history (not persisted — groups definitions are)
@@ -14507,18 +14533,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const langRow = document.createElement("div");
             langRow.className = "ebc-lang-row";
             const langPills = [];
+            const langNameEls = [];
+            // Two shapes for one row. Pinned under the tab bar in the classic layout
+            // it must stay a thin strip, but inside the SETTINGS pill it has a whole
+            // page to itself - so there it becomes a grid of cards that name each
+            // language, rather than seven tiny codes floating in empty space.
             const refreshLangPills = () => {
                 const cur = getLanguage();
-                for (const pill of langPills) {
+                const grid = isGroupedLayout();
+                langRow.style.cssText = grid
+                    ? "display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;padding:3px 0;"
+                    : "";
+                for (let i = 0; i < langPills.length; i++) {
+                    const pill = langPills[i];
                     const active = pill.dataset.lang === cur;
+                    langNameEls[i].style.display = grid ? "block" : "none";
                     pill.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
-                        "font-size:11px",
-                        "padding:4px 10px",
-                        "border-radius:12px",
                         "cursor:pointer",
-                        "flex-shrink:0",
                         "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                        grid
+                            ? "font-size:12px;padding:9px 8px;border-radius:9px;text-align:center;line-height:1.3;"
+                            : "font-size:11px;padding:4px 10px;border-radius:12px;flex-shrink:0;",
                         active
                             ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;font-weight:bold;"
                             : "border:1px solid #3a1928;background:transparent;color:#8a5070;",
@@ -14529,13 +14565,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const pill = document.createElement("button");
                 pill.dataset.lang = code;
                 pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-                pill.textContent = LANG_LABELS[code];
+                const codeEl = document.createElement("div");
+                codeEl.textContent = LANG_LABELS[code];
+                const nameEl = document.createElement("div");
+                nameEl.textContent = LANG_NAMES[code];
+                nameEl.style.cssText = "font-size:9.5px;font-weight:normal;opacity:0.72;margin-top:2px;";
+                pill.appendChild(codeEl);
+                pill.appendChild(nameEl);
                 pill.title = LANG_NAMES[code]; // full name on hover
                 pill.addEventListener("click", () => {
                     setLanguage(code);
                     refreshLangPills();
                 });
                 langPills.push(pill);
+                langNameEls.push(nameEl);
                 langRow.appendChild(pill);
             }
             refreshLangPills();
@@ -17754,6 +17797,31 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     });
                     row.appendChild(nm);
                     row.appendChild(sz);
+                    // Click rather than hover: a tooltip is unreachable on a phone,
+                    // and these labels are jargon unless you already know them.
+                    if (cat.help) {
+                        const q = document.createElement("button");
+                        q.textContent = "?";
+                        q.title = "What is this?";
+                        q.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;width:18px;height:18px;padding:0;border-radius:50%;border:1px solid #4a3040;background:transparent;color:#9a7080;cursor:pointer;transition:all 0.12s;";
+                        q.addEventListener("mouseenter", () => { q.style.borderColor = "#cf6f98"; q.style.color = "#cf6f98"; });
+                        q.addEventListener("mouseleave", () => { q.style.borderColor = "#4a3040"; q.style.color = "#9a7080"; });
+                        const helpEl = document.createElement("div");
+                        helpEl.style.cssText = "display:none;font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;padding:2px 4px 6px 4px;border-bottom:1px solid rgba(42,20,33,0.6);";
+                        helpEl.textContent = cat.help;
+                        q.addEventListener("click", () => {
+                            const open = helpEl.style.display === "none";
+                            helpEl.style.display = open ? "block" : "none";
+                            q.style.background = open ? "#3a1028" : "transparent";
+                        });
+                        row.appendChild(q);
+                        row.appendChild(locBtn);
+                        row.appendChild(exp);
+                        row.appendChild(del);
+                        dataBody.appendChild(row);
+                        dataBody.appendChild(helpEl);
+                        continue;
+                    }
                     row.appendChild(locBtn);
                     row.appendChild(exp);
                     row.appendChild(del);
@@ -23894,13 +23962,20 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         wrap.appendChild(pRow);
                     }
                     else if (isSent && isBeepBlocked(e)) {
-                        // Their rules refused this one - it never reached them.
+                        // Never left. Whose rule stopped it changes what you can do
+                        // about it, so the two cases read differently.
+                        const blockedBy = isBeepBlocked(e);
                         bubble.style.opacity = "0.72";
                         const bRow = document.createElement("div");
                         bRow.style.cssText = "padding:1px 3px 0;";
                         const bLbl = document.createElement("span");
                         bLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c07a7a;";
-                        bLbl.textContent = "⛔ Not delivered - their rules block beeps from you";
+                        bLbl.textContent = blockedBy === "you"
+                            ? "⛔ Not sent - a rule on you blocks beeping them"
+                            : "⛔ Not delivered - their rules block beeps from you";
+                        bLbl.title = blockedBy === "you"
+                            ? "One of your own rules (BCX or similar) forbids beeping this person. Only you can see this."
+                            : "They run a rule that refuses beeps from you. Only you can see this.";
                         bRow.appendChild(bLbl);
                         wrap.appendChild(bRow);
                     }
@@ -25228,8 +25303,41 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // ── Saved notes only ─────────────────────────────────────────────────
             const savedEntries = Object.entries(notes);
             if (savedEntries.length > 0) {
+                // Search covers the note text as well as the name - the reason to
+                // keep notes is finding the one that mentioned a thing.
+                const rows = [];
+                if (savedEntries.length > 4) {
+                    const searchWrap = document.createElement("div");
+                    searchWrap.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px;";
+                    const searchInp = document.createElement("input");
+                    searchInp.type = "text";
+                    searchInp.className = "ebc-form-input";
+                    searchInp.placeholder = "Search names and notes...";
+                    searchInp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
+                    searchInp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+                    const hits = document.createElement("span");
+                    hits.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                    const applyFilter = () => {
+                        const q = searchInp.value.trim().toLowerCase();
+                        let shown = 0;
+                        for (const r of rows) {
+                            const on = !q || r.hay.includes(q);
+                            r.el.style.display = on ? "" : "none";
+                            if (on)
+                                shown++;
+                        }
+                        hits.textContent = q ? `${shown}/${rows.length}` : `${rows.length}`;
+                    };
+                    searchInp.addEventListener("input", applyFilter);
+                    searchWrap.appendChild(searchInp);
+                    searchWrap.appendChild(hits);
+                    userNotesBody.appendChild(searchWrap);
+                    window.setTimeout(applyFilter, 0);
+                }
                 for (const [key, data] of savedEntries) {
-                    userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
+                    const row = this.buildNoteRow(parseInt(key), data.name, data.note);
+                    rows.push({ el: row, hay: `${data.name} ${data.note} #${key}`.toLowerCase() });
+                    userNotesBody.appendChild(row);
                 }
             }
             else {
@@ -27061,6 +27169,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 container.appendChild(selfNote);
                 return container;
             }
+            // A one-line preview of the note itself. Without it the list was only
+            // names, so you had to open every row to remember why you noted someone.
+            const preview = document.createElement("div");
+            preview.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.45;padding:0 8px 5px 18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;";
+            const paintPreview = (txt) => {
+                const one = txt.replace(/\s+/g, " ").trim();
+                preview.textContent = one || "No note yet - click to write one";
+                preview.style.fontStyle = one ? "normal" : "italic";
+                preview.style.color = one ? "#9a8290" : "#6a5060";
+            };
+            paintPreview(currentNote);
+            container.appendChild(preview);
             const editor = document.createElement("div");
             editor.className = "ebc-notes-editor";
             const textarea = document.createElement("textarea");
@@ -27074,11 +27194,46 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             editor.appendChild(textarea);
             editor.appendChild(hint);
             container.appendChild(editor);
-            header.addEventListener("click", () => {
+            const toggleEditor = () => {
                 const open = editor.classList.toggle("open");
+                preview.style.display = open ? "none" : "";
                 if (open)
                     textarea.focus();
+            };
+            header.addEventListener("click", toggleEditor);
+            preview.addEventListener("click", toggleEditor);
+            // Deleting is per-row and two-step, so a mis-click never silently drops
+            // something you wrote about someone.
+            const del = document.createElement("span");
+            del.textContent = "\u2715";
+            del.title = "Delete this note";
+            del.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;flex-shrink:0;transition:color 0.12s;";
+            let armed = false;
+            del.addEventListener("mouseenter", () => { del.style.color = "#d06878"; });
+            del.addEventListener("mouseleave", () => { if (!armed)
+                del.style.color = "#7a5060"; });
+            del.addEventListener("click", (ev) => {
+                ev.stopPropagation();
+                if (!armed) {
+                    armed = true;
+                    del.textContent = "Delete?";
+                    del.style.color = "#e08a8a";
+                    window.setTimeout(() => {
+                        if (!armed)
+                            return;
+                        armed = false;
+                        del.textContent = "\u2715";
+                        del.style.color = "#7a5060";
+                    }, 3000);
+                    return;
+                }
+                try {
+                    deleteNote(memberNumber);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                container.remove();
             });
+            header.appendChild(del);
             let saveTimer = null;
             textarea.addEventListener("input", () => {
                 if (saveTimer)
@@ -27086,6 +27241,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 hint.textContent = "saving...";
                 saveTimer = window.setTimeout(() => {
                     saveNote(memberNumber, displayName, textarea.value);
+                    paintPreview(textarea.value);
                     dot.className = "ebc-notes-dot" + (textarea.value.trim() ? " has-note" : "");
                     hint.textContent = textarea.value.trim() ? "saved" : "saves automatically";
                     window.setTimeout(() => { hint.textContent = "saves automatically"; }, 1500);
@@ -39804,7 +39960,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 232; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 233; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -39821,6 +39977,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
+                "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
+                "Notes now show the note itself under each name instead of just a list of names, with a search box that looks through the note text as well as the names, and a two-step delete on each row.",
+                "Language picker uses the space it has in the new layout - a grid of cards naming each language rather than seven small codes in the corner. The classic layout keeps the thin pinned strip, where a grid would push everything down.",
                 "Removed the 'Settled In' and 'Comfy Captive' achievements. Time spent sitting in one room could not be measured reliably - reloading, reconnecting or BC dropping the room state all looked identical to leaving, so progress was inconsistent and there was no honest way to fix that. The rest of the bondage achievements, including 'Living in Rope' for a continuous bound streak, are unaffected.",
                 "Fix: sections inside a pill were squeezed into a small scrolling box with a screen of empty space beneath them. The height cap on those strips exists for the classic layout, where they sit pinned above every tab and would otherwise push the footer off screen - inside a pill they own the whole page, so the cap is dropped and the panel scrolls normally.",
                 "Fix: 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for. It is a running total that persists now.",

@@ -29,7 +29,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 232;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 233;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
+            "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
+            "Notes now show the note itself under each name instead of just a list of names, with a search box that looks through the note text as well as the names, and a two-step delete on each row.",
+            "Language picker uses the space it has in the new layout - a grid of cards naming each language rather than seven small codes in the corner. The classic layout keeps the thin pinned strip, where a grid would push everything down.",
             "Removed the 'Settled In' and 'Comfy Captive' achievements. Time spent sitting in one room could not be measured reliably - reloading, reconnecting or BC dropping the room state all looked identical to leaving, so progress was inconsistent and there was no honest way to fix that. The rest of the bondage achievements, including 'Living in Rope' for a continuous bound streak, are unaffected.",
             "Fix: sections inside a pill were squeezed into a small scrolling box with a screen of empty space beneath them. The height cap on those strips exists for the classic layout, where they sit pinned above every tab and would otherwise push the footer off screen - inside a pill they own the whole page, so the cap is dropped and the panel scrolls normally.",
             "Fix: 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for. It is a running total that persists now.",

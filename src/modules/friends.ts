@@ -874,16 +874,24 @@ export function hasSessionBundle(memberNumber: number): boolean {
 // they are a local display detail, not worth account-sync budget.
 
 const BLOCKED_LS = "EBC_blockedBeeps";
+/** Who refused a message: their rules, or your own. */
+export type BlockedBy = "them" | "you";
 const MAX_BLOCKED = 300;
-let _blocked: Set<number> | null = null;
+let _blocked: Map<number, BlockedBy> | null = null;
 
-function blockedSet(): Set<number> {
+function blockedMap(): Map<number, BlockedBy> {
     if (_blocked) return _blocked;
-    _blocked = new Set<number>();
+    _blocked = new Map<number, BlockedBy>();
     try {
         const raw = localStorage.getItem(BLOCKED_LS);
-        if (raw) for (const n of JSON.parse(raw) as number[]) {
-            if (typeof n === "number") _blocked.add(n);
+        const parsed = raw ? JSON.parse(raw) as unknown[] : [];
+        for (const item of parsed) {
+            // Older builds stored a bare list of timestamps, all of which meant
+            // "the recipient refused it" - that was the only case back then.
+            if (typeof item === "number") _blocked.set(item, "them");
+            else if (Array.isArray(item) && typeof item[0] === "number") {
+                _blocked.set(item[0], item[1] === "you" ? "you" : "them");
+            }
         }
     } catch { /* ignore */ }
     return _blocked;
@@ -891,15 +899,21 @@ function blockedSet(): Set<number> {
 
 function saveBlocked(): void {
     try {
-        const all = [...blockedSet()].sort((a, b) => b - a).slice(0, MAX_BLOCKED);
-        _blocked = new Set(all);
+        const all = [...blockedMap().entries()].sort((a, b) => b[0] - a[0]).slice(0, MAX_BLOCKED);
+        _blocked = new Map(all);
         localStorage.setItem(BLOCKED_LS, JSON.stringify(all));
     } catch { /* ignore */ }
 }
 
-/** True when this sent message was refused by the recipient's rules. */
-export function isBeepBlocked(entry: BeepEntry): boolean {
-    return blockedSet().has(entry.ts);
+/** Who refused this sent message, or null if it went through. */
+export function isBeepBlocked(entry: BeepEntry): BlockedBy | null {
+    return blockedMap().get(entry.ts) ?? null;
+}
+
+/** Records that a message we just wrote to history never left. */
+export function markBeepBlocked(ts: number, by: BlockedBy): void {
+    blockedMap().set(ts, by);
+    saveBlocked();
 }
 
 /**
@@ -913,8 +927,8 @@ export function markLastSentBlocked(memberNumber: number): boolean {
     for (let i = convo.length - 1; i >= 0; i--) {
         const e = convo[i];
         if (e.from !== self || e.to !== memberNumber) continue;
-        if (blockedSet().has(e.ts)) return false;   // already flagged, don't walk further back
-        blockedSet().add(e.ts);
+        if (blockedMap().has(e.ts)) return false;   // already flagged, don't walk further back
+        blockedMap().set(e.ts, "them");
         saveBlocked();
         try { cancelPendingMessage(memberNumber, stripBeepMetadata(e.message)); } catch { /* ignore */ }
         return true;
@@ -942,15 +956,21 @@ export function sendBeep(memberNumber: number, message: string): void {
         delivered = sendBeepViaBC(memberNumber, message, true);
     } catch { /* ignore */ }
 
-    // A rule blocked it - don't queue it, don't file it in history as sent.
-    // The rule addon shows its own explanation, so EBC stays quiet here.
-    if (!delivered) return;
+    const ts = Date.now();
+    // A rule of YOUR OWN stopped this one. Keep it in the conversation rather
+    // than letting it vanish out of the box with no trace, but mark it as never
+    // sent and never queue it - the rule will refuse it again just the same.
+    if (!delivered) {
+        addBeepEntry({ from: Player.MemberNumber ?? 0, to: memberNumber, message, ts });
+        markBeepBlocked(ts, "you");
+        return;
+    }
     markPendingMessage(memberNumber, message);
     addBeepEntry({
         from: Player.MemberNumber ?? 0,
         to: memberNumber,
         message,
-        ts: Date.now(),
+        ts,
     });
 }
 
