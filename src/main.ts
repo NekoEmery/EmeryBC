@@ -29,7 +29,7 @@ import { isAchievementUser, achievementOnActivity, achievementOnItemApply, handl
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 220;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 221;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
+            "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
+            "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",
             "CREDITS is its own tab again on the new layout instead of being a collapsed section at the bottom of SETTINGS. Both layouts now have the same CREDITS tab, so switching layout keeps you on it. You can still hide it from the tab list in SETTINGS -> Drawer if you would rather not see it.",
             "Fix (reported by Julia): typing in the friends search no longer makes the room list reappear above your results. Root cause: the search, clear, sort and filter controls all redrew the friends list without telling it where the Rooms section lives, and the renderer falls back to drawing rooms inline when it is not told - so the whole room list landed on top of the friends section every keystroke. All four now keep Rooms in its own pill.",
             "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",

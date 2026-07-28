@@ -169,7 +169,15 @@ function showTierToast(a: AchievementDef, tier: number): void {
         const col = a.rare || maxed ? "#ffd700" : TIER_TOAST_COLOR[Math.min(tier - 1, 2)];
         const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const el = document.createElement("div");
-        el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;pointer-events:none;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
+        // Clickable: it used to be pointer-events:none, so the only way past it
+        // was to wait out the full six seconds.
+        el.style.cssText = `position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#160a20;border:2px solid ${col};border-radius:10px;padding:12px 26px 12px 24px;color:#fff;font-family:'Trebuchet MS',serif;font-size:13px;z-index:999999;cursor:pointer;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,0.85);`;
+        el.title = "Click to dismiss";
+        el.addEventListener("click", () => el.remove());
+        const toastClose = document.createElement("div");
+        toastClose.textContent = "×";
+        toastClose.style.cssText = `position:absolute;top:3px;right:8px;font-size:14px;line-height:1;color:${col}99;`;
+        el.appendChild(toastClose);
         const head = document.createElement("div");
         head.style.cssText = `font-size:10.5px;color:${col};letter-spacing:0.15em;margin-bottom:3px;`;
         head.textContent = a.tiers.length > 1 && !maxed ? "🏆 ACHIEVEMENT TIER UP" : "🏆 ACHIEVEMENT UNLOCKED";
@@ -390,6 +398,11 @@ export function handleAchievementShareMessage(data: Record<string, unknown> | nu
         const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
         if (!a) return false;
         const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+        // Our own room share comes straight back to us, and shareAchievement has
+        // already drawn the nicer "you shared with the room" plaque. Without this
+        // the sharer saw the same achievement twice, once as themselves and once
+        // as "shared by <own name>".
+        if (senderNum && senderNum === (Player?.MemberNumber ?? -1)) return true;
         const last = _plaqueLastBySender.get(senderNum) ?? 0;
         if (Date.now() - last < 30_000) return true; // swallow the spam silently
         _plaqueLastBySender.set(senderNum, Date.now());
@@ -432,13 +445,28 @@ function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): bo
             "padding:7px 12px",
             "border-radius:8px",
             `border:1px solid ${metal}99`,
-            `background:linear-gradient(120deg, rgba(22,10,20,0.96) 35%, ${metal}14 50%, rgba(22,10,20,0.96) 65%)`,
+            // The sweep is an overlay on top of a solid base. It used to be one
+            // gradient whose middle stop was the metal at 8% alpha, which made
+            // the plaque nearly see-through there - on BC's default light chat
+            // log that read as a glaring white band rather than a metal sheen.
+            "background-color:rgba(22,10,20,0.96)",
+            `background-image:linear-gradient(120deg, transparent 42%, ${metal}1c 50%, transparent 58%)`,
             "background-size:200% 100%",
             "animation:ebcAchShine 14s linear infinite",
             `box-shadow:inset 0 1px 0 rgba(255,255,255,0.06)`,
             "font-family:'Trebuchet MS',serif",
             "text-align:center",
+            "position:relative",
         ].join(";");
+
+        // Plaques stay in the log forever, so give people a way out of one.
+        const close = document.createElement("div");
+        close.textContent = "×";
+        close.title = "Dismiss this achievement";
+        close.style.cssText = `position:absolute;top:2px;right:7px;font-size:14px;line-height:1;color:${metal}88;cursor:pointer;padding:2px 4px;`;
+        close.addEventListener("mouseenter", () => { close.style.color = metal; });
+        close.addEventListener("mouseleave", () => { close.style.color = `${metal}88`; });
+        close.addEventListener("click", (ev) => { ev.stopPropagation(); plaque.remove(); });
 
         const head = document.createElement("div");
         head.style.cssText = `font-size:8.5px;letter-spacing:0.14em;color:${metal}bb;text-transform:uppercase;`;
@@ -450,6 +478,7 @@ function renderSharedPlaque(byline: string, a: AchievementDef, tier: number): bo
         descEl.style.cssText = "font-size:10.5px;color:#c0aec4;margin-top:1px;";
         descEl.textContent = desc;
 
+        plaque.appendChild(close);
         plaque.appendChild(head);
         plaque.appendChild(nameEl);
         plaque.appendChild(descEl);
