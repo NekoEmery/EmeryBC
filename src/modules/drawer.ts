@@ -66,7 +66,7 @@ import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
 import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
          getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
          shareRecipients, shareRecipientsDetailed, PRIVATE_ROOM_SHARING_ENABLED } from "./privateRooms";
-import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose } from "./poses";
+import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose, getEffectivePoses } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
 import { getNotes, saveNote, deleteNote, type CharacterNote } from "./notes";
@@ -11724,7 +11724,9 @@ This cannot be undone.`,
         // is on screen and stop as soon as it is replaced.
         if (this._poseWatch !== null) { window.clearInterval(this._poseWatch); this._poseWatch = null; }
         const refreshPoseBtns = (): void => {
-            const live = getCurrentPoses();
+            // Effective, not chosen - so a restraint forcing a pose lights the
+            // right button without you touching anything.
+            const live = getEffectivePoses();
             const armKeys2 = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
             for (const ref of poseBtnRefs) {
                 const on = ref.key === "" && ref.group === "Arms"
@@ -18362,19 +18364,15 @@ This cannot be undone.`,
                 + "animation:ebcAchCrawl 1.1s linear infinite;"
                 + "transition:width 0.7s cubic-bezier(0.22,0.9,0.3,1);"
                 + "box-shadow:0 0 7px rgba(207,111,152,0.55);";
-            const tip = document.createElement("div");
-            tip.style.cssText = `position:absolute;top:-2px;bottom:-2px;left:0;width:8px;border-radius:4px;`
-                + "background:radial-gradient(closest-side, rgba(255,235,245,0.85), rgba(255,235,245,0));"
-                + "transition:left 0.7s cubic-bezier(0.22,0.9,0.3,1);pointer-events:none;";
             trough.appendChild(fill);
-            if (pct > 0 && pct < 100) trough.appendChild(tip);
             summary.appendChild(line);
             summary.appendChild(trough);
-            // Grow from zero on the next frame so the transition actually runs,
-            // and count the number up alongside it rather than snapping.
+            // Read a layout property first. That forces the browser to commit
+            // the 0% width, so the change below is something it can animate
+            // between rather than a single value it renders once.
             window.requestAnimationFrame(() => {
+                void trough.offsetWidth;
                 fill.style.width = `${pct}%`;
-                tip.style.left = `calc(${pct}% - 4px)`;
             });
             if (unlocked > 0) {
                 const DUR = 700;
@@ -18544,12 +18542,13 @@ This cannot be undone.`,
             chipRow.appendChild(chip);
         }
         paintChips();
-        paintSummary();
         buildList();
 
         outer.appendChild(chipRow);
         outer.appendChild(summary);
         outer.appendChild(listWrap);
+        // Painted after the summary is in the tree - see paintSummary.
+        paintSummary();
         return outer;
     }
 

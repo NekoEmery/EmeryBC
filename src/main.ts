@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 254;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 255;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
+            "Fix: the Body menu now follows a pose forced on you by a restraint. It was reading the pose you last chose rather than the one in effect - the game keeps those separately, and a restraint only changes the second, so the highlight stayed on whatever you last clicked while your character was visibly in something else.",
             "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",
             "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
             "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",

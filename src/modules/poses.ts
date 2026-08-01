@@ -282,6 +282,32 @@ export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
     }
 }
 
+/**
+ * The pose actually in effect, which is not always the one you chose.
+ *
+ * BC keeps two things: ActivePoseMapping is what you asked for, and PoseMapping
+ * is the intersection of that with what your items allow - the one that renders.
+ * A restraint forcing you into a pose changes PoseMapping only, so reading the
+ * chosen pose meant the Body menu kept highlighting whatever you last clicked
+ * while your character was visibly in something else.
+ */
+export function getEffectivePoses(): string[] {
+    try {
+        const pm = (Player as unknown as Record<string, unknown>).PoseMapping as
+            Record<string, string> | undefined;
+        if (pm && typeof pm === "object") {
+            const out = Object.values(pm).filter((v): v is string => typeof v === "string" && !!v);
+            // BaseUpper/BaseLower are BC's names for "nothing applied" - they are
+            // not poses anyone picked, and showing them as active would light up
+            // buttons that were never pressed.
+            const real = out.filter(v => v !== "BaseUpper" && v !== "BaseLower");
+            if (real.length > 0) return real;
+            if (out.length > 0) return [];
+        }
+    } catch { /* ignore */ }
+    return getCurrentPoses();
+}
+
 export function getCurrentPoses(): string[] {
     try {
         const ap = (Player.ActivePose as string[] | undefined) ?? [];
