@@ -14457,8 +14457,13 @@
              * Tab *switches* intentionally bypass this and call renderCurrentTab()
              * directly so the new tab always starts at the top.
              */
-            /** Interval keeping the pose grid in step with poses set elsewhere. */
-            this._poseWatch = null;
+            /**
+             * Repaints the Body pose grid. Held here so the appearance-change hook can
+             * call it - the grid has to follow poses set by restraints, and a poll was
+             * the wrong tool: it depended on finding the container in the document, and
+             * when that check was wrong it stopped silently with nothing to show for it.
+             */
+            this._refreshPoseButtons = null;
             this._rerenderTimer = null;
             /** True while _pillifyTab is synthesising header clicks. */
             this._pillifying = false;
@@ -17258,6 +17263,14 @@
                 el.style.transform = bT;
                 el.style.transformOrigin = scale === 1 ? "" : "top left";
             }
+        }
+        /** Called whenever the player's appearance changes. */
+        refreshPoseButtons() {
+            var _a;
+            try {
+                (_a = this._refreshPoseButtons) === null || _a === void 0 ? void 0 : _a.call(this);
+            }
+            catch ( /* grid is gone; harmless */_b) { /* grid is gone; harmless */ }
         }
         rerender(delay = 0) {
             var _a, _b;
@@ -21629,13 +21642,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 : key ? `Set ${grp.toLowerCase()} pose: ${key}`
                     : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
             // Poses change without the panel being touched - a restraint can force
-            // one, and someone else can pose you. Nothing told the grid, so the
-            // highlight kept showing whatever you last picked. Poll while the grid
-            // is on screen and stop as soon as it is replaced.
-            if (this._poseWatch !== null) {
-                window.clearInterval(this._poseWatch);
-                this._poseWatch = null;
-            }
+            // one, and someone else can pose you.
             const refreshPoseBtns = () => {
                 var _a, _b;
                 // Effective, not chosen - so a restraint forcing a pose lights the
@@ -21655,15 +21662,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     ref.btn.title = poseTitle(ref.key, ref.group, blocked);
                 }
             };
-            this._poseWatch = window.setInterval(() => {
-                if (!document.body.contains(posesCnt)) {
-                    if (this._poseWatch !== null)
-                        window.clearInterval(this._poseWatch);
-                    this._poseWatch = null;
-                    return;
-                }
-                refreshPoseBtns();
-            }, 1000);
+            // Registered last, so it always points at the grid built by the most
+            // recent render. An older closure would repaint buttons that are no
+            // longer on screen.
+            this._refreshPoseButtons = refreshPoseBtns;
             for (const group of KNOWN_POSES) {
                 const lbl = document.createElement("div");
                 lbl.className = "ebc-section-label";
@@ -40714,7 +40716,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 257; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 258; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40731,6 +40733,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
                 "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
                 "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",
                 "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
@@ -48591,6 +48594,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
+                    // BC has just recomputed the pose, so this is the moment the
+                    // Body grid is stale - a restraint forcing a pose lands here.
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshPoseButtons();
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
                 }
                 else if ((C === null || C === void 0 ? void 0 : C.MemberNumber) != null && C.MemberNumber !== Player.MemberNumber) {
                     // Record this person in the persistent "people met" list.
@@ -48609,11 +48618,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             if (C.Name)
                                 cacheAccountName(C.MemberNumber, C.Name);
                         }
-                        catch ( /* ignore */_c) { /* ignore */ }
+                        catch ( /* ignore */_d) { /* ignore */ }
                     }
                 }
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.
