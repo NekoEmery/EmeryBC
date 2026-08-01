@@ -10793,6 +10793,14 @@
     -webkit-overflow-scrolling: touch; /* momentum scroll - needed on some Android builds */
 }
 
+@keyframes ebcAchCrawl {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 0 0, 30px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ebc-ach-bar > div { animation: none !important; transition: none !important; }
+}
+
 /* -- EBC tags strip body (scrollable, capped height so footer stays visible) --
    The cap exists for the CLASSIC layout, where this strip is pinned above every
    tab and must not push the footer off screen. Inside a pill it owns the whole
@@ -14306,6 +14314,8 @@
             this._rerenderTimer = null;
             /** True while _pillifyTab is synthesising header clicks. */
             this._pillifying = false;
+            /** A tag being typed but not yet added, held across friend-list rebuilds. */
+            this._tagDraft = null;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -27014,7 +27024,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     let newTagInputRef = null;
                     let refreshExpandNote = null;
                     const buildExpandPanel = () => {
-                        var _a;
+                        var _a, _b, _c;
                         if (expandBuilt)
                             return;
                         expandBuilt = true;
@@ -27048,13 +27058,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                 }
                             }
                         }
-                        catch ( /* ignore */_b) { /* ignore */ }
+                        catch ( /* ignore */_d) { /* ignore */ }
                         // Fallback: try the module helper too
                         if (!sinceTs) {
                             try {
                                 sinceTs = getFriendSince(num);
                             }
-                            catch ( /* ignore */_c) { /* ignore */ }
+                            catch ( /* ignore */_e) { /* ignore */ }
                         }
                         const sinceEl = document.createElement("div");
                         if (sinceTs) {
@@ -27141,7 +27151,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                 infoBox.appendChild(mkRelLine("Yours", "#b088d0", ts ? `since ${relFmt(ts)}` : "you own them"));
                             }
                         }
-                        catch ( /* ignore */_d) { /* ignore */ }
+                        catch ( /* ignore */_f) { /* ignore */ }
                         expand.appendChild(infoBox);
                         // Tags label
                         const tagsLbl = document.createElement("div");
@@ -27221,7 +27231,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // Color swatches row
                         const swatchRow = document.createElement("div");
                         swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
-                        let selectedColor = TAG_COLORS[0];
+                        // Restore anything that was being typed here before the list
+                        // last rebuilt itself under you.
+                        const draft = ((_b = this._tagDraft) === null || _b === void 0 ? void 0 : _b.num) === num ? this._tagDraft : null;
+                        let selectedColor = (_c = draft === null || draft === void 0 ? void 0 : draft.color) !== null && _c !== void 0 ? _c : TAG_COLORS[0];
+                        if (draft === null || draft === void 0 ? void 0 : draft.text)
+                            newTagInput.value = draft.text;
+                        const noteDraft = () => {
+                            const txt = newTagInput.value;
+                            this._tagDraft = (txt.trim() || selectedColor !== TAG_COLORS[0])
+                                ? { num, text: txt, color: selectedColor }
+                                : null;
+                        };
+                        newTagInput.addEventListener("input", noteDraft);
                         const swatches = [];
                         for (const c of TAG_COLORS) {
                             const sw = document.createElement("span");
@@ -27232,6 +27254,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                 selectedColor = c;
                                 swatches.forEach(s => s.classList.remove("sel"));
                                 sw.classList.add("sel");
+                                // Clicking a swatch blurs the input, so a focus-based
+                                // guard alone would not save the draft from here.
+                                noteDraft();
                             });
                             swatches.push(sw);
                             swatchRow.appendChild(sw);
@@ -27245,6 +27270,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             }
                             const updated = [...getFriendTagList(num), { text, color: selectedColor }];
                             setFriendTagList(num, updated);
+                            this._tagDraft = null; // committed, nothing left to restore
                             newTagInput.value = "";
                             newTagInput.style.borderColor = "#3a1928";
                             rebuildChips();
@@ -27998,11 +28024,48 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 line.appendChild(r);
                 const trough = document.createElement("div");
                 trough.className = "ebc-ach-bar";
+                trough.style.position = "relative";
+                trough.style.overflow = "hidden";
                 const fill = document.createElement("div");
-                fill.style.cssText = `height:100%;border-radius:3px;width:${pct}%;background:linear-gradient(90deg, #8a4a68, #cf6f98);`;
+                // Moving stripes over the gradient, and a bright edge where the fill
+                // stops. A flat block reads as a static figure; this reads as
+                // progress, which is the point of showing it at all.
+                fill.style.cssText = "height:100%;border-radius:3px;width:0%;"
+                    + "background-color:#cf6f98;"
+                    + "background-image:linear-gradient(90deg, #8a4a68, #cf6f98),"
+                    + "repeating-linear-gradient(115deg, rgba(255,255,255,0.16) 0 7px, rgba(255,255,255,0) 7px 15px);"
+                    + "background-size:100% 100%, 30px 100%;"
+                    + "animation:ebcAchCrawl 1.1s linear infinite;"
+                    + "transition:width 0.7s cubic-bezier(0.22,0.9,0.3,1);"
+                    + "box-shadow:0 0 7px rgba(207,111,152,0.55);";
+                const tip = document.createElement("div");
+                tip.style.cssText = `position:absolute;top:-2px;bottom:-2px;left:0;width:8px;border-radius:4px;`
+                    + "background:radial-gradient(closest-side, rgba(255,235,245,0.85), rgba(255,235,245,0));"
+                    + "transition:left 0.7s cubic-bezier(0.22,0.9,0.3,1);pointer-events:none;";
                 trough.appendChild(fill);
+                if (pct > 0 && pct < 100)
+                    trough.appendChild(tip);
                 summary.appendChild(line);
                 summary.appendChild(trough);
+                // Grow from zero on the next frame so the transition actually runs,
+                // and count the number up alongside it rather than snapping.
+                window.requestAnimationFrame(() => {
+                    fill.style.width = `${pct}%`;
+                    tip.style.left = `calc(${pct}% - 4px)`;
+                });
+                if (unlocked > 0) {
+                    const DUR = 700;
+                    const start = performance.now();
+                    const step = (t) => {
+                        const k = Math.min(1, (t - start) / DUR);
+                        const eased = 1 - Math.pow(1 - k, 3);
+                        l.textContent = `Unlocked ${Math.round(unlocked * eased)} / ${progress.length}`;
+                        if (k < 1)
+                            window.requestAnimationFrame(step);
+                    };
+                    l.textContent = `Unlocked 0 / ${progress.length}`;
+                    window.requestAnimationFrame(step);
+                }
             };
             const buildList = () => {
                 while (listWrap.firstChild)
@@ -40457,7 +40520,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 246; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 247; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40474,6 +40537,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
+                "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
                 "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",
                 "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
                 "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
