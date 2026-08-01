@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 258;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 259;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: the Body menu no longer greys out the pose you are actually in. Poses you cannot get into by yourself are dimmed - which is right for a hogtie, since you cannot hogtie yourself - but that dimming was also applied when a restraint had already put you there. So being hogtied faded out the very button that was meant to be lit up, and the menu looked broken at exactly the moment it should have been telling you something. A pose you are currently in is never dimmed now.",
             "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
             "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
             "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",

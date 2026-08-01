@@ -11751,7 +11751,12 @@ This cannot be undone.`,
                     : ref.key === ""
                     ? live.length === 0
                     : live.includes(ref.key);
-                const blocked = !canTakePose(ref.key);
+                // A pose you are ALREADY IN is never dimmed. The dimming means
+                // "you cannot switch to this unaided", which is true of a hogtie
+                // - so being hogtied greyed out the very button that was meant
+                // to be lit, and the menu looked broken exactly when a restraint
+                // put you somewhere you could not have put yourself.
+                const blocked = !on && !canTakePose(ref.key);
                 ref.btn.className = "ebc-pose-btn" + (on ? " active" : "");
                 ref.btn.style.opacity = blocked ? "0.4" : "";
                 ref.btn.style.cursor  = blocked ? "not-allowed" : "";
@@ -11785,7 +11790,8 @@ This cannot be undone.`,
                     : isPoseActive(preset.key);
                 btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                 btn.textContent = preset.label;
-                const poseBlocked = !canTakePose(preset.key);
+                // Same rule on the first paint - see refreshPoseBtns.
+                const poseBlocked = !isActive && !canTakePose(preset.key);
                 if (poseBlocked) {
                     btn.style.opacity = "0.4";
                     btn.style.cursor = "not-allowed";
