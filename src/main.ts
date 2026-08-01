@@ -2,7 +2,7 @@
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
-import { sendBeepViaBC, sendEmoteViaBC, isEbcOriginatedBeep } from "./modules/bcSpeech";
+import { sendBeepViaBC, sendRoomEmote, isEbcOriginatedBeep } from "./modules/bcSpeech";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 252;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 253;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,7 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
-            "Diagnostic build: sidebar emotes still lose the name for some people and my last two explanations were both wrong, so every emote now writes one line to the browser console saying exactly what text is going out, which path sent it, and what the game thinks your name is. Press F12, use a Pout or Giggle button, and send Emery the line beginning [EBC emote].",
+            "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
             "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
             "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
             "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
@@ -6241,7 +6241,7 @@ function showKittyResistancePopup(
                 setTimeout(() => { if (elemVal) elemVal("InputChat", saved); }, 0);
             } else {
                 // Fallback: direct send (same as sendRoomEmote)
-                sendEmoteViaBC(emoteText.slice(1));
+                sendRoomEmote(emoteText.slice(1));
             }
         } catch { /* ignore */ }
         close();
@@ -6265,7 +6265,7 @@ function showKittyResistancePopup(
                     : (hasItem
                         ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
                         : "squirms right up until the very end and goes still with a sulky exhale~");
-                sendEmoteViaBC(emote);
+                sendRoomEmote(emote);
             }
         } catch { /* ignore */ }
         // Apply restraint items to self (with full craft/property/difficulty support)
@@ -6386,7 +6386,7 @@ function showKittyReactPopup(label: string): void {
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🥰";
     acceptBtn.addEventListener("click", () => {
-        try { sendEmoteViaBC("brightens up happily, tail wagging~ 💜"); } catch { /* ignore */ }
+        try { sendRoomEmote("brightens up happily, tail wagging~ 💜"); } catch { /* ignore */ }
         close();
     });
 
@@ -6394,7 +6394,7 @@ function showKittyReactPopup(label: string): void {
     ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
     ignoreBtn.textContent = "Ignore 🙈";
     ignoreBtn.addEventListener("click", () => {
-        try { sendEmoteViaBC("glances away shyly, pretending not to notice~"); } catch { /* ignore */ }
+        try { sendRoomEmote("glances away shyly, pretending not to notice~"); } catch { /* ignore */ }
         close();
     });
 
@@ -6536,7 +6536,7 @@ function handleKittyCommand(msg: string): void {
                 // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
                 if (arg) {
                     try {
-                        sendEmoteViaBC(arg);
+                        sendRoomEmote(arg);
                     } catch { /* ignore */ }
                 }
                 break;

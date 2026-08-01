@@ -82,59 +82,20 @@ export function sendBeepViaBC(target: number, message: string, includeRoom: bool
 }
 
 /**
- * Sends a room emote through BC's own pipeline.
+ * Sends a room emote.
  *
- * @param content - emote text WITHOUT the leading asterisk. BC's
- *   ChatRoomSendEmote expects the asterisk (it strips it while parsing the
- *   `*50%` chance syntax), so it is added back here.
+ * This deliberately does NOT go through BC's ChatRoomSendEmote, unlike beeps
+ * above. It did for a while, so that rule addons hooking that function would
+ * see EBC's emotes - but routing through it also meant BC re-parsed our text as
+ * chat syntax, and emotes started arriving without the sender's name in front.
+ * Two attempts to explain that failed, and a broken sidebar button is a worse
+ * problem than an unenforced rule nobody had reported.
+ *
+ * What that costs: a BCX rule forbidding emotes, and BC's own owner "BlockEmote"
+ * presence rule, do not apply to emotes sent from EBC's buttons, anims or outfit
+ * announcements. Beeps - which is what was actually reported - still go through
+ * BC's function, so rules on those are still enforced.
  */
-export function sendEmoteViaBC(content: string): void {
-    const w = window as unknown as WinFns;
-    const viaBC = w.ChatRoomSendEmote as ((msg: string) => void) | undefined;
-    // Diagnostic. Emotes have come out without the sender's name twice now and
-    // both of my explanations were wrong, so log exactly what is going out and
-    // which path took it rather than reasoning about it again from the source.
-    try {
-        const nickFn = w.CharacterNickname as ((c: unknown) => string) | undefined;
-        console.info("[EBC emote]", JSON.stringify({
-            content,
-            willSend: content.startsWith("*") ? content : "*" + content,
-            viaChatRoomSendEmote: typeof viaBC === "function",
-            nickname: JSON.stringify((Player as unknown as { Nickname?: string })?.Nickname),
-            name: (Player as unknown as { Name?: string })?.Name,
-            resolvedName: typeof nickFn === "function" ? nickFn(Player) : "(no CharacterNickname)",
-            chatSettingsLoaded: !!(Player as unknown as { ChatSettings?: unknown })?.ChatSettings,
-        }));
-    } catch { /* ignore */ }
-    if (typeof viaBC === "function") {
-        try {
-            // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
-            // text, and two of its rules rewrite what we give it:
-            //   "*NN%rest"  -> an attempt roll, replacing the text with a dice
-            //                  result. The digit count is 0-2, so even "%x" hits it.
-            //   a doubled leading "*" survives one strip and shows in the message.
-            // Button and announce text is already-final content the person
-            // configured, never something they typed, so neither rewrite is
-            // wanted. Prepend the "*" only when it is absent, and drop it
-            // entirely when keeping it would turn the emote into a roll.
-            const starred = content.startsWith("*") ? content : "*" + content;
-            const wouldRoll = /^(\*|\/attempt )(\d{0,2}|100)%(.+)/.test(starred);
-            viaBC(wouldRoll ? content.replace(/^\*/, "") : starred);
-            return;
-        } catch { /* fall through to the direct send below */ }
-        // Unlike beeps, falling back here is safe: an emote rule that meant to
-        // stop us returns quietly, it does not throw. A throw means BC's own
-        // path broke, and dropping the emote entirely would be the worse bug.
-    }
-    // The dictionary is not optional. BC renders an emote as "*Name text*" and
-    // takes the name from the SourceCharacter entry - with an empty dictionary
-    // it has nobody to name and sends "*shrugs*" instead of "*Emery shrugs*".
-    // This path runs when ChatRoomSendEmote is missing or throws, and it throws
-    // on the first emote of a session if Player.ChatSettings has not loaded yet,
-    // which is exactly when the nameless one was seen.
-    ServerSend("ChatRoomChat", {
-        Type: "Emote",
-        Content: content,
-        Dictionary: [{ SourceCharacter: Player.MemberNumber }],
-    } as never);
+export function sendRoomEmote(content: string): void {
+    ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
 }

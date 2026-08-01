@@ -116,63 +116,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return log.length > before;
     }
     /**
-     * Sends a room emote through BC's own pipeline.
+     * Sends a room emote.
      *
-     * @param content - emote text WITHOUT the leading asterisk. BC's
-     *   ChatRoomSendEmote expects the asterisk (it strips it while parsing the
-     *   `*50%` chance syntax), so it is added back here.
+     * This deliberately does NOT go through BC's ChatRoomSendEmote, unlike beeps
+     * above. It did for a while, so that rule addons hooking that function would
+     * see EBC's emotes - but routing through it also meant BC re-parsed our text as
+     * chat syntax, and emotes started arriving without the sender's name in front.
+     * Two attempts to explain that failed, and a broken sidebar button is a worse
+     * problem than an unenforced rule nobody had reported.
+     *
+     * What that costs: a BCX rule forbidding emotes, and BC's own owner "BlockEmote"
+     * presence rule, do not apply to emotes sent from EBC's buttons, anims or outfit
+     * announcements. Beeps - which is what was actually reported - still go through
+     * BC's function, so rules on those are still enforced.
      */
-    function sendEmoteViaBC(content) {
-        const w = window;
-        const viaBC = w.ChatRoomSendEmote;
-        // Diagnostic. Emotes have come out without the sender's name twice now and
-        // both of my explanations were wrong, so log exactly what is going out and
-        // which path took it rather than reasoning about it again from the source.
-        try {
-            const nickFn = w.CharacterNickname;
-            console.info("[EBC emote]", JSON.stringify({
-                content,
-                willSend: content.startsWith("*") ? content : "*" + content,
-                viaChatRoomSendEmote: typeof viaBC === "function",
-                nickname: JSON.stringify(Player === null || Player === void 0 ? void 0 : Player.Nickname),
-                name: Player === null || Player === void 0 ? void 0 : Player.Name,
-                resolvedName: typeof nickFn === "function" ? nickFn(Player) : "(no CharacterNickname)",
-                chatSettingsLoaded: !!(Player === null || Player === void 0 ? void 0 : Player.ChatSettings),
-            }));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-        if (typeof viaBC === "function") {
-            try {
-                // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
-                // text, and two of its rules rewrite what we give it:
-                //   "*NN%rest"  -> an attempt roll, replacing the text with a dice
-                //                  result. The digit count is 0-2, so even "%x" hits it.
-                //   a doubled leading "*" survives one strip and shows in the message.
-                // Button and announce text is already-final content the person
-                // configured, never something they typed, so neither rewrite is
-                // wanted. Prepend the "*" only when it is absent, and drop it
-                // entirely when keeping it would turn the emote into a roll.
-                const starred = content.startsWith("*") ? content : "*" + content;
-                const wouldRoll = /^(\*|\/attempt )(\d{0,2}|100)%(.+)/.test(starred);
-                viaBC(wouldRoll ? content.replace(/^\*/, "") : starred);
-                return;
-            }
-            catch ( /* fall through to the direct send below */_b) { /* fall through to the direct send below */ }
-            // Unlike beeps, falling back here is safe: an emote rule that meant to
-            // stop us returns quietly, it does not throw. A throw means BC's own
-            // path broke, and dropping the emote entirely would be the worse bug.
-        }
-        // The dictionary is not optional. BC renders an emote as "*Name text*" and
-        // takes the name from the SourceCharacter entry - with an empty dictionary
-        // it has nobody to name and sends "*shrugs*" instead of "*Emery shrugs*".
-        // This path runs when ChatRoomSendEmote is missing or throws, and it throws
-        // on the first emote of a session if Player.ChatSettings has not loaded yet,
-        // which is exactly when the nameless one was seen.
-        ServerSend("ChatRoomChat", {
-            Type: "Emote",
-            Content: content,
-            Dictionary: [{ SourceCharacter: Player.MemberNumber }],
-        });
+    function sendRoomEmote(content) {
+        ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
     }
 
     const UI = {
@@ -4984,7 +4943,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const intro = introEmote.trim().replace(/^\*/, "").trim();
         if (intro) {
             try {
-                sendEmoteViaBC(intro);
+                sendRoomEmote(intro);
             }
             catch ( /* ignore */_a) { /* ignore */ }
             slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
@@ -5208,7 +5167,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         if (style === "emote") {
             // BC natively formats Emote as:  * Name text *
-            sendEmoteViaBC(text);
+            sendRoomEmote(text);
             return;
         }
         // Action style: (Name text) or (text) when name is excluded
@@ -21686,7 +21645,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         }
                         if (preset.announceText) {
                             try {
-                                sendEmoteViaBC(preset.announceText);
+                                sendRoomEmote(preset.announceText);
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
                         }
@@ -32355,7 +32314,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 if (!text)
                     return;
                 try {
-                    sendEmoteViaBC(text);
+                    sendRoomEmote(text);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             };
@@ -40638,7 +40597,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 252; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 253; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40655,7 +40614,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
-                "Diagnostic build: sidebar emotes still lose the name for some people and my last two explanations were both wrong, so every emote now writes one line to the browser console saying exactly what text is going out, which path sent it, and what the game thinks your name is. Press F12, use a Pout or Giggle button, and send Emery the line beginning [EBC emote].",
+                "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
                 "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
                 "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
                 "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
@@ -46835,7 +46794,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 else {
                     // Fallback: direct send (same as sendRoomEmote)
-                    sendEmoteViaBC(emoteText.slice(1));
+                    sendRoomEmote(emoteText.slice(1));
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -46861,7 +46820,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         : (hasItem
                             ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
                             : "squirms right up until the very end and goes still with a sulky exhale~");
-                    sendEmoteViaBC(emote);
+                    sendRoomEmote(emote);
                 }
             }
             catch ( /* ignore */_j) { /* ignore */ }
@@ -46981,7 +46940,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         acceptBtn.textContent = "Accept~ 🥰";
         acceptBtn.addEventListener("click", () => {
             try {
-                sendEmoteViaBC("brightens up happily, tail wagging~ 💜");
+                sendRoomEmote("brightens up happily, tail wagging~ 💜");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             close();
@@ -46991,7 +46950,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         ignoreBtn.textContent = "Ignore 🙈";
         ignoreBtn.addEventListener("click", () => {
             try {
-                sendEmoteViaBC("glances away shyly, pretending not to notice~");
+                sendRoomEmote("glances away shyly, pretending not to notice~");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             close();
@@ -47141,7 +47100,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
                     if (arg) {
                         try {
-                            sendEmoteViaBC(arg);
+                            sendRoomEmote(arg);
                         }
                         catch ( /* ignore */_g) { /* ignore */ }
                     }

@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { sendEmoteViaBC } from "./bcSpeech";
+import { sendRoomEmote } from "./bcSpeech";
 import { callBC, getSettings, syncSettings } from "./bcUtils";
 import { applyExprPresetWithRevert } from "./expressions";
 import { applyPoses, getCurrentPoses, KNOWN_POSES } from "./poses";
@@ -237,7 +237,7 @@ export function startBCSlowLeave(durMs: number, introEmote = ""): void {
     const intro = introEmote.trim().replace(/^\*/, "").trim();
     if (intro) {
         try {
-            sendEmoteViaBC(intro);
+            sendRoomEmote(intro);
         } catch { /* ignore */ }
         slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
     } else {
@@ -467,7 +467,7 @@ export function sendAction(emote: string, style: ActionStyle = "action", include
 
     if (style === "emote") {
         // BC natively formats Emote as:  * Name text *
-        sendEmoteViaBC(text);
+        sendRoomEmote(text);
         return;
     }
 

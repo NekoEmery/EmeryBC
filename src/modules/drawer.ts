@@ -8,7 +8,7 @@
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design!
  */
-import { sendEmoteViaBC, ruleAddonName } from "./bcSpeech";
+import { sendRoomEmote, ruleAddonName } from "./bcSpeech";
 import {
     getOutfits,
     applyOutfit,
@@ -11813,7 +11813,7 @@ This cannot be undone.`,
                         applyPoses([...bodyPoses, preset.key]);
                     }
                     if (preset.announceText) {
-                        try { sendEmoteViaBC(preset.announceText); } catch { /* ignore */ }
+                        try { sendRoomEmote(preset.announceText); } catch { /* ignore */ }
                     }
                     // Repaint the grid only. The second pass catches BC settling
                     // the pose (CharacterRefresh) a moment after we set it.
@@ -22550,7 +22550,7 @@ This cannot be undone.`,
 
         const sendRoomEmote = (text: string): void => {
             if (!text) return;
-            try { sendEmoteViaBC(text); } catch { /* ignore */ }
+            try { sendRoomEmote(text); } catch { /* ignore */ }
         };
 
 
