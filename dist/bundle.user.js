@@ -3939,44 +3939,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_b) { /* ignore */ }
         }
-        // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
-        //     This is the critical belt-and-suspenders step: PoseSetActive can silently
-        //     return early (e.g. pose not found) without throwing, leaving the mapping
-        //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
-        //     from that unchanged (empty) mapping and wipes the pose we tried to set.
-        //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
-        //     correct categories regardless of whether PoseSetActive succeeded.
-        if (typeof pfn === "function") {
+        // 1b. Fallback only, for a BC without PoseSetActive.
+        //
+        // ActivePose is NOT a plain array - it is an accessor pair over
+        // ActivePoseMapping:
+        //     get ActivePose() { return Object.values(this.ActivePoseMapping); }
+        //     set ActivePose(p) { this.ActivePoseMapping = PoseToMapping.Scalar(p); }
+        //
+        // so assigning an array to it does the category mapping properly, and there
+        // is nothing to hand-roll. This used to write ActivePoseMapping itself and
+        // then assign ActivePose straight after - the second write re-derived the
+        // mapping and threw the first away, and clearing wrote {} where BC's empty
+        // state is { BodyLower: "BaseLower", BodyUpper: "BaseUpper" }. A stripped
+        // mapping renders wrong as soon as anything recomputes it, which is why
+        // changing a restraint made poses come out broken.
+        //
+        // Never assign null here either: the setter passes its argument straight to
+        // PoseToMapping.Scalar, which expects an array.
+        if (typeof psa !== "function") {
             try {
-                const mapping = {};
-                for (const p of result) {
-                    const data = pfn(p);
-                    if (data === null || data === void 0 ? void 0 : data.Category)
-                        mapping[data.Category] = p;
-                }
-                Player.ActivePoseMapping =
-                    result.length === 0 ? {} : mapping;
+                Player.ActivePose = result;
             }
             catch ( /* ignore */_c) { /* ignore */ }
         }
-        else if (typeof psa !== "function") {
-            // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
-            try {
-                Player.ActivePose =
-                    result.length > 0 ? result : null;
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-        }
-        // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
-        //     ActivePoseMapping canonically; we only mirror ActivePose for the small
-        //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
-        //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
-        //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
-        try {
-            Player.ActivePose =
-                result.length > 0 ? result : null;
-        }
-        catch ( /* ignore */_e) { /* ignore */ }
         // 2. Local visual refresh — Push=false, we push below.
         callBC(() => CharacterRefresh(Player, false));
         // 3. Push to room via direct ServerSend (same approach as sequence runner in
@@ -3985,12 +3970,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
-                    ActivePose: result.length > 0 ? result : null,
+                    // Send what the character actually has, not our local list. BC
+                    // sends C.ActivePose here, and since that is derived from the
+                    // mapping it is the only value guaranteed to match what the
+                    // client just rendered.
+                    ActivePose: Player.ActivePose,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
         }
-        catch ( /* ignore */_f) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     // Set the arm pose to "Relaxed" (arms at sides) without disturbing body poses.
     //
@@ -40750,7 +40739,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 255; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 256; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40767,6 +40756,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",
                 "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
                 "Fix: the Body menu now follows a pose forced on you by a restraint. It was reading the pose you last chose rather than the one in effect - the game keeps those separately, and a restraint only changes the second, so the highlight stayed on whatever you last clicked while your character was visibly in something else.",
                 "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",

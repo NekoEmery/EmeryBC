@@ -118,40 +118,28 @@ export function applyPoses(poses: string[]): void {
         } catch { /* ignore */ }
     }
 
-    // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
-    //     This is the critical belt-and-suspenders step: PoseSetActive can silently
-    //     return early (e.g. pose not found) without throwing, leaving the mapping
-    //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
-    //     from that unchanged (empty) mapping and wipes the pose we tried to set.
-    //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
-    //     correct categories regardless of whether PoseSetActive succeeded.
-    if (typeof pfn === "function") {
+    // 1b. Fallback only, for a BC without PoseSetActive.
+    //
+    // ActivePose is NOT a plain array - it is an accessor pair over
+    // ActivePoseMapping:
+    //     get ActivePose() { return Object.values(this.ActivePoseMapping); }
+    //     set ActivePose(p) { this.ActivePoseMapping = PoseToMapping.Scalar(p); }
+    //
+    // so assigning an array to it does the category mapping properly, and there
+    // is nothing to hand-roll. This used to write ActivePoseMapping itself and
+    // then assign ActivePose straight after - the second write re-derived the
+    // mapping and threw the first away, and clearing wrote {} where BC's empty
+    // state is { BodyLower: "BaseLower", BodyUpper: "BaseUpper" }. A stripped
+    // mapping renders wrong as soon as anything recomputes it, which is why
+    // changing a restraint made poses come out broken.
+    //
+    // Never assign null here either: the setter passes its argument straight to
+    // PoseToMapping.Scalar, which expects an array.
+    if (typeof psa !== "function") {
         try {
-            const mapping: Record<string, string> = {};
-            for (const p of result) {
-                const data = pfn(p);
-                if (data?.Category) mapping[data.Category] = p;
-            }
-            (Player as unknown as Record<string, unknown>).ActivePoseMapping =
-                result.length === 0 ? {} : mapping;
-        } catch { /* ignore */ }
-    } else if (typeof psa !== "function") {
-        // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
-        try {
-            (Player as unknown as Record<string, unknown>).ActivePose =
-                result.length > 0 ? result : null;
+            (Player as unknown as Record<string, unknown>).ActivePose = result;
         } catch { /* ignore */ }
     }
-
-    // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
-    //     ActivePoseMapping canonically; we only mirror ActivePose for the small
-    //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
-    //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
-    //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
-    try {
-        (Player as unknown as Record<string, unknown>).ActivePose =
-            result.length > 0 ? result : null;
-    } catch { /* ignore */ }
 
     // 2. Local visual refresh — Push=false, we push below.
     callBC(() => CharacterRefresh(Player, false));
@@ -162,7 +150,11 @@ export function applyPoses(poses: string[]): void {
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID:         Player.OnlineID,
-                ActivePose: result.length > 0 ? result : null,
+                // Send what the character actually has, not our local list. BC
+                // sends C.ActivePose here, and since that is derived from the
+                // mapping it is the only value guaranteed to match what the
+                // client just rendered.
+                ActivePose: Player.ActivePose,
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }
