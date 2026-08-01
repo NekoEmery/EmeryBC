@@ -523,7 +523,13 @@ export function resetSidebarPos(): void {
     try { localStorage.removeItem(SIDEBAR_POS_KEY); } catch { /* ignore */ }
 }
 
-let sidebarCollapsed = false;
+// Persisted: this was a plain variable, so the sidebar sprang back open on
+// every reload no matter how you left it. Device-local rather than synced -
+// whether a panel is folded away is about this screen, not this account.
+const SIDEBAR_COLLAPSE_LS = "EBC_sidebarCollapsed";
+let sidebarCollapsed = (() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSE_LS) === "1"; } catch { return false; }
+})();
 
 // Per-button spam cooldown.
 // Up to SPAM_FREE_PRESSES consecutive rapid presses are allowed; the next press
@@ -962,6 +968,7 @@ export function handleActionButtonClick(): boolean {
     if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
         my >= sidebarY  && my <= sidebarY + CHIP_H) {
         sidebarCollapsed = !sidebarCollapsed;
+        try { localStorage.setItem(SIDEBAR_COLLAPSE_LS, sidebarCollapsed ? "1" : "0"); } catch { /* ignore */ }
         return true;
     }
 

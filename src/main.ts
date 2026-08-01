@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 250;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 251;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
+            "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
             "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
             "Fix (reported by Azuith): right-clicking the EBC button no longer throws away where you put it without warning. Right-click has always been a shortcut for resetting it back to following the chat window, but nothing said so - so right-clicking for any other reason moved your button and there was no way back. It asks first now, and says nothing at all if the button is already in its default place.",
             "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",

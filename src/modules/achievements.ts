@@ -163,6 +163,33 @@ const TIER_TOAST_COLOR = ["#cd7f32", "#c8d0dc", "#ffd700"]; // bronze, silver, g
  * Your own number is seeded on first use when you are credited, so a credited
  * player is never chasing a total they cannot reach.
  */
+/**
+ * A quiet note the moment one of the credited crew counts. Without it you only
+ * find out by opening the panel later, by which point the person has gone and
+ * the chance to pet them for the other achievement has gone with them.
+ */
+function showCrewToast(name: string, kind: "met" | "petted", done: number, total: number): void {
+    try {
+        const el = document.createElement("div");
+        el.style.cssText = "position:fixed;bottom:180px;left:50%;transform:translateX(-50%);"
+            + "background:#160a20;border:1px solid #cf6f98;border-radius:9px;padding:8px 16px;"
+            + "color:#fff;font-family:'Trebuchet MS',serif;font-size:12px;z-index:999999;"
+            + "cursor:pointer;text-align:center;box-shadow:0 5px 24px rgba(0,0,0,0.8);";
+        const line = document.createElement("div");
+        line.textContent = kind === "met" ? `\u{1F43E} Met ${name}` : `\u{1F44B} Petted ${name}`;
+        const sub = document.createElement("div");
+        sub.style.cssText = "font-size:10px;color:#c8a0b4;margin-top:2px;";
+        sub.textContent = kind === "met"
+            ? `${done} of ${total} crew met` + (done < total ? " - pet them too for Crew Cuddler" : "")
+            : `${done} of ${total} crew petted`;
+        el.appendChild(line);
+        el.appendChild(sub);
+        el.addEventListener("click", () => el.remove());
+        document.body.appendChild(el);
+        window.setTimeout(() => el.remove(), 7000);
+    } catch { /* ignore */ }
+}
+
 function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
     if (!isCredited(num)) return;
     const st = getState();
@@ -176,10 +203,16 @@ function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
     const me = Player?.MemberNumber ?? 0;
     let changed = false;
     if (isCredited(me) && !list.includes(me)) { list.push(me); changed = true; }
-    if (!list.includes(num)) { list.push(num); changed = true; }
+    // Seeding yourself is bookkeeping, not an event - only announce other people.
+    let announce = false;
+    if (!list.includes(num)) { list.push(num); changed = true; announce = num !== me; }
     if (!changed) return;
 
     st.c[counter] = list.length;
+    if (announce) {
+        const who = CREDITED.find(p => p.num === num)?.name ?? `#${num}`;
+        showCrewToast(who, key === "cm" ? "met" : "petted", list.length, CREDITED.length);
+    }
     checkUnlocks();
     save();
 }
