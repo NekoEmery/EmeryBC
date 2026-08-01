@@ -155,10 +155,19 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
 // --- Display name helper -----------------------------------------------------
 
 export function getDisplayName(): string {
-    // CharacterNickname is a BC global not always in the type declarations
+    // CharacterNickname is a BC global not always in the type declarations.
+    // It returns `Nickname ?? Name`, so an EMPTY-STRING nickname short-circuits
+    // to "" instead of falling back to the account name - and an action built
+    // from that goes out with no name in front of it. Treat blank as a miss.
     const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
-    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
-    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
+    if (typeof nickFn === "function") {
+        try {
+            const n = (nickFn as (c: Character) => string)(Player);
+            if (typeof n === "string" && n.trim()) return n.trim();
+        } catch { /* fall through */ }
+    }
+    const nick = (Player as unknown as Record<string, unknown>).Nickname as string | undefined;
+    return (nick && nick.trim()) || Player.Name || "Player";
 }
 
 // --- Sequence runner ----------------------------------------------------------

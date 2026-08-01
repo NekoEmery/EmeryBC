@@ -4846,11 +4846,21 @@
     }
     // --- Display name helper -----------------------------------------------------
     function getDisplayName() {
-        // CharacterNickname is a BC global not always in the type declarations
+        // CharacterNickname is a BC global not always in the type declarations.
+        // It returns `Nickname ?? Name`, so an EMPTY-STRING nickname short-circuits
+        // to "" instead of falling back to the account name - and an action built
+        // from that goes out with no name in front of it. Treat blank as a miss.
         const nickFn = window.CharacterNickname;
-        if (typeof nickFn === "function")
-            return nickFn(Player);
-        return Player.Nickname || Player.Name || "Player";
+        if (typeof nickFn === "function") {
+            try {
+                const n = nickFn(Player);
+                if (typeof n === "string" && n.trim())
+                    return n.trim();
+            }
+            catch ( /* fall through */_a) { /* fall through */ }
+        }
+        const nick = Player.Nickname;
+        return (nick && nick.trim()) || Player.Name || "Player";
     }
     // --- Sequence runner ----------------------------------------------------------
     // Sequence steps are pipe-separated (|). Each step is one of:
@@ -6793,17 +6803,20 @@
         const sec = Math.floor(diff / 1000);
         const min = Math.floor(sec / 60);
         const hr = Math.floor(min / 60);
-        const day = Math.floor(hr / 24);
         if (sec < 60)
             return "just now";
         if (min < 60)
             return `${min}m ago`;
         if (hr < 24)
             return `${hr}h ago`;
-        if (day === 1)
-            return "yesterday";
         const d = new Date(ts);
-        if (day < 7)
+        // Calendar days, not elapsed hours. 30 hours ago can be two dates back, and
+        // calling that "yesterday" is simply wrong - which is what was reported.
+        const midnight = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+        const daysBack = Math.round((midnight(new Date()) - midnight(d)) / 86400000);
+        if (daysBack === 1)
+            return "yesterday";
+        if (daysBack < 7)
             return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
         return `${d.getDate()}/${d.getMonth() + 1}`;
     }
@@ -7622,7 +7635,7 @@
         { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
         { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
         { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
-        { id: "hq_visitor", icon: "⭐", name: "HQ Regular", desc: "Spend {n} hours in EBC HQ", counter: "hq_h", tiers: [1], cls: "emery", rare: true },
+        { id: "hq_visitor", icon: "⭐", name: "HQ Regular", desc: "Spend {n} in EBC HQ", counter: "hq_h", tiers: [1], cls: "emery", rare: true, fmtN: (n) => `${n} hour${n === 1 ? "" : "s"}` },
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
@@ -7677,13 +7690,23 @@
         if (!Array.isArray(list)) {
             list = [];
             st[key] = list;
-            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
-            if (isCredited(me))
-                list.push(me);
         }
-        if (list.includes(num))
+        // Seed yourself every time, not only when the list is first created. Being
+        // credited AFTER your list already existed - which is what happens whenever
+        // someone new is added to the credits - left you permanently missing from
+        // your own count while the checklist showed you as done. The two disagreed.
+        const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+        let changed = false;
+        if (isCredited(me) && !list.includes(me)) {
+            list.push(me);
+            changed = true;
+        }
+        if (!list.includes(num)) {
+            list.push(num);
+            changed = true;
+        }
+        if (!changed)
             return;
-        list.push(num);
         st.c[counter] = list.length;
         checkUnlocks();
         save();
@@ -7771,8 +7794,33 @@
             el.appendChild(head);
             el.appendChild(name);
             el.appendChild(desc);
+            // A bar across the bottom showing the time left, which stops while the
+            // pointer is on the toast. Without the pause it could close in the
+            // instant you reached for the X, and the click landed on whatever was
+            // behind it.
+            const LIFE_MS = 6000;
+            const track = document.createElement("div");
+            track.style.cssText = "position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,0.10);border-radius:0 0 8px 8px;overflow:hidden;";
+            const bar = document.createElement("div");
+            bar.style.cssText = `height:100%;width:100%;background:${col};transition:width 0.1s linear;`;
+            track.appendChild(bar);
+            el.appendChild(track);
+            let left = LIFE_MS;
+            let paused = false;
+            const TICK = 100;
+            const timer = window.setInterval(() => {
+                if (!paused)
+                    left -= TICK;
+                bar.style.width = `${Math.max(0, (left / LIFE_MS) * 100)}%`;
+                if (left <= 0) {
+                    window.clearInterval(timer);
+                    el.remove();
+                }
+            }, TICK);
+            el.addEventListener("mouseenter", () => { paused = true; bar.style.background = "#ffffff88"; });
+            el.addEventListener("mouseleave", () => { paused = false; bar.style.background = col; });
+            el.addEventListener("click", () => { window.clearInterval(timer); el.remove(); });
             document.body.appendChild(el);
-            setTimeout(() => el.remove(), 6000);
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
@@ -15517,7 +15565,7 @@
          * setup, and whenever the "Menu layout" toggle in DEV -> Drawer is flipped.
          */
         applyLayoutMode() {
-            var _a, _b;
+            var _a, _b, _c, _d;
             const grouped = isGroupedLayout();
             const bar = this.tabBarEl;
             // Re-order the tab bar. appendChild moves existing nodes, so no button is
@@ -15533,6 +15581,26 @@
                         bar.appendChild(el);
                 }
             }
+            // Quick actions: pinned above every tab, or hosted inside a tab. This is
+            // re-evaluated here rather than only at build time - the panel is
+            // constructed before the account settings have loaded, so the build-time
+            // read saw the default and the choice appeared not to survive a login.
+            const qa = this.quickActionsEl;
+            if (qa && this.rootEl) {
+                const panelEl = this.rootEl.querySelector(".ebc-panel");
+                const wantPinned = !getQuickActionsInButtons();
+                const isPinned = !!panelEl && qa.parentElement === panelEl;
+                if (wantPinned && !isPinned && panelEl && this.tabBarEl) {
+                    const after = ((_b = this.langRowEl) === null || _b === void 0 ? void 0 : _b.parentElement) === panelEl ? this.langRowEl : this.tabBarEl;
+                    after.after(qa);
+                    if (this.selfPickPanelEl)
+                        qa.after(this.selfPickPanelEl);
+                }
+                else if (!wantPinned && isPinned) {
+                    qa.remove();
+                    (_c = this.selfPickPanelEl) === null || _c === void 0 ? void 0 : _c.remove();
+                }
+            }
             // Language pills: pinned under the tab bar in classic, moved into the
             // SETTINGS tab when grouped (renderSettingsTab re-attaches them).
             const lang = this.langRowEl;
@@ -15544,7 +15612,7 @@
             }
             // The unread-beeps badge follows the tab that hosts the friends list.
             const badge = this.notesBadgeEl;
-            const badgeHost = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector(grouped ? "#ebc-tab-social" : "#ebc-tab-notes");
+            const badgeHost = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector(grouped ? "#ebc-tab-social" : "#ebc-tab-notes");
             if (badge && badgeHost && badge.parentElement !== badgeHost) {
                 badgeHost.style.position = "relative";
                 badgeHost.appendChild(badge);
@@ -25808,9 +25876,22 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             this.friendRefreshDebounce = window.setTimeout(() => {
                 var _a;
                 this.friendRefreshDebounce = null;
-                if (EBCDrawer.isSocialTab(this.currentTab) && this.friendsSectionEl === target) {
-                    this.renderFriendRows(target, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
+                if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target)
+                    return;
+                // This refresh is driven by the online-friends poll, so it can land
+                // at any moment - including while someone is halfway through typing
+                // a tag or a note. Rebuilding the rows destroys those inputs, which
+                // showed up as a tag name blanking itself and its colour jumping
+                // back to the default. Wait until the field is no longer in use.
+                const active = document.activeElement;
+                const editing = !!active
+                    && target.contains(active)
+                    && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+                if (editing) {
+                    this.refreshFriendList();
+                    return;
                 }
+                this.renderFriendRows(target, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
             }, 80);
         }
         /**
@@ -26985,7 +27066,26 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         if (sinceTs) {
                             const d = new Date(sinceTs);
                             const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                            sinceEl.textContent = t("users.friendsSince", { date: label });
+                            // A date alone makes you do the arithmetic. Whole months
+                            // and years only - "1 year 3 months" is the useful shape,
+                            // and days would be noise at that scale.
+                            const now = new Date();
+                            let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                            if (now.getDate() < d.getDate())
+                                months--;
+                            let dur = "";
+                            if (months >= 12) {
+                                const y = Math.floor(months / 12), m = months % 12;
+                                dur = `${y} year${y === 1 ? "" : "s"}${m > 0 ? ` ${m} month${m === 1 ? "" : "s"}` : ""}`;
+                            }
+                            else if (months >= 1) {
+                                dur = `${months} month${months === 1 ? "" : "s"}`;
+                            }
+                            else {
+                                const days = Math.max(0, Math.round((now.getTime() - sinceTs) / 86400000));
+                                dur = days <= 0 ? "today" : `${days} day${days === 1 ? "" : "s"}`;
+                            }
+                            sinceEl.textContent = `${t("users.friendsSince", { date: label })} (${dur})`;
                         }
                         else {
                             sinceEl.textContent = t("users.friendsSinceUnknown");
@@ -40363,7 +40463,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 244; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 245; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40380,6 +40480,14 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
+                "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
+                "Fix (Julia): 'yesterday' on last seen was measured in elapsed hours, so anything 24 to 48 hours old was called yesterday even when it was two dates ago. It now compares actual calendar days.",
+                "Fix (Julia): 'Spend 1 hours in EBC HQ' now reads '1 hour'.",
+                "Fix (Azuith): the choice of whether restraint buttons sit above every tab or inside Safety is applied at login again. The panel is built before your account settings arrive, so it was reading the default and you had to re-toggle it every session.",
+                "Fix (Emery): action buttons could send without your name in front. BC's nickname helper returns an empty string rather than falling back to your account name when your nickname is blank, and the message was built from that.",
+                "Friends: 'friends since' now shows how long as well as the date - '(1 year 3 months)'. Requested by Julia.",
+                "Achievement popups pause while your pointer is on them and show a bar of the time remaining, so one can no longer vanish in the instant you reach for the X and drop the click on whatever was behind it. Requested by Julia.",
                 "Fix (reported by Nicole): your own name no longer glows with a flowing gradient in the EBC chat window. That effect is meant to mark people in the credits, but it was also applied to yourself, so everyone saw their own name animating and it read as a glitch. Your messages still use their own colour. A flowing name now means one thing: someone from the credits.",
                 "Private room sharing is hidden for now while it is still being worked out. The settings are gone from SOCIAL -> Settings, nothing is sent, and nothing is accepted - so if you had already switched it on, it has stopped broadcasting. Anything you set is kept and will be there when it comes back.",
                 "Crew achievements show everyone as pills - green with a tick for the ones you have, red with a cross for the ones left. Names stay in the same order whatever their state, so one only changes colour when it lands rather than jumping to another line. The tick and cross carry the meaning as well as the colour.",

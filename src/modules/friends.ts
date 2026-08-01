@@ -562,9 +562,13 @@ export function formatLastSeen(ts: number): string {
     if (sec < 60)  return "just now";
     if (min < 60)  return `${min}m ago`;
     if (hr  < 24)  return `${hr}h ago`;
-    if (day === 1) return "yesterday";
     const d = new Date(ts);
-    if (day < 7)   return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    // Calendar days, not elapsed hours. 30 hours ago can be two dates back, and
+    // calling that "yesterday" is simply wrong - which is what was reported.
+    const midnight = (x: Date): number => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const daysBack = Math.round((midnight(new Date()) - midnight(d)) / 86_400_000);
+    if (daysBack === 1) return "yesterday";
+    if (daysBack < 7)   return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
     return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 

@@ -113,7 +113,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",      desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
     { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
     { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
-    { id: "hq_visitor",    icon: "⭐", name: "HQ Regular",       desc: "Spend {n} hours in EBC HQ",    counter: "hq_h",       tiers: [1], cls: "emery", rare: true },
+    { id: "hq_visitor",    icon: "⭐", name: "HQ Regular",       desc: "Spend {n} in EBC HQ",          counter: "hq_h",       tiers: [1], cls: "emery", rare: true, fmtN: (n) => `${n} hour${n === 1 ? "" : "s"}` },
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
@@ -171,14 +171,18 @@ function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
     if (!isCredited(num)) return;
     const st = getState();
     let list = st[key];
-    if (!Array.isArray(list)) {
-        list = [];
-        st[key] = list;
-        const me = Player?.MemberNumber ?? 0;
-        if (isCredited(me)) list.push(me);
-    }
-    if (list.includes(num)) return;
-    list.push(num);
+    if (!Array.isArray(list)) { list = []; st[key] = list; }
+
+    // Seed yourself every time, not only when the list is first created. Being
+    // credited AFTER your list already existed - which is what happens whenever
+    // someone new is added to the credits - left you permanently missing from
+    // your own count while the checklist showed you as done. The two disagreed.
+    const me = Player?.MemberNumber ?? 0;
+    let changed = false;
+    if (isCredited(me) && !list.includes(me)) { list.push(me); changed = true; }
+    if (!list.includes(num)) { list.push(num); changed = true; }
+    if (!changed) return;
+
     st.c[counter] = list.length;
     checkUnlocks();
     save();
@@ -257,8 +261,32 @@ function showTierToast(a: AchievementDef, tier: number): void {
         el.appendChild(head);
         el.appendChild(name);
         el.appendChild(desc);
+
+        // A bar across the bottom showing the time left, which stops while the
+        // pointer is on the toast. Without the pause it could close in the
+        // instant you reached for the X, and the click landed on whatever was
+        // behind it.
+        const LIFE_MS = 6000;
+        const track = document.createElement("div");
+        track.style.cssText = "position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,0.10);border-radius:0 0 8px 8px;overflow:hidden;";
+        const bar = document.createElement("div");
+        bar.style.cssText = `height:100%;width:100%;background:${col};transition:width 0.1s linear;`;
+        track.appendChild(bar);
+        el.appendChild(track);
+
+        let left = LIFE_MS;
+        let paused = false;
+        const TICK = 100;
+        const timer = window.setInterval(() => {
+            if (!paused) left -= TICK;
+            bar.style.width = `${Math.max(0, (left / LIFE_MS) * 100)}%`;
+            if (left <= 0) { window.clearInterval(timer); el.remove(); }
+        }, TICK);
+        el.addEventListener("mouseenter", () => { paused = true; bar.style.background = "#ffffff88"; });
+        el.addEventListener("mouseleave", () => { paused = false; bar.style.background = col; });
+        el.addEventListener("click", () => { window.clearInterval(timer); el.remove(); });
+
         document.body.appendChild(el);
-        setTimeout(() => el.remove(), 6000);
     } catch { /* ignore */ }
 }
 

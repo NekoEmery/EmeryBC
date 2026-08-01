@@ -5810,6 +5810,25 @@ export class EBCDrawer {
             }
         }
 
+        // Quick actions: pinned above every tab, or hosted inside a tab. This is
+        // re-evaluated here rather than only at build time - the panel is
+        // constructed before the account settings have loaded, so the build-time
+        // read saw the default and the choice appeared not to survive a login.
+        const qa = this.quickActionsEl;
+        if (qa && this.rootEl) {
+            const panelEl = this.rootEl.querySelector(".ebc-panel") as HTMLElement | null;
+            const wantPinned = !getQuickActionsInButtons();
+            const isPinned = !!panelEl && qa.parentElement === panelEl;
+            if (wantPinned && !isPinned && panelEl && this.tabBarEl) {
+                const after = this.langRowEl?.parentElement === panelEl ? this.langRowEl : this.tabBarEl;
+                after.after(qa);
+                if (this.selfPickPanelEl) qa.after(this.selfPickPanelEl);
+            } else if (!wantPinned && isPinned) {
+                qa.remove();
+                this.selfPickPanelEl?.remove();
+            }
+        }
+
         // Language pills: pinned under the tab bar in classic, moved into the
         // SETTINGS tab when grouped (renderSettingsTab re-attaches them).
         const lang = this.langRowEl;
@@ -16271,9 +16290,18 @@ This cannot be undone.`,
         const target = this.friendsSectionEl;
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
-            if (EBCDrawer.isSocialTab(this.currentTab) && this.friendsSectionEl === target) {
-                this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
-            }
+            if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target) return;
+            // This refresh is driven by the online-friends poll, so it can land
+            // at any moment - including while someone is halfway through typing
+            // a tag or a note. Rebuilding the rows destroys those inputs, which
+            // showed up as a tag name blanking itself and its colour jumping
+            // back to the default. Wait until the field is no longer in use.
+            const active = document.activeElement as HTMLElement | null;
+            const editing = !!active
+                && target.contains(active)
+                && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+            if (editing) { this.refreshFriendList(); return; }
+            this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
         }, 80);
     }
 
@@ -17363,7 +17391,23 @@ This cannot be undone.`,
                     if (sinceTs) {
                         const d = new Date(sinceTs);
                         const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                        sinceEl.textContent = t("users.friendsSince", { date: label });
+                        // A date alone makes you do the arithmetic. Whole months
+                        // and years only - "1 year 3 months" is the useful shape,
+                        // and days would be noise at that scale.
+                        const now = new Date();
+                        let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                        if (now.getDate() < d.getDate()) months--;
+                        let dur = "";
+                        if (months >= 12) {
+                            const y = Math.floor(months / 12), m = months % 12;
+                            dur = `${y} year${y === 1 ? "" : "s"}${m > 0 ? ` ${m} month${m === 1 ? "" : "s"}` : ""}`;
+                        } else if (months >= 1) {
+                            dur = `${months} month${months === 1 ? "" : "s"}`;
+                        } else {
+                            const days = Math.max(0, Math.round((now.getTime() - sinceTs) / 86_400_000));
+                            dur = days <= 0 ? "today" : `${days} day${days === 1 ? "" : "s"}`;
+                        }
+                        sinceEl.textContent = `${t("users.friendsSince", { date: label })} (${dur})`;
                     } else {
                         sinceEl.textContent = t("users.friendsSinceUnknown");
                     }
