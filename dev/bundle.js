@@ -5212,7 +5212,18 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    let sidebarCollapsed = false;
+    // Persisted: this was a plain variable, so the sidebar sprang back open on
+    // every reload no matter how you left it. Device-local rather than synced -
+    // whether a panel is folded away is about this screen, not this account.
+    const SIDEBAR_COLLAPSE_LS = "EBC_sidebarCollapsed";
+    let sidebarCollapsed = (() => {
+        try {
+            return localStorage.getItem(SIDEBAR_COLLAPSE_LS) === "1";
+        }
+        catch (_a) {
+            return false;
+        }
+    })();
     // Per-button spam cooldown.
     // Up to SPAM_FREE_PRESSES consecutive rapid presses are allowed; the next press
     // within SPAM_WINDOW_MS activates the cooldown and is blocked.
@@ -5630,6 +5641,10 @@
         if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
             my >= sidebarY && my <= sidebarY + CHIP_H) {
             sidebarCollapsed = !sidebarCollapsed;
+            try {
+                localStorage.setItem(SIDEBAR_COLLAPSE_LS, sidebarCollapsed ? "1" : "0");
+            }
+            catch ( /* ignore */_m) { /* ignore */ }
             return true;
         }
         if (sidebarCollapsed)
@@ -5701,7 +5716,7 @@
                         }
                         applyPoses(result);
                     }
-                    catch ( /* ignore */_m) { /* ignore */ }
+                    catch ( /* ignore */_o) { /* ignore */ }
                 }
                 return true;
             }
@@ -7690,8 +7705,35 @@
      * Your own number is seeded on first use when you are credited, so a credited
      * player is never chasing a total they cannot reach.
      */
+    /**
+     * A quiet note the moment one of the credited crew counts. Without it you only
+     * find out by opening the panel later, by which point the person has gone and
+     * the chance to pet them for the other achievement has gone with them.
+     */
+    function showCrewToast(name, kind, done, total) {
+        try {
+            const el = document.createElement("div");
+            el.style.cssText = "position:fixed;bottom:180px;left:50%;transform:translateX(-50%);"
+                + "background:#160a20;border:1px solid #cf6f98;border-radius:9px;padding:8px 16px;"
+                + "color:#fff;font-family:'Trebuchet MS',serif;font-size:12px;z-index:999999;"
+                + "cursor:pointer;text-align:center;box-shadow:0 5px 24px rgba(0,0,0,0.8);";
+            const line = document.createElement("div");
+            line.textContent = kind === "met" ? `\u{1F43E} Met ${name}` : `\u{1F44B} Petted ${name}`;
+            const sub = document.createElement("div");
+            sub.style.cssText = "font-size:10px;color:#c8a0b4;margin-top:2px;";
+            sub.textContent = kind === "met"
+                ? `${done} of ${total} crew met` + (done < total ? " - pet them too for Crew Cuddler" : "")
+                : `${done} of ${total} crew petted`;
+            el.appendChild(line);
+            el.appendChild(sub);
+            el.addEventListener("click", () => el.remove());
+            document.body.appendChild(el);
+            window.setTimeout(() => el.remove(), 7000);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     function collectCredited(key, counter, num) {
-        var _a;
+        var _a, _b, _c;
         if (!isCredited(num))
             return;
         const st = getState();
@@ -7710,13 +7752,20 @@
             list.push(me);
             changed = true;
         }
+        // Seeding yourself is bookkeeping, not an event - only announce other people.
+        let announce = false;
         if (!list.includes(num)) {
             list.push(num);
             changed = true;
+            announce = num !== me;
         }
         if (!changed)
             return;
         st.c[counter] = list.length;
+        if (announce) {
+            const who = (_c = (_b = CREDITED.find(p => p.num === num)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${num}`;
+            showCrewToast(who, key === "cm" ? "met" : "petted", list.length, CREDITED.length);
+        }
         checkUnlocks();
         save();
     }
@@ -40538,7 +40587,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 250; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 251; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40555,6 +40604,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
+                "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
                 "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
                 "Fix (reported by Azuith): right-clicking the EBC button no longer throws away where you put it without warning. Right-click has always been a shortcut for resetting it back to following the chat window, but nothing said so - so right-clicking for any other reason moved your button and there was no way back. It asks first now, and says nothing at all if the button is already in its default place.",
                 "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
