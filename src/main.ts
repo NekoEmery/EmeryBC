@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 245;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 246;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,10 +50,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",
             "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
             "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
             "Fix (Julia): 'yesterday' on last seen was measured in elapsed hours, so anything 24 to 48 hours old was called yesterday even when it was two dates ago. It now compares actual calendar days.",
-            "Fix (Julia): 'Spend 1 hours in EBC HQ' now reads '1 hour'.",
             "Fix (Azuith): the choice of whether restraint buttons sit above every tab or inside Safety is applied at login again. The panel is built before your account settings arrive, so it was reading the default and you had to re-toggle it every session.",
             "Fix (Emery): action buttons could send without your name in front. BC's nickname helper returns an empty string rather than falling back to your account name when your nickname is blank, and the message was built from that.",
             "Friends: 'friends since' now shows how long as well as the date - '(1 year 3 months)'. Requested by Julia.",

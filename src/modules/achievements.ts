@@ -113,7 +113,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",      desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
     { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
     { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
-    { id: "hq_visitor",    icon: "⭐", name: "HQ Regular",       desc: "Spend {n} in EBC HQ",          counter: "hq_h",       tiers: [1], cls: "emery", rare: true, fmtN: (n) => `${n} hour${n === 1 ? "" : "s"}` },
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
@@ -127,9 +126,6 @@ interface AchState {
     p?: number[];               // distinct member numbers who acted on you (capped)
     cm?: number[];              // credited people you have shared a room with
     cp?: number[];              // credited people you have headpatted
-    // Kept in state rather than a module variable so a page reload does not
-    // reset it - this is a lifetime total, not a per-session one.
-    hqMin?: number;             // total minutes in EBC HQ, all sessions
 }
 
 function getState(): AchState {
@@ -614,28 +610,22 @@ export function getAchievementProgress(): AchievementProgress[] {
     });
 }
 
-// Periodic tick: bound streak, bound-in-one-room streak, and time spent in EBC
-// HQ. No-op for non-achievement users; cheap enough to just run.
+// Periodic tick, now only the continuous bound streak - the room-time
+// achievements were removed because how long you have been somewhere cannot be
+// measured honestly across reloads and reconnects.
+// No-op for non-achievement users; cheap enough to just run.
 const TICK_MS = 5 * 60 * 1000;
-const HQ_ROOM = "emerybc (ebc) hq";
 
 setInterval(() => {
     try {
         if (!isAchievementUser(Player?.MemberNumber)) return;
-        const w = window as unknown as Record<string, unknown>;
-        const room = String((w.ChatRoomData as { Name?: string } | null | undefined)?.Name ?? "");
         const st = getState();
 
-        // Longest continuous bound streak (any room).
+        // Longest continuous bound streak (any room). Read from the per-item
+        // restraint timers, which persist across rooms and offline, so this is
+        // the one time-based achievement that does not depend on room tracking.
         const hours = Math.floor(getRestraintMs() / 3_600_000);
         if (hours > (st.c["bound_h"] ?? 0)) st.c["bound_h"] = hours;
-
-        // Total time in the EBC HQ support room. A total, not a streak, so it
-        // persists across sessions - two half-hour visits add up.
-        if (room.trim().toLowerCase() === HQ_ROOM) {
-            st.hqMin = (st.hqMin ?? 0) + TICK_MS / 60_000;
-            st.c["hq_h"] = Math.floor(st.hqMin / 60);
-        }
 
         checkUnlocks();
         save();

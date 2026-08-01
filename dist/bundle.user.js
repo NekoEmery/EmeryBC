@@ -7670,7 +7670,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
         { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
         { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
-        { id: "hq_visitor", icon: "⭐", name: "HQ Regular", desc: "Spend {n} in EBC HQ", counter: "hq_h", tiers: [1], cls: "emery", rare: true, fmtN: (n) => `${n} hour${n === 1 ? "" : "s"}` },
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
@@ -8190,32 +8189,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 nextTarget, tierLabel: a.tiers.length > 1 && tier > 0 ? String(tier) : "", descNow: achievementDesc(a, descN) });
         });
     }
-    // Periodic tick: bound streak, bound-in-one-room streak, and time spent in EBC
-    // HQ. No-op for non-achievement users; cheap enough to just run.
+    // Periodic tick, now only the continuous bound streak - the room-time
+    // achievements were removed because how long you have been somewhere cannot be
+    // measured honestly across reloads and reconnects.
+    // No-op for non-achievement users; cheap enough to just run.
     const TICK_MS = 5 * 60 * 1000;
-    const HQ_ROOM = "emerybc (ebc) hq";
     setInterval(() => {
-        var _a, _b, _c, _d;
+        var _a;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
-            const w = window;
-            const room = String((_b = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Name) !== null && _b !== void 0 ? _b : "");
             const st = getState();
-            // Longest continuous bound streak (any room).
+            // Longest continuous bound streak (any room). Read from the per-item
+            // restraint timers, which persist across rooms and offline, so this is
+            // the one time-based achievement that does not depend on room tracking.
             const hours = Math.floor(getRestraintMs() / 3600000);
-            if (hours > ((_c = st.c["bound_h"]) !== null && _c !== void 0 ? _c : 0))
+            if (hours > ((_a = st.c["bound_h"]) !== null && _a !== void 0 ? _a : 0))
                 st.c["bound_h"] = hours;
-            // Total time in the EBC HQ support room. A total, not a streak, so it
-            // persists across sessions - two half-hour visits add up.
-            if (room.trim().toLowerCase() === HQ_ROOM) {
-                st.hqMin = ((_d = st.hqMin) !== null && _d !== void 0 ? _d : 0) + TICK_MS / 60000;
-                st.c["hq_h"] = Math.floor(st.hqMin / 60);
-            }
             checkUnlocks();
             save();
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }, TICK_MS);
 
     function appendLocalLogLine(text, color = UI.accent) {
@@ -40498,7 +40492,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 245; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 246; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40515,10 +40509,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",
                 "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
                 "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
                 "Fix (Julia): 'yesterday' on last seen was measured in elapsed hours, so anything 24 to 48 hours old was called yesterday even when it was two dates ago. It now compares actual calendar days.",
-                "Fix (Julia): 'Spend 1 hours in EBC HQ' now reads '1 hour'.",
                 "Fix (Azuith): the choice of whether restraint buttons sit above every tab or inside Safety is applied at login again. The panel is built before your account settings arrive, so it was reading the default and you had to re-toggle it every session.",
                 "Fix (Emery): action buttons could send without your name in front. BC's nickname helper returns an empty string rather than falling back to your account name when your nickname is blank, and the message was built from that.",
                 "Friends: 'friends since' now shows how long as well as the date - '(1 year 3 months)'. Requested by Julia.",
