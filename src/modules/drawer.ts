@@ -841,6 +841,14 @@ const CSS = `
     -webkit-overflow-scrolling: touch; /* momentum scroll - needed on some Android builds */
 }
 
+@keyframes ebcAchCrawl {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 0 0, 30px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ebc-ach-bar > div { animation: none !important; transition: none !important; }
+}
+
 /* -- EBC tags strip body (scrollable, capped height so footer stays visible) --
    The cap exists for the CLASSIC layout, where this strip is pinned above every
    tab and must not push the footer off screen. Inside a pill it owns the whole
@@ -17558,7 +17566,18 @@ This cannot be undone.`,
                     // Color swatches row
                     const swatchRow = document.createElement("div");
                     swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
-                    let selectedColor = TAG_COLORS[0];
+                    // Restore anything that was being typed here before the list
+                    // last rebuilt itself under you.
+                    const draft = this._tagDraft?.num === num ? this._tagDraft : null;
+                    let selectedColor = draft?.color ?? TAG_COLORS[0];
+                    if (draft?.text) newTagInput.value = draft.text;
+                    const noteDraft = (): void => {
+                        const txt = newTagInput.value;
+                        this._tagDraft = (txt.trim() || selectedColor !== TAG_COLORS[0])
+                            ? { num, text: txt, color: selectedColor }
+                            : null;
+                    };
+                    newTagInput.addEventListener("input", noteDraft);
                     const swatches: HTMLElement[] = [];
                     for (const c of TAG_COLORS) {
                         const sw = document.createElement("span");
@@ -17569,6 +17588,9 @@ This cannot be undone.`,
                             selectedColor = c;
                             swatches.forEach(s => s.classList.remove("sel"));
                             sw.classList.add("sel");
+                            // Clicking a swatch blurs the input, so a focus-based
+                            // guard alone would not save the draft from here.
+                            noteDraft();
                         });
                         swatches.push(sw);
                         swatchRow.appendChild(sw);
@@ -17580,6 +17602,7 @@ This cannot be undone.`,
                         if (!text) { newTagInput.style.borderColor = "#cf6f98"; return; }
                         const updated: FriendTag[] = [...getFriendTagList(num), { text, color: selectedColor }];
                         setFriendTagList(num, updated);
+                        this._tagDraft = null;   // committed, nothing left to restore
                         newTagInput.value = "";
                         newTagInput.style.borderColor = "#3a1928";
                         rebuildChips();
@@ -17912,6 +17935,9 @@ This cannot be undone.`,
         card.appendChild(whoList);
         host.appendChild(card);
     }
+
+    /** A tag being typed but not yet added, held across friend-list rebuilds. */
+    private _tagDraft: { num: number; text: string; color: string } | null = null;
 
     private buildNoteRow(memberNumber: number, displayName: string, currentNote: string, isSelf = false): HTMLElement {
         const hasNote = !!currentNote.trim();
@@ -18311,11 +18337,46 @@ This cannot be undone.`,
             line.appendChild(r);
             const trough = document.createElement("div");
             trough.className = "ebc-ach-bar";
+            trough.style.position = "relative";
+            trough.style.overflow = "hidden";
             const fill = document.createElement("div");
-            fill.style.cssText = `height:100%;border-radius:3px;width:${pct}%;background:linear-gradient(90deg, #8a4a68, #cf6f98);`;
+            // Moving stripes over the gradient, and a bright edge where the fill
+            // stops. A flat block reads as a static figure; this reads as
+            // progress, which is the point of showing it at all.
+            fill.style.cssText = "height:100%;border-radius:3px;width:0%;"
+                + "background-color:#cf6f98;"
+                + "background-image:linear-gradient(90deg, #8a4a68, #cf6f98),"
+                + "repeating-linear-gradient(115deg, rgba(255,255,255,0.16) 0 7px, rgba(255,255,255,0) 7px 15px);"
+                + "background-size:100% 100%, 30px 100%;"
+                + "animation:ebcAchCrawl 1.1s linear infinite;"
+                + "transition:width 0.7s cubic-bezier(0.22,0.9,0.3,1);"
+                + "box-shadow:0 0 7px rgba(207,111,152,0.55);";
+            const tip = document.createElement("div");
+            tip.style.cssText = `position:absolute;top:-2px;bottom:-2px;left:0;width:8px;border-radius:4px;`
+                + "background:radial-gradient(closest-side, rgba(255,235,245,0.85), rgba(255,235,245,0));"
+                + "transition:left 0.7s cubic-bezier(0.22,0.9,0.3,1);pointer-events:none;";
             trough.appendChild(fill);
+            if (pct > 0 && pct < 100) trough.appendChild(tip);
             summary.appendChild(line);
             summary.appendChild(trough);
+            // Grow from zero on the next frame so the transition actually runs,
+            // and count the number up alongside it rather than snapping.
+            window.requestAnimationFrame(() => {
+                fill.style.width = `${pct}%`;
+                tip.style.left = `calc(${pct}% - 4px)`;
+            });
+            if (unlocked > 0) {
+                const DUR = 700;
+                const start = performance.now();
+                const step = (t: number): void => {
+                    const k = Math.min(1, (t - start) / DUR);
+                    const eased = 1 - Math.pow(1 - k, 3);
+                    l.textContent = `Unlocked ${Math.round(unlocked * eased)} / ${progress.length}`;
+                    if (k < 1) window.requestAnimationFrame(step);
+                };
+                l.textContent = `Unlocked 0 / ${progress.length}`;
+                window.requestAnimationFrame(step);
+            }
         };
 
         const buildList = (): void => {

@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 246;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 247;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
+            "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
             "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",
             "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
             "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
