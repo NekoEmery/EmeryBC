@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 247;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 248;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
             "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
             "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
             "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",

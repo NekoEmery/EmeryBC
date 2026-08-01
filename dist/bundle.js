@@ -111,7 +111,17 @@
             // stop us returns quietly, it does not throw. A throw means BC's own
             // path broke, and dropping the emote entirely would be the worse bug.
         }
-        ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
+        // The dictionary is not optional. BC renders an emote as "*Name text*" and
+        // takes the name from the SourceCharacter entry - with an empty dictionary
+        // it has nobody to name and sends "*shrugs*" instead of "*Emery shrugs*".
+        // This path runs when ChatRoomSendEmote is missing or throws, and it throws
+        // on the first emote of a session if Player.ChatSettings has not loaded yet,
+        // which is exactly when the nameless one was seen.
+        ServerSend("ChatRoomChat", {
+            Type: "Emote",
+            Content: content,
+            Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+        });
     }
 
     const UI = {
@@ -40520,7 +40530,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 247; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 248; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40537,6 +40547,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
                 "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
                 "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
                 "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",

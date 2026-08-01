@@ -111,5 +111,15 @@ export function sendEmoteViaBC(content: string): void {
         // stop us returns quietly, it does not throw. A throw means BC's own
         // path broke, and dropping the emote entirely would be the worse bug.
     }
-    ServerSend("ChatRoomChat", { Type: "Emote", Content: content, Dictionary: [] });
+    // The dictionary is not optional. BC renders an emote as "*Name text*" and
+    // takes the name from the SourceCharacter entry - with an empty dictionary
+    // it has nobody to name and sends "*shrugs*" instead of "*Emery shrugs*".
+    // This path runs when ChatRoomSendEmote is missing or throws, and it throws
+    // on the first emote of a session if Player.ChatSettings has not loaded yet,
+    // which is exactly when the nameless one was seen.
+    ServerSend("ChatRoomChat", {
+        Type: "Emote",
+        Content: content,
+        Dictionary: [{ SourceCharacter: Player.MemberNumber }],
+    } as never);
 }
