@@ -14363,12 +14363,14 @@ This cannot be undone.`,
                     nameLabel.appendChild(nameText);
                 }
 
-                // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
+                // The flowing gradient is reserved for people in the credits -
+                // that is what it is meant to signal. Your own name used to get
+                // one too, which meant everybody saw an animated name and it read
+                // as a glitch rather than as anything special. Yours is still a
+                // distinct colour, just a solid one.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
                 if (vipEntry) {
                     applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
-                } else if (bubbleMember === self) {
-                    applyGradientText(nameText, "#cf6f98", "#8090d0");
                 } else {
                     nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
                 }
