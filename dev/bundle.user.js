@@ -15482,18 +15482,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.saveTabOffset(pos);
                 });
             });
-            // Right-click on tab resets to auto-position (follow CRABS / default)
+            // Right-click on the tab resets it to auto-position. It used to do that
+            // silently, so anyone who right-clicked it - for a browser menu, or by
+            // accident - watched the button they had carefully placed jump somewhere
+            // else with no explanation and no way to undo it. Ask first. The same
+            // reset is on the header's Reset button for anyone who wants it there.
             tab.addEventListener("contextmenu", (e) => {
                 e.preventDefault();
-                this.userTabOffset = null;
-                this.tabOffsetChecked = true; // no need to re-poll - user explicitly reset
-                this.lastCrabsBottom = -1;
-                // Clear inline fixed-position overrides so CSS absolute layout takes over
-                tab.style.position = "";
-                tab.style.left = "";
-                tab.style.top = "";
-                this.saveTabOffset(null); // null = reset to auto
-                this.updateCrabsPosition();
+                if (this.userTabOffset === null)
+                    return; // already where it belongs
+                showConfirmOverlay("Put the EBC button back where it started?\n\nIt will go back to following the chat window, and the position you dragged it to is forgotten.", "Keep it here", "Reset it", () => {
+                    this.userTabOffset = null;
+                    this.tabOffsetChecked = true; // no need to re-poll - explicit reset
+                    this.lastCrabsBottom = -1;
+                    // Clear inline fixed-position overrides so CSS layout takes over
+                    tab.style.position = "";
+                    tab.style.left = "";
+                    tab.style.top = "";
+                    this.saveTabOffset(null); // null = reset to auto
+                    this.updateCrabsPosition();
+                });
             });
             resetLocBtn.addEventListener("click", () => {
                 // Reset panel to anchored mode
@@ -40565,7 +40573,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 248; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 249; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40582,6 +40590,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Azuith): right-clicking the EBC button no longer throws away where you put it without warning. Right-click has always been a shortcut for resetting it back to following the chat window, but nothing said so - so right-clicking for any other reason moved your button and there was no way back. It asks first now, and says nothing at all if the button is already in its default place.",
                 "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
                 "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
                 "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
