@@ -90,6 +90,22 @@
     function sendEmoteViaBC(content) {
         const w = window;
         const viaBC = w.ChatRoomSendEmote;
+        // Diagnostic. Emotes have come out without the sender's name twice now and
+        // both of my explanations were wrong, so log exactly what is going out and
+        // which path took it rather than reasoning about it again from the source.
+        try {
+            const nickFn = w.CharacterNickname;
+            console.info("[EBC emote]", JSON.stringify({
+                content,
+                willSend: content.startsWith("*") ? content : "*" + content,
+                viaChatRoomSendEmote: typeof viaBC === "function",
+                nickname: JSON.stringify(Player === null || Player === void 0 ? void 0 : Player.Nickname),
+                name: Player === null || Player === void 0 ? void 0 : Player.Name,
+                resolvedName: typeof nickFn === "function" ? nickFn(Player) : "(no CharacterNickname)",
+                chatSettingsLoaded: !!(Player === null || Player === void 0 ? void 0 : Player.ChatSettings),
+            }));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         if (typeof viaBC === "function") {
             try {
                 // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
@@ -106,7 +122,7 @@
                 viaBC(wouldRoll ? content.replace(/^\*/, "") : starred);
                 return;
             }
-            catch ( /* fall through to the direct send below */_a) { /* fall through to the direct send below */ }
+            catch ( /* fall through to the direct send below */_b) { /* fall through to the direct send below */ }
             // Unlike beeps, falling back here is safe: an emote rule that meant to
             // stop us returns quietly, it does not throw. A throw means BC's own
             // path broke, and dropping the emote entirely would be the worse bug.
@@ -40587,7 +40603,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 251; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 252; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40604,6 +40620,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Diagnostic build: sidebar emotes still lose the name for some people and my last two explanations were both wrong, so every emote now writes one line to the browser console saying exactly what text is going out, which path sent it, and what the game thinks your name is. Press F12, use a Pout or Giggle button, and send Emery the line beginning [EBC emote].",
                 "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
                 "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
                 "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",

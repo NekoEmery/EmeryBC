@@ -91,6 +91,21 @@ export function sendBeepViaBC(target: number, message: string, includeRoom: bool
 export function sendEmoteViaBC(content: string): void {
     const w = window as unknown as WinFns;
     const viaBC = w.ChatRoomSendEmote as ((msg: string) => void) | undefined;
+    // Diagnostic. Emotes have come out without the sender's name twice now and
+    // both of my explanations were wrong, so log exactly what is going out and
+    // which path took it rather than reasoning about it again from the source.
+    try {
+        const nickFn = w.CharacterNickname as ((c: unknown) => string) | undefined;
+        console.info("[EBC emote]", JSON.stringify({
+            content,
+            willSend: content.startsWith("*") ? content : "*" + content,
+            viaChatRoomSendEmote: typeof viaBC === "function",
+            nickname: JSON.stringify((Player as unknown as { Nickname?: string })?.Nickname),
+            name: (Player as unknown as { Name?: string })?.Name,
+            resolvedName: typeof nickFn === "function" ? nickFn(Player) : "(no CharacterNickname)",
+            chatSettingsLoaded: !!(Player as unknown as { ChatSettings?: unknown })?.ChatSettings,
+        }));
+    } catch { /* ignore */ }
     if (typeof viaBC === "function") {
         try {
             // ChatRoomSendEmote parses its argument as chat SYNTAX, not as final
