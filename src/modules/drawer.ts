@@ -5676,18 +5676,29 @@ export class EBCDrawer {
             );
         });
 
-        // Right-click on tab resets to auto-position (follow CRABS / default)
+        // Right-click on the tab resets it to auto-position. It used to do that
+        // silently, so anyone who right-clicked it - for a browser menu, or by
+        // accident - watched the button they had carefully placed jump somewhere
+        // else with no explanation and no way to undo it. Ask first. The same
+        // reset is on the header's Reset button for anyone who wants it there.
         tab.addEventListener("contextmenu", (e: MouseEvent) => {
             e.preventDefault();
-            this.userTabOffset = null;
-            this.tabOffsetChecked = true; // no need to re-poll - user explicitly reset
-            this.lastCrabsBottom = -1;
-            // Clear inline fixed-position overrides so CSS absolute layout takes over
-            tab.style.position = "";
-            tab.style.left = "";
-            tab.style.top  = "";
-            this.saveTabOffset(null); // null = reset to auto
-            this.updateCrabsPosition();
+            if (this.userTabOffset === null) return;   // already where it belongs
+            showConfirmOverlay(
+                "Put the EBC button back where it started?\n\nIt will go back to following the chat window, and the position you dragged it to is forgotten.",
+                "Keep it here", "Reset it",
+                () => {
+                    this.userTabOffset = null;
+                    this.tabOffsetChecked = true; // no need to re-poll - explicit reset
+                    this.lastCrabsBottom = -1;
+                    // Clear inline fixed-position overrides so CSS layout takes over
+                    tab.style.position = "";
+                    tab.style.left = "";
+                    tab.style.top  = "";
+                    this.saveTabOffset(null); // null = reset to auto
+                    this.updateCrabsPosition();
+                },
+            );
         });
 
         resetLocBtn.addEventListener("click", () => {
