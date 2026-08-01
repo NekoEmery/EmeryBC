@@ -7337,8 +7337,18 @@ export class EBCDrawer {
      * Tab *switches* intentionally bypass this and call renderCurrentTab()
      * directly so the new tab always starts at the top.
      */
-    /** Interval keeping the pose grid in step with poses set elsewhere. */
-    private _poseWatch: number | null = null;
+    /**
+     * Repaints the Body pose grid. Held here so the appearance-change hook can
+     * call it - the grid has to follow poses set by restraints, and a poll was
+     * the wrong tool: it depended on finding the container in the document, and
+     * when that check was wrong it stopped silently with nothing to show for it.
+     */
+    private _refreshPoseButtons: (() => void) | null = null;
+
+    /** Called whenever the player's appearance changes. */
+    public refreshPoseButtons(): void {
+        try { this._refreshPoseButtons?.(); } catch { /* grid is gone; harmless */ }
+    }
 
     private _rerenderTimer: number | null = null;
     /** True while _pillifyTab is synthesising header clicks. */
@@ -11729,10 +11739,7 @@ This cannot be undone.`,
             : key ? `Set ${grp.toLowerCase()} pose: ${key}`
             : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
         // Poses change without the panel being touched - a restraint can force
-        // one, and someone else can pose you. Nothing told the grid, so the
-        // highlight kept showing whatever you last picked. Poll while the grid
-        // is on screen and stop as soon as it is replaced.
-        if (this._poseWatch !== null) { window.clearInterval(this._poseWatch); this._poseWatch = null; }
+        // one, and someone else can pose you.
         const refreshPoseBtns = (): void => {
             // Effective, not chosen - so a restraint forcing a pose lights the
             // right button without you touching anything.
@@ -11752,14 +11759,10 @@ This cannot be undone.`,
             }
         };
 
-        this._poseWatch = window.setInterval(() => {
-            if (!document.body.contains(posesCnt)) {
-                if (this._poseWatch !== null) window.clearInterval(this._poseWatch);
-                this._poseWatch = null;
-                return;
-            }
-            refreshPoseBtns();
-        }, 1000);
+        // Registered last, so it always points at the grid built by the most
+        // recent render. An older closure would repaint buttons that are no
+        // longer on screen.
+        this._refreshPoseButtons = refreshPoseBtns;
 
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");

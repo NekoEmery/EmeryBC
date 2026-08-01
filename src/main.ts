@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 257;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 258;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
             "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
             "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",
             "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
@@ -7812,6 +7813,9 @@ function init(): void {
                 // via setPendingLogApplier when the Action message arrives.
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
+                // BC has just recomputed the pose, so this is the moment the
+                // Body grid is stale - a restraint forcing a pose lands here.
+                try { drawer?.refreshPoseButtons(); } catch { /* ignore */ }
             } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
                 // Record this person in the persistent "people met" list.
                 // seenThisSession guard prevents repeated syncs when CharacterRefresh
