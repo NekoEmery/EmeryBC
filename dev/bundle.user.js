@@ -4104,6 +4104,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
         }
     }
+    /**
+     * The pose actually in effect, which is not always the one you chose.
+     *
+     * BC keeps two things: ActivePoseMapping is what you asked for, and PoseMapping
+     * is the intersection of that with what your items allow - the one that renders.
+     * A restraint forcing you into a pose changes PoseMapping only, so reading the
+     * chosen pose meant the Body menu kept highlighting whatever you last clicked
+     * while your character was visibly in something else.
+     */
+    function getEffectivePoses() {
+        try {
+            const pm = Player.PoseMapping;
+            if (pm && typeof pm === "object") {
+                const out = Object.values(pm).filter((v) => typeof v === "string" && !!v);
+                // BaseUpper/BaseLower are BC's names for "nothing applied" - they are
+                // not poses anyone picked, and showing them as active would light up
+                // buttons that were never pressed.
+                const real = out.filter(v => v !== "BaseUpper" && v !== "BaseLower");
+                if (real.length > 0)
+                    return real;
+                if (out.length > 0)
+                    return [];
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return getCurrentPoses();
+    }
     function getCurrentPoses() {
         var _a;
         try {
@@ -21647,7 +21674,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             const refreshPoseBtns = () => {
                 var _a, _b;
-                const live = getCurrentPoses();
+                // Effective, not chosen - so a restraint forcing a pose lights the
+                // right button without you touching anything.
+                const live = getEffectivePoses();
                 const armKeys2 = (_b = (_a = KNOWN_POSES.find(g => g.group === "Arms")) === null || _a === void 0 ? void 0 : _a.poses.map(p => p.key).filter(Boolean)) !== null && _b !== void 0 ? _b : [];
                 for (const ref of poseBtnRefs) {
                     const on = ref.key === "" && ref.group === "Arms"
@@ -28203,20 +28232,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     + "animation:ebcAchCrawl 1.1s linear infinite;"
                     + "transition:width 0.7s cubic-bezier(0.22,0.9,0.3,1);"
                     + "box-shadow:0 0 7px rgba(207,111,152,0.55);";
-                const tip = document.createElement("div");
-                tip.style.cssText = `position:absolute;top:-2px;bottom:-2px;left:0;width:8px;border-radius:4px;`
-                    + "background:radial-gradient(closest-side, rgba(255,235,245,0.85), rgba(255,235,245,0));"
-                    + "transition:left 0.7s cubic-bezier(0.22,0.9,0.3,1);pointer-events:none;";
                 trough.appendChild(fill);
-                if (pct > 0 && pct < 100)
-                    trough.appendChild(tip);
                 summary.appendChild(line);
                 summary.appendChild(trough);
-                // Grow from zero on the next frame so the transition actually runs,
-                // and count the number up alongside it rather than snapping.
+                // Read a layout property first. That forces the browser to commit
+                // the 0% width, so the change below is something it can animate
+                // between rather than a single value it renders once.
                 window.requestAnimationFrame(() => {
+                    void trough.offsetWidth;
                     fill.style.width = `${pct}%`;
-                    tip.style.left = `calc(${pct}% - 4px)`;
                 });
                 if (unlocked > 0) {
                     const DUR = 700;
@@ -28383,11 +28407,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 chipRow.appendChild(chip);
             }
             paintChips();
-            paintSummary();
             buildList();
             outer.appendChild(chipRow);
             outer.appendChild(summary);
             outer.appendChild(listWrap);
+            // Painted after the summary is in the tree - see paintSummary.
+            paintSummary();
             return outer;
         }
         /** Small picker listing everyone else in the room - used by achievement
@@ -40725,7 +40750,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 254; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 255; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40742,6 +40767,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
+                "Fix: the Body menu now follows a pose forced on you by a restraint. It was reading the pose you last chose rather than the one in effect - the game keeps those separately, and a restraint only changes the second, so the highlight stayed on whatever you last clicked while your character was visibly in something else.",
                 "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",
                 "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
                 "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
