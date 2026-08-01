@@ -11110,7 +11110,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     color: #b98aa0;
 }
 .ebc-ach-clsline { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,111,152,0.45), transparent); }
-.ebc-ach-clscnt { color: #7a5a6a; font-weight: normal; letter-spacing: 0; }
+/* The per-class tally. It was 10px in a dim grey at 0.14em tracking, which made
+   the one number on the row that carries information the hardest thing on it to
+   read. Bigger, brighter, and tracking reset so the digits sit together. */
+.ebc-ach-clscnt {
+    color: #d8a8bc;
+    font-weight: bold;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -40739,7 +40749,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 256; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 257; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40756,6 +40766,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
                 "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",
                 "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
                 "Fix: the Body menu now follows a pose forced on you by a restraint. It was reading the pose you last chose rather than the one in effect - the game keeps those separately, and a restraint only changes the second, so the highlight stayed on whatever you last clicked while your character was visibly in something else.",

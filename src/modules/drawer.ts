@@ -985,7 +985,17 @@ const CSS = `
     color: #b98aa0;
 }
 .ebc-ach-clsline { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,111,152,0.45), transparent); }
-.ebc-ach-clscnt { color: #7a5a6a; font-weight: normal; letter-spacing: 0; }
+/* The per-class tally. It was 10px in a dim grey at 0.14em tracking, which made
+   the one number on the row that carries information the hardest thing on it to
+   read. Bigger, brighter, and tracking reset so the digits sit together. */
+.ebc-ach-clscnt {
+    color: #d8a8bc;
+    font-weight: bold;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
 
 /* -- Section label -- */
 .ebc-section-label {
