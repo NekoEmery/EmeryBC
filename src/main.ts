@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 249;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 250;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
             "Fix (reported by Azuith): right-clicking the EBC button no longer throws away where you put it without warning. Right-click has always been a shortcut for resetting it back to following the chat window, but nothing said so - so right-clicking for any other reason moved your button and there was no way back. It asks first now, and says nothing at all if the button is already in its default place.",
             "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
             "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
@@ -8081,6 +8082,22 @@ function init(): void {
     const shareRoomIfEnabled = (): void => {
         try { broadcastRoom((to, msg) => sendBeep(to, msg)); } catch { /* ignore */ }
     };
+
+    // BC builds the name in front of an emote with CharacterNickname, which is
+    // `Nickname ?? Name`. An EMPTY-STRING nickname is not null, so it does not
+    // fall back - the name comes out blank and BC renders "*pouts.*" with
+    // nobody in front of it. Characters arrive from the room sync with an empty
+    // nickname before it is populated, which is why it hit the first emote of a
+    // session and no others. Treat blank as absent, as BC clearly intended.
+    tryHookFunction(modAPI, "CharacterNickname", 5, (args, next) => {
+        const out = next(args);
+        if (typeof out === "string" && out.trim()) return out;
+        try {
+            const c = (args as unknown[])[0] as { Name?: string } | undefined;
+            if (c && typeof c.Name === "string" && c.Name.trim()) return c.Name;
+        } catch { /* ignore */ }
+        return out;
+    });
 
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
