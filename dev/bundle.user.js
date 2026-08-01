@@ -24002,13 +24002,14 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     else {
                         nameLabel.appendChild(nameText);
                     }
-                    // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
+                    // The flowing gradient is reserved for people in the credits -
+                    // that is what it is meant to signal. Your own name used to get
+                    // one too, which meant everybody saw an animated name and it read
+                    // as a glitch rather than as anything special. Yours is still a
+                    // distinct colour, just a solid one.
                     const vipEntry = VIP_MEMBERS[bubbleMember];
                     if (vipEntry) {
                         applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
-                    }
-                    else if (bubbleMember === self) {
-                        applyGradientText(nameText, "#cf6f98", "#8090d0");
                     }
                     else {
                         nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
@@ -40397,7 +40398,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 243; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 244; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40414,6 +40415,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Nicole): your own name no longer glows with a flowing gradient in the EBC chat window. That effect is meant to mark people in the credits, but it was also applied to yourself, so everyone saw their own name animating and it read as a glitch. Your messages still use their own colour. A flowing name now means one thing: someone from the credits.",
                 "Private room sharing is hidden for now while it is still being worked out. The settings are gone from SOCIAL -> Settings, nothing is sent, and nothing is accepted - so if you had already switched it on, it has stopped broadcasting. Anything you set is kept and will be there when it comes back.",
                 "Crew achievements show everyone as pills - green with a tick for the ones you have, red with a cross for the ones left. Names stay in the same order whatever their state, so one only changes colour when it lands rather than jumping to another line. The tick and cross carry the meaning as well as the colour.",
                 "Fix: private room sharing did nothing if you turned it on while already sitting in a private room. Entering a room recorded it as announced before checking whether there was anybody to announce it to, so switching the toggles on afterwards found nothing left to say. Changing who you share with now re-announces immediately. Rooms are also now classified using BC's own private-room test - a room open to admins as well as everyone counted as public before. Each broadcast writes a line to the browser console saying what was sent and to how many people, so it can be checked.",
