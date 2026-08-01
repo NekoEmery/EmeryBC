@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 253;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 254;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",
             "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
             "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
             "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",

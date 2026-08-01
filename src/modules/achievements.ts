@@ -145,6 +145,76 @@ function getState(): AchState {
     }
 }
 
+// -- Testing: reset and restore ----------------------------------------------
+// Wiping achievements is the only way to see an unlock fire twice, so it exists
+// - but real progress is years of play, so a reset always takes a copy first
+// and the copy is never overwritten by a second reset. Creator only: this is a
+// testing tool, not a feature, and an accidental reset with no way back would
+// be a genuinely miserable thing to do to somebody.
+
+const ACH_BACKUP_LS = "EBC_achBackup";
+
+/** Only the creator sees the reset controls. */
+export function canResetAchievements(): boolean {
+    return (Player?.MemberNumber ?? 0) === EMERY;
+}
+
+export function hasAchievementBackup(): boolean {
+    try { return !!localStorage.getItem(ACH_BACKUP_LS); } catch { return false; }
+}
+
+/** When the held copy was taken, for showing next to the restore button. */
+export function achievementBackupAge(): string | null {
+    try {
+        const raw = localStorage.getItem(ACH_BACKUP_LS);
+        if (!raw) return null;
+        const ts = (JSON.parse(raw) as { ts?: number }).ts;
+        if (typeof ts !== "number") return null;
+        const mins = Math.floor((Date.now() - ts) / 60_000);
+        if (mins < 1) return "just now";
+        if (mins < 60) return `${mins} min ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+        const days = Math.floor(hrs / 24);
+        return `${days} day${days === 1 ? "" : "s"} ago`;
+    } catch { return null; }
+}
+
+/**
+ * Clears all progress, keeping a copy. The copy is only taken when there is not
+ * already one - so resetting twice in a row still restores the state you had
+ * before you started testing, not the empty one from the first reset.
+ */
+export function resetAchievementsForTesting(): boolean {
+    if (!canResetAchievements()) return false;
+    try {
+        const store = getSettings() as Record<string, unknown>;
+        if (!hasAchievementBackup()) {
+            const snapshot = JSON.stringify({ ts: Date.now(), state: store.achievements ?? {} });
+            localStorage.setItem(ACH_BACKUP_LS, snapshot);
+        }
+        store.achievements = { c: {}, u: {} } as AchState;
+        syncSettings();
+        return true;
+    } catch { return false; }
+}
+
+/** Puts the held copy back and discards it. */
+export function restoreAchievements(): boolean {
+    if (!canResetAchievements()) return false;
+    try {
+        const raw = localStorage.getItem(ACH_BACKUP_LS);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw) as { state?: unknown };
+        if (!parsed.state || typeof parsed.state !== "object") return false;
+        const store = getSettings() as Record<string, unknown>;
+        store.achievements = parsed.state;
+        localStorage.removeItem(ACH_BACKUP_LS);
+        syncSettings();
+        return true;
+    } catch { return false; }
+}
+
 // Debounced settings sync - counters can bump rapidly during play.
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 function save(): void {

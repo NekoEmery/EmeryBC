@@ -7695,6 +7695,94 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return { c: {}, u: {} };
         }
     }
+    // -- Testing: reset and restore ----------------------------------------------
+    // Wiping achievements is the only way to see an unlock fire twice, so it exists
+    // - but real progress is years of play, so a reset always takes a copy first
+    // and the copy is never overwritten by a second reset. Creator only: this is a
+    // testing tool, not a feature, and an accidental reset with no way back would
+    // be a genuinely miserable thing to do to somebody.
+    const ACH_BACKUP_LS = "EBC_achBackup";
+    /** Only the creator sees the reset controls. */
+    function canResetAchievements() {
+        var _a;
+        return ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0) === EMERY;
+    }
+    function hasAchievementBackup() {
+        try {
+            return !!localStorage.getItem(ACH_BACKUP_LS);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    /** When the held copy was taken, for showing next to the restore button. */
+    function achievementBackupAge() {
+        try {
+            const raw = localStorage.getItem(ACH_BACKUP_LS);
+            if (!raw)
+                return null;
+            const ts = JSON.parse(raw).ts;
+            if (typeof ts !== "number")
+                return null;
+            const mins = Math.floor((Date.now() - ts) / 60000);
+            if (mins < 1)
+                return "just now";
+            if (mins < 60)
+                return `${mins} min ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24)
+                return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+            const days = Math.floor(hrs / 24);
+            return `${days} day${days === 1 ? "" : "s"} ago`;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /**
+     * Clears all progress, keeping a copy. The copy is only taken when there is not
+     * already one - so resetting twice in a row still restores the state you had
+     * before you started testing, not the empty one from the first reset.
+     */
+    function resetAchievementsForTesting() {
+        var _a;
+        if (!canResetAchievements())
+            return false;
+        try {
+            const store = getSettings();
+            if (!hasAchievementBackup()) {
+                const snapshot = JSON.stringify({ ts: Date.now(), state: (_a = store.achievements) !== null && _a !== void 0 ? _a : {} });
+                localStorage.setItem(ACH_BACKUP_LS, snapshot);
+            }
+            store.achievements = { c: {}, u: {} };
+            syncSettings();
+            return true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    /** Puts the held copy back and discards it. */
+    function restoreAchievements() {
+        if (!canResetAchievements())
+            return false;
+        try {
+            const raw = localStorage.getItem(ACH_BACKUP_LS);
+            if (!raw)
+                return false;
+            const parsed = JSON.parse(raw);
+            if (!parsed.state || typeof parsed.state !== "object")
+                return false;
+            const store = getSettings();
+            store.achievements = parsed.state;
+            localStorage.removeItem(ACH_BACKUP_LS);
+            syncSettings();
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
     // Debounced settings sync - counters can bump rapidly during play.
     let _saveTimer = null;
     function save() {
@@ -28439,6 +28527,46 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     this.showAchievementsOverlay();
                 });
                 panel.appendChild(optOutBtn);
+                // Creator-only testing controls. A reset takes a copy first, so the
+                // real progress can always come back.
+                if (canResetAchievements()) {
+                    const testRow = document.createElement("div");
+                    testRow.style.cssText = "display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2px;padding-top:7px;border-top:1px dashed #33283c;";
+                    const mkTestBtn = (label, colour) => {
+                        const b = document.createElement("button");
+                        b.textContent = label;
+                        b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid ${colour};background:transparent;color:${colour};cursor:pointer;`;
+                        return b;
+                    };
+                    const backupAge = achievementBackupAge();
+                    const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
+                    resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
+                    resetBtn.addEventListener("click", () => {
+                        showConfirmOverlay(hasAchievementBackup()
+                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
+                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.", "Cancel", "Reset", () => {
+                            resetAchievementsForTesting();
+                            overlay.remove();
+                            this.showAchievementsOverlay();
+                        });
+                    });
+                    testRow.appendChild(resetBtn);
+                    if (hasAchievementBackup()) {
+                        const restoreBtn = mkTestBtn("Restore my progress", "#79a885");
+                        restoreBtn.title = backupAge ? `Copy taken ${backupAge}` : "Puts your saved progress back";
+                        restoreBtn.addEventListener("click", () => {
+                            restoreAchievements();
+                            overlay.remove();
+                            this.showAchievementsOverlay();
+                        });
+                        testRow.appendChild(restoreBtn);
+                        const age = document.createElement("span");
+                        age.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a6a86;";
+                        age.textContent = backupAge ? `copy from ${backupAge}` : "";
+                        testRow.appendChild(age);
+                    }
+                    panel.appendChild(testRow);
+                }
             }
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
@@ -40597,7 +40725,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 253; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 254; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40614,6 +40742,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",
                 "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
                 "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
                 "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",

@@ -111,7 +111,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, type ShareMode } from "./achievements";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -18690,6 +18690,55 @@ This cannot be undone.`,
                 this.showAchievementsOverlay();
             });
             panel.appendChild(optOutBtn);
+
+            // Creator-only testing controls. A reset takes a copy first, so the
+            // real progress can always come back.
+            if (canResetAchievements()) {
+                const testRow = document.createElement("div");
+                testRow.style.cssText = "display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2px;padding-top:7px;border-top:1px dashed #33283c;";
+
+                const mkTestBtn = (label: string, colour: string): HTMLButtonElement => {
+                    const b = document.createElement("button");
+                    b.textContent = label;
+                    b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid ${colour};background:transparent;color:${colour};cursor:pointer;`;
+                    return b;
+                };
+
+                const backupAge = achievementBackupAge();
+                const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
+                resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
+                resetBtn.addEventListener("click", () => {
+                    showConfirmOverlay(
+                        hasAchievementBackup()
+                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
+                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.",
+                        "Cancel", "Reset",
+                        () => {
+                            resetAchievementsForTesting();
+                            overlay.remove();
+                            this.showAchievementsOverlay();
+                        },
+                    );
+                });
+                testRow.appendChild(resetBtn);
+
+                if (hasAchievementBackup()) {
+                    const restoreBtn = mkTestBtn("Restore my progress", "#79a885");
+                    restoreBtn.title = backupAge ? `Copy taken ${backupAge}` : "Puts your saved progress back";
+                    restoreBtn.addEventListener("click", () => {
+                        restoreAchievements();
+                        overlay.remove();
+                        this.showAchievementsOverlay();
+                    });
+                    testRow.appendChild(restoreBtn);
+
+                    const age = document.createElement("span");
+                    age.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a6a86;";
+                    age.textContent = backupAge ? `copy from ${backupAge}` : "";
+                    testRow.appendChild(age);
+                }
+                panel.appendChild(testRow);
+            }
         }
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
