@@ -5,7 +5,7 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 
-export const XTOYS_MEMBERS = [130267, 230466]; // Emery, Lucy
+export const XTOYS_MEMBERS = [130267, 230466, 140712]; // Emery, Lucy, #140712
 const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
 const MAX_RETRIES   = 3;
 const LOG_MAX       = 30;

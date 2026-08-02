@@ -62,7 +62,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
-import { CREDITED, CREDITED_THANKS, isCredited } from "./crew";
+import { CREDITED, CREDITED_THANKS, isCredited, hasCreatorAccess } from "./crew";
 import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
          getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
          shareRecipients, shareRecipientsDetailed, PRIVATE_ROOM_SHARING_ENABLED } from "./privateRooms";
@@ -20526,7 +20526,9 @@ This cannot be undone.`,
         }, "section-dev-logs");
 
         // ── Stat Editor (credited members only) ───────────────────────────────
-        if (isCredited(Player.MemberNumber)) {
+        // Credited OR creator-access. Being thanked in the credits is not the
+        // same as holding the tools, so both routes are named explicitly.
+        if (isCredited(Player.MemberNumber) || hasCreatorAccess(Player.MemberNumber)) {
             makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                 const FONT = "font-family:'Trebuchet MS',serif;";
 

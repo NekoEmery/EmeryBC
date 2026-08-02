@@ -7,7 +7,7 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 import { getRestraintMs } from "./timer";
-import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited } from "./crew";
+import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
 // Crew whitelist - only these members track or see achievements.
 // The roster lives in crew.ts so the credits cards, the VIP gradients, the
@@ -156,7 +156,7 @@ const ACH_BACKUP_LS = "EBC_achBackup";
 
 /** Only the creator sees the reset controls. */
 export function canResetAchievements(): boolean {
-    return (Player?.MemberNumber ?? 0) === EMERY;
+    return hasCreatorAccess(Player?.MemberNumber);
 }
 
 export function hasAchievementBackup(): boolean {

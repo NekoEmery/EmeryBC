@@ -3,6 +3,7 @@
 // chat command, and announce text template.
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
+import { hasCreatorAccess } from "./crew";
 import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
 import { getDomSetAnnounce } from "./settings";
 
@@ -63,7 +64,7 @@ function saveConfig(cfg: DomConfig): void {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function isDomEnabled(): boolean {
-    try { return Player.MemberNumber === DOM_CREATOR_ID; } catch { return false; }
+    try { return hasCreatorAccess(Player.MemberNumber); } catch { return false; }
 }
 
 export function getDomConfig(): DomConfig { return loadConfig(); }

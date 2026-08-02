@@ -2453,6 +2453,21 @@
             color: "#7fb8f0", gradient: ["#7fb8f0", "#3060c8"] }, // sky blue -> deep blue
     ];
     const CREDITED_NUMS = CREDITED.map(p => p.num);
+    /**
+     * Full creator-level access: the DOM tools, the stat editor, the achievement
+     * reset, XToys. Deliberately separate from the credits - being thanked on the
+     * CREDITS tab and being able to drive other people's restraints are not the
+     * same thing, and conflating them would hand out tools with a name change.
+     *
+     * Anyone here can act on other players, so keep it short and deliberate.
+     */
+    const CREATOR_ACCESS = [
+        130267, // Emery
+        140712,
+    ];
+    function hasCreatorAccess(n) {
+        return typeof n === "number" && CREATOR_ACCESS.includes(n);
+    }
     /** Credited people other than the creator - the Special Thanks cards. */
     const CREDITED_THANKS = CREDITED.filter(p => !p.creator);
     function isCredited(n) {
@@ -7335,7 +7350,7 @@
     // Sends BC game events (activities, vibrator changes, shocks) to the XToys
     // webhook so physical toys respond to in-game actions.
     // Restricted to specific member numbers only.
-    const XTOYS_MEMBERS = [130267, 230466]; // Emery, Lucy
+    const XTOYS_MEMBERS = [130267, 230466, 140712]; // Emery, Lucy, #140712
     const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
     const MAX_RETRIES = 3;
     const LOG_MAX = 30;
@@ -7685,8 +7700,7 @@
     const ACH_BACKUP_LS = "EBC_achBackup";
     /** Only the creator sees the reset controls. */
     function canResetAchievements() {
-        var _a;
-        return ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0) === EMERY;
+        return hasCreatorAccess(Player === null || Player === void 0 ? void 0 : Player.MemberNumber);
     }
     function hasAchievementBackup() {
         try {
@@ -8674,7 +8688,6 @@
     // Creator-only DOM tools — visible exclusively to member #130267.
     // Supports multiple named restraint sets, each with its own items,
     // chat command, and announce text template.
-    const DOM_CREATOR_ID = 130267;
     const DEFAULT_TARGETS = [
         { id: 230466, name: "Lucy" },
         { id: 124264, name: "Lara" },
@@ -8705,7 +8718,7 @@
     // ── Public API ───────────────────────────────────────────────────────────────
     function isDomEnabled() {
         try {
-            return Player.MemberNumber === DOM_CREATOR_ID;
+            return hasCreatorAccess(Player.MemberNumber);
         }
         catch (_a) {
             return false;
@@ -30417,7 +30430,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 });
             }, "section-dev-logs");
             // ── Stat Editor (credited members only) ───────────────────────────────
-            if (isCredited(Player.MemberNumber)) {
+            // Credited OR creator-access. Being thanked in the credits is not the
+            // same as holding the tools, so both routes are named explicitly.
+            if (isCredited(Player.MemberNumber) || hasCreatorAccess(Player.MemberNumber)) {
                 makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                     var _a, _b;
                     const FONT = "font-family:'Trebuchet MS',serif;";
@@ -40729,7 +40744,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 260; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 261; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40746,6 +40761,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Member #140712 now has the same creator-level access as Emery: the DOM tab, the stat editor, XToys and the achievement reset. Internally this is a short list rather than a single hardcoded number, so it can be changed in one place. It is kept separate from the credits on purpose - being thanked on the CREDITS tab and being able to act on other players are different things and should not be granted together by accident.",
                 "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
                 "Fix (reported by Julia): friends sharing a private room with you show the room name after the game rejoins you at login. Their room can only be identified from the list of people present, and that list is not ready when the friends data first arrives, so they were filed under 'in a private room' with nothing to correct it. The list is now refreshed again once the room has settled.",
                 "The bug report form now asks you to be on the latest DEV build before reporting - a great deal is fixed there first, and a report from an older build is usually something already dealt with.",

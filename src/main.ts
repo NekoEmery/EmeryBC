@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 260;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 261;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Member #140712 now has the same creator-level access as Emery: the DOM tab, the stat editor, XToys and the achievement reset. Internally this is a short list rather than a single hardcoded number, so it can be changed in one place. It is kept separate from the credits on purpose - being thanked on the CREDITS tab and being able to act on other players are different things and should not be granted together by accident.",
             "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
             "Fix (reported by Julia): friends sharing a private room with you show the room name after the game rejoins you at login. Their room can only be identified from the list of people present, and that list is not ready when the friends data first arrives, so they were filed under 'in a private room' with nothing to correct it. The list is now refreshed again once the room has settled.",
             "The bug report form now asks you to be on the latest DEV build before reporting - a great deal is fixed there first, and a report from an older build is usually something already dealt with.",

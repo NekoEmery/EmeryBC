@@ -46,6 +46,23 @@ export const CREDITED: CreditedPerson[] = [
 
 export const CREDITED_NUMS: number[] = CREDITED.map(p => p.num);
 
+/**
+ * Full creator-level access: the DOM tools, the stat editor, the achievement
+ * reset, XToys. Deliberately separate from the credits - being thanked on the
+ * CREDITS tab and being able to drive other people's restraints are not the
+ * same thing, and conflating them would hand out tools with a name change.
+ *
+ * Anyone here can act on other players, so keep it short and deliberate.
+ */
+export const CREATOR_ACCESS: number[] = [
+    130267,   // Emery
+    140712,
+];
+
+export function hasCreatorAccess(n: number | null | undefined): boolean {
+    return typeof n === "number" && CREATOR_ACCESS.includes(n);
+}
+
 /** Credited people other than the creator - the Special Thanks cards. */
 export const CREDITED_THANKS: CreditedPerson[] = CREDITED.filter(p => !p.creator);
 
