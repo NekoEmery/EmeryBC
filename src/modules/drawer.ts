@@ -16324,6 +16324,9 @@ This cannot be undone.`,
         });
     }
 
+    /** How many times in a row a refresh has stepped aside for a focused field. */
+    private friendRefreshDeferrals = 0;
+
     public refreshFriendList(): void {
         if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl) return;
         if (this.friendRefreshDebounce !== null) window.clearTimeout(this.friendRefreshDebounce);
@@ -16331,16 +16334,25 @@ This cannot be undone.`,
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
             if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target) return;
-            // This refresh is driven by the online-friends poll, so it can land
-            // at any moment - including while someone is halfway through typing
-            // a tag or a note. Rebuilding the rows destroys those inputs, which
-            // showed up as a tag name blanking itself and its colour jumping
-            // back to the default. Wait until the field is no longer in use.
+
+            // Stepping aside while a field is focused stops a rebuild landing on
+            // top of something half-typed. But it has to be able to give up: an
+            // unbounded version left the list frozen on stale content for good
+            // whenever focus stayed put - which is what happens when the game
+            // voids you and swaps the screen out from under a focused box.
+            // Half a second of grace, then refresh regardless. The typed tag is
+            // preserved across the rebuild anyway, so nothing is lost by it.
+            const MAX_DEFERRALS = 6;
             const active = document.activeElement as HTMLElement | null;
             const editing = !!active
                 && target.contains(active)
                 && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
-            if (editing) { this.refreshFriendList(); return; }
+            if (editing && this.friendRefreshDeferrals < MAX_DEFERRALS) {
+                this.friendRefreshDeferrals++;
+                this.refreshFriendList();
+                return;
+            }
+            this.friendRefreshDeferrals = 0;
             this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
         }, 80);
     }

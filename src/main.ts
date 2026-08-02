@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 259;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 260;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
+            "Fix (reported by Julia): friends sharing a private room with you show the room name after the game rejoins you at login. Their room can only be identified from the list of people present, and that list is not ready when the friends data first arrives, so they were filed under 'in a private room' with nothing to correct it. The list is now refreshed again once the room has settled.",
+            "The bug report form now asks you to be on the latest DEV build before reporting - a great deal is fixed there first, and a report from an older build is usually something already dealt with.",
             "Fix: the Body menu no longer greys out the pose you are actually in. Poses you cannot get into by yourself are dimmed - which is right for a hogtie, since you cannot hogtie yourself - but that dimming was also applied when a restraint had already put you there. So being hogtied faded out the very button that was meant to be lit up, and the menu looked broken at exactly the moment it should have been telling you something. A pose you are currently in is never dimmed now.",
             "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
             "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
@@ -7613,6 +7616,14 @@ function init(): void {
         try { achievementScanRoom();        } catch { /* ignore */ }
         try { shareRoomIfEnabled();         } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
+        // And again once the roster has settled. A friend sharing a PRIVATE room
+        // with you is only identifiable from ChatRoomCharacter - the server never
+        // sends a private room's name - so a refresh that runs before that list
+        // is populated files them under "in a private room" with nothing to
+        // correct it later. Rejoining at login is when that ordering bites.
+        window.setTimeout(() => {
+            try { drawer?.refreshFriendList(); } catch { /* ignore */ }
+        }, 2500);
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
             if (getAutoApplyDefaultFace()) {

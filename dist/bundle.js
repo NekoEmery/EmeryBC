@@ -10127,7 +10127,7 @@
         "guide.deep.s13.text": { en: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", de: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", zh: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", fr: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", es: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ru: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ja: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))" },
         // ─── FEEDBACK MODAL ────────────────────────────────────────────────────
         "feedback.title": { en: "Suggestions & Bugs", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
-        "feedback.subtitle": { en: "Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
+        "feedback.subtitle": { en: "Please make sure you are on the latest DEV build before reporting - a lot gets fixed there first, and a report from an older build is usually something already dealt with. Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
         "feedback.typeLabel": { en: "TYPE", de: "TYP", zh: "类型", fr: "TYPE", es: "TIPO", ru: "ТИП", ja: "タイプ" },
         "feedback.bugReport": { en: "Bug report", de: "Fehlerbericht", zh: "错误报告", fr: "Rapport de bug", es: "Informe de error", ru: "Отчёт об ошибке", ja: "バグレポート" },
         "feedback.featureReq": { en: "Feature request", de: "Funktionswunsch", zh: "功能请求", fr: "Demande de fonctionnalité", es: "Solicitud de función", ru: "Запрос функции", ja: "機能リクエスト" },
@@ -14467,6 +14467,8 @@
             this._rerenderTimer = null;
             /** True while _pillifyTab is synthesising header clicks. */
             this._pillifying = false;
+            /** How many times in a row a refresh has stepped aside for a focused field. */
+            this.friendRefreshDeferrals = 0;
             /** A tag being typed but not yet added, held across friend-list rebuilds. */
             this._tagDraft = null;
             EBCDrawer._instance = this;
@@ -26048,19 +26050,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 this.friendRefreshDebounce = null;
                 if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target)
                     return;
-                // This refresh is driven by the online-friends poll, so it can land
-                // at any moment - including while someone is halfway through typing
-                // a tag or a note. Rebuilding the rows destroys those inputs, which
-                // showed up as a tag name blanking itself and its colour jumping
-                // back to the default. Wait until the field is no longer in use.
+                // Stepping aside while a field is focused stops a rebuild landing on
+                // top of something half-typed. But it has to be able to give up: an
+                // unbounded version left the list frozen on stale content for good
+                // whenever focus stayed put - which is what happens when the game
+                // voids you and swaps the screen out from under a focused box.
+                // Half a second of grace, then refresh regardless. The typed tag is
+                // preserved across the rebuild anyway, so nothing is lost by it.
+                const MAX_DEFERRALS = 6;
                 const active = document.activeElement;
                 const editing = !!active
                     && target.contains(active)
                     && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
-                if (editing) {
+                if (editing && this.friendRefreshDeferrals < MAX_DEFERRALS) {
+                    this.friendRefreshDeferrals++;
                     this.refreshFriendList();
                     return;
                 }
+                this.friendRefreshDeferrals = 0;
                 this.renderFriendRows(target, (_a = this._roomsSectionEl) !== null && _a !== void 0 ? _a : undefined);
             }, 80);
         }
@@ -40722,7 +40729,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 259; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 260; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40739,6 +40746,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
+                "Fix (reported by Julia): friends sharing a private room with you show the room name after the game rejoins you at login. Their room can only be identified from the list of people present, and that list is not ready when the friends data first arrives, so they were filed under 'in a private room' with nothing to correct it. The list is now refreshed again once the room has settled.",
+                "The bug report form now asks you to be on the latest DEV build before reporting - a great deal is fixed there first, and a report from an older build is usually something already dealt with.",
                 "Fix: the Body menu no longer greys out the pose you are actually in. Poses you cannot get into by yourself are dimmed - which is right for a hogtie, since you cannot hogtie yourself - but that dimming was also applied when a restraint had already put you there. So being hogtied faded out the very button that was meant to be lit up, and the menu looked broken at exactly the moment it should have been telling you something. A pose you are currently in is never dimmed now.",
                 "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
                 "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
@@ -48356,6 +48366,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
             }
             catch ( /* ignore */_m) { /* ignore */ }
+            // And again once the roster has settled. A friend sharing a PRIVATE room
+            // with you is only identifiable from ChatRoomCharacter - the server never
+            // sends a private room's name - so a refresh that runs before that list
+            // is populated files them under "in a private room" with nothing to
+            // correct it later. Rejoining at login is when that ordering bites.
+            window.setTimeout(() => {
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, 2500);
             // Auto-apply default ★ face preset on room join if the toggle is enabled
             try {
                 if (getAutoApplyDefaultFace()) {
