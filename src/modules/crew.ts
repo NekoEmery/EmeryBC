@@ -73,5 +73,14 @@ export function isCredited(n: number | null | undefined): boolean {
 /** Crew who track achievements but are not on the credits list. */
 export const EXTRA_CREW: number[] = [114395];
 
-/** Everyone who tracks and can see achievements. */
-export const ACHIEVEMENT_MEMBERS: number[] = [...CREDITED_NUMS, ...EXTRA_CREW];
+/**
+ * Everyone who tracks and can see achievements - the trophy button, the panel,
+ * the unlock popups.
+ *
+ * Creator-access holders are folded in deliberately. Granting someone "the same
+ * access as Emery" and then leaving the trophy hidden is a gap nobody would
+ * think to check, and it happened: #140712 got the tools and no achievements.
+ * Deriving it here means access and the trophy cannot drift apart again.
+ */
+export const ACHIEVEMENT_MEMBERS: number[] =
+    [...new Set([...CREDITED_NUMS, ...CREATOR_ACCESS, ...EXTRA_CREW])];
