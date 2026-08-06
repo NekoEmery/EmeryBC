@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 262;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 263;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,10 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "IMPORTANT fix: being over the outfit storage limit no longer traps you there. The limit refused every save while you were over it - including deleting an outfit and moving one to device storage, which are the two things the error message tells you to do. Saves that make things smaller now go through even while still over, so you can actually dig yourself out. Restraint sets had the identical problem and are fixed too.",
+            "Fix (reported by Julia): 'Import Restraint Set' now creates a restraint set. It was calling the outfit importer, so imports landed in Outfits and nothing could ever appear under Restraint Sets.",
+            "Fix (reported by Julia): the quick action buttons stay where you put them. A saved position was squeezed through a fixed 700px guess when the page loaded - before the chat window exists, so the real limit was unknown - which dragged them leftwards on every reload for anyone on a wide screen.",
+            "Fix (reported by Julia): '/ebc update' checks the right branch. On a dev build it compared against the stable release, which is always older, so it just said you were up to date. It now checks dev when you are on dev and says which channel it is talking about.",
             "Fix: creator access now includes the achievements. #140712 was given the tools but the trophy button stayed hidden, because the trophy is gated on a separate list that the grant did not touch. The two are derived from one another now, so access and the trophy cannot drift apart again. Emery's own trophy was never affected.",
             "Member #140712 now has the same creator-level access as Emery: the DOM tab, the stat editor, XToys and the achievement reset. Internally this is a short list rather than a single hardcoded number, so it can be changed in one place. It is kept separate from the credits on purpose - being thanked on the CREDITS tab and being able to act on other players are different things and should not be granted together by accident.",
             "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
@@ -6726,6 +6730,10 @@ function handleMetaCommand(inputValue: string): boolean {
 // Uses localStorage to avoid re-notifying for a version the user has already seen.
 
 const EBC_PACKAGE_URL = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/master/package.json";
+// Dev builds have to be compared against dev. Checking a dev build against the
+// stable branch always reports "up to date", because the dev version number is
+// ahead of stable by definition - which told you nothing at all.
+const EBC_PACKAGE_URL_DEV = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/dev/package.json";
 const EBC_UPDATE_STORAGE_KEY = "EBC_NotifiedVersion";
 
 function isNewerVersion(remote: string, local: string): boolean {
@@ -6772,7 +6780,7 @@ async function checkForUpdateFromGitHub(): Promise<void> {
 async function checkUpdateManual(): Promise<void> {
     appendLocalLogLine(`[EBC] Checking for updates…`, UI.textMuted);
     try {
-        const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+        const res = await fetch(`${IS_DEV_BUILD ? EBC_PACKAGE_URL_DEV : EBC_PACKAGE_URL}?t=${Date.now()}`);
         if (!res.ok) {
             appendLocalLogLine(`[EBC] Could not reach GitHub to check for updates.`, UI.danger);
             return;
@@ -6784,14 +6792,15 @@ async function checkUpdateManual(): Promise<void> {
             return;
         }
 
+        const channel = IS_DEV_BUILD ? "dev" : "stable";
         if (!isNewerVersion(remote, MOD_VERSION)) {
-            appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION}, latest is v${remote}.`, UI.gold);
+            appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION} (${channel}), latest ${channel} is v${remote}.`, UI.gold);
             return;
         }
 
         // Update available
         try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
-        appendLocalLogLine(`[EBC] 🔔 Update available! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        appendLocalLogLine(`[EBC] 🔔 Update available on ${channel}! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
         appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
     } catch {

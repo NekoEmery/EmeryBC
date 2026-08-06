@@ -508,7 +508,12 @@ try {
     const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
     if (_saved) {
         const _p = JSON.parse(_saved) as { x?: number; y?: number };
-        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, _p.x ?? SIDEBAR_DEFAULT_X));
+        // NOT clamped to the fallback here. This runs at module load, before the
+        // chat window exists, so the real limit is unknown - and squeezing a
+        // saved position through a 700px guess is what moved the buttons
+        // leftwards on every reload for anyone on a wide screen. Kept as saved
+        // and clamped at draw time, where the live limit is available.
+        sidebarX = Math.max(0, Math.min(10000, _p.x ?? SIDEBAR_DEFAULT_X));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900, _p.y ?? SIDEBAR_DEFAULT_Y));
     }
 } catch { /* ignore */ }
@@ -844,6 +849,14 @@ function withAlpha(hex: string, alpha: number): string {
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") { _hideTooltip(); return; }
+
+    // Clamp against the live limit rather than a load-time guess. Silent unless
+    // the window actually got narrower, in which case it pulls the panel back
+    // on screen without rewriting the saved position.
+    {
+        const liveMax = getSidebarMaxX();
+        if (Number.isFinite(liveMax) && liveMax > 0 && sidebarX > liveMax) sidebarX = liveMax;
+    }
 
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;

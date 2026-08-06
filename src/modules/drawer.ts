@@ -19,6 +19,7 @@ import {
     exportOutfitById,
     importOutfitFromJSON,
     importOutfitFromBCCode,
+    importRestraintSetFromBCCode,
     type BCImportMode,
     setOutfitPreserveRestraints,
     setOutfitPreserveClothing,
@@ -10701,11 +10702,14 @@ This cannot be undone.`,
             impRLoadBtn.addEventListener("click", () => {
                 impRError.textContent = "";
                 try {
-                    importOutfitFromBCCode(
+                    // Was importOutfitFromBCCode, which pulls the restraint
+                    // items out correctly and then files the result under
+                    // Outfits - so this button appeared to work while Restraint
+                    // Sets stayed permanently empty.
+                    importRestraintSetFromBCCode(
                         impRTextarea.value.trim(),
                         impRNameInput.value.trim() || "Imported Restraints",
                         impRCmdInput.value.trim() || "imported",
-                        "restraints",
                     );
                     closeImpRPanel();
                     renderRestraintList();

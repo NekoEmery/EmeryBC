@@ -1058,7 +1058,13 @@
         const localList = sanitized.filter(o => o.local === true);
         try {
             const size = JSON.stringify(account).length;
-            if (size > OUTFITS_BUDGET) {
+            // Refuse only a save that does not IMPROVE things. Refusing every save
+            // while over budget also refused deleting one and moving one to this
+            // device - the exact two actions the message tells you to take - so
+            // anyone who got over the line was stuck there with no way back.
+            const storedAccount = getSettings().outfits;
+            const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+            if (size > OUTFITS_BUDGET && size >= prevSize) {
                 localNotice$2(`Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                     "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).", "#ff8a8a");
                 return false;
@@ -1692,7 +1698,13 @@
         const localList = sanitized.filter(o => o.local === true);
         try {
             const size = JSON.stringify(account).length;
-            if (size > OUTFITS_BUDGET) {
+            // Refuse only a save that does not IMPROVE things. Refusing every save
+            // while over budget also refused deleting one and moving one to this
+            // device - the exact two actions the message tells you to take - so
+            // anyone who got over the line was stuck there with no way back.
+            const storedAccount = getSettings().restraints;
+            const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+            if (size > OUTFITS_BUDGET && size >= prevSize) {
                 localNotice$2(`Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                     "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).", "#ff8a8a");
                 return false;
@@ -1959,6 +1971,74 @@
             applyRestraintSet(restraint);
         }
         return true;
+    }
+    /**
+     * Decodes a BC outfit code into items. Shared so importing a RESTRAINT SET and
+     * importing an outfit cannot drift apart in how they read the same code.
+     */
+    function decodeBCCodeItems(code, mode = "restraints") {
+        const LZ = window.LZString;
+        if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
+            throw new Error("LZString not found - make sure you are on the BC page.");
+        const json = LZ.decompressFromBase64(code.trim());
+        if (!json)
+            throw new Error("Could not decompress - is this a valid BC outfit code?");
+        let raw;
+        try {
+            raw = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Decoded data is not valid JSON.");
+        }
+        if (!Array.isArray(raw))
+            throw new Error("Unexpected format - expected an appearance array.");
+        const toItem = (i) => {
+            var _a, _b;
+            return sanitizeItem({
+                Group: String((_a = i.Group) !== null && _a !== void 0 ? _a : ""),
+                Name: String((_b = i.Name) !== null && _b !== void 0 ? _b : ""),
+                Color: i.Color,
+                Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+                Property: typeof i.Property === "object" && i.Property !== null
+                    ? i.Property : undefined,
+                Craft: i.Craft,
+            });
+        };
+        const all = raw;
+        const items = mode === "restraints"
+            ? all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group)).map(toItem)
+            : mode === "outfit"
+                ? all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group)).map(toItem)
+                : all.filter(i => typeof i.Group === "string").map(toItem);
+        if (items.length === 0) {
+            throw new Error(mode === "restraints"
+                ? "No restraint items found in this BC outfit code."
+                : mode === "outfit"
+                    ? "No outfit (non-restraint) items found in this BC outfit code."
+                    : "No items found in this BC outfit code.");
+        }
+        return items;
+    }
+    /**
+     * Imports a BC outfit code as a RESTRAINT SET.
+     *
+     * The Import Restraint Set button used to call importOutfitFromBCCode, which
+     * pulls the restraint items out correctly and then files the result under
+     * Outfits - so the import appeared to work while Restraint Sets stayed
+     * permanently empty and there was no way to put anything in it.
+     */
+    function importRestraintSetFromBCCode(code, displayName, command) {
+        const items = decodeBCCodeItems(code, "restraints");
+        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
+        let finalCmd = baseCmd;
+        let sfx = 2;
+        while (getOutfits().some(o => o.command === finalCmd) || getRestraints().some(r => r.command === finalCmd)) {
+            finalCmd = baseCmd + sfx++;
+        }
+        const made = createRestraintFromItems(finalCmd, displayName.trim() || "Imported Restraints", "", items);
+        if (!made)
+            throw new Error("Could not save the restraint set - the name or command may already be in use.");
+        return made;
     }
     function importOutfitFromBCCode(code, displayName, command, mode = "restraints") {
         const LZ = window.LZString;
@@ -5207,7 +5287,12 @@
         const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
         if (_saved) {
             const _p = JSON.parse(_saved);
-            sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, (_a$1 = _p.x) !== null && _a$1 !== void 0 ? _a$1 : SIDEBAR_DEFAULT_X));
+            // NOT clamped to the fallback here. This runs at module load, before the
+            // chat window exists, so the real limit is unknown - and squeezing a
+            // saved position through a 700px guess is what moved the buttons
+            // leftwards on every reload for anyone on a wide screen. Kept as saved
+            // and clamped at draw time, where the live limit is available.
+            sidebarX = Math.max(0, Math.min(10000, (_a$1 = _p.x) !== null && _a$1 !== void 0 ? _a$1 : SIDEBAR_DEFAULT_X));
             sidebarY = Math.max(GRIP_H + 2, Math.min(900, (_b = _p.y) !== null && _b !== void 0 ? _b : SIDEBAR_DEFAULT_Y));
         }
     }
@@ -5536,6 +5621,14 @@
         if (CurrentScreen !== "ChatRoom") {
             _hideTooltip();
             return;
+        }
+        // Clamp against the live limit rather than a load-time guess. Silent unless
+        // the window actually got narrower, in which case it pulls the panel back
+        // on screen without rewriting the saved position.
+        {
+            const liveMax = getSidebarMaxX();
+            if (Number.isFinite(liveMax) && liveMax > 0 && sidebarX > liveMax)
+                sidebarX = liveMax;
         }
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
@@ -20673,7 +20766,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 impRLoadBtn.addEventListener("click", () => {
                     impRError.textContent = "";
                     try {
-                        importOutfitFromBCCode(impRTextarea.value.trim(), impRNameInput.value.trim() || "Imported Restraints", impRCmdInput.value.trim() || "imported", "restraints");
+                        // Was importOutfitFromBCCode, which pulls the restraint
+                        // items out correctly and then files the result under
+                        // Outfits - so this button appeared to work while Restraint
+                        // Sets stayed permanently empty.
+                        importRestraintSetFromBCCode(impRTextarea.value.trim(), impRNameInput.value.trim() || "Imported Restraints", impRCmdInput.value.trim() || "imported");
                         closeImpRPanel();
                         renderRestraintList();
                     }
@@ -40752,7 +40849,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 262; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 263; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40769,6 +40866,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "IMPORTANT fix: being over the outfit storage limit no longer traps you there. The limit refused every save while you were over it - including deleting an outfit and moving one to device storage, which are the two things the error message tells you to do. Saves that make things smaller now go through even while still over, so you can actually dig yourself out. Restraint sets had the identical problem and are fixed too.",
+                "Fix (reported by Julia): 'Import Restraint Set' now creates a restraint set. It was calling the outfit importer, so imports landed in Outfits and nothing could ever appear under Restraint Sets.",
+                "Fix (reported by Julia): the quick action buttons stay where you put them. A saved position was squeezed through a fixed 700px guess when the page loaded - before the chat window exists, so the real limit was unknown - which dragged them leftwards on every reload for anyone on a wide screen.",
+                "Fix (reported by Julia): '/ebc update' checks the right branch. On a dev build it compared against the stable release, which is always older, so it just said you were up to date. It now checks dev when you are on dev and says which channel it is talking about.",
                 "Fix: creator access now includes the achievements. #140712 was given the tools but the trophy button stayed hidden, because the trophy is gated on a separate list that the grant did not touch. The two are derived from one another now, so access and the trophy cannot drift apart again. Emery's own trophy was never affected.",
                 "Member #140712 now has the same creator-level access as Emery: the DOM tab, the stat editor, XToys and the achievement reset. Internally this is a short list rather than a single hardcoded number, so it can be changed in one place. It is kept separate from the credits on purpose - being thanked on the CREDITS tab and being able to act on other players are different things and should not be granted together by accident.",
                 "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
@@ -47448,6 +47549,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     // Fetches package.json from GitHub after a short delay, then every hour.
     // Uses localStorage to avoid re-notifying for a version the user has already seen.
     const EBC_PACKAGE_URL = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/master/package.json";
+    // Dev builds have to be compared against dev. Checking a dev build against the
+    // stable branch always reports "up to date", because the dev version number is
+    // ahead of stable by definition - which told you nothing at all.
+    const EBC_PACKAGE_URL_DEV = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/dev/package.json";
     const EBC_UPDATE_STORAGE_KEY = "EBC_NotifiedVersion";
     function isNewerVersion(remote, local) {
         var _a, _b;
@@ -47499,7 +47604,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     async function checkUpdateManual() {
         appendLocalLogLine(`[EBC] Checking for updates…`, UI.textMuted);
         try {
-            const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+            const res = await fetch(`${IS_DEV_BUILD ? EBC_PACKAGE_URL_DEV : EBC_PACKAGE_URL}?t=${Date.now()}`);
             if (!res.ok) {
                 appendLocalLogLine(`[EBC] Could not reach GitHub to check for updates.`, UI.danger);
                 return;
@@ -47510,8 +47615,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 appendLocalLogLine(`[EBC] Received an unexpected response from GitHub.`, UI.danger);
                 return;
             }
+            const channel = IS_DEV_BUILD ? "dev" : "stable";
             if (!isNewerVersion(remote, MOD_VERSION)) {
-                appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION}, latest is v${remote}.`, UI.gold);
+                appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION} (${channel}), latest ${channel} is v${remote}.`, UI.gold);
                 return;
             }
             // Update available
@@ -47519,7 +47625,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote);
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            appendLocalLogLine(`[EBC] 🔔 Update available! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+            appendLocalLogLine(`[EBC] 🔔 Update available on ${channel}! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
             appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
             appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
         }

@@ -160,7 +160,13 @@ function saveOutfits(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        if (size > OUTFITS_BUDGET) {
+        // Refuse only a save that does not IMPROVE things. Refusing every save
+        // while over budget also refused deleting one and moving one to this
+        // device - the exact two actions the message tells you to take - so
+        // anyone who got over the line was stuck there with no way back.
+        const storedAccount = getSettings().outfits;
+        const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+        if (size > OUTFITS_BUDGET && size >= prevSize) {
             localNotice(
                 `Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                 "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).",
@@ -857,7 +863,13 @@ function saveRestraints(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        if (size > OUTFITS_BUDGET) {
+        // Refuse only a save that does not IMPROVE things. Refusing every save
+        // while over budget also refused deleting one and moving one to this
+        // device - the exact two actions the message tells you to take - so
+        // anyone who got over the line was stuck there with no way back.
+        const storedAccount = getSettings().restraints;
+        const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+        if (size > OUTFITS_BUDGET && size >= prevSize) {
             localNotice(
                 `Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                 "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).",
@@ -1163,6 +1175,71 @@ export function handleRestraintCommand(
         applyRestraintSet(restraint);
     }
     return true;
+}
+
+/**
+ * Decodes a BC outfit code into items. Shared so importing a RESTRAINT SET and
+ * importing an outfit cannot drift apart in how they read the same code.
+ */
+export function decodeBCCodeItems(code: string, mode: BCImportMode = "restraints"): SerializedItem[] {
+    const LZ = (window as unknown as Record<string, unknown>).LZString as
+        { decompressFromBase64?: (s: string) => string | null } | undefined;
+    if (!LZ?.decompressFromBase64) throw new Error("LZString not found - make sure you are on the BC page.");
+    const json = LZ.decompressFromBase64(code.trim());
+    if (!json) throw new Error("Could not decompress - is this a valid BC outfit code?");
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { throw new Error("Decoded data is not valid JSON."); }
+    if (!Array.isArray(raw)) throw new Error("Unexpected format - expected an appearance array.");
+
+    const toItem = (i: Record<string, unknown>): SerializedItem => sanitizeItem({
+        Group:      String(i.Group ?? ""),
+        Name:       String(i.Name ?? ""),
+        Color:      i.Color as SerializedItem["Color"],
+        Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+        Property:   typeof i.Property === "object" && i.Property !== null
+            ? i.Property as Record<string, unknown> : undefined,
+        Craft:      i.Craft as CraftingItem | undefined,
+    });
+
+    const all = raw as Record<string, unknown>[];
+    const items = mode === "restraints"
+        ? all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string)).map(toItem)
+        : mode === "outfit"
+            ? all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group as string)).map(toItem)
+            : all.filter(i => typeof i.Group === "string").map(toItem);
+    if (items.length === 0) {
+        throw new Error(mode === "restraints"
+            ? "No restraint items found in this BC outfit code."
+            : mode === "outfit"
+                ? "No outfit (non-restraint) items found in this BC outfit code."
+                : "No items found in this BC outfit code.");
+    }
+    return items;
+}
+
+/**
+ * Imports a BC outfit code as a RESTRAINT SET.
+ *
+ * The Import Restraint Set button used to call importOutfitFromBCCode, which
+ * pulls the restraint items out correctly and then files the result under
+ * Outfits - so the import appeared to work while Restraint Sets stayed
+ * permanently empty and there was no way to put anything in it.
+ */
+export function importRestraintSetFromBCCode(
+    code: string,
+    displayName: string,
+    command: string,
+): ConfiguredOutfit {
+    const items = decodeBCCodeItems(code, "restraints");
+    const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
+    let finalCmd = baseCmd;
+    let sfx = 2;
+    while (getOutfits().some(o => o.command === finalCmd) || getRestraints().some(r => r.command === finalCmd)) {
+        finalCmd = baseCmd + sfx++;
+    }
+    const made = createRestraintFromItems(finalCmd, displayName.trim() || "Imported Restraints", "", items);
+    if (!made) throw new Error("Could not save the restraint set - the name or command may already be in use.");
+    return made;
 }
 
 export function importOutfitFromBCCode(
