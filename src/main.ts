@@ -15,7 +15,7 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { appendLocalLogLine } from "./modules/notify";
+import { appendLocalLogLine, appendLocalLogBlock } from "./modules/notify";
 import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
 import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
 import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.2";
-const SAL_VERSION  = 263;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 264;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "8.3.2",
         changes: [
+            "'/ebc changelog' now prints one block with an × to dismiss it, instead of a separate chat line per entry. The current version has well over a hundred entries behind it, so it used to bury the conversation with no way to clear it - it shows the newest fifteen, says how many more there are, and scrolls within itself. Requested by Julia.",
             "IMPORTANT fix: being over the outfit storage limit no longer traps you there. The limit refused every save while you were over it - including deleting an outfit and moving one to device storage, which are the two things the error message tells you to do. Saves that make things smaller now go through even while still over, so you can actually dig yourself out. Restraint sets had the identical problem and are fixed too.",
             "Fix (reported by Julia): 'Import Restraint Set' now creates a restraint set. It was calling the outfit importer, so imports landed in Outfits and nothing could ever appear under Restraint Sets.",
             "Fix (reported by Julia): the quick action buttons stay where you put them. A saved position was squeezed through a fixed 700px guess when the page loaded - before the chat window exists, so the real limit was unknown - which dragged them leftwards on every reload for anyone on a wide screen.",
@@ -6123,10 +6124,15 @@ function showChangelog(): void {
         appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
         return;
     }
-    appendLocalLogLine(`[EBC] v${latest.version} — what's new:`, UI.gold);
-    for (const change of latest.changes) {
-        appendLocalLogLine(`  - ${change}`, UI.accent);
+    // One block with a close button, not one line per entry. The current
+    // version has well over a hundred entries behind it, so posting them
+    // individually buried the conversation with no way to clear it.
+    const MAX_SHOWN = 15;
+    const shown = latest.changes.slice(0, MAX_SHOWN).map(c => `• ${c}`);
+    if (latest.changes.length > MAX_SHOWN) {
+        shown.push(`… and ${latest.changes.length - MAX_SHOWN} more - the full list is in SETTINGS → Credits.`);
     }
+    appendLocalLogBlock(`[EBC] v${latest.version} — what's new:`, shown);
 }
 
 // Last non-Inactive arousal level, so toggling off → on restores it.
