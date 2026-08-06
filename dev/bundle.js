@@ -8430,6 +8430,51 @@
         catch ( /* ignore */_b) { /* ignore */ }
     }, TICK_MS);
 
+    /**
+     * One dismissible block in the chat log, rather than a run of separate lines.
+     *
+     * Long output posted line by line cannot be cleared without scrolling past all
+     * of it, which is why a dismiss control was asked for - and a control per line
+     * would be worse than none. Kept scrollable so a long list never buries the
+     * conversation underneath it.
+     */
+    function appendLocalLogBlock(title, lines, color = UI.accent) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const box = document.createElement("div");
+            box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
+                + "border-radius:4px;padding:5px 8px 7px;margin:3px 0;font-size:12px;position:relative;";
+            const head = document.createElement("div");
+            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`;
+            head.textContent = title;
+            box.appendChild(head);
+            const close = document.createElement("span");
+            close.textContent = "×";
+            close.title = "Dismiss";
+            close.style.cssText = `position:absolute;top:2px;right:6px;cursor:pointer;color:${UI.textMuted};`
+                + "font-size:15px;line-height:1;padding:0 3px;";
+            close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
+            close.addEventListener("mouseleave", () => { close.style.color = UI.textMuted; });
+            close.addEventListener("click", () => box.remove());
+            box.appendChild(close);
+            const body = document.createElement("div");
+            body.style.cssText = "max-height:190px;overflow-y:auto;margin-top:3px;";
+            for (const line of lines) {
+                const row = document.createElement("div");
+                row.style.cssText = `color:${color};font-style:italic;line-height:1.45;padding:1px 0;`;
+                row.textContent = line;
+                body.appendChild(row);
+            }
+            box.appendChild(body);
+            log.appendChild(box);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend())
+            window.setTimeout(() => doAppend(), 300);
+    }
     function appendLocalLogLine(text, color = UI.accent) {
         const doAppend = () => {
             const log = document.getElementById("TextAreaChatLog");
@@ -40849,7 +40894,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 263; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 264; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40866,6 +40911,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "8.3.2",
             changes: [
+                "'/ebc changelog' now prints one block with an × to dismiss it, instead of a separate chat line per entry. The current version has well over a hundred entries behind it, so it used to bury the conversation with no way to clear it - it shows the newest fifteen, says how many more there are, and scrolls within itself. Requested by Julia.",
                 "IMPORTANT fix: being over the outfit storage limit no longer traps you there. The limit refused every save while you were over it - including deleting an outfit and moving one to device storage, which are the two things the error message tells you to do. Saves that make things smaller now go through even while still over, so you can actually dig yourself out. Restraint sets had the identical problem and are fixed too.",
                 "Fix (reported by Julia): 'Import Restraint Set' now creates a restraint set. It was calling the outfit importer, so imports landed in Outfits and nothing could ever appear under Restraint Sets.",
                 "Fix (reported by Julia): the quick action buttons stay where you put them. A saved position was squeezed through a fixed 700px guess when the page loaded - before the chat window exists, so the real limit was unknown - which dragged them leftwards on every reload for anyone on a wide screen.",
@@ -46939,10 +46985,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
             return;
         }
-        appendLocalLogLine(`[EBC] v${latest.version} — what's new:`, UI.gold);
-        for (const change of latest.changes) {
-            appendLocalLogLine(`  - ${change}`, UI.accent);
+        // One block with a close button, not one line per entry. The current
+        // version has well over a hundred entries behind it, so posting them
+        // individually buried the conversation with no way to clear it.
+        const MAX_SHOWN = 15;
+        const shown = latest.changes.slice(0, MAX_SHOWN).map(c => `• ${c}`);
+        if (latest.changes.length > MAX_SHOWN) {
+            shown.push(`… and ${latest.changes.length - MAX_SHOWN} more - the full list is in SETTINGS → Credits.`);
         }
+        appendLocalLogBlock(`[EBC] v${latest.version} — what's new:`, shown);
     }
     // Last non-Inactive arousal level, so toggling off → on restores it.
     // Defaults to "Manual" if the setting was already Inactive at load time.
